@@ -150,7 +150,7 @@ export function launchSupply(m) {
 function land(m) {
   const S = m.supply, P = K(), d = S.drop, fr = d.frac;
   // stims and grenades by how full their compartments were; the ammo compartment covers support weapons, the hand cannon,
-  // walkers and turrets
+  // mech suits and turrets
   restock(m, fr.stims, fr.grenades);
   for (const a of m.hdAlive) {
     if (fr.ammo > 0) {

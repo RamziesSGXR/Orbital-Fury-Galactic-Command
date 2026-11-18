@@ -276,7 +276,7 @@ function landMines(m, u) {
 // Help for the squad instead of firepower: a pod (or a canister of smoke, or medical nanites) comes down where the player aims.
 function callUtil(m, s, st) {
   const p = m.player, t = m.t, x = p.aimX, y = p.aimY;
-  if ((st.util === 'sentry' || st.util === 'shield') && !m.terrain.isLand(x, y)) return deny(m, 'water', COMMS.noWater);
+  if ((st.util === 'autoturret' || st.util === 'shield') && !m.terrain.isLand(x, y)) return deny(m, 'water', COMMS.noWater);
   s.readyAt = t + st.cd * orbCdMul(m.kit) * orbSiteMul(m);     // (0.51: the Orbital Efficiency commendation; 0.52: a worked refinery)
   m.utilQ.push({ at: t + st.delay, st, x, y, id: s.id });
   m.markers.push({ type: 'pod', x, y, r: st.r || (st.zone ? st.zone.r : 6), start: t, end: t + st.delay, id: s.id, util: st.util });

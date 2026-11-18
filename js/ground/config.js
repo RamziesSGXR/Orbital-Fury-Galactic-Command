@@ -23,7 +23,7 @@ export const CONFIG = {
   // (0.62.8) The score is switched off for now: the game is to be heard from the field (see audio.js, the sounds placed where
   // they are made). Set to true and the music, its volume and its style come back as they were.
   musicOn:  false,
-  solids:   { on: true, rock: 0.82, rockMin: 1.5, trunk: 0.2, trunkMin: 0.45, trunkMax: 0.9, base: 0.5, baseBy: { bugs: 0.85, bots: 0.85, lizards: 0.5 }, spawner: 1, cannon: 0.95, node: 0.9, turret: 1, poi: 0.5, poiBy: { propaganda: 0.55, spore: 0.6 }, side: 0.8, sideBy: { rescue: 0, arty: 0.6 }, loot: 0.3, lootBy: { vault: 0.36, wreck: 0.5 }, oil: 0.36, nuke: 0.38, crash: 6, sentry: 1.3, pad: 0.45, padMax: 1.1, giveTicks: 45, giveDist: 1.5, thruSec: 3 },
+  solids:   { on: true, rock: 0.82, rockMin: 1.5, trunk: 0.2, trunkMin: 0.45, trunkMax: 0.9, base: 0.5, baseBy: { bugs: 0.85, bots: 0.85, lizards: 0.5 }, spawner: 1, cannon: 0.95, node: 0.9, turret: 1, poi: 0.5, poiBy: { propaganda: 0.55, spore: 0.6 }, side: 0.8, sideBy: { rescue: 0, arty: 0.6 }, loot: 0.3, lootBy: { vault: 0.36, wreck: 0.5 }, oil: 0.36, nuke: 0.38, crash: 6, autoturret: 1.3, pad: 0.45, padMax: 1.1, giveTicks: 45, giveDist: 1.5, thruSec: 3 },
   // The area of operations: each mission is fought in a square of the map, start metres across on the first mission and perMission
   // more on each one after, up to max. The first maps are small enough to clear completely.
   ao:       { start: 760, perMission: 110, max: 1500, margin: 40, tries: 14 },
@@ -304,11 +304,11 @@ export const CONFIG = {
   // Special mediums, alongside the others: `share` of the medium draws come out as the faction's own, no more than cap alive
   // (plus perMin a session minute, up to max). hp, speed and r scale or set the medium's; atk is its own attack. reward: kill
   // credits and score times this.
-  //   bugs: the Hive Guard, an armoured melee blocker that leads the swarm straight in (front: like the rammer's plate).
+  //   bugs: the Shellback, an armoured melee blocker that leads the swarm straight in (front: like the rammer's plate).
   //   bots: the Commander, who hangs back behind the line. Within jamR of it no call-in, orbital, UAV, Ship Gun round or
   //         artillery shot can be called.
-  //   lizards: the Fleshmob, a slow melee mass that soaks damage (soak: the share of each hit it takes).
-  // (0.40) Specials (the hive guard, the bot commander, the fleshmob: medium-sized, and paid reward x a medium) are drawn from the
+  //   lizards: the Herd Beast, a slow melee mass that soaks damage (soak: the share of each hit it takes).
+  // (0.40) Specials (the shellback, the bot commander, the herdbeast: medium-sized, and paid reward x a medium) are drawn from the
   // heavy draws: share of them come out special. They share the heavies' cap and scale with them.
   special:  { share: 0.34, reward: 3,
               bugs:   { id: 'guard', hp: 1.7, speed: 1.25, r: 4.8, front: 0.55, frontCos: 0.5, atk: { range: 5.5, dmg: 22, every: 1.2, acc: 0.85 } },
@@ -523,7 +523,7 @@ export const CONFIG = {
   // holding it is still alive when it has burned (flareSec), reinforcements arrive near it. They also come in waves at objective
   // sites (siteEvery) and at the extraction point once extraction is called (extractEvery). Each faction has its own way in:
   //   bugs dig up out of one hole (it can be shot closed), bots come down from a dropship (it can be shot down while it is low),
-  //   lizards are teleported down from a warp ship (tougher, but it can be shot down too).
+  //   lizards are teleported down from a war barge (tougher, but it can be shot down too).
   // These are the only enemies that appear where someone can see them.
   // (0.31) Several at once: a call can open more than one breach or bring more than one ship, from different sides (count), each
   // with its share of the groups (a few more in all: +perExtra groups for every place past the first, up to maxGroups + perCap each).
@@ -534,7 +534,7 @@ export const CONFIG = {
   // bugs: a hole spits a pack (pack x a group) every `every` seconds, packs packs for every group, so it spills more bugs over a
   //   longer time; it cannot be shot closed before it has been open minOpen seconds (its health stops at floor until then).
   // bots: a dropship shot down still lets `survive` of the groups aboard out of the wreck (rounded up), hurt (survHp of their health).
-  // lizards: a warp ship has a shield like a warbeast's: it soaks hits first and comes back regen a second after regenDelay quiet.
+  // lizards: a war barge has a shield like a warbeast's: it soaks hits first and comes back regen a second after regenDelay quiet.
   reinf:    { callChance: 0.55, cooldownSec: 20, flareSec: 4, maxActive: 5, groups: 3, perPressure: 0.5, maxGroups: 4,
               dist: [28, 60], minAlly: 26, siteEvery: 30, extractEvery: 24, extractPMax: 1.6, siteDist: [70, 120],
               multi: { perExtra: 1, perCap: 2, flareMin: 6, flareChance: 0.2, flarePerMin: 0.025, flareMax: 0.55, siteMin: 10, siteChance: 0.4,
@@ -544,7 +544,7 @@ export const CONFIG = {
               bugs:   { warnSec: 2.5, every: 2.2, pack: 0.5, packs: 3, hp: 2400, minOpen: 10, floor: 0.25, r: 8, lingerSec: 6, reward: 90, rifle: 0.35 },
               bots:   { speed: 75, approach: 460, hover: 1.2, every: 0.9, hp: 1100, r: 9, lowR: 110, reward: 160, crash: 380, survive: 0.5, survHp: 0.7 },
               lizards: { speed: 55, approach: 420, hover: 1.6, every: 1.1, hp: 1700, r: 12, lowR: 90, reward: 260, crash: 420, shield: 1400, regen: 70, regenDelay: 5 } },
-  // (0.54.1) The lizard mothership (sim/mother.js): comes after `after` warp ships have been shot down by SAM sites (and not before minT s),
+  // (0.54.1) The lizard mothership (sim/mother.js): comes after `after` war barges have been shot down by SAM sites (and not before minT s),
   // hangs `dist` metres from the squad and drops `groups` groups every waveEvery s. hp and shield are huge, it heals `heal` hp/s, and a
   // SAM hit is cut to samMul (about 20 sites to bring it down). When every one is down, the next set comes after respawnSec, one more
   // each time up to maxShips. crashSec: how long it falls; crashR/crashDmg the blast where it lands; the wreck stays.
@@ -695,7 +695,7 @@ export const CONFIG = {
           // (0.55.1) arrivals: sec long, the impact at `hit` of the way (render/bossin.js draws them)
           arrive: { bugs: { sec: 3.2, hit: 0.45 }, bots: { sec: 2.8, hit: 0.55 }, lizards: { sec: 3.4, hit: 0.7 } },
           reinf: { from: 10, perLevel: 0.012, max: 0.35, botsAfter: 4, perDown: 0.04, maxPer: 3, gapSec: 100, minT: 120 },
-          // (0.59) all three about 20,000 to kill (3x what the old 600-round heavy-penetrating gun could do to one); the colossus's
+          // (0.59) all three about 20,000 to kill (3x what the old 600-round heavy-penetrating gun could do to one); the thunder lizard's
           // shield counts toward it
           bugs:   { hp: 20000, r: 10, speed: 2.3, stop: 7,
                     spit: { range: 50, dmg: 38, splash: 6, every: 3.8, flight: 1.1, acc: 0.8 }, stomp: { range: 10, dmg: 85, every: 1.8, splash: 5.5, acc: 0.8 },
@@ -707,7 +707,7 @@ export const CONFIG = {
                     // (0.55) turrets on its back (x, y in its radii, +x forward), as a bot base's (C.eturret), damage x turretMul
                     turrets: [[-0.45, -0.42], [-0.45, 0.42]], turretMul: 1.2 },
           lizards: { hp: 14000, shield: 6000, regen: 120, regenDelay: 7, r: 12, speed: 1.9, stop: 48,
-                    // (0.55) walk: its beam walks the ground like the orbital laser (enemies.js colossusBeam): charge s, then dur s
+                    // (0.55) walk: its beam walks the ground like the orbital laser (enemies.js thunderBeam): charge s, then dur s
                     // burning width across at dps, starting lead m short of the target and steering at follow m/s; every s between
                     walk: { range: 78, charge: 2.2, lock: 0.6, dur: 5, dps: 60, width: 6, follow: 7, lead: 16, every: 7 } } },
   // Resupply on request: the Vanguards ask, the player loads a pod in slow motion (cells per compartment, fillSec real seconds at

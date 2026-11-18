@@ -294,11 +294,11 @@ function lizardHeavy(m, e, p, t) {
 }
 // (while charging, the war beast turns to its target: see the charge branch above, which keeps aimA fresh)
 
-// (0.55) The warp colossus's walking beam, like the destroyer's orbital laser: after a charge (a line to the target, then a ring
-// where it will touch down), a column of light comes down `lead` metres short of the target, between it and the colossus, and
+// (0.55) The thunder lizard's walking beam, like the destroyer's orbital laser: after a charge (a line to the target, then a ring
+// where it will touch down), a column of light comes down `lead` metres short of the target, between it and the thunder lizard, and
 // walks: it steers at the nearest ally at `follow` m/s (it never jumps), burning everyone inside width/2 at dps, for dur seconds.
 // Running across it is how you get out of it; standing still is how you die. e.walk: the beam on the ground (render/world.js).
-function colossusBeam(m, e, p, t, dt) {
+function thunderBeam(m, e, p, t, dt) {
   const W = e.walk;
   if (W) {
     if (t >= W.until) { e.walk = null; e.atk = p.every; return; }
@@ -340,7 +340,7 @@ function colossusBeam(m, e, p, t, dt) {
 
 // ---------------------------------------------------------------- super heavies (sim/boss.js spawns them)
 // It walks at the nearest ally until it is at its own fighting distance (the titan wants to be on top of you, the walker and the
-// colossus stand off and shoot), turning slowly, round water like everyone else.
+// thunder lizard stand off and shoot), turning slowly, round water like everyone else.
 // (0.55) how far a super heavy reaches: the allies' natural sight (C.sight.vanguard, by the biome), so it hits from as far as
 // they can see it, and no farther
 export const bossReach = (m) => C.sight.vanguard * ((m.biome && m.biome.ping) || 1) * (C.boss.reachMul || 1);
@@ -359,7 +359,7 @@ function bossMove(m, e, dt, size) {
 function bossAttack(m, e, dt, t) {
   const D = C.boss[e.boss], see = bossReach(m), dm = m.dmgMul;     // (0.55: its reach is the allies' sight)
   if (e.aimUntil > t) reveal(m, e);
-  if (e.boss === 'lizards') { e.atk -= dt; colossusBeam(m, e, { ...D.walk, range: see }, t, dt); return; }
+  if (e.boss === 'lizards') { e.atk -= dt; thunderBeam(m, e, { ...D.walk, range: see }, t, dt); return; }
   e.atk -= dt; e.atk2 -= dt;
   if (e.boss === 'bugs') {
     // (0.55) the spray: every so often it rears up and hoses a cone of acid over the ground ahead, blobs landing all across it
@@ -620,7 +620,7 @@ const wrap = (a) => { while (a > Math.PI) a -= TAU; while (a < -Math.PI) a += TA
 // that is still big enough (CONFIG.enemies.tactics.swarm.rushN) moves faster. Far from anyone they follow the pack.
 function swarmMove(m, g, e, tgt, dt, size, sightE) {
   const S = C.enemies.tactics.swarm, t = m.t;
-  if (e.kind === 'H' || e.sub === 'guard') {   // the rammer sprints at whatever is nearest; the hive guard leads the pack straight in
+  if (e.kind === 'H' || e.sub === 'guard') {   // the rammer sprints at whatever is nearest; the shellback leads the pack straight in
     if (tgt && Math.hypot(tgt.x - e.x, tgt.y - e.y) < 180) moveToward(e, tgt.x, tgt.y, e.speed, dt, size);
     else { const h = homeOf(g, e); moveToward(e, h.x, h.y, e.speed * 1.5, dt, size); }
     return;
@@ -677,7 +677,7 @@ function lineMove(m, g, e, tgt, dt, size) {
 
 // Lizards: encirclement. Everything hunting one target spreads evenly round it (assignRings, twice a second); each one walks the
 // ring toward its own slot while it closes to its firing distance, shooting as it goes, and stops once it is in place.
-// (0.54) a lizard leader (a medium that is not the fleshmob) keeps inside the ring instead of on it
+// (0.54) a lizard leader (a medium that is not the herdbeast) keeps inside the ring instead of on it
 const midOf = (e) => e.kind === 'M' && !e.sub && !e.boss;
 // (0.62.2) The leaders get their own evenly spaced slots on the inner ring, as the lights do on the outer one. Before this they
 // only held their current bearing, so every leader hunting one target could end up on the same side of it, in a heap.

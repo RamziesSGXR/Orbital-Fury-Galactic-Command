@@ -1,4 +1,4 @@
-// (0.54.1) The lizard MOTHERSHIP. Massed SAM sites make warp ships easy, so when the squad has shot down enough of them
+// (0.54.1) The lizard MOTHERSHIP. Massed SAM sites make war barges easy, so when the squad has shot down enough of them
 // (CONFIG.mother.after) a mothership comes in and hangs over the map, popping out waves of troops for as long as it lives.
 // It lives in m.drops (so SAM sites, strikes and the ship gun all find it) with `mom: true`. Shield and health are huge and it heals;
 // a SAM's hit is cut to samMul, so it takes about 20 sites hitting it all the time to bring it down, while the ship gun and the
@@ -15,7 +15,7 @@ const ALL = { L: 1, M: 1, H: 0.6, B: 0.2 };
 
 export function initMother(m) { m.mom = { kills: 0, downs: 0, next: Infinity, ships: 0 }; m.motherWrecks = []; }
 
-// A SAM site shot down an ordinary warp ship (reinforce.js damageDrop calls this).
+// A SAM site shot down an ordinary war barge (reinforce.js damageDrop calls this).
 export function samKill(m) { if (m.mom) m.mom.kills++; }
 
 function arrive(m, n) {
@@ -93,7 +93,7 @@ export function stepMother(m, d, dt) {
     d.waveT -= dt;
     if (d.waveT <= 0) {
       d.waveT = K.waveEvery;
-      // (0.56) its first wave brings a super heavy down with the troops (a warp colossus; not while another super heavy lives)
+      // (0.56) its first wave brings a super heavy down with the troops (a thunder lizard; not while another super heavy lives)
       if (!d.heavyDone) { d.heavyDone = true; if (heavyLevelOk(m)) { const [hx, hy] = m.rng.inDisc(d.r * 0.4); reinfHeavy(m, aoX(m, d.x + hx, 12), aoY(m, d.y + hy, 12)); } }
       if (m.enemies.length < C.enemies.hardCap - 40) for (let k = 0; k < K.groups; k++) {
         const [ox, oy] = m.rng.inDisc(d.r * 0.55);

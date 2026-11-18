@@ -1,4 +1,4 @@
-// The art of fixed places, seen from above: enemy bases and the citadel (a hive nest, a assembler or a roost, by faction),
+// The art of fixed places, seen from above: enemy bases and the citadel (a burrow, a assembler or a roost, by faction),
 // points of interest, the nuclear launch site and the VIP's crash site and pickup pad. Each draws in metres around the place's
 // centre; the state that matters (health, progress, labels) is drawn by the callers in renderer.js and world.js.
 import { raise, isFlat, baking } from './relief.js';
@@ -21,7 +21,7 @@ export function drawBaseArt(ctx, b, fac, col, lit, now, px) {
   const glow = 0.55 + 0.35 * Math.sin(now * 2.2 + id);
   ctx.save(); ctx.translate(b.x, b.y);
   if (fac === 'bugs') {
-    // a hive nest: an organic mound, holes in it, spikes round the edge, glowing pustules
+    // a burrow: an organic mound, holes in it, spikes round the edge, glowing pustules
     ctx.fillStyle = 'rgba(0,0,0,0.45)'; circ(ctx, 0, 0, r * 1.15); ctx.fill();
     const n = big ? 9 : 6;
     for (let i = 0; i < n; i++) {

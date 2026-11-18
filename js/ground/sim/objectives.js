@@ -163,7 +163,7 @@ export function objectiveGoal(m) {
   return { o, x: going ? o.dx : o.vip.x, y: going ? o.dy : o.vip.y, stop: going ? 12 : 8 };
 }
 
-// A wave at an objective site: the enemy reinforces it the faction's own way (a bug hole, a dropship, a warp ship). These come in
+// A wave at an objective site: the enemy reinforces it the faction's own way (a bug hole, a dropship, a war barge). These come in
 // where everyone can see them. extra adds groups when the pressure is high.
 function wave(m, cx, cy, rmin, rmax, extra = 0, D = null, held = 0) {
   const count = D ? (held >= D.sides3At ? D.sides3 : D.sides) : reinfCount(m, 'site');

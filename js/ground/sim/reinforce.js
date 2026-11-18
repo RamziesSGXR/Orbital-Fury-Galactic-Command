@@ -5,7 +5,7 @@
 //          Allies can shoot it closed, but not in its first seconds.
 //   bots   a dropship flies in, hovers low while the troops jump out, and climbs away. It can be shot down while it is low; some of
 //          the troops still aboard live through the crash (0.31).
-//   lizards a warp ship slides over the spot and teleports its troops down. Tougher, with a shield like a warbeast's (0.31), but it
+//   lizards a war barge slides over the spot and teleports its troops down. Tougher, with a shield like a warbeast's (0.31), but it
 //          can be shot down too, and everyone aboard goes with it.
 // (0.31) A call can come in at several places at once, from different sides (more often later in a mission, and at extraction).
 // Every number is in CONFIG.reinf.
@@ -129,7 +129,7 @@ export function callReinforcements(m, x, y, why = 'flare', opts = {}) {
       const sx = p.x - Math.cos(a) * D.approach, sy = p.y - Math.sin(a) * D.approach;
       m.drops.push({ id, drop: true, kind: fac === 'bots' ? 'ship' : 'warp', x: sx, y: sy, tx: p.x, ty: p.y, dx: Math.cos(a), dy: Math.sin(a), state: 'in',
         alt: 1, hp: D.hp, maxHp: D.hp, r: D.r, left: nk, total: nk, dropT: 0, hoverT: 0, outT: 0, low: false, dead: false, hurtAt: -9, born: t, why, vis: 0, face: a,
-        ...(D.shield ? { shield: D.shield, maxShield: D.shield, shieldAt: -99 } : {}), heavy: only || (fac === 'bots' && rollReinfHeavy(m)) });     // (0.31: a warp ship's shield)
+        ...(D.shield ? { shield: D.shield, maxShield: D.shield, shieldAt: -99 } : {}), heavy: only || (fac === 'bots' && rollReinfHeavy(m)) });     // (0.31: a war barge's shield)
     }
     dirs.push(dir);
     m.emit('reinf', { x: p.x, y: p.y, kind: fac, n: nk, why, of: count });
@@ -196,7 +196,7 @@ export function updateReinf(m, dt) {
   }
 
   updateMother(m, dt);
-  // Dropships and warp ships: in, low and hovering while the troops come down, then out.
+  // Dropships and war barges: in, low and hovering while the troops come down, then out.
   for (let i = m.drops.length - 1; i >= 0; i--) {
     const d = m.drops[i], D = R[d.kind === 'ship' ? 'bots' : 'lizards'];
     d.vis = m.visLevel(d.x, d.y);
@@ -208,7 +208,7 @@ export function updateReinf(m, dt) {
         damageArea(m, d.x, d.y, 11, D.crash, ALL, 'callin', 'none', '');
         m.emit('boom', { x: d.x, y: d.y, r: 11, dmg: D.crash, by: 'callin', big: true });
         m.drops.splice(i, 1);
-        // (0.31) a dropship's troops climb out of the wreck, hurt (a warp ship takes everyone with it)
+        // (0.31) a dropship's troops climb out of the wreck, hurt (a war barge takes everyone with it)
         for (let k = 0; k < (d.survivors || 0); k++) {
           const [ox, oy] = m.rng.inDisc(9);
           const g = release(m, aoX(m, d.x + ox, 6), aoY(m, d.y + oy, 6), 'wreck');
@@ -245,13 +245,13 @@ export function updateReinf(m, dt) {
   }
 }
 
-// A dropship or warp ship takes damage (only while it is low). Shot down, it crashes: a warp ship takes its troops with it; a
-// dropship's survivors (some of the groups still aboard, 0.31) climb out of the wreck. A warp ship's shield soaks hits first.
+// A dropship or war barge takes damage (only while it is low). Shot down, it crashes: a war barge takes its troops with it; a
+// dropship's survivors (some of the groups still aboard, 0.31) climb out of the wreck. A war barge's shield soaks hits first.
 // any: hits it even when it is not low (a SAM site's missile).
 export function damageDrop(m, d, dmg, by, any = false) {
   if (d.dead || d.state === 'down' || (!d.low && !any) || !(dmg > 0)) return;
   if (d.mom && any) dmg *= C.mother.samMul;      // (0.55) a SAM site's hit is a fraction of itself on a mothership
-  if (d.shield > 0) {     // (0.31) a warp ship's shield takes the hit first, like a warbeast's
+  if (d.shield > 0) {     // (0.31) a war barge's shield takes the hit first, like a warbeast's
     const soak = Math.min(d.shield, dmg);
     d.shield -= soak; d.shieldAt = m.t; dmg -= soak; d.hurtAt = m.t;
     if (by in m.stats.dmg) m.stats.dmg[by] += soak;
@@ -277,7 +277,7 @@ export function damageDrop(m, d, dmg, by, any = false) {
   d.left = 0;
 }
 
-// The nearest dropship or warp ship that is low enough to shoot, within range r of (x, y). Anti-armor weapons go for these.
+// The nearest dropship or war barge that is low enough to shoot, within range r of (x, y). Anti-armor weapons go for these.
 export function dropNear(m, x, y, r) {
   let best = null, bd = r * r;
   for (const d of m.drops) {

@@ -1,4 +1,4 @@
-// World-space drawing for Revision 7: enemy reinforcements (flares, bug holes, dropships, warp ships), the free-fire zone, the
+// World-space drawing for Revision 7: enemy reinforcements (flares, bug holes, dropships, war barges), the free-fire zone, the
 // evacuation site and its civilians, and the extraction pad with its dropship. Every function draws in metres; px(n) is n screen
 // pixels in metres at the current zoom.
 import { t as tr } from '../i18n.js';
@@ -84,7 +84,7 @@ export function drawHoles(ctx, m, now, px, labels, scale, pal) {
   }
 }
 
-// ---------------------------------------------------------------- dropships and warp ships
+// ---------------------------------------------------------------- dropships and war barges
 function dropshipBody(ctx, s) {
   ctx.beginPath();
   ctx.moveTo(s, 0); ctx.lineTo(s * 0.55, -s * 0.22); ctx.lineTo(-s * 0.8, -s * 0.26); ctx.lineTo(-s, -s * 0.12); ctx.lineTo(-s, s * 0.12); ctx.lineTo(-s * 0.8, s * 0.26); ctx.lineTo(s * 0.55, s * 0.22); ctx.closePath();
@@ -149,7 +149,7 @@ export function drawDrops(ctx, m, now, px, labels, scale, pal) {
       ctx.strokeStyle = `rgba(255,80,80,${0.5 + 0.4 * Math.sin(now * 8)})`; ctx.lineWidth = px(1.4); ctx.setLineDash([px(4), px(4)]);
       ring(ctx, d.x, d.y, s * 1.3); ctx.stroke(); ctx.setLineDash([]);
     }
-    // (0.31) a warp ship's shield: a bubble round it that flares when hit, and its own bar over the health
+    // (0.31) a war barge's shield: a bubble round it that flares when hit, and its own bar over the health
     if (d.maxShield && d.shield > 0) {
       const f = d.shield / d.maxShield, sh = t - (d.shieldAt || -9) < 0.15, Rb = s * 1.25;
       ctx.fillStyle = `rgba(150,200,255,${(sh ? 0.16 : 0.05) + 0.05 * f})`; ring(ctx, d.x, d.y, Rb); ctx.fill();
@@ -379,7 +379,7 @@ export function drawMotherSky(ctx, m, now, px, labels, scale) {
   }
 }
 
-// (0.55) acid pools from the brood titan's spray: a sickly green puddle that bubbles and shrinks as it dries
+// (0.55) acid pools from the elder husk's spray: a sickly green puddle that bubbles and shrinks as it dries
 export function drawAcidPools(ctx, m, now, px) {
   for (const q of m.acidPools || []) {
     const life = Math.max(0, Math.min(1, (q.until - m.t) / 1.5)), grow = Math.min(1, (m.t - q.born) / 0.3), r = q.r * grow * (0.75 + 0.25 * life);

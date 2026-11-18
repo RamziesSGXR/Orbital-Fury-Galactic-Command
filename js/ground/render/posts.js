@@ -351,7 +351,7 @@ function bridgeArt(ctx, p, now, px) {
 
 // A Vanguard turret (the turret call-ins), from above: a tripod, the turret head and the gun of its kind; ammo as a thin
 // arc round it. Small and detailed, the size of a trooper or two.
-export function sentryArt(ctx, s, now, px, hit, col) {
+export function autoturretArt(ctx, s, now, px, hit, col) {
   const r = Math.max(1.3, px(2.4)), id = s.sid || '', a = s.face || 0;
   ctx.save(); ctx.translate(s.x, s.y);
   ctx.fillStyle = 'rgba(0,0,0,0.4)'; ring(ctx, r * 0.15, r * 0.2, r * 1.5); ctx.fill();
@@ -363,10 +363,10 @@ export function sentryArt(ctx, s, now, px, hit, col) {
   ctx.fillStyle = hit ? '#ffffff' : '#56615a'; ring(ctx, 0, 0, r * 0.75); ctx.fill();
   ctx.strokeStyle = col; ctx.lineWidth = r * 0.16; ring(ctx, 0, 0, r * 0.75); ctx.stroke();
   ctx.fillStyle = '#d8e3dc';
-  if (id === 'gat_sentry') { for (const o of [-0.22, 0, 0.22]) ctx.fillRect(r * 0.5, o * r - r * 0.07, r * 1.5, r * 0.14); ctx.fillStyle = '#2a302c'; ctx.fillRect(r * 1.55, -r * 0.32, r * 0.18, r * 0.64); }
-  else if (id === 'ac_sentry') { ctx.fillRect(r * 0.5, -r * 0.14, r * 1.9, r * 0.28); ctx.fillStyle = '#ffe600'; ctx.fillRect(r * 2.3, -r * 0.22, r * 0.3, r * 0.44); }
-  else if (id === 'rk_sentry') { ctx.fillStyle = '#c3cec7'; ctx.fillRect(-r * 0.2, -r * 0.75, r * 1.4, r * 0.5); ctx.fillRect(-r * 0.2, r * 0.25, r * 1.4, r * 0.5); ctx.fillStyle = '#ff5a3a'; ctx.fillRect(r * 1.1, -r * 0.7, r * 0.15, r * 0.4); ctx.fillRect(r * 1.1, r * 0.3, r * 0.15, r * 0.4); }
-  else if (id === 'tesla') { ctx.fillStyle = `rgba(170,220,255,${0.6 + 0.4 * Math.sin(now * 9)})`; ring(ctx, 0, 0, r * 0.45); ctx.fill(); }
+  if (id === 'gat_autoturret') { for (const o of [-0.22, 0, 0.22]) ctx.fillRect(r * 0.5, o * r - r * 0.07, r * 1.5, r * 0.14); ctx.fillStyle = '#2a302c'; ctx.fillRect(r * 1.55, -r * 0.32, r * 0.18, r * 0.64); }
+  else if (id === 'ac_autoturret') { ctx.fillRect(r * 0.5, -r * 0.14, r * 1.9, r * 0.28); ctx.fillStyle = '#ffe600'; ctx.fillRect(r * 2.3, -r * 0.22, r * 0.3, r * 0.44); }
+  else if (id === 'rk_autoturret') { ctx.fillStyle = '#c3cec7'; ctx.fillRect(-r * 0.2, -r * 0.75, r * 1.4, r * 0.5); ctx.fillRect(-r * 0.2, r * 0.25, r * 1.4, r * 0.5); ctx.fillStyle = '#ff5a3a'; ctx.fillRect(r * 1.1, -r * 0.7, r * 0.15, r * 0.4); ctx.fillRect(r * 1.1, r * 0.3, r * 0.15, r * 0.4); }
+  else if (id === 'arcpylon') { ctx.fillStyle = `rgba(170,220,255,${0.6 + 0.4 * Math.sin(now * 9)})`; ring(ctx, 0, 0, r * 0.45); ctx.fill(); }
   else if (id === 'mortar' || id === 'ems_mortar') { ctx.fillStyle = '#c3cec7'; ring(ctx, r * 0.35, 0, r * 0.38); ctx.fill(); ctx.fillStyle = '#1a1f1c'; ring(ctx, r * 0.35, 0, r * 0.22); ctx.fill(); }
   else { ctx.fillRect(r * 0.5, -r * 0.09, r * 1.6, r * 0.18); }
   ctx.restore();

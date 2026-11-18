@@ -1,9 +1,9 @@
 // (0.55.1) How each super heavy arrives (C.boss.arrive; the sim holds it still and unhurt until it is done). k runs 0 to 1, h is
 // the impact's share of the way.
-//   brood titan  the ground swells and cracks, then bursts: it heaves up out of a crater in a spray of earth
+//   elder husk  the ground swells and cracks, then bursts: it heaves up out of a crater in a spray of earth
 //   siege walker a red target ring tightens while its shadow grows; it falls from orbit trailing fire, slams down in a shockwave
 //                and stands up out of the dust, vents steaming
-//   warp colossus a column of light and rings of glyphs closing in; it builds up out of light, scan lines over it, and a flash
+//   thunder lizard a column of light and rings of glyphs closing in; it builds up out of light, scan lines over it, and a flash
 // draw(e2): draws the body as it would be (for the walker in the air, a copy of it higher up).
 import { CONFIG as C } from '../config.js';
 
@@ -74,7 +74,7 @@ export function drawBossArrival(ctx, e, fac, r, col, now, px, t, draw) {
     for (const sd of [-1, 1]) { ctx.fillStyle = `rgba(230,230,230,${0.35 * (1 - after)})`; circle(ctx, x - r * 0.8 + sd * 0, y + sd * r * 0.5 - post * r * 0.8, r * (0.2 + 0.4 * post)); ctx.fill(); }
     return;
   }
-  // the warp colossus
+  // the thunder lizard
   const pre = clamp(k / h), post = clamp((k - h) / (1 - h));
   // a column of light from above, and rings of glyphs closing in on the spot
   const colA = (k < h ? 0.25 + 0.5 * pre : 0.75 * (1 - post)) * (1 - after);

@@ -11,7 +11,7 @@ import { infantryTargets } from './squads.js';
 import { TEAM_COLOR } from '../data/names.js';
 import { drawPoiArt, drawNukeSite, drawCrash, drawPad, drawLootArt, drawOilSite, drawDome, drawDomeHit, drawDemoCharge } from './sites.js';
 import { dshipBody, dshipDetail } from './squads.js';
-import { sentryArt } from './posts.js';
+import { autoturretArt } from './posts.js';
 
 const TAU = Math.PI * 2;
 const O = C.objective;
@@ -384,7 +384,7 @@ export function drawAssets(ctx, m, now, px, labels, scale, pal) {
     if (s.dead) continue;
     const hit = t - s.hurtAt < 0.12;
     if (s.kind === 'turret') {
-      let r = 0; raise(ctx, s, s.x, s.y, Math.max(5, px(22)), 1.1, (c) => { r = sentryArt(c, s, now, px, hit, ac); s._r = r; }, { wall: 0.56, live: true, sig: Math.round((s.face || 0) * 12) * 2 + (hit ? 1 : 0) }); r = r || s._r || Math.max(2, px(8));
+      let r = 0; raise(ctx, s, s.x, s.y, Math.max(5, px(22)), 1.1, (c) => { r = autoturretArt(c, s, now, px, hit, ac); s._r = r; }, { wall: 0.56, live: true, sig: Math.round((s.face || 0) * 12) * 2 + (hit ? 1 : 0) }); r = r || s._r || Math.max(2, px(8));
       const f = s.hp / s.maxHp;
       if (f < 0.999) hpBar(ctx, s.x, s.y + r * 2 + px(2), r * 2.6, px(2.4), f, f > 0.35 ? '#7dff9b' : '#ff4a4a');
       labels.push({ x: s.x, y: s.y, dy: -r * 1.8 * scale - 8, text: tr(`callin.${s.sid}.tag`), col: ac , pri: 0 });
@@ -415,7 +415,7 @@ export function drawAssets(ctx, m, now, px, labels, scale, pal) {
       labels.push({ x: s.x, y: s.y, dy: -L * 0.5 * scale - 12, text: s.wreck ? tr('lab.burning') : tr('lab.lrv', { n: s.seats.length }), col: ac , pri: 0 });
     }
   }
-  // Support weapons and walkers on the Vanguards
+  // Support weapons and mech suits on the Vanguards
   for (const a of m.hdAlive) {
     if (a.mounted) continue;
     const r = Math.max(4, px(4.5));
@@ -427,7 +427,7 @@ export function drawAssets(ctx, m, now, px, labels, scale, pal) {
       hpBar(ctx, a.x, a.y + R + px(2), R * 2.4, px(3), mc.hp / mc.maxHp, '#7dff9b');
       hpBar(ctx, a.x, a.y + R + px(6), R * 2.4, px(2), mc.gat / c.gatAmmo, '#ffe600');
       hpBar(ctx, a.x, a.y + R + px(9), R * 2.4, px(2), mc.rkt / c.rktAmmo, '#ff7a4a');
-      labels.push({ x: a.x, y: a.y, dy: -R * scale - 6, text: tr('lab.exosuit'), col: '#ffb020' , pri: 0 });
+      labels.push({ x: a.x, y: a.y, dy: -R * scale - 6, text: tr('lab.mechsuit'), col: '#ffb020' , pri: 0 });
     } else if (a.sw) {
       ctx.strokeStyle = '#ffe600'; ctx.lineWidth = px(1.4);
       ctx.beginPath(); ctx.moveTo(a.x - r * 0.3, a.y + r * 0.4); ctx.lineTo(a.x + r * 2.2, a.y - r * 0.8); ctx.stroke();
@@ -581,14 +581,14 @@ function underShip(e) {
   return !!d && !d.dead && d.state !== 'down' && !(d.state === 'out' && d.outT > 1.2) && (e.x - d.x) ** 2 + (e.y - d.y) ** 2 <= (d.r + 5) ** 2;
 }
 
-// A super heavy: a slow warning ring, its beam charging (the colossus), its shield bubble, a wide health bar and its name.
+// A super heavy: a slow warning ring, its beam charging (the thunder lizard), its shield bubble, a wide health bar and its name.
 function drawBossExtras(ctx, m, e, now, px, labels, scale, col) {
   const t = m.t, D = C.boss[e.boss], r = Math.max(e.r * 1.5, px(20));
   const p = 0.5 + 0.5 * Math.sin(now * 2.5);
   ctx.strokeStyle = `rgba(255,70,50,${0.45 + 0.35 * p})`; ctx.lineWidth = px(1.6);
   ctx.setLineDash([px(8), px(5)]); ring(ctx, e.x, e.y, r * (1.75 + 0.08 * p)); ctx.stroke(); ctx.setLineDash([]);
   if (e.ch && D.walk) {
-    // (0.55) the colossus charging: a line to its target, and a ring where the beam will come down that tightens as it charges
+    // (0.55) the thunder lizard charging: a line to its target, and a ring where the beam will come down that tightens as it charges
     const c = e.ch, f = Math.max(0, Math.min(1, (t - c.t0) / c.dur)), B = D.walk, locked = t >= c.t0 + c.dur - B.lock;
     const dx = c.tx - e.x, dy = c.ty - e.y, d = Math.hypot(dx, dy) || 1, k = Math.max(0, d - B.lead) / d, gx = e.x + dx * k, gy = e.y + dy * k;
     ctx.strokeStyle = rgba(col, 0.3 + 0.5 * f); ctx.lineWidth = px(1.2 + 2 * f); ctx.setLineDash([px(6), px(4)]);

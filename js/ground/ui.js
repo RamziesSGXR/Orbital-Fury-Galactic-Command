@@ -995,7 +995,7 @@ export class Hud {
         const mech = a.mech && a.mech.hp > 0 ? a.mech : null;
         f = mech ? mech.hp / mech.maxHp : a.hp / a.maxHp;
         const kit = t('hud.r.kit', { s: a.stims, g: a.gren, u: a.ult ?? 0 });   // stims, grenades and the Ultimatum left
-        st = mech ? t('hud.r.exo') : a.mounted ? t('hud.r.lrv') : a.retreat ? `${t('hud.r.falling')} · ${kit}` : a.sw ? `${t('hud.r.gun')} · ${kit}` : `${Math.max(1, Math.round(f * 100))}% · ${kit}`;
+        st = mech ? t('hud.r.mech') : a.mounted ? t('hud.r.lrv') : a.retreat ? `${t('hud.r.falling')} · ${kit}` : a.sw ? `${t('hud.r.gun')} · ${kit}` : `${Math.max(1, Math.round(f * 100))}% · ${kit}`;
         if (f < 0.35) cls = 'hurt';
       } else {
         name = m.slotTag(tm);
@@ -1267,7 +1267,7 @@ export class Hud {
         + `<div class="ts-b">${esc(t('sel.lz'))}</div>`;
     } else if (sel && !sel.dead) {
       const post = sel.kind === 'post' ? sel : null, hp = sel.maxHp ? Math.round((100 * sel.hp) / sel.maxHp) : sel.wireMax ? Math.round((100 * Math.max(0, sel.wireHp)) / sel.wireMax) : null;
-      const name = post ? (post.what === 'site' ? post.name : t('build.' + post.what)) : sel.kind === 'turret' ? sel.name || t('lab.sentry') : t('sel.site');
+      const name = post ? (post.what === 'site' ? post.name : t('build.' + post.what)) : sel.kind === 'turret' ? sel.name || t('lab.autoturret') : t('sel.site');
       const crew = post ? m.infantryAlive.filter((a) => a.post === post) : [];
       const who = sf.sel >= 0 ? `S${sf.sel + 1}` : sf.sel === -2 ? t('tac.picked') : t('hud.all');
       h = `<div class="ts-h">${esc(name.toUpperCase())}${post && !noLvl(post.what) ? ` <i>${esc(t('card.level', { n: post.lvl }))}</i>` : ''}</div>`
@@ -1280,7 +1280,7 @@ export class Hud {
           + (!post.captured && post.what !== 'site' ? (freeBuild(post) ? `<button type="button" class="btn tsd demo" data-sa="demo" title="${esc(t('sel.removeT'))}">${esc(t('sel.remove'))}</button>`     // (0.62.13) a free build: taken down, no blast
             : `<button type="button" class="btn tsd demo${post.demo ? ' on' : ''}" data-sa="demo" title="${esc(t('sel.demoT'))}">${esc(post.demo ? t('sel.demoOff', { n: Math.max(1, Math.ceil(post.demo.at - m.t)) }) : t('sel.demo'))}</button>`) : '') + `</div>` : '')
         // (0.53.4) the work site: what it gives and pays (it was described as a defence position: the same key)
-        + `<div class="ts-b">${esc(post && post.what === 'site' ? workB(m, post) : post ? t('sel.' + post.what) : sel.kind === 'turret' ? t('sel.sentry') : t('sel.siteB'))}</div>`;
+        + `<div class="ts-b">${esc(post && post.what === 'site' ? workB(m, post) : post ? t('sel.' + post.what) : sel.kind === 'turret' ? t('sel.autoturret') : t('sel.siteB'))}</div>`;
     } else if (sf.sel === -2 && sf.pick) {
       const list = m.infantryAlive.filter((a) => sf.pick.includes(a.id));
       h = `<div class="ts-h">${esc(t('tac.picked'))} <i>${esc(t('tac.troopers', { n: list.length }))}</i></div>${tiles(list)}<div class="ts-b">${esc(t('tac.pickHint'))}</div>`;
@@ -1305,10 +1305,10 @@ export class Hud {
     this.selObj = s && !s.dead ? s : null;
     if (!s || !m || !pos) { if (!c.classList.contains('hidden')) c.classList.add('hidden'); this.selKey = ''; return; }
     if (s.g !== undefined && (s.kind === 'L' || s.kind === 'M' || s.kind === 'H')) { this._enemyPop(m, s, pos, force); return; }     // (0.58) an enemy picked: what it is
-    const post = s.kind === 'post' ? s : null, sentry = s.kind === 'turret' ? s : null, site = !post && !sentry ? s : null;
+    const post = s.kind === 'post' ? s : null, autoturret = s.kind === 'turret' ? s : null, site = !post && !autoturret ? s : null;
     const hp = s.maxHp ? Math.round((100 * s.hp) / s.maxHp) : s.wireMax ? Math.round((100 * Math.max(0, s.wireHp)) / s.wireMax) : null;
     const lzs = post && post.what === 'lz' ? lzStatus(m, post) : '';
-    const key = [s.id || s.kind, post && post.crew, post && post.garrison, post && post.workers, post && post.fallen, hp, post && post.repairing, sentry && Math.round(sentry.ammo), m.infantry.sel, getLang(), lzs].join('|');
+    const key = [s.id || s.kind, post && post.crew, post && post.garrison, post && post.workers, post && post.fallen, hp, post && post.repairing, autoturret && Math.round(autoturret.ammo), m.infantry.sel, getLang(), lzs].join('|');
     if (force || key !== this.selKey) {
       this.selKey = key;
       const who = m.infantry.sel >= 0 ? `S${m.infantry.sel + 1}` : t('hud.all');
@@ -1324,9 +1324,9 @@ export class Hud {
         if (post.cap && post.garrison < post.cap && INSIDE.has(post.what) && !post.fallen) btns += `<button class="dr in" type="button" data-sa="in" title="${esc(t('sel.inT', { who }))}" aria-label="${esc(t('sel.inT', { who }))}">${DOOR_IN}</button>`;
         if (post.garrison) btns += `<button class="dr out" type="button" data-sa="out" title="${esc(t('sel.outT'))}" aria-label="${esc(t('sel.outT'))}">${DOOR_OUT}</button>`;
         if (lzs) { sub = esc(lzs); btns += `<button class="dr in" type="button" data-sa="man" title="${esc(t('sel.lzSend', { who }))}" aria-label="${esc(t('sel.lzSend', { who }))}">${DOOR_IN}</button>`; }
-      } else if (sentry) {
-        name = esc((sentry.name || t('lab.sentry')).toUpperCase());
-        sub = `${esc(t('card.ammo'))} ${Math.max(0, Math.round(sentry.ammo))}/${sentry.maxAmmo}`;
+      } else if (autoturret) {
+        name = esc((autoturret.name || t('lab.autoturret')).toUpperCase());
+        sub = `${esc(t('card.ammo'))} ${Math.max(0, Math.round(autoturret.ammo))}/${autoturret.maxAmmo}`;
       } else {
         name = esc(t('sel.site').toUpperCase());
         sub = esc(t('sel.walls')) + ' ' + site.pieces.length;
@@ -1362,7 +1362,7 @@ export class Hud {
       if (a) {
         name = m.tag(a);
         const mech = a.mech && a.mech.hp > 0 ? a.mech : null, f = mech ? mech.hp / mech.maxHp : a.hp / a.maxHp;
-        sub = mech ? t('hud.r.exo') : a.mounted ? t('hud.r.lrv') : `${Math.max(1, Math.round(f * 100))}%`;
+        sub = mech ? t('hud.r.mech') : a.mounted ? t('hud.r.lrv') : `${Math.max(1, Math.round(f * 100))}%`;
         if (f < 0.35) cls = ' hurt';
       } else {
         const pod = m.pods.find((p) => p.type === 'H' && p.team === i);
@@ -1607,7 +1607,7 @@ function statLine(it, kit) {
     const o = orbStats(it.orb, kit.owned[it.orb] || 1);
     if (o.k === 'util') {
       const what = o.util === 'med' ? t('st.med', { p: Math.round(o.heal * 100), r: f0(o.r) }) : o.util === 'smoke' ? t('st.smoke', { r: f0(o.zone.r), s: f0(o.zone.sec) })
-        : o.util === 'shield' ? t('st.shield', { r: f0(o.r), n: fmtNum(o.shield) }) : t('st.sentry', { hp: o.t.hp, dmg: Math.round(o.t.dmg) });
+        : o.util === 'shield' ? t('st.shield', { r: f0(o.r), n: fmtNum(o.shield) }) : t('st.autoturret', { hp: o.t.hp, dmg: Math.round(o.t.dmg) });
       return `${what} · ${rc(o.cd)} · ${t('st.equips')}`;
     }
     if (o.k === 'beam') return `${t('st.beam', { dps: Math.round(o.beam.dps), s: f0(o.beam.dur) })} · ${rc(o.cd)}`;
@@ -2402,7 +2402,7 @@ export function weaponInfo(m, i) {
     if (st.util === 'med') h += row(t('card.heals'), t('card.healsV', { p: Math.round(st.heal * 100) })) + row(t('card.area'), M(f0(st.r)));
     else if (st.util === 'smoke') h += row(t('card.smoke'), t('card.smokeV', { r: f0(st.zone.r), s: f0(st.zone.sec) })) + row(t('card.smokeFire'), t('card.smokeMiss'));
     else if (st.util === 'shield') h += row(t('card.dome'), M(f0(st.r))) + row(t('card.soaks'), t('card.soaksV', { n: fmtNum(st.shield) })) + row(t('card.lasts'), S(f0(st.life)));
-    else if (st.util === 'sentry') h += row(t('card.sentry'), t('card.sentryV', { hp: st.t.hp, n: st.t.ammo })) + row(t('card.dmg'), t('card.sentryDmg', { d: Math.round(st.t.dmg), r: st.t.range }));
+    else if (st.util === 'autoturret') h += row(t('card.autoturret'), t('card.autoturretV', { hp: st.t.hp, n: st.t.ammo })) + row(t('card.dmg'), t('card.autoturretDmg', { d: Math.round(st.t.dmg), r: st.t.range }));
     h += row(t('card.arrives'), S(st.delay)) + row(t('card.recharge'), S(cd));
     return h + `<div class="ic-b">${esc(t('card.util.b', { b: st.blurb }))}</div>`;
   }

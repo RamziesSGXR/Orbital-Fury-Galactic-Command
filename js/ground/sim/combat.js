@@ -12,7 +12,7 @@ import { medicNear, goDown } from './infantry.js';
 // most of all), and now and then a critical hit. cs names whose crit chance applies ('player', 'gun', 'ally', 'enemy'), or '' for
 // none (burning ground, gas). m.hitFlags says what happened (1 = from behind, 2 = critical) for whoever wants to show it.
 const B = C.combat.back, CR = C.combat.crit;
-// An armoured front (a bug heavy, the Hive Guard: tgt.front, the share that gets through within the arc tgt.frontCos) takes less
+// An armoured front (a bug heavy, the Shellback: tgt.front, the share that gets through within the arc tgt.frontCos) takes less
 // from ahead (f 4), unless the hit pierces (the Ultimatum). A bot heavy's weak points crit more often (tgt.critUp).
 // (ABOVE: the hit is a blast coming down from orbit, not a shot from someone on the ground: a heavy's front plate does not stop it)
 let ABOVE = false;
@@ -53,7 +53,7 @@ export function ffBlast(m, x, y, rad, dmg, mult, by, fx, fy) {
 // ---------- enemies ----------
 // by: 'player' (the destroyer), 'squad' (rifles) or 'callin' (call-ins, turrets, vehicles, support weapons).
 // (fx, fy): where the hit comes from, for the back bonus. cs: whose crit chance (defaults to the attacker's side; '' for none).
-// Troops still under the dropship or warp ship that brought them cannot be hurt until it has pulled away (or they have walked out
+// Troops still under the dropship or war barge that brought them cannot be hurt until it has pulled away (or they have walked out
 // from under it): the ship covers them.
 // An enemy that shoots at an ally shows itself (see CONFIG.reveal). Locked: shown long enough to be targeted from orbit.
 export function reveal(m, e) {
@@ -103,7 +103,7 @@ export function soakBubble(m, b, dmg) {
 
 // pierce: the hit goes through armour and shields (the Ultimatum's round).
 // armor: the share of the hit the body takes (a light round on a heavy: very little). (0.26) Shields do not care about armour:
-// a warbeast's bubble, a lizard heavy's or the Colossus's own shield soak the hit at full strength (light penetration strips them
+// a warbeast's bubble, a lizard heavy's or the Thunder Lizard's own shield soak the hit at full strength (light penetration strips them
 // as well as anything), and only what gets through meets the armour.
 export function hurtEnemy(m, e, dmg, by, fx, fy, cs, pierce = false, armor = 1) {
   if (e.dead || !(dmg > 0)) return 0;
@@ -115,8 +115,8 @@ export function hurtEnemy(m, e, dmg, by, fx, fy, cs, pierce = false, armor = 1) 
     if (b && b.src !== e) { dmg = soakBubble(m, b, dmg); if (dmg <= 0) { e.hurtAt = m.t; return 0; } }
   }
   const k = hitMul(m, e, fx, fy, cs === undefined ? (by === 'player' ? 'player' : 'ally') : cs, pierce);
-  dmg *= k * (e.soak && !pierce ? e.soak : 1);     // the fleshmob takes only part of every hit
-  if (e.shield > 0 && !pierce) {         // a shield (a lizard heavy, the Warp Colossus) soaks up damage first, at full strength
+  dmg *= k * (e.soak && !pierce ? e.soak : 1);     // the herdbeast takes only part of every hit
+  if (e.shield > 0 && !pierce) {         // a shield (a lizard heavy, the Thunder Lizard) soaks up damage first, at full strength
     const soak = Math.min(e.shield, dmg);
     e.shield -= soak; e.shieldAt = m.t; dmg -= soak;
     const bd = m.stats.bossDmg || (m.stats.bossDmg = {}); bd.shield = (bd.shield || 0) + soak;
@@ -366,7 +366,7 @@ export function fireShot(m, src, e, prof, by, side = 'a', snd = '') {
     if (side === 'a' && !(prof.flight > 0)) { const b = blocker(m, src, tx, ty); if (b) { m.stats.stray = (m.stats.stray || 0) + 1; hurtAlly(m, b, prof.dmg * C.ff.strayMul * (prof.flight > 0 ? 1 : 1), by === 'player' ? 'player' : 'squad', false, 'friendly'); } }
     return false;
   }
-  if (e.drop) { m.damageDrop(e, prof.dmg * (mult.H ?? 1), by); return true; }      // a dropship or a warp ship
+  if (e.drop) { m.damageDrop(e, prof.dmg * (mult.H ?? 1), by); return true; }      // a dropship or a war barge
   if (prof.splash > 0) {
     damageArea(m, tx, ty, prof.splash, prof.dmg, mult, by, true, undefined, src.x, src.y);
     if (prof.splash >= 3) { m.emit('boom', { x: tx, y: ty, r: prof.splash, dmg: prof.dmg, by }); if (prof.splash >= 6) noise(m, tx, ty, C.noise.blast); }

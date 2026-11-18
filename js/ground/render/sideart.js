@@ -44,7 +44,7 @@ function relay(c, fac, col, r, id, now, px, q) {
     c.fillStyle = q.a; circ(c, r * 0.38, -r * 0.34, r * 0.06); c.fill();
     if (!baking()) { c.fillStyle = blink(now, id) ? '#ff5050' : 'rgba(255,80,80,0.25)'; circ(c, 0, 0, Math.max(px(1.6), r * 0.09)); c.fill(); }
   } else if (fac === 'bugs') {
-    // a brood spire: a lobed mound and a crown of chitin spikes round a breathing sac
+    // a molt spire: a lobed mound and a crown of chitin spikes round a breathing sac
     c.fillStyle = q.b; for (let i = 0; i < 6; i++) { const a = a0 + i * 1.047; ell(c, Math.cos(a) * r * 0.5, Math.sin(a) * r * 0.5, r * 0.5, r * 0.36, a); c.fill(); }
     c.fillStyle = q.a; circ(c, 0, 0, r * 0.56); c.fill();
     c.fillStyle = q.d;

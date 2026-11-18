@@ -15,7 +15,7 @@ export const price = (x) => Math.max(0, Math.round((x * C.econ.priceMul) / 25) *
 const ORB_BASE = {
   orb_airburst: 0, orb_120: 0, orb_precision: 0,
   orb_ems: 600, orb_gas: 650, orb_walk: 800, orb_napalm: 900, orb_380: 1300, orb_rail: 1600, orb_laser: 2100,
-  util_smoke: 550, util_med: 700, util_shield: 1000, util_sentry: 1200,
+  util_smoke: 550, util_med: 700, util_shield: 1000, util_autoturret: 1200,
   // (0.23) Strikers (the Hangar has to be bought first) and the gunner's minefields
   striker_smoke: 450, striker_strafe: 550, striker_air: 700, striker_cluster: 750, striker_napalm: 900, striker_rockets: 950, striker_500: 1250,
   mine_ap: 600, mine_inc: 800, mine_at: 1000,
@@ -209,7 +209,7 @@ const ITEM_TIER = {
   'slot:4': 0, util_smoke: 0, orb_ems: 0, 'gun.dmg': 0, 'gun.ammo': 0, uav: 0, 'infantry.cap': 0, 'infantry.drop': 0, 'infantry.hp': 0, 'bld:bastion': 0, 'bld:mg': 0,
   util_med: 1, orb_gas: 1, orb_walk: 1, 'gun.regen': 1, 'gun.pen': 1, 'uavb.speed': 1, 'infantry.build': 1, 'infantry.gren': 1, 'bld:lookout': 1, 'bld:bridge': 1, 'sup.zone': 1,
   pel: 2, striker_smoke: 2, striker_strafe: 2, striker_air: 2, mine_ap: 2, orb_napalm: 2, util_shield: 2, 'gun.spread': 2, 'uavb.dodge': 2, 'infantry.rocket': 2, 'infantry.medic': 2, 'bld:tower': 2,
-  'slot:5': 3, striker_cluster: 3, striker_napalm: 3, mine_inc: 3, orb_380: 3, util_sentry: 3, 'infantry.spot': 3, 'bld:sam': 3,
+  'slot:5': 3, striker_cluster: 3, striker_napalm: 3, mine_inc: 3, orb_380: 3, util_autoturret: 3, 'infantry.spot': 3, 'bld:sam': 3,
   striker_rockets: 4, mine_at: 4, orb_rail: 4,
   orb_laser: 5, striker_500: 5, 'bld:arty': 5,
 };

@@ -380,7 +380,7 @@ export class Renderer {
 
     // Fire, gas, Stun and smoke on the ground, then the UAV circles
     drawZones(ctx, m, now, px);
-    drawAcidPools(ctx, m, now, px);     // (0.55) the brood titan's spray
+    drawAcidPools(ctx, m, now, px);     // (0.55) the elder husk's spray
     drawUavs(ctx, m, now, px, labels, scale);
 
     // The extraction pad and its dropship

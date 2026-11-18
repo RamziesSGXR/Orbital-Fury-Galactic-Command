@@ -76,7 +76,7 @@ export function botShop(kit, wallet) {
 
 // Put what the bot owns to use: empty slots first take the best unequipped orbital, then a newer orbital pushes out a bench one.
 const RANK = ['orb_rail', 'orb_laser', 'orb_380', 'util_med', 'orb_precision', 'orb_120', 'orb_napalm', 'orb_walk', 'orb_airburst', 'orb_gas', 'orb_ems',
-  'util_shield', 'util_smoke', 'util_sentry'];
+  'util_shield', 'util_smoke', 'util_autoturret'];
 function equip(kit) {
   const ld = kit.loadout, on = () => ld.slice(0, kit.slots);
   for (const id of RANK) {
@@ -220,7 +220,7 @@ function utilTarget(m, st) {
   const n = near(m.hx, m.hy, 55);
   if (st.util === 'shield') return n >= 14 && m.squad.engaged ? { x: m.hx, y: m.hy } : null;
   if (st.util === 'smoke') return n >= 18 && m.squad.engaged ? { x: m.hx, y: m.hy } : null;
-  if (st.util === 'sentry') {
+  if (st.util === 'autoturret') {
     if (n < 8 && !(m.squad.state === 'hold')) return null;
     const a = m.squad.dir || 0;
     return { x: m.hx + Math.cos(a) * 8, y: m.hy + Math.sin(a) * 8 };

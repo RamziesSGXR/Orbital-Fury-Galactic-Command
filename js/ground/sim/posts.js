@@ -13,7 +13,7 @@
 //   bridge:   a light bridge, a hard-light span over the water from bank to bank; everyone walks it (the enemy too).
 //   tower:    the Propaganda Tower: an Infantry drop point, and while someone mans it, the ground round it (as far as the UAV scan
 //             reaches) stays in view, strikes can be called there and allies under it get the UAV's lift.
-//   sam:      a SAM site: automatic, it fires at dropships and warp ships as far out as the UAV scan reaches.
+//   sam:      a SAM site: automatic, it fires at dropships and war barges as far out as the UAV scan reaches.
 //   arty:     the Artillery Cannon: weapon 9, a mini-nuke on a slow recharge, fired by the gunner while someone mans it.
 // Anyone standing in a post's places is its crew (Vanguards too). Infantry sent to a post (a 'post' order) take its places and stay:
 // they walk back if they are pushed off, never leave cover to chase, and patch it up when nothing is shooting at them. A post's
@@ -438,7 +438,7 @@ export function updatePosts(m, dt) {
   }
 }
 
-// The SAM site: missiles at the nearest dropship or warp ship in reach, low or not (it is built to bring them down on the way in).
+// The SAM site: missiles at the nearest dropship or war barge in reach, low or not (it is built to bring them down on the way in).
 function samStep(m, p, dt) {
   p.reach = towerReach(m, p);
   if (p.ammo <= 0) return;      // (0.56) out of missiles: it stands there empty

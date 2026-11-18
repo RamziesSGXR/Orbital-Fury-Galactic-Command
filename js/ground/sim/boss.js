@@ -1,10 +1,10 @@
-// Super heavies. Now and then a giant joins a mission: a Brood Titan for the bugs, a Siege Walker for the bots, a Warp Colossus for
+// Super heavies. Now and then a giant joins a mission: a Elder Husk for the bugs, a Siege Walker for the bots, a Thunder Lizard for
 // the lizards. The chance grows through the session (CONFIG.boss). It turns up out of sight a few minutes in (or as soon as the
 // objective is done), hunts the squad, and it has to be destroyed before the dropship will land. Killing it pays well.
 //
 // It is an enemy like any other as far as weapons go (a heavy: what hurts heavies hurts it, and its back is its weak spot), with its
 // own size, health and attacks. Movement and attacks are in enemies.js (bossMove, bossAttack); this file spawns it, keeps its
-// side effects going (the walker's troop drops, the colossus's shield, the titan's acid in the air) and pays out when it dies.
+// side effects going (the walker's troop drops, the thunder lizard's shield, the titan's acid in the air) and pays out when it dies.
 import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
 import { COMMS } from '../data/data.js';
@@ -45,7 +45,7 @@ export function spawnBoss(m, opts = {}) {
     face: Math.atan2(m.hy - sp.y, m.hx - sp.x), aimA: 0, aimUntil: 0, guard: !!opts.guard,
     shield: D.shield || 0, maxShield: D.shield || 0, shieldAt: -99, deployAt: t + (D.deploy ? D.deploy.every : 1e9), born: t,
   };
-  // (0.55.1) its arrival (C.boss.arrive): the titan bursts out of the ground, the walker is dropped from orbit, the colossus warps in.
+  // (0.55.1) its arrival (C.boss.arrive): the titan bursts out of the ground, the walker is dropped from orbit, the thunder lizard warps in.
   // While it arrives it neither moves, fights nor takes damage; the impact (hit, a share of the way) shakes the ground.
   const AR = B.arrive && B.arrive[m.faction.id];
   if (AR) { e.arriveAt = t; e.arriveUntil = t + AR.sec; e.arriveHit = t + AR.sec * AR.hit; e.deployAt += AR.sec; }
@@ -143,7 +143,7 @@ export function updateBoss(m, dt) {
   }
   e.stunUntil = 0;                                 // too big to be stunned
   e.g.alertT = 1e9; e.g.state = 'hunt';            // it never loses interest
-  // the colossus's shield comes back once it has not been hit for a few seconds
+  // the thunder lizard's shield comes back once it has not been hit for a few seconds
   if (e.maxShield && t - e.shieldAt > D.regenDelay) e.shield = Math.min(e.maxShield, e.shield + D.regen * dt);
   // the walker drops troops from its belly
   if (D.deploy && t >= e.deployAt) {

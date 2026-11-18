@@ -207,7 +207,7 @@ export function drawEnemyBody(ctx, e, fac, r, col, now, px, hot) {
       ctx.strokeStyle = '#ffd0c0'; ctx.lineWidth = lw(2.2); ctx.lineCap = 'butt'; line(ctx, 0.35 * r, 0, 1.55 * r, 0);
       ctx.fillStyle = '#ffffff'; circ(ctx, 0.2 * r, -0.18 * r, Math.max(0.07 * r, px(0.8))); ctx.fill();
     } else {
-      // troopers and devastators: shoulders, a head with one glowing eye, a gun arm (two for a devastator), a hot pack behind
+      // drudges and enforcers: shoulders, a head with one glowing eye, a gun arm (two for an enforcer), a hot pack behind
       const W = k === 'M' ? 0.85 : 0.68;
       ctx.fillStyle = `rgba(255,200,140,${0.4 + 0.35 * pulse})`; rect(ctx, -0.78 * r, -0.28 * r, -0.42 * r, 0.28 * r); ctx.fill();
       ctx.fillStyle = body; ctx.beginPath();
@@ -398,10 +398,10 @@ function drawWarBeast(ctx, e, r, col, body, dark, lw, now, px, pulse) {
   }
 }
 
-// The special mediums (CONFIG.special): the hive guard, the commander and the fleshmob, drawn in the unit's own frame.
+// The special mediums (CONFIG.special): the shellback, the commander and the herdbeast, drawn in the unit's own frame.
 function drawSpecial(ctx, e, r, col, body, dark, lw, now, px, pulse) {
   if (e.sub === 'guard') {
-    // the hive guard: a squat bug behind a wide curved shield of plates, the plate edged white so its front reads at a glance
+    // the shellback: a squat bug behind a wide curved shield of plates, the plate edged white so its front reads at a glance
     ctx.strokeStyle = rgba(col, 0.9); ctx.lineWidth = lw(1.4);
     for (let i = -1; i <= 1; i++) for (const s of [-1, 1]) { const bx = -0.1 * r + i * 0.3 * r; ctx.beginPath(); ctx.moveTo(bx, s * 0.3 * r); ctx.lineTo(bx + i * 0.2 * r, s * 0.95 * r); ctx.stroke(); }
     ctx.fillStyle = body; ell(ctx, -0.35 * r, 0, 0.55 * r, 0.5 * r); ctx.fill(); ctx.strokeStyle = dark; ctx.lineWidth = lw(0.8); ctx.stroke();
@@ -426,7 +426,7 @@ function drawSpecial(ctx, e, r, col, body, dark, lw, now, px, pulse) {
     ctx.fillStyle = '#ff6a6a'; circ(ctx, -0.95 * r, -1.25 * r, Math.max(0.1 * r, px(1))); ctx.fill();
     return;
   }
-  // (0.62.2) the fleshmob: warriors fused into one heaving mass. Armour plates still show on its back, four lit visors face
+  // (0.62.2) the herdbeast: warriors fused into one heaving mass. Armour plates still show on its back, four lit visors face
   // out of the front of it, and two long arms reach ahead to grab.
   const lit = body !== col ? '#ffffff' : shade(col, 0.24), dkp = body !== col ? '#ffffff' : shade(col, -0.34);
   ctx.strokeStyle = dkp; ctx.lineWidth = lw(2.6); ctx.lineCap = 'round';     // the arms, swinging as it comes on
@@ -463,7 +463,7 @@ export function enemyR(e, st, px) {
 
 // ---------------------------------------------------------------- super heavies
 // Drawn bigger than anything else on the map, each with its own silhouette. Like the heavies, the front carries the eyes or guns
-// and the back a glowing weak spot. shield: 0..1, the colossus's shield (drawn as a bubble).
+// and the back a glowing weak spot. shield: 0..1, the thunder lizard's shield (drawn as a bubble).
 // (0.55) an enemy turret (a bot base's, or one on a Siege Walker's back), at (x, y) in the current frame, its gun at angle face: an
 // armoured ring, a dome in the faction colour, a twin barrel that kicks back as it fires.
 export function drawTurretArt(ctx, x, y, face, r, col, px, hot = false, fired = 9) {
@@ -502,7 +502,7 @@ export function drawBossBody(ctx, e, fac, r, col, now, px, hot, t) {
   };
   const plate = (fill, w = 1.4) => { ctx.fillStyle = fill; ctx.fill(); ctx.strokeStyle = dark; ctx.lineWidth = lw(w); ctx.stroke(); };
   if (fac === 'bugs') {
-    // THE BROOD TITAN: six jointed legs in a stomping gait, a long abdomen of overlapping plates with spines down its back and
+    // THE ELDER HUSK: six jointed legs in a stomping gait, a long abdomen of overlapping plates with spines down its back and
     // the acid sac swelling at the tail, a heavy thorax, and a crowned head with mandibles that open and close
     for (let i = 0; i < 3; i++) for (const sd of [-1, 1]) {
       const ph = Math.sin(now * 3.4 * mv + i * 2.1 + (sd > 0 ? Math.PI : 0)), bx = (0.4 - i * 0.42) * r;
@@ -563,7 +563,7 @@ export function drawBossBody(ctx, e, fac, r, col, now, px, hot, t) {
     ctx.fillStyle = '#ff3a2a'; circ(ctx, 0.24 * r, 0, Math.max(0.07 * r, px(1.4))); ctx.fill();
     ctx.restore();
   } else {
-    // THE WARP COLOSSUS (0.55): a great C, its open side to the front like a claw about to close on someone, the two tips hooked
+    // THE THUNDER LIZARD (0.55): a great C, its open side to the front like a claw about to close on someone, the two tips hooked
     // in; it opens wider while its beam charges and closes as it fires. Three long jointed legs under it, segments down the C with
     // lights running along its rim, the core burning at the back, and the emitter floating in the mouth of the claw.
     const charge = e.ch ? Math.min(1, (t - e.ch.t0) / Math.max(0.1, e.ch.dur)) : 0, firing = !!e.walk;

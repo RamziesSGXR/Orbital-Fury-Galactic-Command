@@ -1,5 +1,5 @@
 // Call-ins: the squad's 16 call-ins dealt into four groups (one per Vanguard), the AI that calls them, and everything
-// they put on the map (strikes, zones, turrets, mines, shields, support weapons, the recon vehicle, the walker, a guard dog).
+// they put on the map (strikes, zones, turrets, mines, shields, support weapons, the recon vehicle, the mech suit, an escort drone).
 // A Vanguard only calls the call-ins in its own group, from where it stands. Squad-wide items (the recon vehicle, jump
 // packs, resupply) can be called by whichever Vanguard is alive. The player's orbital strikes reuse strikeAt() below.
 import { siteFalls } from './sites.js';
@@ -25,7 +25,7 @@ const MECH_RKT = M(1, 1, 0.7, 0.2);
 const DOG_MULT = M(1, 0.7, 0.2, 0.02);
 const LRV_MULT = M(1, 1, 0.95, 0.1);   // the manned gun is heavy-penetration
 // Which sound each call-in weapon makes (see audio.js).
-const SND = { mg_sentry: 'mg', gat_sentry: 'gat', ac_sentry: 'ac', rk_sentry: 'rocket', mortar: 'mortar', tesla: 'zap',
+const SND = { mg_autoturret: 'mg', gat_autoturret: 'gat', ac_autoturret: 'ac', rk_autoturret: 'rocket', mortar: 'mortar', arcpylon: 'zap',
   recoilless: 'rocket', autocannon: 'ac', flamethrower: 'flame', railgun: 'rail', mg43: 'mg', spear: 'missile', eat: 'rocket' };
 const FOCUS_R = 30;
 const mul = () => C.callin.dmgMul;
@@ -406,14 +406,14 @@ function land(m, it) {
     const F = C.callin.lrv;
     const v = newAsset(m, 'vehicle', it.sid, it.x, it.y, { hp: F.hp, maxHp: F.hp, until: t + F.life, life: F.life, seats: [], cool: 0.5, name: d.name, r: 5, face: m.squad.dir || 0, wreck: false, gunner: null });
     placeAsset(m, it.sid, v);
-    // Nobody rides the vehicle and an walker at once: a pilot climbs out of the suit to board.
+    // Nobody rides the vehicle and a mech suit at once: a pilot climbs out of the suit to board.
     const near = m.hdAlive.filter((a) => !a.mounted && Math.hypot(a.x - it.x, a.y - it.y) <= 70).sort((p, q) => Math.hypot(p.x - it.x, p.y - it.y) - Math.hypot(q.x - it.x, q.y - it.y));
     for (const a of near) {
       if (v.seats.length >= F.seats) break;
       if (a.mech) {
         a.mech = null;
         m.emit('asset_down', { kind: 'mech', sid: 'mech', x: a.x, y: a.y, why: 'abandoned' });
-        m.notice(tr('n.exoToLrv', { who: m.tag(a) }), 'info');
+        m.notice(tr('n.mechToLrv', { who: m.tag(a) }), 'info');
       }
       a.mounted = v; v.seats.push(a);
     }
@@ -601,12 +601,12 @@ function updateAssets(m, dt) {
   }
 }
 
-// Support weapons and the exosuit's guns.
+// Support weapons and the mech suit's guns.
 function pickWeaponTarget(m, a, w) {
   // a lock-on stays on its target for as long as that target is still there to be locked
   const le = w.lockE;
   if (le && !le.dead && le.vis > 0 && (!le.drop || le.low) && (le.x - a.x) ** 2 + (le.y - a.y) ** 2 <= w.range * w.range) return le;
-  // anti-armor weapons go for a dropship or warp ship that is low enough to hit: it carries several groups
+  // anti-armor weapons go for a dropship or war barge that is low enough to hit: it carries several groups
   if ((w.prefer && w.prefer.includes('H')) || w.only === 'H' || (w.kinds && w.kinds.includes('H'))) { const d = dropNear(m, a.x, a.y, w.range); if (d) return d; }
   let best = null, bs = -Infinity;
   m.eGrid.near(a.x, a.y, w.range, (e, d2) => {

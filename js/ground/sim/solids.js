@@ -63,7 +63,7 @@ function build(m) {
     else if (o.type === 'nuke') add(o.x, o.y, o.r * S.nuke, o);
     else if (o.type === 'vip') add(o.x, o.y, S.crash, o);
   }
-  for (const a of m.assets) if (a.kind === 'turret' && !a.dead) add(a.x, a.y, S.sentry, a);
+  for (const a of m.assets) if (a.kind === 'turret' && !a.dead) add(a.x, a.y, S.autoturret, a);
   return grid;
 }
 export function solids(m) {
