@@ -29,7 +29,7 @@ export class Game {
     });
     // fleets: the pieces. One per side per system. { id, owner, at, ships, moved }
     this.fleets = []; this.fid = 0;
-    this.opt = { fleets: 'standard', posts: 'none', ...(opt || {}) }; this.yard = 'bal';
+    this.opt = { fleets: 'standard', posts: 'none', level: 'normal', ...(opt || {}) }; this.yard = 'bal';
     const fk = C.fleet.start.fleets[this.opt.fleets] ?? 1, sh = (n) => Math.max(1, Math.round(n * fk));
     this._put('fed', 0, sh(C.start.fleets[0]));
     C.fronts.forEach((fr, fi) => { const p = this.P.filter(q => q.front === fi && q.ring === 2).sort((a, b) => a.id - b.id)[1]; this._put('fed', p.id, sh(C.start.fleets[fi + 1])); });
@@ -130,7 +130,7 @@ export class Game {
   _drop(f) { const i = this.fleets.indexOf(f); if (i >= 0) this.fleets.splice(i, 1); }
   // Hit points a system has by itself, with no fleet there.
   fort(p) {
-    if (p.owner !== 'fed') return Math.max(0, (p.kind === 'home' ? C.garr.home + Math.floor(((this.sectorOwners(), this._cnt)[p.owner] || 0) / C.homePer) : C.garr.sys) + p.worlds.filter(w => w.type === 'fortress').length * C.garr.fortress + (this.sectorHeld(p) ? C.sector.fort : 0) - (p.dmg || 0));
+    if (p.owner !== 'fed') return Math.max(0, (p.kind === 'home' ? C.garr.home + Math.floor(((this.sectorOwners(), this._cnt)[p.owner] || 0) / C.homePer) : C.garr.sys) + (p.station || 0) * C.foe.stationFort + p.worlds.filter(w => w.type === 'fortress').length * C.garr.fortress + (this.sectorHeld(p) ? C.sector.fort : 0) - (p.dmg || 0));
     let v = (p.id === 0 ? C.fort.capital : C.fort.sys) + (this.priority != null && p.front === this.priority ? C.priority.fort : 0);
     for (const w of p.worlds) v += C.worlds[w.type].fort || 0;
     v += (p.station || 0) * (C.link.stationFort + this.lv('s_guns')) + (this.sectorHeld(p) ? C.sector.fort : 0) + (this.sectorStation(p) >= C.link.sectorFortAt ? 1 : 0);
@@ -334,7 +334,7 @@ export class Game {
       }
     }
   }
-  _capture(p, owner) { this._sec = null; p.owner = owner; p.dev = 0; p.dmg = 0; p.sp = 0; p.bp = 0; if (p.station || p.base) { if (owner !== 'fed') this.say('bad', `${p.station ? 'The station over' : 'The base on'} ${p.name} is lost.`); p.station = 0; p.base = 0; this.lostSites = (this.lostSites || []).concat(p.id); } if (p.site) { if (owner !== 'fed') this.say('bad', `The ${C.sites[p.site].name} at ${p.name} is lost.`); p.site = null; } }
+  _capture(p, owner) { this._sec = null; const was0 = p.owner; p.owner = owner; p.dev = 0; p.dmg = 0; p.sp = 0; p.bp = 0; if (p.station || p.base) { const was = was0; if (was === 'fed') { this.say('bad', `${p.station ? 'The station over' : 'The base on'} ${p.name} is lost.`); this.lostSites = (this.lostSites || []).concat(p.id); } else if (owner === 'fed') this.say('good', `${p.station && p.base ? 'The station and the base at' : p.station ? 'The station over' : 'The base on'} ${p.name} ${p.station && p.base ? 'are' : 'is'} under new management: yours.`); p.station = p.station ? 1 : 0; p.base = p.base ? 1 : 0; } if (p.site) { if (owner !== 'fed') this.say('bad', `The ${C.sites[p.site].name} at ${p.name} is lost.`); p.site = null; } }
   // A beaten fleet falls back to a neighbouring system of its own side, or is lost if there is none.
   _retreat(f, pid) {
     const fl = f.owner === 'fed' ? this.fedLinked() : null;
@@ -349,8 +349,21 @@ export class Game {
     const fr = C.fronts[this.fi], f = fr.f, F = this.F[f], c = C.enemy[f];
     this.phase = 'plan'; this.last = { f, text: 'holds its ground.' };
     // ships gather at its home by themselves
-    F.pool += c.build + this.P.filter(p => p.owner === f).length * c.per + this.round * c.ramp;
-    const n = Math.floor(F.pool); if (n > 0 && this.P[F.home].owner === f) { F.pool -= n; this._put(f, F.home, n); }
+    {
+      const E = C.foe, sys = this.P.filter(p => p.owner === f), link = this.linked(f, F.home), st = sys.filter(p => p.station && link.has(p.id)), bs = sys.filter(p => p.base && link.has(p.id));
+      const yard = E.home + st.length * E.yard, sup = E.supply.base + sys.length * E.supply.per + bs.length * E.supply.perBase;
+      F.pool += Math.min(yard, sup) * (E.level[this.opt.level] ?? 1);
+      const yards = [F.home, ...st.map(p => p.id)].filter(id => this.P[id].owner === f);
+      let n = Math.floor(F.pool); if (n > 0 && yards.length) { F.pool -= n; while (n-- > 0) { F.yardI = ((F.yardI || 0) + 1) % yards.length; this._put(f, yards[F.yardI], 1); } }
+      // a new post, when it is due: a station just behind the line, a base as far from it as it has
+      const posts = sys.filter(p => p.station).length + sys.filter(p => p.base).length;
+      if (F.arrived != null && this.round - F.arrived >= E.firstAfter && this.round - (F.foundAt ?? F.arrived) >= E.foundEvery && posts < Math.floor(sys.length / E.perSystems)) {
+        const kind = sys.filter(p => p.station).length <= sys.filter(p => p.base).length ? 'station' : 'base';
+        const line = id => this.P[id].adj.some(t => this.P[t].owner === 'fed');
+        const c2 = sys.filter(p => p.id !== F.home && link.has(p.id) && !p[kind] && !line(p.id)).sort((a, b) => kind === 'station' ? a.dist - b.dist || a.id - b.id : b.dist - a.dist || a.id - b.id)[0];
+        if (c2) { c2[kind] = 1; F.foundAt = this.round; this._sec = null; }
+      }
+    }
     if (F.arrived === this.round) { this.last = { f, text: 'has arrived.', arrived: true }; return; }   // the round it arrives, it only shows itself
     const ok = id => id === 0 || this.P[id].front === F.front;
     const mine = this.fleets.filter(x => x.owner === f);

@@ -154,10 +154,10 @@ function toFound() {
   foundDraw();
 }
 // The opening: how much the command starts with. Fewer fleets and no posts is the harder war.
-const OPEN = { fleets: [['lean', 'LEAN'], ['standard', 'STANDARD'], ['strong', 'STRONG']], posts: [['none', 'NONE'], ['some', 'ONE EACH'], ['many', 'THREE EACH']] };
+const OPEN = { level: [['easy', 'EASY'], ['normal', 'NORMAL'], ['hard', 'HARD'], ['brutal', 'BRUTAL']], fleets: [['lean', 'LEAN'], ['standard', 'STANDARD'], ['strong', 'STRONG']], posts: [['none', 'NONE'], ['some', 'ONE EACH'], ['many', 'THREE EACH']] };
 function openDraw() {
-  draft.open ||= { fleets: 'standard', posts: 'none' };
-  for (const k of ['fleets', 'posts']) {
+  draft.open ||= { fleets: 'standard', posts: 'none', level: 'normal' }; draft.open.level ||= 'normal';
+  for (const k of ['level', 'fleets', 'posts']) {
     $('f-' + k).innerHTML = OPEN[k].map(([id, name]) => `<button class="plate btn sm grow${draft.open[k] === id ? ' on' : ''}" data-open="${k}" data-v="${id}">${name}</button>`).join('');
     for (const b of $('f-' + k).querySelectorAll('button')) b.onclick = () => { draft.open[b.dataset.open] = b.dataset.v; audio.click(); openDraw(); };
   }

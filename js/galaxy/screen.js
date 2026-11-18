@@ -102,6 +102,7 @@ function tabSys() {
   if (p.site) h += `<div class="sm2 am">${C.sites[p.site].name}: ${C.sites[p.site].text}</div>`;
   { const sc = g.sectorOf(p), own = g.sectorOwners().get(sc.id), mine = sc.sys.filter(id => g.P[id].owner === 'fed').length;
     h += `<div class="sm2 ${own === 'fed' ? 'cy' : 'dim'}">SECTOR: ${esc(sc.name.toUpperCase())} · ${mine} / ${sc.sys.length} HELD${own === 'fed' ? ` · WHOLE: +${Math.round(C.sector.yield * 100)}% OUTPUT, +${C.sector.fort} HP` : own ? ` · HELD WHOLE BY ${N.factions[own].toUpperCase()}` : ` · hold it all for +${Math.round(C.sector.yield * 100)}% output`}</div>`; }
+  if (!fed && (p.station || p.base)) h += `<div class="sm2" style="color:${C.color[p.owner]}">${[p.station ? 'STATION: a yard for its ships' : '', p.base ? 'BASE: supplies for its yards' : ''].filter(Boolean).join(' · ')}</div>`;
   { const d = g.deposit(p); if (d) { const fr = C.fronts[C.factions.indexOf(d)]; h += `<div class="sm2" style="color:${C.color[d]}">DEPOSIT: ${fr.loot}${fed ? (p.base ? '' : ' · needs a base') : ''}</div>`; } }
   if (th) h += threatLine(p, th);
   h += '<canvas id="sys"></canvas>';

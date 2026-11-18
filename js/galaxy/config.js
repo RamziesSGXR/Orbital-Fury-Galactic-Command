@@ -1,5 +1,5 @@
 // Every number and every name in the game lives here, so the prototype can be retuned or renamed in one place.
-export const VERSION = '0.10.0';
+export const VERSION = '0.11.0';
 
 export const C = {
   names: {
@@ -97,6 +97,15 @@ export const C = {
   // `engage`: rounds in one engagement. If neither side is out of hit points by then, the fight for the system goes on next
   // round: the fleets stay where they are and the damage stays done. `press`: pay fuel to fight on for more rounds now.
   // `repair`: hit points a system's own defences win back each round.
+  // ---------------------------------------------------------------- THE ENEMY RUNS ON THE SAME THINGS YOU DO (0.11)
+  // Each enemy has stations and bases of its own, on its own systems, and they are what it grows by. Its yards (its home,
+  // and `yard` ships a round for every station linked to it) can build only what its supplies allow (a little from every
+  // system, `perBase` from every base). New ships come out at its yards in turn, so a station near the line feeds the
+  // line. It raises a new post every foundEvery rounds, up to one for every perSystems systems it holds: stations near
+  // the fighting, bases deep behind it. Its stations add stationFort to their system. A post changes hands with its
+  // system, at its lowest level and not in profit. `level` is the campaign's difficulty: it scales what they build.
+  foe: { home: 0.8, yard: 0.3, supply: { base: 0.7, per: 0.016, perBase: 0.3 }, foundEvery: 5, firstAfter: 3, perSystems: 5, stationFort: 2,
+         level: { easy: 0.75, normal: 1, hard: 1.25, brutal: 1.5 } },
   // ---------------------------------------------------------------- WHAT EACH POST IS FOR (0.10)
   // The base trains the troops: every base charter on a linked system adds `train` to Army and Vanguard each round, and
   // worlds by themselves give only `worldTroops` of what they used to. The station builds the ships: a ship can only be
@@ -165,7 +174,7 @@ export const C = {
   battle: { hand: 3, maxRounds: 12, engage: 3, press: { fuel: 3, rounds: 2 }, repair: 1 },
   // A battle fought on the ground is one hard engagement, not the whole war for the system: winning it does the damage of a
   // full engagement and half again, and spares your own side by how many lives were left.
-  groundWin: { deal: 1.0, take: 0.8 }, groundLoss: { deal: 0.3, take: 1.2 },
+  groundWin: { deal: 0.7, take: 0.9 }, groundLoss: { deal: 0.3, take: 1.2 },
   // The kinds of ground mission: what you are sent to do when you attack a system, and when you defend one.
   groundObj: { atk: ['fortress', 'nuke'], def: ['evac', 'vip'] },
   bcards: {

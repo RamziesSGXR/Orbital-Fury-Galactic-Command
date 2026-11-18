@@ -161,6 +161,10 @@ export class View {
       if (enemy && !G) { c.globalAlpha = 0.35; c.fillStyle = col(p.owner); c.beginPath(); c.arc(x, y, r, 0, 7); c.fill(); c.globalAlpha = 1; }
       c.strokeStyle = col(p.owner); c.lineWidth = G ? 1.3 : 1.8; c.globalAlpha = cut ? 0.45 : G ? 0.9 : 1; c.setLineDash(cut ? [3, 3] : []);
       c.beginPath(); c.arc(x, y, r, 0, 7); c.stroke(); c.setLineDash([]); c.globalAlpha = 1;
+      // the posts on it, whoever's they are: a diamond for a station (above), a block for a base (below)
+      if (p.station || p.base) { const s = Math.max(3, Math.min(6, r * 0.55)); c.fillStyle = col(p.owner); c.strokeStyle = 'rgba(8,10,9,0.9)'; c.lineWidth = 1;
+        if (p.station) { const mx = x + r * 0.95, my = y - r * 0.95; c.beginPath(); c.moveTo(mx, my - s); c.lineTo(mx + s, my); c.lineTo(mx, my + s); c.lineTo(mx - s, my); c.closePath(); c.fill(); c.stroke(); }
+        if (p.base) { const mx = x - r * 0.95, my = y + r * 0.95; c.beginPath(); c.rect(mx - s * 0.8, my - s * 0.8, s * 1.6, s * 1.6); c.fill(); c.stroke(); } }
       if (p.kind === 'capital') { c.beginPath(); c.arc(x, y, r + 4, 0, 7); c.lineWidth = 1; c.stroke(); if (!G) { c.fillStyle = col('fed'); c.beginPath(); c.arc(x, y, 3 * k, 0, 7); c.fill(); } }
       if (p.kind === 'home') {
         const F = g.F[g.facOf(p)];

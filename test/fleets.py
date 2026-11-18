@@ -12,7 +12,7 @@ with sync_playwright() as pw:
         pg.goto('http://localhost:8080/?seed=7'); pg.wait_for_timeout(500)
         pg.evaluate('localStorage.clear()'); pg.reload(); pg.wait_for_timeout(500)
         pg.click('#b-new'); pg.wait_for_timeout(200)
-        pg.click('#f-fleets [data-v=strong]'); pg.click('#f-posts [data-v=many]'); pg.wait_for_timeout(100)
+        pg.click('#f-level [data-v=hard]'); pg.click('#f-fleets [data-v=strong]'); pg.click('#f-posts [data-v=many]'); pg.wait_for_timeout(100)
         pg.screenshot(path=f'{out}/{name}-open.png', full_page=True)
         pg.click('#f-go'); pg.wait_for_timeout(200); pg.click('#modal [data-x=close]'); pg.wait_for_timeout(900)
         g = 'gc.War.war()'
