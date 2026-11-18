@@ -20,7 +20,7 @@ export class Game {
     this.P = this.map.planets;       // star systems
     this.round = 1; this.phase = 'plan'; this.fi = -1; this.over = null;
     this.res = { ...C.start.res };
-    this.loot = { molt: 0, foundry: 0, talon: 0 };   // each front's own resource
+    this._lootAlias(); this.mkt = { fuel: 1, ammo: 1, tech: 1 };   // each front's own product; the market's prices, as multiples of their base
     this.truth = { fed: [], molt: [], foundry: [], talon: [] };   // propaganda cards each side holds
     this.F = {};
     C.fronts.forEach((fr, fi) => {
@@ -59,19 +59,19 @@ export class Game {
 
   // ---------- saving (only while you are deciding) ----------
   save() {
-    const k = ['seed', 'rs', 'round', 'fi', 'res', 'loot', 'truth', 'F', 'fleets', 'fid', 'policy', 'priority', 'capHit', 'stats', 'over', 'last', 'up', 'due', 'rat', 'sack', 'aired', 'opt', 'yard'];
-    const d = { v: 11, log: this.log.slice(-80), P: this.P.map(p => [p.owner, p.dev, p.site, p.built ? 1 : 0, p.station || 0, p.base || 0, p.dmg || 0, p.sp || 0, p.bp || 0]) };
+    const k = ['seed', 'rs', 'round', 'fi', 'res', 'mkt', 'truth', 'F', 'fleets', 'fid', 'policy', 'priority', 'capHit', 'stats', 'over', 'last', 'up', 'due', 'rat', 'sack', 'aired', 'opt', 'yard'];
+    const d = { v: 12, log: this.log.slice(-80), P: this.P.map(p => [p.owner, p.dev, p.site, p.built ? 1 : 0, p.station || 0, p.base || 0, p.dmg || 0, p.sp || 0, p.bp || 0]) };
     for (const x of k) d[x] = this[x];
     return d;
   }
   _restore(d) {
     for (const k in d) if (k !== 'v' && k !== 'P') this[k] = d[k];
     d.P.forEach(([o, dv, st, bu, sn, bs, dm, sp, bp], i) => Object.assign(this.P[i], { owner: o, dev: dv, site: st, built: !!bu, station: sn || 0, base: bs || 0, dmg: dm || 0, sp: sp || 0, bp: bp || 0 }));
-    this.up ||= {}; this.due ||= 0; this.rat ??= C.ratings.start; this.sack ||= 0; this.opt ||= { fleets: 'standard', posts: 'none' }; this.yard ||= 'bal';
+    this.up ||= {}; this.due ||= 0; this.rat ??= C.ratings.start; this.sack ||= 0; this.opt ||= { fleets: 'standard', posts: 'none' }; this.yard ||= 'bal'; this._lootAlias(); this.mkt ||= { fuel: 1, ammo: 1, tech: 1 };
     this.phase = this.over ? 'over' : 'plan'; this._sec = null;
     return this;
   }
-  static load(d) { return d && d.v === 11 ? new Game(d.seed, d) : null; }
+  static load(d) { return d && d.v === 12 ? new Game(d.seed, d) : null; }
 
   // ---------- the board ----------
   linked(owner, root) {
@@ -93,7 +93,7 @@ export class Game {
   }
   sectorStation(p) { this.sectorOwners(); return this._stn[p.sector] || 0; }
   // How much of each resource you can hold: more with every station tier and base charter.
-  resMax() { let n = 0; for (const p of this.P) if (p.owner === 'fed') n += (p.station || 0) + (p.base || 0); return C.resMax + n * C.link.capPer + this.lv('f_hold') * 5; }
+  resMax() { let n = 0; for (const p of this.P) if (p.owner === 'fed') n += (p.station || 0) + (p.base || 0); return Math.min(C.link.capMax, C.resMax + n * C.link.capPer) + this.lv('f_hold') * 5; }
   sectorOf(p) { return this.map.sectors.find(sc => sc.id === p.sector); }
   sectorHeld(p) { return this.sectorOwners().get(p.sector) === p.owner; }
   keyWorld(p) { return p.worlds[p.key]; }
@@ -218,7 +218,7 @@ export class Game {
   // What one ship costs at this system. The key world's kind and the priority front make it cheaper.
   shipCost(p) {
     const c = { ...C.ship.cost }, t = this.keyWorld(p).type;
-    if (t === 'refinery') c.fuel = 0; if (t === 'forge') c.army = 0; if (t === 'colony') c.drop = 0;
+    if (t === 'refinery') c.fuel = 0; if (t === 'forge') c.ammo = 0; if (t === 'colony') c.army = 0;
     if (this.priority != null && p.front === this.priority) c.fuel = Math.max(0, c.fuel - C.priority.fuel);
     if (p.station) c.fuel = Math.max(0, c.fuel - C.link.stationFuel);
     return c;
@@ -256,11 +256,11 @@ export class Game {
     for (const p of this.P) {
       if (p.owner !== 'fed' || p.id === 0 || !fl.has(p.id)) continue;
       const m = (1 + C.develop.mult * p.dev + (C.link.baseYield + 0.1 * this.lv('b_yard')) * (p.base || 0) + (this.sectorHeld(p) ? C.sector.yield : 0)) * (this.priority != null && p.front === this.priority ? C.priority.yield : 1);
-      if (p.base) { r.army += C.post.train.army * p.base * pol.forge; r.drop += C.post.train.drop * p.base * pol.drop; }
+      if (p.base) r.army += C.post.train.army * p.base * pol.troops;
+      if (p.station) r.ammo += C.post.stationAmmo * p.station * pol.forge;
       for (const w of p.worlds) {
         const t = C.worlds[w.type]; if (!t.res) continue;
-        r[t.res] += t.y * m * (t.res === 'drop' ? pol.drop : t.res === 'army' ? pol.forge : 1) * (t.res === 'fuel' ? 1 : C.post.worldTroops);
-        if (w.type === 'colony') r.army += pol.army * m * C.post.worldTroops;
+        r[t.res] += t.y * m * (t.res === 'army' ? pol.troops * C.post.worldTroops : t.res === 'ammo' ? pol.forge : 1);
       }
     }
     const ym = this.ratYield(); if (ym !== 1) for (const k in r) r[k] *= ym;
@@ -312,7 +312,7 @@ export class Game {
     const r = this.res, inc = this.income();
     const cap = this.resMax(); for (const k in inc) r[k] = clamp(r[k] + inc[k], 0, cap);
     if (this.round % C.link.shipEvery === 0) { const fl = this.fedLinked(); for (const p of this.P) if (p.owner === 'fed' && (p.base || 0) >= C.link.shipAt && fl.has(p.id)) this._put('fed', p.id, 1); }
-    this._posts(); this._ratRound(); this._fleetRound();
+    this._posts(); this._ratRound(); this._fleetRound(); this._marketRound();
     for (const f of this.fleets) f.moved = false;
     for (const p of this.P) { p.built = false; if (p.dmg) p.dmg = Math.max(0, p.dmg - C.battle.repair); }
     this.capHit = [];
@@ -478,6 +478,19 @@ export class Game {
     const ratings = this.rat >= R.high ? S.ratLives : this.rat < R.low ? -S.ratLives : 0;
     return { base, station, ratings, garrison: base * S.garrisonPer, lives: station * S.stationLives + ratings };
   }
+  // ---------- the three products and the market ----------
+  // A front's "loot" is its product: wins, deposits and special sites on the east deal in fuel, the west in ammunition,
+  // the south in tech. `loot` is only another way of reaching those three numbers.
+  _lootAlias() { const P = C.product, self = this; this.loot = {}; for (const f in P) Object.defineProperty(this.loot, f, { enumerable: true, get() { return self.res[P[f]] || 0; }, set(v) { self.res[P[f]] = v; } }); }
+  price(k) { return C.market.base[k] * (this.mkt[k] || 1); }
+  buyPrice(k) { return Math.ceil(this.price(k) * (1 + C.market.spread)); }
+  sellPrice(k) { return Math.floor(this.price(k) * (1 - C.market.spread)); }
+  canBuyRes(k, bal) { return k in C.market.base && bal >= this.buyPrice(k) && this.res[k] + 1 <= this.resMax(); }
+  canSellRes(k) { return k in C.market.base && this.res[k] >= 1; }
+  buyRes(k, wallet) { if (!this.canBuyRes(k, wallet.bal)) return false; const c = this.buyPrice(k), M = C.market; wallet.bal -= c; wallet.spent = (wallet.spent || 0) + c; this.res[k] += 1; this.mkt[k] = clamp(this.mkt[k] * (1 + M.step), M.min, M.max); return true; }
+  sellRes(k, wallet) { if (!this.canSellRes(k)) return false; const c = this.sellPrice(k), M = C.market; wallet.bal += c; this.res[k] -= 1; this.mkt[k] = clamp(this.mkt[k] * (1 - M.step), M.min, M.max); return true; }
+  _marketRound() { for (const k in this.mkt) this.mkt[k] += (1 - this.mkt[k]) * C.market.settle; }
+  canGround() { return this.canPay({ ammo: C.groundAmmo }); }
   // ---------- ratings ----------
   rate(n) { this.rat = clamp(this.rat + n, 0, 100); }
   ratBand() { const R = C.ratings; return this.rat >= R.high ? 'high' : this.rat < R.sack ? 'sack' : this.rat < R.low ? 'low' : 'mid'; }
@@ -518,7 +531,7 @@ export class Game {
     out.cr = Math.round(out.cr * this.ratPay());
     return out;
   }
-  _posts() { const o = this.postsPay(); this.due += o.cr; for (const k in o.mat) this.loot[k] += o.mat[k]; }
+  _posts() { const o = this.postsPay(), cap = this.resMax(); this.due += o.cr; for (const k in o.mat) this.loot[k] = Math.min(Math.max(cap, this.loot[k]), this.loot[k] + o.mat[k]); }
   // The shell empties this into the war chest whenever it looks.
   takeDue() { const n = this.due || 0; this.due = 0; return n; }
   shelfItem(id) { for (const k in C.shelf) for (const it of C.shelf[k]) if (it.id === id) return it; return null; }
@@ -536,6 +549,7 @@ export class Game {
   battleResolve(win, left = 0.5, res = null) {
     const b = this.battle; if (!b || b.done) return false;
     left = clamp(left, 0, 1);
+    this.res.ammo = Math.max(0, this.res.ammo - C.groundAmmo);
     if (win) this.loot[b.f] += Math.round(left * C.post.groundLoot);
     const st = this.stunt(); if (st && win && res) { let ok = false; try { ok = !!st.test(res); } catch { ok = false; } if (ok) { this.rate(C.ratings.stunt); this.say('good', `Publicity Office: ${st.name}, live. The sponsors are delighted.`); } }
     if (this.aired !== this.round) { this.aired = this.round; const G = C.ratings.ground; this.rate(win ? G.win + (left >= G.flawlessAt ? G.flawless : 0) : G.loss); if (win && left >= G.flawlessAt) this.say('good', 'Publicity Office: a flawless action, live. The footage is everywhere.'); }

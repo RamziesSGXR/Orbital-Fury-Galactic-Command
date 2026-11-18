@@ -1,6 +1,6 @@
 # Orbital Fury: Galactic Command
 
-**Prototype 0.13.0.** One war, run from four posts, in one game.
+**Prototype 0.14.0.** One war, run from four posts, in one game.
 
 You found a command (a name, a crest, colours) and hold the centre of the galaxy against three enemies. Everything in
 the war is yours to run, and each part changes the others:
@@ -37,12 +37,14 @@ This is one application with one save, one faction and one interface, not four g
 - `js/core/logo.js` is the crest maker shared by every post. `css/gc.css` is the one stylesheet.
 - The theatres are loaded the first time they are entered, so the game opens quickly.
 
-## The war chest and the armoury
+## What the war runs on
 
-- **One currency.** Credits (CR) sit in the war chest. Ground battles pay into it, and so does every station and base that is running in profit, every round.
-- **Deposits.** About three systems in ten hold their front's material: biomass in the east, metals in the west, bio-tech in the south. A base on a deposit lifts it every round.
-- **Armoury rank.** One for every station tier and base charter that is linked to the capital and in profit. Rank opens the shelves.
-- **Four shelves.** Ground (the ship's weapons), stations, bases and fleet. The last three cost credits and a material. The armoury opens from the top of the war room.
+- **Three products:** fuel (from the biomass of the east), ammunition (from the metals of the west) and tech (from the bio-tech of the south). Deposits, wins and special sites on a front deal in that front's product.
+- **Troops:** one number, trained by bases. **Ships:** built at the headquarters and over stations.
+- **Credits:** the war chest. Ground battles and posts in profit pay into it. It buys from the armoury and from the market.
+- **The market:** buy and sell the three products for credits. Buying pushes a price up, selling pushes it down, and prices drift back.
+- **Ratings:** the brand's standing and the fleet's morale.
+- **Armoury rank:** one for every station tier and base charter that is linked to the capital and in profit.
 
 ## Saving
 

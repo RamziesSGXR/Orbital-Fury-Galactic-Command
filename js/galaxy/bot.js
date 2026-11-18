@@ -6,7 +6,7 @@ const HP = C.ship.hp;
 // Make the one decision on the front in play.
 export function botDecide(g) {
   const mine = g.fleets.filter(f => f.owner === 'fed' && !f.moved);
-  if (g.res.fuel < 2 && g.res.army > 8) g.trade('army', 'fuel');
+
   if (g.fi >= 0 && g.priority !== g.fi && g.P.some(p => p.front === g.fi && g.threat(p.id))) g.setPriority(g.fi);
   // building is extra: a special site as soon as one can be paid for, then ships where they are needed
   for (const k in C.sites) { const p = g.P.filter(q => g.canSite(q.id, k) && !g.threat(q.id)).sort((a, b) => a.ring - b.ring)[0]; if (p) g.site(p.id, k); }

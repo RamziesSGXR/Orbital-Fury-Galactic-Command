@@ -1,5 +1,5 @@
 // Every number and every name in the game lives here, so the prototype can be retuned or renamed in one place.
-export const VERSION = '0.13.0';
+export const VERSION = '0.14.0';
 
 export const C = {
   names: {
@@ -7,7 +7,7 @@ export const C = {
     fed: 'The Fleet',
     capital: 'Aurelia',     // the default; the player names their own headquarters when founding the command
     capitals: ['Aurelia', 'Highmark', 'Port Meridian', 'Castellan', 'Ardent', 'Kestrel Station', 'Longwatch', 'Solace'],
-    drop: 'VANGUARD', army: 'ARMY', fuel: 'FUEL',
+    army: 'TROOPS', fuel: 'FUEL', ammo: 'AMMO', tech: 'TECH',
     factions: { molt: 'The Molt', foundry: 'The Foundry', talon: 'The Talon' },
     homes: { molt: 'Nest Prime', foundry: 'Anvil', talon: 'Sunstone Roost' },
     planets: ['Tarsen', 'Okoro', 'Vell', 'Duskar', 'Imrie', 'Pallas', 'Korvan', 'Sable', 'Ythe', 'Marrow', 'Calder', 'Nimbus', 'Orrin', 'Brakk', 'Solen',
@@ -31,9 +31,9 @@ export const C = {
   // `deg` is where the front lies on the map (screen degrees: 0 is east, 90 is south).
   // `loot` is the front's own resource: you win some with every victory there, and spend it on special sites.
   fronts: [
-    { f: 'molt',   name: 'EASTERN FRONT',  short: 'EAST',  deg: 330, loot: 'BIOMASS', lootShort: 'BIOMASS' },
-    { f: 'foundry', name: 'WESTERN FRONT',  short: 'WEST',  deg: 210, loot: 'METALS', lootShort: 'METAL' },
-    { f: 'talon',    name: 'SOUTHERN FRONT', short: 'SOUTH', deg: 90,  loot: 'BIO-TECH', lootShort: 'BIOTECH' },
+    { f: 'molt',   name: 'EASTERN FRONT',  short: 'EAST',  deg: 330, loot: 'FUEL', lootShort: 'FUEL', dep: 'BIOMASS' },
+    { f: 'foundry', name: 'WESTERN FRONT',  short: 'WEST',  deg: 210, loot: 'AMMO', lootShort: 'AMMO', dep: 'METALS' },
+    { f: 'talon',    name: 'SOUTHERN FRONT', short: 'SOUTH', deg: 90,  loot: 'TECH', lootShort: 'TECH', dep: 'BIO-TECH' },
   ],
   color: { fed: '#7fe9e0', molt: '#ff9a3d', foundry: '#ff6a4d', talon: '#b58cff', amber: '#f5d547' },
 
@@ -50,27 +50,27 @@ export const C = {
   // rings of its front (`arriveRing` and beyond), and its home is harder for every `homePer` systems it holds.
   fleetRange: 4, arriveRing: 9, homePer: 4,
 
-  start: { res: { fuel: 9, drop: 6, army: 9 }, fleets: [3, 2, 2, 2] },   // ships: at the capital, then one fleet on each front
+  start: { res: { fuel: 9, ammo: 6, tech: 0, army: 9 }, fleets: [3, 2, 2, 2] },   // ships: at the capital, then one fleet on each front
   resMax: 30,
 
   // The worlds inside each star system. A world pays its resource each round while its system is linked to the
   // capital, and every few worlds of a kind put a card of that kind in your battle deck.
   worlds: {
     capital:  { name: 'CAPITAL WORLD',  col: '#7fe9e0', text: 'Your headquarters.' },
-    refinery: { name: 'GAS REFINERY',   col: '#d9a45b', res: 'fuel', y: 0.13, card: 'burn',    yard: 'Ships built here cost no fuel.' },
-    forge:    { name: 'FORGE WORLD',    col: '#c8643c', res: 'army', y: 0.09, card: 'armour',  yard: 'Ships built here cost no Army.' },
-    colony:   { name: 'COLONY',         col: '#5fa8d8', res: 'drop', y: 0.05, card: 'drop',    yard: 'Ships built here cost no Vanguard.' },
+    refinery: { name: 'GAS REFINERY',   col: '#d9a45b', res: 'fuel', y: 0.065, card: 'burn',    yard: 'Ships built here cost no fuel.' },
+    forge:    { name: 'FORGE WORLD',    col: '#c8643c', res: 'ammo', y: 0.05, card: 'armour',  yard: 'Ships built here cost no ammunition.' },
+    colony:   { name: 'COLONY',         col: '#5fa8d8', res: 'army', y: 0.045, card: 'drop',    yard: 'Ships built here cost no troops.' },
     fortress: { name: 'FORTRESS WORLD', col: '#9aa7a0', fort: 2,     card: 'bulwark', yard: 'Adds 2 to the system\'s defence.' },
     barren:   { name: 'BARREN WORLD',   col: '#6f6a62' },
   },
-  capitalYield: { fuel: 1.5, army: 1.2, drop: 0.5 },
+  capitalYield: { fuel: 1.5, ammo: 1.0, tech: 0.15, army: 1.2 },
   fort: { capital: 16, sys: 3 },      // hit points a system of yours has by itself, with no fleet there
   garr: { sys: 2, home: 9, fortress: 2 },   // the same for an enemy system
 
   // ---------- fleets ----------
   // One ship is 3 hit points and 1 point of fire each round of a battle. A fleet may travel any distance through
   // systems you hold that are joined by lanes, once a round.
-  ship: { hp: 3, cost: { fuel: 3, army: 3, drop: 2 } },
+  ship: { hp: 3, cost: { fuel: 3, ammo: 2, army: 2 } },
   cut: 0.5,                 // a system cut off from the capital defends at half and pays nothing
 
   // Arrival: round, plus or minus `vary`. The warning comes `warn` rounds before.
@@ -113,11 +113,11 @@ export const C = {
   // stationLives more reinforcements per tier, and ratings add or take ratLives (high or low).
   support: { baseFort: 1, coverFort: 1, coverMax: 2, garrisonPer: 2, stationLives: 2, ratLives: 3 },
   // ---------------------------------------------------------------- WHAT EACH POST IS FOR (0.10)
-  // The base trains the troops: every base charter on a linked system adds `train` to Army and Vanguard each round, and
+  // The base trains the troops: every base charter on a linked system adds `train` troops each round, every station tier makes stationAmmo ammunition, and
   // worlds by themselves give only `worldTroops` of what they used to. The station builds the ships: a ship can only be
   // laid down at the capital or over a station. The ground pays in the enemy's own material: a win there brings
   // groundLoot x the share of your squad still standing, on top of what any victory brings.
-  post: { train: { army: 1.2, drop: 0.8 }, worldTroops: 0.7, yardNeedsStation: true, groundLoot: 3 },
+  post: { train: { army: 0.9 }, stationAmmo: 0.35, worldTroops: 0.7, yardNeedsStation: true, groundLoot: 3 },
   // ---------------------------------------------------------------- FLEETS: MAKEUP, WEAR AND UPKEEP (0.9)
   // A fleet is still a number of ships, and that number still decides its fights. On top of it, kept simple:
   // MAKEUP: every ship is one of three roles, and a fleet's makeup is its shares of them. The shares give modest buffs:
@@ -134,7 +134,7 @@ export const C = {
     buff: { gun: 0.3, esc: 0.3, ten: 0.6, tenMend: 6 },
     wear: { move: 6, attack: 14, defend: 8, fire: 0.3, unpaid: 5 },
     repair: { capital: 25, station: 15, base: 6 },
-    upkeep: { free: 10, per: 0.02 },
+    upkeep: { free: 10, per: 0.06 },
     start: { fleets: { lean: 0.5, standard: 1, strong: 2 }, posts: { none: 0, some: 1, many: 3 } },
   },
   // ---------------------------------------------------------------- RATINGS (0.8): the brand's standing, and the fleet's morale
@@ -160,7 +160,7 @@ export const C = {
   // ---------------------------------------------------------------- THE WAR CHEST, DEPOSITS AND THE ARMOURY (0.5)
   // One currency for the whole war: credits (CR), kept in the war chest. The ground pays into it; so does every station
   // and base that is running in profit, every round; so does every sector held whole. It buys everything in the armoury.
-  chest: { post: 30, sector: 2 },             // CR a round: for each tier or charter of a post in profit; for each whole sector
+  chest: { post: 12, sector: 2 },             // CR a round: for each tier or charter of a post in profit; for each whole sector
   // Deposits: about `share` of the systems on a front hold that front's material (biomass on the east, metals on the west,
   // bio-tech in the south; every enemy home has one). A base on a deposit lifts `per` a round, `profit` more
   // when it is running in profit.
@@ -171,19 +171,19 @@ export const C = {
   // and the rank that opens it. `mat` is the front whose material it takes.
   shelf: {
     station: [
-      { id: 's_grant', name: 'FOUNDING GRANT',  text: 'Every new station opens with more credits.',        mat: 'foundry', lv: [[400, 4, 0], [900, 10, 2], [1800, 20, 4]], per: 600 },
-      { id: 's_trade', name: 'TRADE CHARTER',   text: 'A station in profit pays more into the war chest.', mat: 'foundry', lv: [[600, 6, 1], [1400, 14, 3], [2800, 28, 6]], per: 10 },
-      { id: 's_guns',  name: 'DEFENCE GRID',    text: 'Each station tier adds one more hit point.',        mat: 'foundry', lv: [[1200, 12, 2], [3200, 30, 5]], per: 1 },
+      { id: 's_grant', name: 'FOUNDING GRANT',  text: 'Every new station opens with more credits.',        mat: 'foundry', lv: [[400, 3, 0], [900, 6, 2], [1800, 12, 4]], per: 600 },
+      { id: 's_trade', name: 'TRADE CHARTER',   text: 'A station in profit pays more into the war chest.', mat: 'foundry', lv: [[600, 4, 1], [1400, 8, 3], [2800, 14, 6]], per: 10 },
+      { id: 's_guns',  name: 'DEFENCE GRID',    text: 'Each station tier adds one more hit point.',        mat: 'foundry', lv: [[1200, 8, 2], [3200, 16, 5]], per: 1 },
     ],
     base: [
-      { id: 'b_grant', name: 'FOUNDING STORES', text: 'Every new base lands with more supplies.',          mat: 'molt', lv: [[400, 4, 0], [900, 10, 2], [1800, 20, 4]], per: 150 },
-      { id: 'b_rigs',  name: 'DEEP RIGS',       text: 'A base on a deposit lifts one more a round.',       mat: 'molt', lv: [[700, 6, 1], [1600, 14, 3], [3000, 28, 6]], per: 1 },
-      { id: 'b_yard',  name: 'WORKS',           text: 'Each base charter adds more to its system\'s output.', mat: 'molt', lv: [[1200, 12, 2], [3200, 30, 5]], per: 0.1 },
+      { id: 'b_grant', name: 'FOUNDING STORES', text: 'Every new base lands with more supplies.',          mat: 'molt', lv: [[400, 3, 0], [900, 6, 2], [1800, 12, 4]], per: 150 },
+      { id: 'b_rigs',  name: 'DEEP RIGS',       text: 'A base on a deposit lifts one more a round.',       mat: 'molt', lv: [[700, 4, 1], [1600, 8, 3], [3000, 14, 6]], per: 1 },
+      { id: 'b_yard',  name: 'WORKS',           text: 'Each base charter adds more to its system\'s output.', mat: 'molt', lv: [[1200, 8, 2], [3200, 16, 5]], per: 0.1 },
     ],
     fleet: [
-      { id: 'f_hold',  name: 'DEPOTS',          text: 'Hold more fuel, armies and drops.',                 mat: 'talon', lv: [[500, 4, 0], [1200, 10, 2], [2400, 20, 4]], per: 5 },
-      { id: 'f_range', name: 'LONG DRIVES',     text: 'Fleets reach one system further.',                  mat: 'talon', lv: [[1500, 12, 3], [4000, 30, 6]], per: 1 },
-      { id: 'f_hand',  name: 'BATTLE STAFF',    text: 'One more card in hand in every battle.',            mat: 'talon', lv: [[5000, 40, 7]], per: 1 },
+      { id: 'f_hold',  name: 'DEPOTS',          text: 'Hold more fuel, armies and drops.',                 mat: 'talon', lv: [[500, 3, 0], [1200, 6, 2], [2400, 12, 4]], per: 5 },
+      { id: 'f_range', name: 'LONG DRIVES',     text: 'Fleets reach one system further.',                  mat: 'talon', lv: [[1500, 8, 3], [4000, 16, 6]], per: 1 },
+      { id: 'f_hand',  name: 'BATTLE STAFF',    text: 'One more card in hand in every battle.',            mat: 'talon', lv: [[5000, 20, 7]], per: 1 },
     ],
   },
   battle: { hand: 3, maxRounds: 12, engage: 3, press: { fuel: 3, rounds: 2 }, repair: 1 },
@@ -237,12 +237,22 @@ export const C = {
   },
 
   // ---------- what the offices can do (none of these use up your decision) ----------
-  trade: { give: 3, get: 2 },                         // Prosperity: exchange one resource for another
+  trade: { give: 3, get: 2 },                         // (the old straight swap; the market below replaced it on the screen)
+  // THE THREE PRODUCTS, AND THE MARKET (0.14). The war runs on fuel, ammunition and tech. Each comes mostly from one
+  // front: fuel from the biomass of the east, ammunition from the metals of the west, tech from the bio-tech of the
+  // south. A deposit, a win or a special site on a front deals in that front's product. Troops are one number, trained
+  // by bases. Credits buy and sell the three products at the market: `base` is the price of one; you buy at the price
+  // plus `spread` and sell at it less `spread`; each purchase raises that price by `step` of itself and each sale lowers
+  // it; every round a price drifts back `settle` of the way to its base. It stays between `min` and `max` times base.
+  market: { base: { fuel: 30, ammo: 40, tech: 70 }, spread: 0.25, step: 0.05, settle: 0.1, min: 0.5, max: 3 },
+  product: { molt: 'fuel', foundry: 'ammo', talon: 'tech' },
+  // Taking a fight down to the ground costs ammunition: the ship's guns have to be fed.
+  groundAmmo: 2,
   develop: { max: 2, fuel: 3, army: 2, mult: 0.5 },   // Expansion: cost × (level + 1); each level adds 50% to the system's output
   policy: {                                           // Humanity: who the colonies send
-    volunteer: { name: 'VOLUNTEERS', text: 'Colonies send more Vanguard. Forge output falls a little.', drop: 1.4, forge: 0.85, army: 0 },
-    balanced:  { name: 'BALANCED',   text: 'No change.', drop: 1, forge: 1, army: 0 },
-    conscript: { name: 'CONSCRIPTION', text: 'Each colony also raises Army, and sends fewer volunteers.', drop: 0.5, forge: 1, army: 0.1 },
+    volunteer: { name: 'VOLUNTEERS', text: 'Fewer troops. More hands in the works: more ammunition.', troops: 0.8, forge: 1.25 },
+    balanced:  { name: 'BALANCED',   text: 'No change.', troops: 1, forge: 1 },
+    conscript: { name: 'CONSCRIPTION', text: 'More troops. The works go short of hands: less ammunition.', troops: 1.3, forge: 0.75 },
   },
   priority: { fort: 2, yield: 1.25, fuel: 1 },
   // ---------- GALACTIC COMMAND: how the theatres feed each other ----------
@@ -250,9 +260,9 @@ export const C = {
   // world raises what the system pays for each rank. Both are lost with the system.
   link: { stationFort: 2, stationFuel: 1, baseYield: 0.35, stationMax: 4, baseMax: 4,
     // what they cost to found, and what else they are worth as they grow
-    found: { station: { fuel: 8, army: 6 }, base: { army: 6, drop: 6 } },
+    found: { station: { fuel: 8, ammo: 4 }, base: { army: 8, fuel: 2 } },
     creditShare: 0.25,    // the share of what a ground battle earns that reaches the armoury (a level 3 mission earns 3,000 to 5,000)
-    capPer: 2,            // every station tier and base charter raises how much of each resource you can hold
+    capPer: 1, capMax: 60,            // every station tier and base charter raises how much of each resource you can hold
     sectorFortAt: 2,      // a station of this tier or more adds a hit point to every system of yours in its sector
     threatAt: [2, 4],     // a station of these tiers in the sector takes one, then two, off the ground threat there
     shipAt: 3, shipEvery: 6,   // a base of this charter or more sends a ship to its system every so many rounds

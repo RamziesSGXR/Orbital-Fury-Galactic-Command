@@ -36,6 +36,15 @@ with sync_playwright() as pw:
         pg.click('#modal [data-x=close]'); pg.wait_for_timeout(200)
         assert str(int(bal)) in pg.inner_text('[data-a=armoury]')
         pg.screenshot(path=f'{out}/{name}-arm-war.png')
+        # the market: buy one fuel and sell one ammunition from the Finance tab
+        pg.evaluate(f'{g}.res.fuel = 5; {g}.res.ammo = 5; gc.War.redraw()')
+        pg.click('[data-a=tab][data-t=pro]'); pg.wait_for_timeout(200)
+        p0 = pg.evaluate(f'{g}.buyPrice("fuel")'); b0 = pg.evaluate('gc.app.camp.wallet.bal')
+        pg.click('[data-a=mbuy][data-k=fuel]'); pg.wait_for_timeout(150); pg.click('[data-a=msell][data-k=ammo]'); pg.wait_for_timeout(150)
+        pg.screenshot(path=f'{out}/{name}-market.png')
+        assert pg.evaluate(f'{g}.res.fuel') == 6 and pg.evaluate(f'{g}.res.ammo') == 4, 'the market did not move the stocks'
+        assert pg.evaluate(f'{g}.buyPrice("fuel")') > p0 and pg.evaluate('gc.app.camp.wallet.bal') != b0, 'the market did not move the price or the chest'
+        bal = pg.evaluate('gc.app.camp.wallet.bal')
         # a save and a reload keep the chest, the upgrades and the profit flags
         pg.evaluate('gc.app.keep()'); pg.reload(); pg.wait_for_timeout(600)
         pg.click('#b-continue'); pg.wait_for_timeout(900)

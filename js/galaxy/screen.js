@@ -7,7 +7,7 @@ import { View, drawPlanet, drawBattle } from './view.js';
 import { STEPS, SEED } from './tutorial.js';
 
 const $ = id => document.getElementById(id), N = C.names, HP = C.ship.hp;
-const RES = { fuel: N.fuel, drop: N.drop, army: N.army }, RS = { fuel: 'F', drop: 'V', army: 'A' };
+const RES = { fuel: N.fuel, ammo: N.ammo, tech: N.tech, army: N.army }, RS = { fuel: ' FUEL', ammo: ' AMMO', tech: ' TECH', army: ' TROOPS' };
 const TABS = ['int', 'def', 'pro', 'exp', 'tru', 'hum', 'emp', 'uni'];
 let app = null, active = false;     // the game this screen is part of (main.js), and whether the war room is on screen
 const f1 = v => (Math.round(v * 10) / 10).toString();
@@ -59,9 +59,9 @@ function step() {
 function top() {
   if (app) { const d = g.takeDue(); if (d) { app.camp.wallet.bal += d; app.camp.wallet.earned = (app.camp.wallet.earned || 0) + d; } }
   const cap = g.resMax(), cell = (k, cls) => `<div class="${cls}"><b>${Math.floor(g.res[k])}<i style="color:var(--dim)">/${cap}</i></b><span>${RES[k]}</span></div>`;
-  const loot = C.fronts.map(fr => `<div style="--lc:${C.color[fr.f]}" class="lt"><b>${g.loot[fr.f]}</b><span>${fr.lootShort}</span></div>`).join('');
+  const loot = `<div class="lt" style="--lc:var(--cyan)"><b>${g.fleets.reduce((a, f) => a + (f.owner === 'fed' ? f.ships : 0), 0)}</b><span>SHIPS</span></div>`;
   $('top').innerHTML = `<button class="crest" data-a="menu" aria-label="Menu"><canvas id="crest-war" width="64" height="64"></canvas></button><div class="ttl">${esc(N.fed.toUpperCase())}<small>HIGH COMMAND</small></div><div class="rd">ROUND ${g.round}</div>
-    <div class="ro">${cell('fuel', 'a')}${cell('drop', '')}${cell('army', '')}${loot}</div><span class="sm2 ${g.ratBand() === 'high' ? 'cy' : g.ratBand() === 'mid' ? '' : 'rd2'}" style="align-self:center;white-space:nowrap">RATINGS ${Math.round(g.rat)}%</span><button class="plate amber btn sm" data-a="armoury">ARMOURY · ${app ? Math.floor(app.camp.wallet.bal) : 0} CR</button><button class="plate btn sm" data-a="menu">MENU</button>`;
+    <div class="ro">${cell('fuel', 'a')}${cell('ammo', 'a')}${cell('tech', 'a')}${cell('army', '')}${loot}</div><span class="sm2 ${g.ratBand() === 'high' ? 'cy' : g.ratBand() === 'mid' ? '' : 'rd2'}" style="align-self:center;white-space:nowrap">RATINGS ${Math.round(g.rat)}%</span><button class="plate amber btn sm" data-a="armoury">ARMOURY · ${app ? Math.floor(app.camp.wallet.bal) : 0} CR</button><button class="plate btn sm" data-a="menu">MENU</button>`;
   if (app) app.crest($('crest-war'));
   const last = g.log[g.log.length - 1];
   $('bulletin').className = last.kind; $('bulletin').textContent = `R${last.r} › ${last.text}`;
@@ -129,7 +129,7 @@ function tabSys() {
   { const sc = g.sectorOf(p), own = g.sectorOwners().get(sc.id), mine = sc.sys.filter(id => g.P[id].owner === 'fed').length;
     h += `<div class="sm2 ${own === 'fed' ? 'cy' : 'dim'}">SECTOR: ${esc(sc.name.toUpperCase())} · ${mine} / ${sc.sys.length} HELD${own === 'fed' ? ` · WHOLE: +${Math.round(C.sector.yield * 100)}% OUTPUT, +${C.sector.fort} HP` : own ? ` · HELD WHOLE BY ${N.factions[own].toUpperCase()}` : ` · hold it all for +${Math.round(C.sector.yield * 100)}% output`}</div>`; }
   if (!fed && (p.station || p.base)) h += `<div class="sm2" style="color:${C.color[p.owner]}">${[p.station ? 'STATION: a yard for its ships' : '', p.base ? 'BASE: supplies for its yards' : ''].filter(Boolean).join(' · ')}</div>`;
-  { const d = g.deposit(p); if (d) { const fr = C.fronts[C.factions.indexOf(d)]; h += `<div class="sm2" style="color:${C.color[d]}">DEPOSIT: ${fr.loot}${fed ? (p.base ? '' : ' · needs a base') : ''}</div>`; } }
+  { const d = g.deposit(p); if (d) { const fr = C.fronts[C.factions.indexOf(d)]; h += `<div class="sm2" style="color:${C.color[d]}">DEPOSIT: ${fr.dep} → ${fr.loot}${fed ? (p.base ? '' : ' · needs a base') : ''}</div>`; } }
   if (th) h += threatLine(p, th);
   h += '<canvas id="sys"></canvas>';
   if (fed && p.id !== 0) {
@@ -179,12 +179,17 @@ function tabDef() {
 function tabPro() {
   const inc = g.income();
   let h = head('pro') + '<section><h3>Stock</h3><table class="tb"><tr><th></th><th>HAVE</th><th>NEXT ROUND</th></tr>';
-  for (const k of ['fuel', 'drop', 'army']) h += `<tr><td>${RES[k]}</td><td class="${k === 'fuel' ? 'am' : 'cy'}">${f1(g.res[k])}</td><td>+${f1(inc[k])}</td></tr>`;
-  for (const fr of C.fronts) h += `<tr><td>${fr.loot}</td><td style="color:${C.color[fr.f]}">${g.loot[fr.f]}</td><td class="dim">${fr.short}</td></tr>`;
-  h += `</table></section><section><h3>Exchange · ${C.trade.give} for ${C.trade.get}</h3><div class="grid2">`;
-  for (const [a, b] of [['army', 'fuel'], ['drop', 'fuel'], ['fuel', 'army'], ['drop', 'army'], ['fuel', 'drop'], ['army', 'drop']])
-    h += `<button class="plate btn sm" data-a="trade" data-f="${a}" data-t="${b}" ${g.ready() && g.canPay({ [a]: C.trade.give }) ? '' : 'disabled'}>${C.trade.give} ${RES[a]} → ${C.trade.get} ${RES[b]}</button>`;
-  return h + '</div></section>';
+  for (const k of ['fuel', 'ammo', 'tech', 'army']) h += `<tr><td>${RES[k]}</td><td class="${k === 'fuel' ? 'am' : 'cy'}">${f1(g.res[k])}</td><td>+${f1(inc[k])}</td></tr>`;
+  { const pay = g.postsPay(), bill = g.fleetBill(); h += `<tr><td>CREDITS</td><td class="am">${Math.floor(app ? app.camp.wallet.bal : 0)}</td><td>+${pay.cr}</td></tr>`; if (bill > 0) h += `<tr><td class="dim">FLEET UPKEEP</td><td></td><td class="rd2">−${f1(bill)} FUEL</td></tr>`; }
+  // the market: the three products, their prices and which way each is moving
+  const bal = app ? app.camp.wallet.bal : 0;
+  h += `</table></section><section><h3>The market · ${Math.floor(bal)} CR</h3>`;
+  for (const k of ['fuel', 'ammo', 'tech']) {
+    const m = g.mkt[k], dir = m > 1.03 ? '<span class="rd2">▲ DEAR</span>' : m < 0.97 ? '<span class="cy">▼ CHEAP</span>' : '<span class="dim">STEADY</span>';
+    h += `<div class="mis"><div><b>${RES[k]}</b> <span class="sm2">${dir}</span><div class="bar"><i style="width:${Math.min(100, m / C.market.max * 100)}%;background:${m > 1.03 ? 'var(--red)' : 'var(--cyan)'}"></i></div></div>
+      <span class="row" style="flex-wrap:nowrap"><button class="plate amber btn sm" data-a="mbuy" data-k="${k}" ${g.canBuyRes(k, bal) ? '' : 'disabled'}>BUY 1 · ${g.buyPrice(k)} CR</button><button class="plate btn sm" data-a="msell" data-k="${k}" ${g.canSellRes(k) ? '' : 'disabled'}>SELL 1 · ${g.sellPrice(k)} CR</button></span></div>`;
+  }
+  return h + '</section>';
 }
 function tabExp() {
   let h = head('exp');
@@ -212,7 +217,7 @@ function tabHum() {
   const inc = g.income();
   let h = head('hum') + '<section><h3>Who the colonies send</h3>';
   for (const k in C.policy) h += `<button class="plate amber btn pol${g.policy === k ? ' on' : ''}" data-a="pol" data-k="${k}" ${g.ready() ? '' : 'disabled'}><b>${C.policy[k].name}</b><span>${C.policy[k].text}</span></button>`;
-  return h + `<div class="sm2 dim">NEXT ROUND: +${f1(inc.drop)} ${N.drop} · +${f1(inc.army)} ${N.army}</div></section>`;
+  return h + `<div class="sm2 dim">NEXT ROUND: +${f1(inc.army)} ${N.army} · +${f1(inc.ammo)} ${N.ammo}</div></section>`;
 }
 function tabEmp() {
   const fl = g.fedLinked();
@@ -296,7 +301,7 @@ function fight() {
   else if (b.round === 0 && !ui.cards && ui.tut == null) h += `<div class="sm2 dim" style="margin-bottom:6px">${N.factions[b.f].toUpperCase()} COMMITS ${ships(foe.ships)}${b.kind === 'atk' ? ` AND THE SYSTEM'S ${b.fort} DEFENCES` : ''} · GROUND THREAT L${g.groundLevel()} · ONE ENGAGEMENT IS ${C.battle.engage} ROUNDS</div>
     ${(() => { const st = g.stunt(); return st ? `<div class="sm2 am" style="margin:6px 0">SPONSOR STUNT · <b>${st.name}</b> · ${st.text} <span class="cy">+${C.ratings.stunt} RATINGS</span></div>` : '<div class="sm2 dim" style="margin:6px 0">NOT AIRED · one fight a round is on camera</div>'; })()}
     ${(() => { const s = g.groundSupport(b.pid), t = []; if (s.base) t.push(`<span class="cy">BASE NEARBY · GARRISON +${s.garrison}</span>`); if (s.station) t.push(`<span class="cy">STATION NEARBY · +${s.station * C.support.stationLives} REINFORCEMENTS</span>`); if (s.ratings) t.push(`<span class="${s.ratings > 0 ? 'cy' : 'rd2'}">RATINGS · ${s.ratings > 0 ? '+' : ''}${s.ratings} REINFORCEMENTS</span>`); return t.length ? `<div class="sm2" style="margin:6px 0">ON THE GROUND: ${t.join(' · ')}</div>` : ''; })()}
-    <div class="fchoice"><button class="plate btn go" data-a="ground">${b.kind === 'atk' ? 'LAND THE ASSAULT' : 'DEFEND ON THE GROUND'}<small>${b.kind === 'atk' ? 'ASSAULT MISSION' : 'DEFENCE MISSION'} · ARMOURY, BRIEFING, THEN THE DROP</small></button>
+    <div class="fchoice"><button class="plate btn go" data-a="ground" ${g.canGround() ? '' : 'disabled'}>${b.kind === 'atk' ? 'LAND THE ASSAULT' : 'DEFEND ON THE GROUND'} · ${C.groundAmmo} AMMO<small>${g.canGround() ? '' : 'NOT ENOUGH AMMUNITION · '}${b.kind === 'atk' ? 'ASSAULT MISSION' : 'DEFENCE MISSION'} · ARMOURY, BRIEFING, THEN THE DROP</small></button>
       <button class="plate btn" data-a="cards">FIGHT IT IN SPACE<small>FLEET ACTION · CARDS</small></button></div>`;
   else if (you.hand.length) h += `<div class="fhand">${you.hand.map((id, i) => cardHtml(id, `data-a="bplay" data-i="${i}"`)).join('')}</div><button class="plate btn sm" style="width:100%;margin-top:6px" data-a="bplay">PASS</button>`;
   else h += '<div class="fhand wait"><b class="dim">GUNS ONLY</b></div>';
@@ -430,7 +435,8 @@ document.addEventListener('click', e => {
     case 'bplay': if (g.battle && !g.battle.done && !(ui.fx && ui.fx.t < 0.9)) { const ev = g.battlePlay(d.i == null ? null : +d.i); ui.fx = { ev, t: 0 }; ui.auto = 0; } break;
     case 'bclose': ui.fx = null; ui.cards = false; ui.mark = Math.min(ui.mark, g.log.length); g.battleClose(); return step();
     case 'cam': view.focus(view.front != null && view.front >= 0 ? -1 : g.fi); break;
-    case 'trade': g.trade(d.f, d.t); break;
+    case 'mbuy': if (app && g.buyRes(d.k, app.camp.wallet)) app.keep(); break;
+    case 'msell': if (app && g.sellRes(d.k, app.camp.wallet)) app.keep(); break;
     case 'dev': g.develop(+d.p); break;
     case 'pol': g.setPolicy(d.k); break;
     case 'prio': g.setPriority(+d.k); break;
