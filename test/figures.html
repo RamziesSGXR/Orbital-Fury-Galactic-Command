@@ -1,0 +1,42 @@
+<!doctype html><meta charset="utf-8"><title>People of the game, side by side</title>
+<style>html,body{margin:0;background:#20242a;color:#dde;font:13px ui-monospace,monospace}canvas{display:block}#cap{position:fixed;left:10px;top:8px;white-space:pre}</style>
+<div id="cap"></div>
+<script type="module">
+// A review sheet: every person the game draws, standing in rows, so their looks can be compared. Open /test/figures.html?row=...
+import * as THREE from '../js/vendor/three.js';
+import { makeMats, makePerson, poseKit } from '../js/base/models.js';
+import { buildFigure, FIGURES } from '../js/orbit/parts.js';
+const q = new URLSearchParams(location.search), W = innerWidth, H = innerHeight;
+const r = new THREE.WebGLRenderer({ antialias: true }); r.setSize(W, H); document.body.appendChild(r.domElement); r.setClearColor('#2a3038');
+const scene = new THREE.Scene(); scene.add(new THREE.AmbientLight(0xffffff, 1.5)); const sun = new THREE.DirectionalLight(0xffffff, 2.2); sun.position.set(3, 6, 5); scene.add(sun);
+const cam = new THREE.PerspectiveCamera(22, W / H, 0.1, 100);
+const livery = { name: 'Review', motto: '', primary: q.get('p') || '#2f8f9c', secondary: q.get('s') || '#f2efe4', logo: { shape: 'shield', bg: '#2f8f9c', sym: 'star', fg: '#f2efe4' } };
+const m = makeMats(livery);
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.MeshLambertMaterial({ color: '#3a424c' })); floor.rotation.x = -Math.PI / 2; scene.add(floor);
+const walk = (p, ph, amp = 0.6) => { p.legL.rotation.x = Math.sin(ph) * amp; p.legR.rotation.x = -Math.sin(ph) * amp; };
+const POSE = {
+  stand: (g) => poseKit(g, 'stand'),
+  walk: (g, ph = 1.2) => { const p = g.userData.parts; walk(p, ph); p.armL.rotation.x = -Math.sin(ph) * 0.5; p.armR.rotation.x = Math.sin(ph) * 0.5; p.armL.userData.elbow.rotation.x = p.armR.userData.elbow.rotation.x = -0.35; poseKit(g, 'walk', ph); },
+  ready: (g) => poseKit(g, 'ready'),
+  march: (g, ph = 1.2) => { walk(g.userData.parts, ph); poseKit(g, 'ready', ph, 'walk'); },
+  march2: (g) => POSE.march(g, 4.3),
+  aim: (g) => poseKit(g, 'aim'),
+  salute: (g) => { const p = g.userData.parts; p.armR.rotation.set(-1.05, 0, -0.35); p.armR.userData.elbow.rotation.x = -2.1; poseKit(g, 'stand'); },
+};
+const cap = [];
+let x = 0; const step = 0.42, z0 = 0.7;
+// the base's people (0.5 units tall): each kind standing, then the soldier walking, aiming and saluting
+const base = [['troop', 'stand'], ['troop', 'walk'], ['troop', 'ready'], ['troop', 'march'], ['troop', 'march2'], ['troop', 'aim'], ['troop', 'salute'], ['hd', 'stand'], ['hd', 'ready'], ['hd', 'march'], ['hd', 'aim'], ['eng', 'stand'], ['inspector', 'stand'], ['civ0', 'stand'], ['civ1', 'walk'], ['civ2', 'stand']];
+x = -(base.length - 1) * step / 2;
+for (const [k, pose] of base) { const g = makePerson(m, k); (POSE[pose])(g); g.position.set(x, 0, z0); g.rotation.y = q.get('side') ? Math.PI / 2 : 0.35; g.scale.setScalar(1.15); scene.add(g); x += step; }
+cap.push('front row: the SHARED figure: soldier (at ease, walking, ready, marching x2, aiming, saluting), Vanguard (at ease, ready, marching, aiming), engineer, inspector, three citizens');
+// the station's figures (0.33 units tall), scaled to the same height
+const fm = new THREE.MeshLambertMaterial({ vertexColors: true }); const k2 = 0.575 / 0.33;
+const st = [...FIGURES.map(f => [f, 'stand']), ['trooper', 'walk'], ['resident2', 'walk']];
+x = -(st.length - 1) * step / 2;
+for (const [k, pose] of st) { const o = new THREE.Mesh(buildFigure(k, pose, k === 'trooper' ? { uniform: '#5d6a4a', helmet: '#4c5a3c', armband: livery.primary, crest: true } : null), fm); o.position.set(x, 0, -z0); o.rotation.y = q.get('side') ? Math.PI / 2 : 0.35; o.scale.setScalar(k2); scene.add(o); x += step; }
+cap.push('back row: the STATION people: ' + FIGURES.join(', ') + ', then a trooper and a resident in stride');
+document.getElementById('cap').textContent = cap.join('\n');
+const d = +(q.get('d') || 11), cx = +(q.get('cx') || 0), cz = +(q.get('cz') || 0); cam.position.set(cx, d * 0.42 + 0.3, cz + d); cam.lookAt(cx, 0.3, cz);
+r.render(scene, cam); window.__done = true;
+</script>

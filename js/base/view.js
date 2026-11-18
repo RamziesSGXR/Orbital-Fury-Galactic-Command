@@ -3,7 +3,7 @@ import * as THREE from './vendor/three.js';
 import { B, ZONES, ZKEYS, UTIL, LAND } from './config.js';
 import { dims, wingOf, PLAZA } from './sim.js';
 import { BIOMES } from './site.js';
-import { SCRUB_COL, makeMats, mergeStatic, buildModel, makePerson, makeForklift, makeTruck, makeLRV, makeTank, makeCrate, makeDropship, wrap } from './models.js';
+import { SCRUB_COL, makeMats, mergeStatic, buildModel, makePerson, poseKit, makeForklift, makeTruck, makeLRV, makeTank, makeCrate, makeDropship, wrap } from './models.js';
 const VMAKE = { lift: makeForklift, truck: makeTruck, lrv: makeLRV, tank: makeTank };
 import { Noise } from './noise.js';
 import { WL } from './site.js';
@@ -1072,12 +1072,12 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
       if (!g) { g = makePerson(this.m, a.kind); g.scale.setScalar(1.15); g.userData.list = []; g.traverse(o => { if (o.isMesh) g.userData.list.push(o); }); this.pm.set(id, g); }
       g.visible = !a.hidden;
       const u = g.userData, wx = this.wx(a.x), wz = this.wx(a.z);
-      sph.center.set(wx, 0.6, wz); u.seen = g.visible && fr.intersectsSphere(sph);
+      sph.center.set(wx, 0.6 + (this.sim.hAt ? this.sim.hAt(a.x, a.z) : 0), wz); u.seen = g.visible && fr.intersectsSphere(sph);     // (GC 0.27: where they are drawn, on the land's height; on high ground, close in, they were dropped as out of sight)
       if (!u.seen) continue;
       if (far && a.act !== 'lie') {
         if (!u.rest || u.px !== wx || u.pz !== wz || u.yaw !== a.yaw) {
           if (!u.rest) for (const k of ['legL', 'legR', 'armL', 'armR', 'head']) u.parts[k].rotation.set(0, 0, 0);
-          if (!u.rest) { u.parts.armL.userData.elbow.rotation.set(0, 0, 0); u.parts.armR.userData.elbow.rotation.set(0, 0, 0); }
+          if (!u.rest) { u.parts.armL.userData.elbow.rotation.set(0, 0, 0); u.parts.armR.userData.elbow.rotation.set(0, 0, 0); poseKit(g, 'stand'); }
           g.position.set(wx, 0, wz); g.rotation.set(0, a.yaw, 0); u.rest = true; u.dirty = true; u.px = wx; u.pz = wz; u.yaw = a.yaw;
         }
         continue;
@@ -1103,6 +1103,7 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
         case 'lie': g.rotation.set(-Math.PI / 2, a.yaw, 0, 'YXZ'); g.position.y = 0.06; break;
         default: p.armL.rotation.x = Math.sin(t * 1.5 + a.seed) * 0.05;
       }
+      poseKit(g, a.act, ph);     // (GC 0.27) the knees bend with the stride; the rifle comes off the back to aim
     }
     for (const id of this.pm.keys()) if (!L.actors.has(id)) this.pm.delete(id);
     this.drawCrowd();

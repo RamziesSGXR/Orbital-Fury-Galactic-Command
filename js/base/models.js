@@ -986,41 +986,116 @@ export function mergeStatic(root) {
 }
 
 // ---------------------------------------------------------------- people and vehicles
+// ONE FIGURE FOR THE WHOLE GAME (GC 0.27). The look is the station's people (js/orbit/parts.js buildFigure): a 1.8 m person of
+// rounded parts, tapered limbs, a face, hair, hands and shoes, each job in its own clothes and kit. The joints are the base's:
+// hips, knees, shoulders, elbows and a head that turn, so one figure can walk, run, salute, work, and bring a rifle up to aim.
+// It is modelled in metres and built at the base's size (half a unit tall). Soldiers carry a rifle: slung on the back at ease,
+// across the chest at the ready, at the shoulder to aim (poseKit).
+const PK = 0.5 / 1.8;
+const PGEO = new Map(), pgeo = (key, make) => { let g = PGEO.get(key); if (!g) PGEO.set(key, (g = make())); return g; };     // every person shares these shapes
+const limbG = (rt, rb, len) => pgeo(`l${rt},${rb},${len}`, () => new THREE.CylinderGeometry(rt * PK, rb * PK, len * PK, 8).translate(0, -len * PK / 2, 0));     // hangs from its joint
+const tubeG = (rt, rb, h, sz = 1, seg = 10) => pgeo(`t${rt},${rb},${h},${sz},${seg}`, () => new THREE.CylinderGeometry(rt * PK, rb * PK, h * PK, seg).scale(1, 1, sz));
+const ballG = (r, sx = 1, sy = 1, sz = 1, th = Math.PI) => pgeo(`b${r},${sx},${sy},${sz},${th}`, () => new THREE.SphereGeometry(r * PK, 10, 7, 0, Math.PI * 2, 0, th).scale(sx, sy, sz));
+const boxG = (w, h, d) => pgeo(`x${w},${h},${d}`, () => new THREE.BoxGeometry(w * PK, h * PK, d * PK));
+const pput = (g, geo, mat, x = 0, y = 0, z = 0, o) => add(g, geo, mat, x * PK, y * PK, z * PK, o);
+const joint = (parent, x, y, z) => { const p = new THREE.Group(); p.position.set(x * PK, y * PK, z * PK); parent.add(p); return p; };
+// the people's own colours, made once for a set of materials: skin and hair in a few tones, and what is worked out from the uniform
+function peopleMats(m) {
+  if (m._people) return m._people;
+  const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.85, metalness: 0.05, ...o }), of = (mat, k) => std('#' + mat.color.clone().multiplyScalar(k).getHexString());
+  return (m._people = {
+    skin: ['#e0b48c', '#8d5a3c', '#f0c8a4', '#b97f58', '#c99670'].map((c) => std(c)), hair: ['#3a2a1c', '#17120e', '#b98a4a', '#8a8a90'].map((c) => std(c)), eye: std('#1c1a1a'),
+    legs: of(m.uniform, 0.78), kit: of(m.uniform, 0.62), trousers: ['#4a4f58', '#33415a', '#6a5a48'].map((c) => std(c)), shoe: std('#26262a'),
+    gun: std('#1c1e20', { metalness: 0.5, roughness: 0.45 }), wood: std('#5a4630'), visor: std('#1a2228', { metalness: 0.4, roughness: 0.25 }),
+    plate: std('#3a4048', { metalness: 0.45, roughness: 0.45 }), plateDark: std('#262b31', { metalness: 0.4, roughness: 0.5 }), lamp: std('#06202a', { emissive: '#59e0ff', emissiveIntensity: 1.2 }),
+    belt: std('#3a3026'),
+  });
+}
+const CIVS = { civ0: { skin: 0, hair: 0, style: 'short', legs: 0 }, civ1: { skin: 1, hair: 1, style: 'long', legs: 1 }, civ2: { skin: 2, hair: 2, style: 'bun', legs: 2, skirt: true } };
+// kind: 'troop' (the infantry), 'hd' (a Vanguard), 'eng' (an engineer), 'inspector', 'civ0' 'civ1' 'civ2' (citizens)
 export function makePerson(m, kind = 'troop') {
-  const hd = kind === 'hd', civ = kind.startsWith('civ'), eng = kind === 'eng';   // engineers: coveralls, a hard hat and a hi-vis vest   // Vanguards: black and gold with a cape. Citizens: pressed, approved work clothes
-  const g = new THREE.Group(), body = kind === 'inspector' ? m.coat : hd ? m.hdArmour : civ ? m[kind] : eng ? m.engSuit : m.uniform;
-  const helmet = hd ? m.hdArmour : eng ? m.hardhat : m.helmet;
-  const leg = (x) => { const p = new THREE.Group(); p.position.set(x, 0.2, 0); g.add(p); box(p, 0.05, 0.2, 0.06, m.boots, 0, -0.1, 0); return p; };
-  // an arm is a shoulder joint with the upper arm, and an elbow joint with the forearm and a clenched fist,
-  // so poses like the Vanguard salute (fist at the chin, forearm upright) are possible
-  const arm = (x) => {
-    const p = new THREE.Group(); p.position.set(x, 0.38, 0); g.add(p);
-    box(p, 0.045, 0.09, 0.05, body, 0, -0.045, 0);
-    const el = new THREE.Group(); el.position.set(0, -0.09, 0); p.add(el); p.userData.elbow = el;
-    box(el, 0.042, 0.08, 0.046, body, 0, -0.04, 0); box(el, 0.036, 0.034, 0.04, m.boots, 0, -0.092, 0);
+  const P = peopleMats(m), hd = kind === 'hd', civ = kind.startsWith('civ'), eng = kind === 'eng', insp = kind === 'inspector', armed = !civ && !eng && !insp;
+  const C = civ ? CIVS[kind] || CIVS.civ0 : null;
+  const skin = P.skin[civ ? C.skin : hd ? 3 : eng ? 0 : insp ? 2 : 4];
+  const top = insp ? m.coat : hd ? P.plate : civ ? m[kind] || m.civ0 : eng ? m.engSuit : m.uniform;
+  const legs = insp ? m.coat : hd ? P.plateDark : civ ? P.trousers[C.legs] : eng ? m.engSuit : P.legs;
+  const kit = hd ? m.prim : P.kit, shoes = armed ? m.boots : P.shoe, glove = armed ? m.boots : skin;
+  const g = new THREE.Group();
+  // a leg: the thigh from the hip, the shin and the shoe from the knee
+  const leg = (s) => {
+    const p = joint(g, s * 0.1, 0.9, 0); pput(p, limbG(0.09, 0.074, 0.44), legs);
+    const kn = joint(p, 0, -0.42, 0); p.userData.knee = kn;
+    pput(kn, limbG(0.072, 0.058, 0.42), legs); pput(kn, pgeo('shoe', () => new THREE.SphereGeometry(0.075 * PK, 8, 5).scale(1, 0.62, 1.75)), shoes, 0, -0.4, 0.05);
+    if (armed) pput(kn, boxG(0.12, 0.13, 0.05), kit, 0, -0.03, 0.06);     // a knee pad
     return p;
   };
-  const parts = { legL: leg(-0.035), legR: leg(0.035), armL: arm(-0.085), armR: arm(0.085) };
-  if (kind !== 'inspector') {
-    box(parts.armL, 0.05, 0.022, 0.055, hd ? m.hdGold : m.armband, 0, -0.06, 0, { cast: false });
-    if (hd) box(parts.armR, 0.05, 0.022, 0.055, m.hdGold, 0, -0.06, 0, { cast: false });
-    if (m.crestOn && !hd && !civ) { const c = plane(parts.armL, 0.04, 0.04, m.logo, -0.0235, -0.025, 0); c.rotation.y = -Math.PI / 2; }
+  // an arm: the shoulder and upper arm, then the forearm and hand from the elbow
+  const arm = (s) => {
+    const p = joint(g, s * 0.235, 1.41, 0); pput(p, ballG(0.085, 1, 0.9, 0.9), top); pput(p, limbG(0.058, 0.05, 0.3), top);
+    const el = joint(p, 0, -0.29, 0); p.userData.elbow = el;
+    pput(el, limbG(0.05, 0.044, 0.28), top); pput(el, ballG(0.05), glove, 0, -0.3, 0);
+    if (hd) pput(p, ballG(0.125, 1, 0.75, 1.1), m.prim, s * 0.02, 0.03, 0);     // a Vanguard's shoulder plate, in the fleet's colour
+    return p;
+  };
+  const parts = { legL: leg(-1), legR: leg(1), armL: arm(-1), armR: arm(1) };
+  if (!civ && !insp && !hd) {     // the armband on both arms, the crest on the left shoulder
+    for (const a of [parts.armL, parts.armR]) pput(a, tubeG(0.064, 0.062, 0.07, 1, 8), m.armband, 0, -0.17, 0, { cast: false });
+    if (m.crestOn && !eng) { const c = plane(parts.armL, 0.09 * PK, 0.09 * PK, m.logo, -0.07 * PK, -0.07 * PK, 0); c.rotation.y = -Math.PI / 2; }
   }
-  parts.torso = box(g, 0.13, 0.19, 0.08, body, 0, 0.3, 0);
-  if (eng) { box(g, 0.138, 0.13, 0.088, m.vest, 0, 0.33, 0); box(g, 0.14, 0.018, 0.09, m.white, 0, 0.31, 0, { cast: false }); }
-  parts.head = new THREE.Group(); parts.head.position.set(0, 0.44, 0); g.add(parts.head);
-  ball(parts.head, 0.045, m.skin, 0, 0, 0, { seg: 8 });
-  if (kind === 'inspector') { cyl(parts.head, 0.055, 0.05, 0.03, m.cap, 0, 0.035, 0, { seg: 10 }); box(parts.head, 0.07, 0.01, 0.04, m.coat, 0, 0.025, 0.05); box(parts.armR.userData.elbow, 0.07, 0.09, 0.005, m.paper, 0, -0.05, 0.035); }
-  else if (civ) { add(parts.head, new THREE.SphereGeometry(0.05, 8, 4, 0, 6.3, 0, 1.2), m.hair, 0, 0.008, -0.004); box(g, 0.132, 0.03, 0.082, m.boots, 0, 0.215, 0); }
-  else {
-    add(parts.head, new THREE.SphereGeometry(0.055, 10, 5, 0, 6.3, 0, 1.5), helmet, 0, 0.005, 0); box(g, 0.1, 0.12, 0.05, helmet, 0, 0.32, -0.06);
-    if (hd) {   // gold trim, a visor stripe and the cape
-      box(parts.head, 0.02, 0.012, 0.11, m.hdGold, 0, 0.058, 0); box(g, 0.132, 0.022, 0.082, m.hdGold, 0, 0.385, 0); box(g, 0.132, 0.022, 0.082, m.hdGold, 0, 0.215, 0);
-      box(g, 0.12, 0.24, 0.012, m.hdGold, 0, 0.27, -0.094, { rx: 0.12 }); box(g, 0.1, 0.2, 0.013, m.hdArmour, 0, 0.27, -0.0935, { rx: 0.12 });
+  pput(g, tubeG(0.158, 0.15, 0.18, 0.72), legs, 0, 0.88, 0);
+  parts.torso = pput(g, tubeG(0.2, 0.158, 0.56, 0.62), top, 0, 1.16, 0);
+  pput(g, tubeG(0.05, 0.056, 0.1, 1, 8), skin, 0, 1.47, 0);
+  const head = parts.head = joint(g, 0, 1.63, 0);
+  pput(head, ballG(0.118, 1, 1.12, 1), skin); for (const s of [-1, 1]) pput(head, boxG(0.026, 0.03, 0.02), P.eye, s * 0.045, 0.02, 0.108, { cast: false });
+  if (civ) {
+    const hair = P.hair[C.hair];
+    pput(head, ballG(0.126, 1, 1.1, 1, 1.7), hair, 0, 0.025, -0.018);
+    if (C.style === 'long') pput(head, boxG(0.2, 0.3, 0.07), hair, 0, -0.13, -0.1);
+    if (C.style === 'bun') pput(head, ballG(0.06), hair, 0, 0.13, -0.09);
+    if (C.skirt) pput(g, tubeG(0.16, 0.25, 0.46, 0.78), top, 0, 0.7, 0);
+    pput(g, tubeG(0.166, 0.164, 0.05, 0.72), P.belt, 0, 0.95, 0, { cast: false });
+  } else if (insp) {     // a long coat, a peaked cap, a clipboard
+    pput(g, tubeG(0.17, 0.24, 0.5, 0.72), m.coat, 0, 0.68, 0);
+    pput(head, tubeG(0.126, 0.118, 0.07, 1, 10), m.cap, 0, 0.115, 0); pput(head, tubeG(0.148, 0.134, 0.03, 1, 10), m.cap, 0, 0.165, 0); pput(head, boxG(0.17, 0.016, 0.1), m.coat, 0, 0.085, 0.13);
+    pput(parts.armR.userData.elbow, boxG(0.2, 0.26, 0.015), m.paper, 0, -0.2, 0.08);
+  } else if (eng) {     // a hard hat, a hi-vis vest with its band, a tool belt
+    pput(head, ballG(0.138, 1, 0.95, 1.05, Math.PI / 2), m.hardhat, 0, 0.055, 0); pput(head, tubeG(0.16, 0.16, 0.014, 1.1), m.hardhat, 0, 0.06, 0.01);
+    pput(g, tubeG(0.207, 0.168, 0.36, 0.64), m.vest, 0, 1.22, 0); pput(g, tubeG(0.209, 0.2, 0.045, 0.64), m.white, 0, 1.2, 0, { cast: false });
+    pput(g, tubeG(0.172, 0.17, 0.07, 0.74), P.belt, 0, 0.93, 0); pput(g, boxG(0.08, 0.1, 0.06), P.wood, 0.15, 0.9, 0.06);
+  } else {
+    // a soldier: a helmet with a dark visor band, a vest, a pack; the Vanguard heavier, plated, trimmed in the fleet's colour, a lamp on the pack
+    const helmet = hd ? P.plate : m.helmet;
+    pput(head, ballG(0.142, 1, 1.06, 1.06, hd ? 2.35 : 2.1), helmet, 0, 0.02, -0.005); pput(head, boxG(0.2, 0.05, 0.04), hd ? P.lamp : P.visor, 0, -0.01, 0.115, { cast: false });
+    pput(g, tubeG(0.216, 0.18, 0.36, 0.72), hd ? P.plateDark : kit, 0, 1.24, 0); pput(g, boxG(0.26, 0.36, 0.14), hd ? P.plateDark : kit, 0, 1.22, -0.17);
+    for (const s of [-1, 1]) pput(g, boxG(0.1, 0.11, 0.05), kit, s * 0.1, 0.99, 0.12);     // pouches on the belt
+    if (hd) {
+      pput(head, boxG(0.045, 0.035, 0.27), m.prim, 0, 0.165, -0.01, { cast: false });     // a stripe over the helmet
+      pput(g, tubeG(0.22, 0.21, 0.06, 0.72), m.prim, 0, 1.39, 0, { cast: false }); pput(g, tubeG(0.174, 0.172, 0.06, 0.74), m.prim, 0, 0.95, 0, { cast: false });     // collar and belt
+      pput(g, tubeG(0.008, 0.008, 0.5, 1, 5), P.gun, 0.1, 1.62, -0.2, { cast: false }); pput(g, boxG(0.06, 0.05, 0.03), P.lamp, -0.07, 1.36, -0.245, { cast: false });     // an aerial and a lamp on the pack
     }
   }
-  g.userData.parts = parts;
+  if (armed) {     // the rifle: receiver, barrel, stock, magazine, sight; built along +z about its grip. Where it is held is the pose's business (poseKit)
+    const gun = parts.gun = new THREE.Group(); g.add(gun);
+    pput(gun, boxG(0.05, 0.09, 0.44), P.gun, 0, 0, 0.1); pput(gun, pgeo('barrel', () => new THREE.CylinderGeometry(0.016 * PK, 0.016 * PK, 0.3 * PK, 6).rotateX(Math.PI / 2)), P.gun, 0, 0.015, 0.46);
+    pput(gun, boxG(0.045, 0.1, 0.24), hd ? P.gun : P.wood, 0, -0.02, -0.22); pput(gun, boxG(0.04, 0.14, 0.06), P.gun, 0, -0.1, 0.12); pput(gun, boxG(0.02, 0.035, 0.1), P.gun, 0, 0.06, 0.08);
+    if (hd) pput(gun, boxG(0.03, 0.03, 0.03), P.lamp, 0, 0.015, 0.6, { cast: false });
+  }
+  g.userData.parts = parts; poseKit(g, 'stand');
   return g;
+}
+// What a pose needs beyond the joints the view turns itself: the knees, and where the rifle is.
+//   act: 'aim' (the rifle at the shoulder), 'ready' (held across the chest: this also places the arms), anything else (slung on the back)
+//   ph: the stride's phase for 'walk' and 'run', the same number the hips swing by (the leg coming forward bends at the knee)
+export function poseKit(g, act, ph = 0, legs = act) {
+  const p = g.userData.parts, kL = p.legL.userData.knee, kR = p.legR.userData.knee;
+  const k = legs === 'run' ? 1.25 : legs === 'walk' ? 0.85 : 0, q = legs === 'run' ? ph * 1.4 : ph;
+  kL.rotation.x = k ? Math.max(0, -Math.cos(q)) * k + 0.08 : 0; kR.rotation.x = k ? Math.max(0, Math.cos(q)) * k + 0.08 : 0;
+  const gun = p.gun; if (!gun) return;
+  // the angles put the right hand on the grip and the left under the barrel (worked out against the joints' own lengths)
+  const A = (arm, x, z, ex, ez = 0) => { arm.rotation.set(x, 0, z); arm.userData.elbow.rotation.set(ex, 0, ez); };
+  if (act === 'aim') { gun.position.set(0.12 * PK, 1.39 * PK, 0.2 * PK); gun.rotation.set(0, 0, 0); A(p.armR, -0.3, 0.3, -2.45, -0.5); A(p.armL, -1.4, 0.6, -0.15); p.head.rotation.set(0.08, 0, -0.12); }
+  else if (act === 'ready') { gun.position.set(0.16 * PK, 1.13 * PK, 0.17 * PK); gun.rotation.set(0.3, -0.45, 0, 'YXZ'); A(p.armR, 0.45, -0.3, -1.75); A(p.armL, -0.6, 0.55, -0.25); }
+  else { gun.position.set(0.02 * PK, 1.25 * PK, -0.275 * PK); gun.rotation.set(-0.95, Math.PI / 2, 0, 'YXZ'); }
 }
 export function makeForklift(m) {
   const g = new THREE.Group();

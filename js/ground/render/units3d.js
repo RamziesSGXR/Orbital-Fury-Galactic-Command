@@ -6,7 +6,7 @@
 // One instanced mesh for each kind: any number of them is one draw. A model is baked to a single shape with its colours
 // in its corners, standing on the ground at the origin, facing +z, sized so its widest or tallest measure is two units.
 import * as THREE from '../../vendor/three.js';
-import { makeMats, makePerson, makeLRV, makeTank, makeDropship, makeCrate } from '../../base/models.js';
+import { makeMats, makePerson, poseKit, makeLRV, makeTank, makeDropship, makeCrate } from '../../base/models.js';
 
 const TMP = new THREE.Color(), Q2 = new THREE.Quaternion(), FWD = new THREE.Vector3(0, 0, 1);
 const CAP = 700;     // of one kind on screen at once
@@ -17,7 +17,7 @@ export function bake(group, tint = null, raw = false) {
   group.updateMatrixWorld(true); const pos = [], nor = [], col = [];
   group.traverse((o) => {
     if (!o.isMesh || Array.isArray(o.material) || !o.geometry.attributes.normal) return;
-    if (o.material.map && !tint && !raw) return;     // (a crest on an arm: too small to see from up here)
+    if (o.material.map && !tint) return;     // (a crest on an arm: too small to see from up here)
     const g = (o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone()).applyMatrix4(o.matrixWorld), c = tint ? COL.set(tint).multiplyScalar(0.55 + 0.45 * ((pos.length * 7919) % 5) / 5) : o.material.color;
     const p = g.attributes.position.array, n = g.attributes.normal.array;
     for (let i = 0; i < p.length; i += 3) { pos.push(p[i], p[i + 1], p[i + 2]); nor.push(n[i], n[i + 1], n[i + 2]); col.push(c.r, c.g, c.b); }
@@ -88,16 +88,39 @@ function jet() {
   part(g, BOX, hot, 0, 0, -1.75, 0.3, 0.2, 0.1); return g;
 }
 
+// A PERSON'S FRAMES (GC 0.27). The game's one figure (base/models.js makePerson), posed and baked once for each moment it can be
+// seen in: standing with the rifle ready, aiming, and eight steps of a walk both ways. A unit shows the frame its moment calls
+// for, so legs stride, knees bend and the rifle comes up to fire. A citizen has no rifle: they stand, and walk with arms swinging.
+export const STEPS = 8;
+function personFrames(make, armed) {
+  const out = {}; let fit = null;
+  const shot = (name, pose) => {
+    const g = make(); pose(g); const geo = bake(g, null, true);
+    if (!fit) { geo.computeBoundingBox(); const b = geo.boundingBox; fit = { x: -(b.min.x + b.max.x) / 2, y: -b.min.y, z: 0, k: 2 / ((b.max.y - b.min.y) || 1) }; }     // every frame sized and stood the same way: two units tall, feet on the ground
+    geo.translate(fit.x, fit.y, fit.z); geo.scale(fit.k, fit.k, fit.k); out[name] = geo;
+  };
+  const legs = (g, ph) => { const p = g.userData.parts; p.legL.rotation.x = Math.sin(ph) * 0.62; p.legR.rotation.x = -Math.sin(ph) * 0.62; };
+  const arms = (g, ph) => { const p = g.userData.parts; p.armL.rotation.x = -Math.sin(ph) * 0.5; p.armR.rotation.x = Math.sin(ph) * 0.5; p.armL.userData.elbow.rotation.x = p.armR.userData.elbow.rotation.x = -0.35; };
+  shot('stand', (g) => poseKit(g, armed ? 'ready' : 'stand'));
+  if (armed) shot('aim', (g) => poseKit(g, 'aim'));
+  for (let i = 0; i < STEPS; i++) { const ph = i / STEPS * Math.PI * 2;
+    shot('w' + i, (g) => { legs(g, ph); if (!armed) arms(g, ph); poseKit(g, armed ? 'ready' : 'walk', ph, 'walk'); });
+    if (armed) shot('a' + i, (g) => { legs(g, ph); poseKit(g, 'aim', ph, 'walk'); }); }
+  return { frames: out };
+}
+
 export class Units3D {
   constructor(scene, livery) {
-    this.scene = scene; this.kinds = new Map(); this.used = new Map();
-    let mats = null; try { mats = makeMats(livery || { primary: '#e0b21c', secondary: '#17181a', logo: { shape: 'shield', bg: '#e0b21c', sym: 'star', fg: '#17181a' } }); } catch (err) { console.warn('livery for the 3D troops unavailable', err); }
+    this.scene = scene; this.kinds = new Map(); this.used = new Map(); this.all = [];
+    let mats = null; try { mats = makeMats(livery || { primary: '#2f8f9c', secondary: '#f2efe4', logo: { shape: 'shield', bg: '#2f8f9c', sym: 'star', fg: '#f2efe4' } }); } catch (err) { console.warn('livery for the 3D troops unavailable', err); }
     this.mats = mats || {};
+    const vanMats = mats ? { ...mats, prim: new THREE.MeshLambertMaterial({ color: 0xffffff }) } : null;     // (a Vanguard's trim is left white in the model: each one's team colour is laid on it)
     const person = (k) => (mats ? makePerson(mats, k) : (() => { const g = new THREE.Group(); part(g, BOX, mat('#8fb0cc'), 0, 0.9, 0, 0.5, 1.2, 0.3); part(g, BALL, mat('#2c5a94'), 0, 1.7, 0, 0.4, 0.4, 0.4); return g; })());
     // how tall each stands for a footprint radius of one is whatever its model is; `k` scales the footprint asked for
     this.def = {
       dship: () => bake(mats ? makeDropship(mats) : jet()), jet: () => bake(jet()), crate: () => bake(mats ? makeCrate(mats) : (() => { const g = new THREE.Group(); part(g, BOX, mat('#ffd678'), 0, 0.5, 0, 1, 1, 1); return g; })()),
-      van: () => bake(person('troop')), inf: () => bake(person('troop')), lrv: () => bake(mats ? makeLRV(mats) : mech({})), mech: () => bake(mech(this.mats)),
+      van: () => (mats ? personFrames(() => makePerson(vanMats, 'hd'), true) : bake(person('troop'))), inf: () => (mats ? personFrames(() => makePerson(mats, 'troop'), true) : bake(person('troop'))),
+      civ0: () => (mats ? personFrames(() => makePerson(mats, 'civ0'), false) : bake(person('troop'))), civ1: () => (mats ? personFrames(() => makePerson(mats, 'civ1'), false) : bake(person('troop'))), civ2: () => (mats ? personFrames(() => makePerson(mats, 'civ2'), false) : bake(person('troop'))), lrv: () => bake(mats ? makeLRV(mats) : mech({})), mech: () => bake(mech(this.mats)),
       'bugs:L': () => bake(molt(1)), 'bugs:M': () => bake(molt(2)), 'bugs:H': () => bake(molt(3)),
       'bots:L': () => bake(foundry(1, mats)), 'bots:M': () => bake(foundry(2, mats)), 'bots:H': () => (mats ? bake(foundry(3, mats), '#7a3028') : bake(foundry(2, mats))),
       'lizards:L': () => bake(talon(1)), 'lizards:M': () => bake(talon(2)), 'lizards:H': () => bake(talon(3)),
@@ -108,8 +131,11 @@ export class Units3D {
   _kind(k) {
     let m = this.kinds.get(k); if (m !== undefined) return m;
     const make = this.def[k]; if (!make) { this.kinds.set(k, null); return null; }
-    m = new THREE.InstancedMesh(make(), this.mat, CAP); m.count = 0; m.frustumCulled = false; m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    this.scene.add(m); this.kinds.set(k, m); return m;
+    const inst = (geo, cap) => { const im = new THREE.InstancedMesh(geo, this.mat, cap); im.count = 0; im.frustumCulled = false; im.instanceMatrix.setUsage(THREE.DynamicDrawUsage); this.scene.add(im); this.all.push(im); return im; };
+    const made = make();
+    if (made.frames) { m = { frames: {} }; for (const f in made.frames) m.frames[f] = inst(made.frames[f], 160); }     // (one mesh for each frame of a person)
+    else m = inst(made, CAP);
+    this.kinds.set(k, m); return m;
   }
   // list: [{ k (kind), x, y (the map's), r (footprint, metres), face (radians on the map), tint (a colour or null), dim (0 to 1), walk (the step's phase in radians while it moves, else null) }]; ground(x, y): metres up
   // hot: through an infrared sight a body is warm and shows bright whatever it wears
@@ -117,14 +143,17 @@ export class Units3D {
     this.mat.emissive.setScalar(hot ? 0.62 : 0);
     this.used.clear();
     for (const u of list) {
-      const m = this._kind(u.k); if (!m) continue; const n = this.used.get(m) || 0; if (n >= CAP) continue;
+      const K = this._kind(u.k); if (!K) continue; let m = K;
+      if (K.frames) { const st = u.walk != null ? Math.floor((((u.walk % 6.2832) + 6.2832) % 6.2832) / 6.2832 * STEPS) % STEPS : -1; m = (u.aim && (st < 0 ? K.frames.aim : K.frames['a' + st])) || (st < 0 ? K.frames.stand : K.frames['w' + st]) || K.frames.stand; }
+      const n = this.used.get(m) || 0; if (n >= m.instanceMatrix.count) continue;
       Q.setFromAxisAngle(UP, Math.PI / 2 - (u.face || 0)); P.set(u.x, ground(u.x, u.y) + (u.up || 0), u.y); S.setScalar(u.r);
-      if (u.walk != null) { const s = Math.sin(u.walk); P.y += Math.abs(s) * 0.1 * u.r; Q.multiply(Q2.setFromAxisAngle(FWD, s * 0.11)); }     // (GC 0.26) on the move: a step's rise and a sway from foot to foot, until the models are given legs that walk
+      if (u.walk != null && K.frames) P.y += Math.abs(Math.sin(u.walk)) * 0.04 * u.r;     // (a person's legs do the walking: only the rise of each step)
+      else if (u.walk != null) { const s = Math.sin(u.walk); P.y += Math.abs(s) * 0.1 * u.r; Q.multiply(Q2.setFromAxisAngle(FWD, s * 0.11)); }     // (GC 0.26) on the move: a step's rise and a sway from foot to foot, until the models are given legs that walk
       m.setMatrixAt(n, M4.compose(P, Q, S)); COL.set(u.tint || '#ffffff'); if (u.dim != null && u.dim < 1) COL.multiplyScalar(u.dim); m.setColorAt(n, COL);
       this.used.set(m, n + 1);
     }
     let total = 0;
-    for (const m of this.kinds.values()) { if (!m) continue; m.count = this.used.get(m) || 0; total += m.count; if (m.count) { m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; } }
+    for (const m of this.all) { m.count = this.used.get(m) || 0; total += m.count; if (m.count) { m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; } }
     this.n = total;
   }
 }
@@ -191,13 +220,13 @@ export class Fx3D {
     // bolts: [{ x, y, x2, y2 (tail to head, on the map), w (metres), col, up, up2 }]   orbs: [{ x, y, up, r, col }]   domes: [{ x, y, r, k (0 to 1, how bright) }]
     let bn = 0;
     for (const s of o.bolts || []) {
-      if (bn >= 600) break; this.a.set(s.x, ground(s.x, s.y) + (s.up ?? 1.4), s.y); this.b.set(s.x2, ground(s.x2, s.y2) + (s.up2 ?? s.up ?? 1.4), s.y2);
+      if (bn >= 600) break; this.a.set(s.x, ground(s.x, s.y) + (s.up ?? 3.6), s.y); this.b.set(s.x2, ground(s.x2, s.y2) + (s.up2 ?? s.up ?? 3.6), s.y2);     // (figures are drawn large to be seen from the air: their guns are about this high)
       this.dir.subVectors(this.b, this.a); const len = this.dir.length(); if (len < 0.05) continue; Q.setFromUnitVectors(this.z, this.dir.normalize());
       P.addVectors(this.a, this.b).multiplyScalar(0.5); S.set(s.w, s.w, len); this.bolt.setMatrixAt(bn, M4.compose(P, Q, S)); COL.set(s.col || '#ffe9b0'); this.bolt.setColorAt(bn++, COL);
     }
     this.bolt.count = bn; if (bn) { this.bolt.instanceMatrix.needsUpdate = true; if (this.bolt.instanceColor) this.bolt.instanceColor.needsUpdate = true; }
     let on = 0;
-    for (const s of o.orbs || []) { if (on >= 160) break; Q.identity(); P.set(s.x, ground(s.x, s.y) + (s.up ?? 1.4), s.y); S.setScalar(s.r); this.orb.setMatrixAt(on, M4.compose(P, Q, S)); COL.set(s.col || '#ffffff'); this.orb.setColorAt(on++, COL); }
+    for (const s of o.orbs || []) { if (on >= 160) break; Q.identity(); P.set(s.x, ground(s.x, s.y) + (s.up ?? 3.6), s.y); S.setScalar(s.r); this.orb.setMatrixAt(on, M4.compose(P, Q, S)); COL.set(s.col || '#ffffff'); this.orb.setColorAt(on++, COL); }
     this.orb.count = on; if (on) { this.orb.instanceMatrix.needsUpdate = true; if (this.orb.instanceColor) this.orb.instanceColor.needsUpdate = true; }
     let dn = 0;
     for (const s of o.domes || []) { if (dn >= 48) break; Q.identity(); P.set(s.x, ground(s.x, s.y) - 0.5, s.y); S.setScalar(s.r); this.dome.setMatrixAt(dn, M4.compose(P, Q, S)); COL.setRGB(0.3 * s.k, 0.42 * s.k, 0.55 * s.k); this.dome.setColorAt(dn++, COL); }

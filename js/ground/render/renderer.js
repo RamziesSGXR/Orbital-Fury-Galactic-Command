@@ -653,7 +653,7 @@ export class Renderer {
       const phase = this.settings.reduceFlash ? ((now + a.id * 0.13) % 2) / 2 : ((now + (a.id % 5) * 0.07) % 1);
       const on = this.settings.reduceFlash ? phase < 0.15 : phase < 0.18;
       const r = Math.max(H_ ? 2.6 : 1.9, px(H_ ? 7 : 5)) * elevK(a.x, a.y);     // (0.62.10) sized by the ground he stands on
-      if (on && !hideUi && u3) B3.push({ x: a.x, y: a.y, h: r * 2.5, r: H_ ? 0.75 : 0.55 });     // (in 3D the strobe is a point of light on his back, not a ring on the ground)
+      if (on && !hideUi && u3) B3.push({ x: a.x, y: a.y, h: r * (H_ ? 1.95 : 1.7), r: H_ ? 0.34 : 0.28 });     // (in 3D the strobe is a point of light on his back, not a ring on the ground)
       else if (on && !hideUi) {   // the IR strobe on the backpack flashes a ring
         ctx.strokeStyle = pal.ally; ctx.lineWidth = px(1.2); ctx.globalAlpha = 0.6;
         ctx.beginPath(); ctx.arc(a.x, a.y, r * 2.1, 0, TAU); ctx.stroke(); ctx.globalAlpha = 1;
@@ -665,7 +665,7 @@ export class Renderer {
       }
       else if (!flat) up = liftUnit(ctx, a.x, a.y, r, r * (H_ ? 0.5 : 0.42), wallA);
       else { ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.ellipse(a.x + r * 0.45, a.y + r * 0.35, r * 0.95, r * 0.7, 0, 0, TAU); ctx.fill(); }     // (0.59) its shadow
-      if (!fine) { if (u3) u3.push({ k: H_ ? 'van' : 'inf', x: a.x, y: a.y, r: r * (H_ ? 1.25 : 1.1), face: a.aimUntil > t ? a.aimA : a.face, tint: tm ? tm.color : null, walk: (a.vx || 0) ** 2 + (a.vy || 0) ** 2 > 0.1 ? t * 11 + a.id : null }); else drawAllyBody(ctx, a, r, pal.ally, tm ? tm.color : null, on, now, px, t); }
+      if (!fine) { if (u3) u3.push({ k: H_ ? 'van' : 'inf', x: a.x, y: a.y, r: r * (H_ ? 1.25 : 1.1), face: a.aimUntil > t ? a.aimA : a.face, tint: tm ? tm.color : null, aim: a.aimUntil > t, walk: (a.vx || 0) ** 2 + (a.vy || 0) ** 2 > 0.1 ? t * 11 + a.id : null }); else drawAllyBody(ctx, a, r, pal.ally, tm ? tm.color : null, on, now, px, t); }
       if (up) dropUnit(ctx, up);
       if (t - a.hurtAt < 0.1 && !hideUi) { ctx.strokeStyle = '#ff6a6a'; ctx.lineWidth = px(1.5); ctx.beginPath(); ctx.arc(a.x, a.y, r * 1.3, 0, TAU); ctx.stroke(); }
       if (H_ && !hideUi && u3) { /* in 3D he wears his team's colour himself: no ring */ }
@@ -1538,6 +1538,8 @@ export class Renderer {
     if (tt < 0.06 && f.kind !== 'slash' && f.kind !== 'glob' && f.kind !== 'zap') {
       const q = 1 - tt / 0.06, s = Math.max(f.big ? 4.2 : 2.4, px(f.big ? 9 : 5)) * (0.7 + 0.3 * q), ang = Math.atan2(dy, dx);
       const core = f.side === 'e' ? f.col : '#ffe9b0';
+      if (this._o3) this._o3.push({ x: f.x + dx / (d || 1) * 1.6, y: f.y + dy / (d || 1) * 1.6, up: 4.6, r: s * 0.32 * (0.5 + 0.5 * q), col: core });     // (GC 0.27) in 3D the flash is at the muzzle, not on the ground
+      else {
       ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(ang);
       const g = ctx.createRadialGradient(0, 0, 0, 0, 0, s);
       g.addColorStop(0, `rgba(255,255,255,${0.95 * q})`); g.addColorStop(0.45, this._rgba(core, 0.75 * q)); g.addColorStop(1, this._rgba(core, 0));
@@ -1547,6 +1549,7 @@ export class Renderer {
       ctx.moveTo(s * 0.9, s * 0.95); ctx.lineTo(s * 0.15, s * 0.2); ctx.lineTo(s * 0.35, 0); ctx.closePath();        // and two short ones to the sides
       ctx.moveTo(s * 0.9, -s * 0.95); ctx.lineTo(s * 0.15, -s * 0.2); ctx.lineTo(s * 0.35, 0); ctx.closePath();
       ctx.fill(); ctx.restore();
+      }
     }
     // arrival: a spark when it hits, a puff and a pit in the ground when it misses
     if (!f.imp && hp >= 1) {
@@ -1585,7 +1588,7 @@ export class Renderer {
     let lift = 0;
     if (f.kind === 'shell' && f.fl >= 1) lift = Math.sin(Math.PI * hp) * Math.min(26, d * 0.3);   // lobbed shells arc up and come down
     if (this._o3 && (f.kind === 'glob' || f.kind === 'shell')) {     // (GC 0.25) in 3D: a ball of light through the air, a lobbed one high over the ground
-      this._o3.push({ x: hx, y: hy, up: 1.4 + lift * 1.6, r: Math.max(f.kind === 'shell' ? 0.7 : 0.6, px(2.6)), col: f.kind === 'shell' ? '#fff2d0' : f.col });
+      this._o3.push({ x: hx, y: hy, up: 3.6 + lift * 1.6, r: Math.max(f.kind === 'shell' ? 0.7 : 0.6, px(2.6)), col: f.kind === 'shell' ? '#fff2d0' : f.col });
       if (f.kind === 'shell' && lift === 0) { const tp = Math.max(0, hp - f.len / d); this._t3.push({ x: f.x + dx * tp, y: f.y + dy * tp, x2: hx, y2: hy, w: Math.max(px(f.w), 0.3), col: f.col }); }
       return;
     }

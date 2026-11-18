@@ -34,9 +34,9 @@ with sync_playwright() as pw:
     # a Striker passing over and a blast, put straight into the picture
     f.evaluate("(() => { const r = __game.renderer, m = __game.mission, a = m.alive[0], now = r.fxNow(m); r.fx.push({ k: 'fly', x: a.x - 90, y: a.y - 30, x2: a.x + 90, y2: a.y + 10, t0: now - 3.4, life: 9 }); r.fx.push({ k: 'fireball', x: a.x + 22, y: a.y - 12, r: 12, t0: now - 0.6, life: 5 }); r.fx.push({ k: 'fireball', x: a.x - 30, y: a.y + 14, r: 8, t0: now - 2.2, life: 5 }); })()")     # (long-lived, so the picture catches them: the check runs the clock fast)
     pg.wait_for_timeout(120); pg.screenshot(path=f'{out}/air-1.png')
-    print('in the air:', f.evaluate("(() => { const g = __game.renderer._g3, o = {}; for (const [k, m] of g.units.kinds) if (m && m.count) o[k] = m.count; return { units: o, fx: g.fx.n, dships: __game.mission.dships.length }; })()"))
+    print('in the air:', f.evaluate("(() => { const g = __game.renderer._g3, o = {}; for (const [k, m] of g.units.kinds) { if (!m) continue; const n = m.frames ? Object.values(m.frames).reduce((a, f) => a + f.count, 0) : m.count; if (n) o[k] = n; } return { units: o, fx: g.fx.n, dships: __game.mission.dships.length }; })()"))
     pg.wait_for_timeout(5000); pg.screenshot(path=f'{out}/air-2.png')
-    print('later:', f.evaluate("(() => { const g = __game.renderer._g3, o = {}; for (const [k, m] of g.units.kinds) if (m && m.count) o[k] = m.count; return { units: o, fx: g.fx.n, dships: __game.mission.dships.map(d => d.state) }; })()"))
+    print('later:', f.evaluate("(() => { const g = __game.renderer._g3, o = {}; for (const [k, m] of g.units.kinds) { if (!m) continue; const n = m.frames ? Object.values(m.frames).reduce((a, f) => a + f.count, 0) : m.count; if (n) o[k] = n; } return { units: o, fx: g.fx.n, dships: __game.mission.dships.map(d => d.state) }; })()"))
     # the troops' own fire: streaks of light in the air (the squad is sent at the nearest enemy and watched until it shoots)
     best = 0
     for i in range(60):
@@ -45,4 +45,6 @@ with sync_playwright() as pw:
         if best >= 3: break
         pg.wait_for_timeout(400)
     print('streaks and balls of fire in the air at once:', best)
+    f.evaluate("(() => { const c = __game.cam, m = __game.mission, a = m.infantryAlive[0] || m.alive[0]; c.follow = false; c.x = a.x; c.y = a.y; c.view = 42; })()"); pg.wait_for_timeout(700); pg.screenshot(path=f'{out}/air-4-close.png')
+    print('a person has these frames:', f.evaluate("(() => { const u = __game.renderer._g3.units, o = {}; for (const k of ['van', 'inf', 'civ0', 'civ2']) { const K = u._kind(k); o[k] = K && K.frames ? Object.keys(K.frames).length : 0; } return o; })()"))
     print('\n'.join(errs) if errs else 'no page errors'); br.close()
