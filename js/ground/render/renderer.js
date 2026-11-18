@@ -606,7 +606,8 @@ export class Renderer {
         else if (flat) body(e);
         else raiseUnit(ctx, br * 0.34, wallE, (c) => drawBossBody(c, e, fid, br, pal.enemy, now, px, t - e.hurtAt < 0.06, t));
       }
-      else if (u3) u3.push({ k: fid + ':' + e.kind, x: e.x, y: e.y, r: enemyR(e, SUBTYPES[e.kind], px) * 1.25, face: e.face, tint: t - e.hurtAt < 0.06 ? '#ffffff' : null, dim: e.vis >= 2 ? 1 : 0.6, up: e.air ? e.air * 4 : 0, walk: !e.air && (e.vx || 0) ** 2 + (e.vy || 0) ** 2 > 0.1 ? t * (fid === 'bugs' ? 15 : 10) + e.id : null });
+      else if (u3) { if ((e.atk || 0) > (e._pa ?? 0) + 0.15) e._at = t; e._pa = e.atk || 0;     // (GC 0.31) its attack timer has just been wound again: it has just struck
+        u3.push({ k: fid + ':' + e.kind, atk: t - (e._at ?? -9) < 0.3, x: e.x, y: e.y, r: enemyR(e, SUBTYPES[e.kind], px) * 1.25, face: e.face, tint: t - e.hurtAt < 0.06 ? '#ffffff' : null, dim: e.vis >= 2 ? 1 : 0.6, up: e.air ? e.air * 4 : 0, walk: !e.air && (e.vx || 0) ** 2 + (e.vy || 0) ** 2 > 0.1 ? t * (fid === 'bugs' ? 15 : 10) + e.id : null }); }
       else drawEnemyBody(ctx, e, fid, enemyR(e, SUBTYPES[e.kind], px), pal.enemy, now, px, t - e.hurtAt < 0.06);
       if (up) dropUnit(ctx, up);
       ctx.globalAlpha = 1;
