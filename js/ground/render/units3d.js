@@ -202,14 +202,16 @@ export class Units3D {
     this.mat.emissive.setScalar(hot ? 0.62 : 0);
     this.used.clear();
     for (const u of list) {
-      const K = this._kind(u.k) || (u.alt ? this._kind(u.alt) : null); if (!K) continue; let m = K;
+      const K = this._kind(u.k) || (u.alt ? this._kind(u.alt) : null); if (!K) continue; let m = K, posed = false;
       if (K.frames) {
         const F = u.lod && K.lod ? K.lod.frames : K.frames, st = u.walk != null ? Math.floor((((u.walk % 6.2832) + 6.2832) % 6.2832) / 6.2832 * STEPS) % STEPS : -1;
+        posed = !!(u.pose && F[u.pose]);
         m = (u.pose && F[u.pose]) || (u.jump && F.jump) || (u.atk && F.atk) || (u.aim && (st < 0 ? F.aim : F['a' + st])) || (st < 0 ? F.stand : F['w' + st] || F['w' + (st & 6)]) || F.stand;
       }
       const n = this.used.get(m) || 0; if (n >= m.instanceMatrix.count) continue;
       Q.setFromAxisAngle(UP, Math.PI / 2 - (u.face || 0)); P.set(u.x, ground(u.x, u.y) + (u.up || 0), u.y); S.setScalar(u.r);
-      if (u.tumble != null) { Q.multiply(Q2.setFromAxisAngle(SIDE, -u.tumble)); P.y += Math.abs(Math.sin(u.tumble)) * 0.16 * u.r - (u.sink || 0) * 0.6 * u.r; }     // (GC 0.29) a body: turned over backwards about its feet, lying on the ground, sinking away as it fades
+      if (posed) P.y -= (u.sink || 0) * 0.3 * u.r;     // (it lies as its own model has it lie: only the sinking away is left to do)
+      else if (u.tumble != null) { Q.multiply(Q2.setFromAxisAngle(SIDE, -u.tumble)); P.y += Math.abs(Math.sin(u.tumble)) * 0.16 * u.r - (u.sink || 0) * 0.6 * u.r; }     // (GC 0.29) a body: turned over backwards about its feet, lying on the ground, sinking away as it fades
       else if (u.walk != null && K.frames) P.y += Math.abs(Math.sin(u.walk)) * 0.04 * u.r;     // (a person's legs do the walking: only the rise of each step)
       else if (u.walk != null) { const s = Math.sin(u.walk); P.y += Math.abs(s) * 0.1 * u.r; Q.multiply(Q2.setFromAxisAngle(FWD, s * 0.11)); }     // (GC 0.26) on the move: a step's rise and a sway from foot to foot, until the models are given legs that walk
       m.setMatrixAt(n, M4.compose(P, Q, S)); COL.set(u.tint || '#ffffff'); if (u.dim != null && u.dim < 1) COL.multiplyScalar(u.dim); m.setColorAt(n, COL);

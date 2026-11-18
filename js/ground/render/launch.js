@@ -107,7 +107,7 @@ export class Launch {
       ctx.beginPath(); ctx.ellipse(b.x + b.z * 0.12, b.y + b.z * 0.12, r * 1.1 * (1 - Math.min(0.4, b.z * 0.01)), r * 0.9 * (1 - Math.min(0.4, b.z * 0.01)), 0, 0, TAU); ctx.fill();
       if (VIEW.air) {     // (GC 0.29) in 3D: the unit's own model, turning over in the air, then lying where it came down and sinking away
         const lie = Math.PI / 2, tumble = b.fell ? lie * Math.min(1, (b.age / 0.35) ** 2) : b.landed ? lie : b.rot * 1.3;
-        VIEW.air.push({ k: b.ally ? (b.type === 'H' ? 'van' : 'inf') : fid + ':' + b.kind, x: b.x, y: b.y, r: r * (b.ally ? 1.2 : 1.25), face: b.fell || b.landed ? b.rot : b.rot * 0.35, up: b.z * 0.5, tumble, sink: 1 - b.fade,
+        VIEW.air.push({ k: b.ally ? (b.type === 'H' ? 'van' : 'inf') : fid + ':' + b.kind, x: b.x, y: b.y, r: r * (b.ally ? 1.2 : 1.25), face: b.fell || b.landed ? b.rot : b.rot * 0.35, up: b.z * 0.5, tumble, sink: 1 - b.fade, pose: b.ally && (b.fell || b.landed) ? 'down' : null,
           tint: b.ally && b.type === 'H' && b.team !== undefined && m.teams[b.team] ? m.teams[b.team].color : null, dim: 0.75 });
         continue;
       }

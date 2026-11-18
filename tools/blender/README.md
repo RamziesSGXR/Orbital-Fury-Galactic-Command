@@ -4,6 +4,7 @@ The enemy models are built by script in Blender and written out for the game.
 
 - `gc_kit.py`: the kit. A creature is a tree of joints with low-polygon parts hung on them (`loft`, `blob`, `box`, `spike`, `cyl`, `leg`, `bleg`, `tail`). A pose turns the joints. `export()` writes `export/<name>.json`.
 - `molt.py`, `foundry.py`, `talon.py`: one faction each, three creatures in each (light, medium, heavy). Each builds, poses, exports and takes a picture.
+- `people.py`: the fleet's own people: the soldier, the Vanguard, and three citizens in a sci-fi cut (a technician with a headset, a dock hand in a harness and rebreather, a company officer in a long coat with a lit hem). Hands are put on the rifle by the kit's `reach` (a two-bone solve). Materials named `uniform`, `uniform_dark`, `kit`, `helmet`, `armband` and `trim` are dressed in the player's fleet colours by the game.
 - `molt_more.py`, `foundry_more.py`, `talon_more.py`: the rest of each faction (a second light or medium kind, the special, the boss). Run each straight after its faction's first script, in the same session: it uses that script's colours and helpers.
 
 To run one: open Blender, then in its Python console
@@ -17,7 +18,7 @@ To run one: open Blender, then in its Python console
 
 `assets/models/<name>.json` (version 2): `nv` vertices, `nt` triangles, `tris` (uint16, base64), `cols` (one sRGB colour for each triangle, uint8), `min` and `size` (the box the vertices are packed into), `frames` (for each frame name, every vertex's place as uint16), `pal` and `mi` (the names of the model's materials and which one each triangle wears, so the game can dress a named part in other colours), `lod` (the same model again in about a third of the triangles: small parts left out, the rest cut down), and optionally `fit` (the measure that is sized to the unit in the game; without it, the largest dimension).
 
-Frames: `stand`, `w0` to `w7` (one walk cycle), `atk` (a strike), and for the Leaper `jump`.
+Frames: `stand`, `w0` to `w7` (one walk cycle), `atk` (a strike), and for the Leaper `jump`. People: `stand`, `w0` to `w7`, `down` (lying), and for the armed `aim`, `a0` to `a7` (walking with the rifle up), `kneel`, `hit`.
 
 In Blender Z is up and the creature faces -Y. In the game Y is up and it faces +Z. The export turns it.
 

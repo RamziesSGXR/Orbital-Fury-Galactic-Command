@@ -668,7 +668,7 @@ export class Renderer {
       }
       else if (!flat) up = liftUnit(ctx, a.x, a.y, r, r * (H_ ? 0.5 : 0.42), wallA);
       else { ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.ellipse(a.x + r * 0.45, a.y + r * 0.35, r * 0.95, r * 0.7, 0, 0, TAU); ctx.fill(); }     // (0.59) its shadow
-      if (!fine) { if (u3) u3.push({ k: H_ ? 'van' : 'inf', x: a.x, y: a.y, r: r * (H_ ? 1.25 : 1.1), face: a.aimUntil > t ? a.aimA : a.face, tint: tm ? tm.color : null, aim: !a.down && a.aimUntil > t, tumble: a.down ? Math.PI / 2 : undefined, walk: a.down ? null : (a.vx || 0) ** 2 + (a.vy || 0) ** 2 > 0.1 ? t * 11 + a.id : null }); else drawAllyBody(ctx, a, r, pal.ally, tm ? tm.color : null, on, now, px, t); }
+      if (!fine) { if (u3) u3.push({ k: H_ ? 'van' : 'inf', x: a.x, y: a.y, r: r * (H_ ? 1.25 : 1.1), face: a.aimUntil > t ? a.aimA : a.face, tint: tm ? tm.color : null, lod: far3 !== '', aim: !a.down && a.aimUntil > t, pose: a.down ? 'down' : t - (a.hurtAt ?? -9) < 0.18 ? 'hit' : (!H_ && a.aimUntil > t && (a.vx || 0) ** 2 + (a.vy || 0) ** 2 <= 0.1 && a.id % 3 !== 0) ? 'kneel' : null, tumble: a.down ? Math.PI / 2 : undefined, walk: a.down ? null : (a.vx || 0) ** 2 + (a.vy || 0) ** 2 > 0.1 ? t * 11 + a.id : null }); else drawAllyBody(ctx, a, r, pal.ally, tm ? tm.color : null, on, now, px, t); }
       if (up) dropUnit(ctx, up);
       if (t - a.hurtAt < 0.1 && !hideUi) { ctx.strokeStyle = '#ff6a6a'; ctx.lineWidth = px(1.5); ctx.beginPath(); ctx.arc(a.x, a.y, r * 1.3, 0, TAU); ctx.stroke(); }
       if (H_ && !hideUi && u3) { /* in 3D he wears his team's colour himself: no ring */ }

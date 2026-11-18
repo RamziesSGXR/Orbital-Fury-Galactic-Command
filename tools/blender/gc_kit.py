@@ -264,3 +264,26 @@ def tail(parent, at, lens, radii, m, sides=6, droop=0.0, flat=1.0):
     return out
 def wag(n, ph, amp=0.18, lag=0.9, up=0.0):
     for i in range(n): turn('tail%d' % i, z=amp * math.sin(ph - i * lag), x=up * math.sin(2 * ph - i * lag))
+
+def aim_joint(j, world_dir):
+    """Turn a joint so that the limb hanging from it (down its own -Z) points along world_dir."""
+    bpy.context.view_layer.update()
+    pm = j.parent.matrix_world.to_3x3().normalized() if j.parent else Matrix.Identity(3)
+    d = (pm.inverted() @ Vector(world_dir)).normalized()
+    j.rotation_euler = Vector((0, 0, -1)).rotation_difference(d).to_euler('XYZ')
+def reach(sho, elb, target, L1, L2, pole=(0, 0, -1)):
+    """Put a hand on a point: turn the shoulder and the elbow so an arm of two lengths ends at target, the elbow leaning toward pole."""
+    bpy.context.view_layer.update()
+    S = sho.matrix_world.translation.copy(); d = Vector(target) - S; D = max(1e-4, min(d.length, (L1 + L2) * 0.999))
+    a = (L1 * L1 - L2 * L2 + D * D) / (2 * D); h = math.sqrt(max(0.0, L1 * L1 - a * a)); n = d.normalized()
+    p = Vector(pole); p = p - n * p.dot(n); p = p.normalized() if p.length > 1e-6 else Vector((0, 0, -1))
+    E = S + n * a + p * h
+    aim_joint(sho, E - S); aim_joint(elb, (S + n * D) - E)
+def at(j, loc=None, rot=None):
+    """Place a joint outright (not from its rest)."""
+    o = bpy.data.objects[PRE + j] if isinstance(j, str) else j
+    if loc is not None: o.location = loc
+    if rot is not None: o.rotation_euler = rot
+def wpt(j, local):
+    bpy.context.view_layer.update(); o = bpy.data.objects[PRE + j] if isinstance(j, str) else j
+    return o.matrix_world @ Vector(local)
