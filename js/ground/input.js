@@ -34,7 +34,8 @@ export class Input {
 
   _pan(dxPx, dyPx) {
     const k = 1 / this._pxPerMeter();
-    this.cam.x -= dxPx * k; this.cam.y -= dyPx * k; this.cam.follow = false;
+    const ya = this.cam.yaw || 0, yc = Math.cos(ya), ys = Math.sin(ya);     // (GC 0.16) the view may be turned: a drag across the screen is turned back onto the ground
+    this.cam.x -= (dxPx * yc + dyPx * ys) * k; this.cam.y -= (-dxPx * ys + dyPx * yc) * k; this.cam.follow = false;
     this._clamp();
   }
   // The camera stays over the mission's area of operations (cam.ao), or the whole world when there is none.
@@ -57,7 +58,8 @@ export class Input {
     if (held('panDown')) dy += 1;
     if (dx || dy) {
       const sp = this.cam.view * 0.7 * dt, n = Math.hypot(dx, dy);
-      this.cam.x += (dx / n) * sp; this.cam.y += (dy / n) * sp; this.cam.follow = false; this._clamp();
+      const ya = this.cam.yaw || 0, yc = Math.cos(ya), ys = Math.sin(ya);
+      this.cam.x += ((dx * yc + dy * ys) / n) * sp; this.cam.y += ((-dx * ys + dy * yc) / n) * sp; this.cam.follow = false; this._clamp();
     }
   }
 

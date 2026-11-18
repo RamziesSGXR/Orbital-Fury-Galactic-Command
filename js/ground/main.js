@@ -46,6 +46,7 @@ if (GCX) document.documentElement.classList.add('gc');
 let gcOver = false;
 function gcDone() { if (gcOver) return; gcOver = true; audio.humStop(); if (lastRes) GCX.onResult(lastRes); else GCX.onAbort(); }
 function gcStart() {
+  cam.orbit = GCX.orbit ?? 0.02;     // the circling view: a full turn about every five minutes of mission time
   // what the war sends down with you: reinforcements from a station and the ratings, a garrison from a base
   if (GCX.support) { C.vanguards.lives = Math.max(8, C.vanguards.lives + (GCX.support.lives | 0)); if (GCX.support.garrison > 0) { C.infantry.defendChance = 1; C.infantry.defendN += GCX.support.garrison | 0; } }
   session = S.newSession(GCX.callsign, GCX.level, GCX.op);

@@ -315,10 +315,13 @@ export class Renderer {
   // ---------- main draw ----------
   // Camera transform (without screen shake). Main calls this before converting the mouse to a world position.
   updateView(cam, now) {
-    const scale = this.W / cam.view;
+    const R0 = this._real, scale = (R0 ? R0.W : this.W) / cam.view;     // (GC 0.16) while the world is drawn turned, onto its own bigger sheet, the scale is still the screen's
     const camX = cam.x + Math.sin(now * 0.314) * 3, camY = cam.y + Math.cos(now * 0.314) * 2; // gentle gunship sway
     // (0.19.1) the camera's point sits in the middle of the room left above the sheet (focusY: a fraction of the height)
-    this.view = { scale, tx: this.W / 2 - camX * scale, ty: this.H * (this.focusY || 0.5) - camY * scale, camX, camY };
+    // tx, ty place the world on the sheet being drawn on. px, py are where the camera's point is on the SCREEN and yaw how far the
+    // view is turned about it: what the pointer and the labels go by.
+    this.view = { scale, tx: this.W / 2 - camX * scale, ty: this.H * (this.focusY || 0.5) - camY * scale, camX, camY, yaw: cam.yaw || 0,
+      px: (R0 ? R0.W : this.W) / 2, py: R0 ? R0.H * (R0.focusY || 0.5) : this.H * (this.focusY || 0.5) };
     return this.view;
   }
   screenToWorld(cssX, cssY, cv) {
@@ -326,17 +329,37 @@ export class Renderer {
     const now = performance.now();   // the canvas does not move between resizes: read its box at most a few times a second
     if (!this._cr || this._crCv !== cv || now - this._crT > 400) { this._cr = cv.getBoundingClientRect(); this._crCv = cv; this._crT = now; }
     const r = this._cr, k = this.W / r.width;
-    return { x: ((cssX - r.left) * k - v.tx) / v.scale, y: ((cssY - r.top) * k - v.ty) / v.scale };
+    const dx = (cssX - r.left) * k - v.px, dy = (cssY - r.top) * k - v.py, c = Math.cos(v.yaw), s = Math.sin(v.yaw);
+    return { x: v.camX + (dx * c + dy * s) / v.scale, y: v.camY + (-dx * s + dy * c) / v.scale };
   }
 
   worldToScreen(x, y, cv) {
     const v = this.view; if (!v) return null;
     const r = cv.getBoundingClientRect(), k = this.W / r.width;
-    return { x: (x * v.scale + v.tx) / k + r.left, y: (y * v.scale + v.ty) / k + r.top };
+    const dx = (x - v.camX) * v.scale, dy = (y - v.camY) * v.scale, c = Math.cos(v.yaw), s = Math.sin(v.yaw);
+    return { x: (v.px + dx * c - dy * s) / k + r.left, y: (v.py + dx * s + dy * c) / k + r.top };
   }
 
+  // (GC 0.16) THE CIRCLING VIEW. With cam.orbit set (radians a second of mission time) the view turns slowly about the camera's
+  // point, as from a gunship circling the fight. The world is drawn as it always was, upright, onto a square sheet big
+  // enough to cover the screen at any angle; the sheet is then laid on the screen turned; and everything read (labels, tags,
+  // arrows, the reticle) is drawn after it, upright, at its turned place. Text drawn in the world is turned back upright.
+  _sheet(real) {
+    const fy = real.focusY || 0.5, S = Math.min(4096, Math.ceil(2 * Math.hypot(real.W / 2, real.H * Math.max(fy, 1 - fy)) + 4));
+    if (!this._wc) {
+      this._wc = document.createElement('canvas'); const x = this._wc.getContext('2d', { alpha: false }), ft = x.fillText.bind(x), st = x.strokeText.bind(x);
+      const up = (fn) => (text, px, py) => { const a = this.yaw || 0; if (!a) return fn(text, px, py); x.save(); x.translate(px, py); x.rotate(-a); fn(text, 0, 0); x.restore(); };
+      x.fillText = up(ft); x.strokeText = up(st); this._wx = x;
+    }
+    if (this._wc.width !== S) { this._wc.width = S; this._wc.height = S; }
+    return S;
+  }
   draw(m, cam, ui) {
-    const ctx = this.ctx, W = this.W, H = this.H;
+    if (this._real) { const r = this._real; this.ctx = r.ctx; this.W = r.W; this.H = r.H; this.focusY = r.focusY; this._real = null; }     // (a frame that threw half way: put the screen back)
+    cam.yaw = cam.orbit ? (cam.yaw0 || 0) + m.t * cam.orbit : 0; this.yaw = cam.yaw;
+    let real = null;
+    if (cam.yaw) { real = { ctx: this.ctx, W: this.W, H: this.H, focusY: this.focusY }; const S = this._sheet(real); this._real = real; this.ctx = this._wx; this.W = S; this.H = S; this.focusY = 0.5; }
+    let ctx = this.ctx, W = this.W, H = this.H;
     const now = ui.now, t = m.t;
     // (0.62.10) how big things are drawn by the height of their ground (relief.js elevK): elev.size either way of the middle
     { const T = m.terrain, K = C.elev ? C.elev.size : 0; setElev(T && K ? (x, y) => 1 + K * (T.height(x, y) - 0.5) * 2 : null); }
@@ -345,7 +368,9 @@ export class Renderer {
     if (this.shake > 0.3) { ox = (Math.random() - 0.5) * this.shake * this.dpr; oy = (Math.random() - 0.5) * this.shake * this.dpr; this.shake *= 0.9; } else this.shake = 0;
     const tx = v.tx + ox, ty = v.ty + oy;
     this._dtx = tx; this._dty = ty;
-    const w2sx = (x) => x * scale + tx, w2sy = (y) => y * scale + ty;
+    // where a world point is on the SCREEN (turned with the view). Both take the point's x and y.
+    const yc = Math.cos(cam.yaw), ys = Math.sin(cam.yaw), ppx = v.px + ox, ppy = v.py + oy;
+    const w2sx = (x, y) => ppx + (x - v.camX) * scale * yc - (y - v.camY) * scale * ys, w2sy = (x, y) => ppy + (x - v.camX) * scale * ys + (y - v.camY) * scale * yc;
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
@@ -636,6 +661,11 @@ export class Renderer {
     if (amb) this.light.glow(ctx, amb, lowFx);
 
     // ---- screen space ----
+    if (real) {     // lay the turned world on the screen
+      const wc = this._wc, S = this.W; this.ctx = real.ctx; this.W = real.W; this.H = real.H; this.focusY = real.focusY; this._real = null; ctx = this.ctx; W = this.W; H = this.H;
+      ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+      ctx.translate(v.px, v.py); ctx.rotate(cam.yaw); ctx.drawImage(wc, -S / 2, -S / 2);
+    }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     this._drawLabels(ctx, w2sx, w2sy);
     // a selection box being dragged round Infantry troopers
@@ -646,7 +676,7 @@ export class Renderer {
     }
     this._tags(ctx, m, w2sx, w2sy, scale, now);
     this._edgeArrows(ctx, m, w2sx, w2sy, scale, { cam });
-    if (aim && ui.armed) this._reticle(ctx, m, aim, w2sx(aim.x), w2sy(aim.y), scale, now, ui);     // (only with a weapon armed: otherwise the cursor selects)
+    if (aim && ui.armed) this._reticle(ctx, m, aim, w2sx(aim.x, aim.y), w2sy(aim.x, aim.y), scale, now, ui);     // (only with a weapon armed: otherwise the cursor selects)
     this._post(ctx);
   }
 
@@ -847,7 +877,7 @@ export class Renderer {
     // (0.61.5) and so with every other label that is not urgent (pri 3) or the player's own strike: the map stays clear, and a name
     // shows when the thing is selected or the aim is on it (within 20 m)
     const quietL = (l) => l.nm || ((l.pri ?? 1) < 3 && !l.own);
-    let list = this.labels.filter((l) => !quietL(l) || showAll || keep.some((k) => (k.x - l.x) ** 2 + (k.y - l.y) ** 2 < (l.nm ? 144 : 400))).map((l) => ({ l, x: w2sx(l.x), y: w2sy(l.y) + l.dy * d }));
+    let list = this.labels.filter((l) => !quietL(l) || showAll || keep.some((k) => (k.x - l.x) ** 2 + (k.y - l.y) ** 2 < (l.nm ? 144 : 400))).map((l) => ({ l, x: w2sx(l.x, l.y), y: w2sy(l.x, l.y) + l.dy * d }));
     // (0.53.5) health bars that go with a label (a heavy's, a special's): drawn in screen space, right under its name, at the
     // labels' size, so they never slip behind the name when zoomed out (they used to be drawn on the map, under the label's box)
     const barsH = (l) => (l.bars ? l.bars.length * 5 * d + 2 * d : 0), withBars = list.filter((o) => o.l.bars);
@@ -917,7 +947,7 @@ export class Renderer {
     const mono = (px) => `${Math.round(px * d)}px ui-monospace, Menlo, Consolas, monospace`;
     ctx.textAlign = 'center';
     const spot = (a) => {
-      let x = w2sx(a.x), y = w2sy(a.y);
+      let x = w2sx(a.x, a.y), y = w2sy(a.x, a.y);
       if (a.mounted) x += (a.team - 1.5) * 26 * d;      // riders share a vehicle: fan their tags out
       return { x, y };
     };
@@ -1559,7 +1589,7 @@ export class Renderer {
     ctx.font = `${Math.round(10 * d)}px ui-monospace, Menlo, Consolas, monospace`;
     const obs = this._hudRects(), placed = [], Hv = Math.max(H * 0.4, H - (this.insetB || 0) * d);
     for (const it of items) {
-      const sx = w2sx(it.x), sy = w2sy(it.y);
+      const sx = w2sx(it.x, it.y), sy = w2sy(it.x, it.y);
       if (sx > pad && sx < W - pad && sy > pad && sy < Hv - pad) continue;
       const cx = W / 2, cy = Hv / 2, dx = sx - cx, dy = sy - cy;
       const k = Math.min((W / 2 - pad) / Math.abs(dx || 1e-6), (Hv / 2 - pad) / Math.abs(dy || 1e-6));
