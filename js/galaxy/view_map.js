@@ -1,6 +1,7 @@
 // Draws the galaxy map: the three war fronts, the rings of systems and their lanes, and the fleets, which are the
 // pieces of the game. The map can be zoomed and dragged.
 import { C } from './config.js';
+import { Galaxy3D, W, worldRadius } from './view_gl.js';
 
 const SIZE = { capital: 11, home: 9, sys: 5.5 };
 export const col = o => C.color[o] || C.color.fed;
@@ -14,13 +15,18 @@ function shield(c, x, y, s, stroke, fill) {
 }
 
 export class View {
-  constructor(cv) { this.cv = cv; this.ctx = cv.getContext('2d'); this.w = this.h = 1; this.zoom = 1; this.ox = 0; this.oy = 0; this.rot = 0; this.goal = null; }
+  constructor(cv) { this.cv = cv; this.ctx = cv.getContext('2d'); this.w = this.h = 1; this.zoom = 1; this.ox = 0; this.oy = 0; this.rot = 0; this.goal = null;
+    // the 3D map under this canvas; without WebGL the map is drawn flat, as it always was
+    this.gl = null; try { if (typeof WebGLRenderingContext !== 'undefined') this.gl = new Galaxy3D(cv); } catch (err) { console.warn('3D map unavailable', err); this.gl = null; }
+    if (this.gl) { cv.style.position = 'relative'; }
+  }
   resize() {
     const r = this.cv.parentElement.getBoundingClientRect(), d = Math.min(2, window.devicePixelRatio || 1);
     this.w = r.width; this.h = r.height;
     this.cv.width = Math.round(r.width * d); this.cv.height = Math.round(r.height * d);
     this.cv.style.width = r.width + 'px'; this.cv.style.height = r.height + 'px';
     this.ctx.setTransform(d, 0, 0, d, 0, 0);
+    if (this.gl) this.gl.resize(this.w, this.h, d);
     // The map is a disc. Room is left for the turn strip at the top and the bulletin strip at the bottom.
     const topPad = 62, botPad = 40;
     this.R0 = Math.max(60, Math.min((this.w - 30) / 2, (this.h - topPad - botPad) / 2) / 0.98);
@@ -34,32 +40,37 @@ export class View {
     this.ox = Math.max(-lim, Math.min(lim, this.ox)); this.oy = Math.max(-lim, Math.min(lim, this.oy));
     this.cx = this.cx0 + this.ox; this.cy = this.cy0 + this.oy;
     this.k = Math.max(0.7, Math.min(1.5, this.R0 / 260)) * Math.min(1.7, Math.sqrt(this.zoom));
+    if (this.gl) { const G = this.gl; G.zoom = this.zoom; G.az = -Math.PI / 2 - this.rot; G.place(); }
   }
   // Zoom by a factor, keeping the point under (x, y) where it is.
   zoomAt(f, x = this.cx0, y = this.cy0) {
     this.goal = null;
+    if (this.gl) { this.zoom *= f; this._apply(); return; }
     const z = Math.max(1, Math.min(4.5, this.zoom * f)), r = z / this.zoom;
     this.ox = x - this.cx0 - (x - this.cx) * r; this.oy = y - this.cy0 - (y - this.cy) * r;
     this.zoom = z; this._apply();
   }
-  pan(dx, dy) { this.goal = null; this.ox += dx; this.oy += dy; this._apply(); }
-  reset() { this.zoom = 1; this.ox = this.oy = 0; this.rot = 0; this.goal = null; this._apply(); }
+  pan(dx, dy) { this.goal = null; if (this.gl) { this.gl.pan(dx, dy); return; } this.ox += dx; this.oy += dy; this._apply(); }
+  reset() { this.zoom = 1; this.ox = this.oy = 0; this.rot = 0; this.goal = null; if (this.gl) { this.gl.tx = this.gl.tz = 0; } this._apply(); }
   // Turn and close in on one war front, so that it fills the view with its enemy's home at the top.
   // With no front, pull back to the whole map. The camera glides there over the next frames.
   focus(fi) {
     this.front = fi;
-    if (fi == null || fi < 0) { this.goal = { rot: 0, zoom: 1, ox: 0, oy: 0 }; return; }
+    if (fi == null || fi < 0) { this.goal = { rot: 0, zoom: 1, ox: 0, oy: 0, tx: 0, tz: 0 }; return; }
+    if (this.gl) { const a = C.fronts[fi].deg * Math.PI / 180; this.goal = { rot: -Math.PI / 2 - a, zoom: 1.9, ox: 0, oy: 0, tx: Math.cos(a) * W * 0.5, tz: Math.sin(a) * W * 0.5 }; return; }
     const z = Math.max(1.5, Math.min(2.1, (this.w / this.R0) * 0.95));
     this.goal = { rot: -Math.PI / 2 - C.fronts[fi].deg * Math.PI / 180, zoom: z, ox: 0, oy: this.R0 * z * 0.5 };
   }
   _glide() {
     const g = this.goal; if (!g) return;
     let dr = g.rot - this.rot; while (dr > Math.PI) dr -= 2 * Math.PI; while (dr < -Math.PI) dr += 2 * Math.PI;
-    const k = 0.13; this.rot += dr * k; this.zoom += (g.zoom - this.zoom) * k; this.ox += (g.ox - this.ox) * k; this.oy += (g.oy - this.oy) * k;
-    if (Math.abs(dr) < 0.004 && Math.abs(g.zoom - this.zoom) < 0.004 && Math.abs(g.oy - this.oy) < 0.6 && Math.abs(g.ox - this.ox) < 0.6) { this.rot = g.rot; this.zoom = g.zoom; this.ox = g.ox; this.oy = g.oy; this.goal = null; }
+    const k = 0.13; let far = false; if (this.gl) { const G = this.gl; G.tx += (g.tx - G.tx) * k; G.tz += (g.tz - G.tz) * k; far = Math.abs(g.tx - G.tx) + Math.abs(g.tz - G.tz) > 0.3; if (!far) { G.tx = g.tx; G.tz = g.tz; } }
+    this.rot += dr * k; this.zoom += (g.zoom - this.zoom) * k; this.ox += (g.ox - this.ox) * k; this.oy += (g.oy - this.oy) * k;
+    if (!far && Math.abs(dr) < 0.004 && Math.abs(g.zoom - this.zoom) < 0.004 && Math.abs(g.oy - this.oy) < 0.6 && Math.abs(g.ox - this.ox) < 0.6) { this.rot = g.rot; this.zoom = g.zoom; this.ox = g.ox; this.oy = g.oy; this.goal = null; }
     this._apply();
   }
-  xy(p) { const c = Math.cos(this.rot), s = Math.sin(this.rot); return [this.cx + (p.x * c - p.y * s) * this.R, this.cy + (p.x * s + p.y * c) * this.R]; }
+  xy(p) { if (this.gl) return this.gl.proj(p.x * W, 0, p.y * W);
+    const c = Math.cos(this.rot), s = Math.sin(this.rot); return [this.cx + (p.x * c - p.y * s) * this.R, this.cy + (p.x * s + p.y * c) * this.R]; }
   pick(g, x, y) {
     let best = null, bd = 22 * 22;
     for (const p of g.P) { const [a, b] = this.xy(p), d = (a - x) ** 2 + (b - y) ** 2; if (d < bd) { bd = d; best = p.id; } }
@@ -83,6 +94,18 @@ export class View {
       c.fillStyle = color; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(label, lx, ly);
     }
   }
+  // 3D: the ships of one fleet, in a wedge behind their leader, added to this frame's list
+  wing(list, x, z, ang, n, color, dim) {
+    const ca = Math.cos(ang), sa = Math.sin(ang), slots = [[0, 0], [-3.6, -2.6], [-3.6, 2.6], [-7.2, -5.2], [-7.2, 5.2], [-7.2, 0]];
+    for (let i = 0; i < Math.min(n, slots.length); i++) { const [f, r] = slots[i]; list.push({ x: x + f * ca - r * sa, z: z + f * sa + r * ca, ang, color, dim }); }
+  }
+  // 3D: the number under a fleet, and the ring round the one you have picked up
+  tag(x, y, label, color, ring) {
+    const c = this.ctx;
+    if (ring) { c.strokeStyle = C.color.amber; c.lineWidth = 1.8; c.beginPath(); c.ellipse(x, y, 22, 13, 0, 0, 7); c.stroke(); }
+    c.font = '600 10px ' + HEAD; const tw = c.measureText(label).width + 6, ly = y + 15;
+    c.fillStyle = 'rgba(12,16,14,0.92)'; c.fillRect(x - tw / 2, ly - 7, tw, 13); c.fillStyle = color; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(label, x, ly);
+  }
   along(a, b, f) { const [x1, y1] = this.xy(a), [x2, y2] = this.xy(b); return [x1 + (x2 - x1) * f, y1 + (y2 - y1) * f, Math.atan2(y2 - y1, x2 - x1)]; }
   arrow(a, b, color, dash, ra, rb) {
     const c = this.ctx, [x1, y1] = this.xy(a), [x2, y2] = this.xy(b), dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1;
@@ -92,28 +115,34 @@ export class View {
     c.beginPath(); c.moveTo(ex, ey); c.lineTo(ex - ux * 8 - uy * 4.5, ey - uy * 8 + ux * 4.5); c.lineTo(ex - ux * 8 + uy * 4.5, ey - uy * 8 - ux * 4.5); c.fill();
   }
   // Where a side's fleet sits beside its system: yours below left, the enemy's above right.
-  post(p, owner) { const [x, y] = this.xy(p), d = (SIZE[p.kind] + 9) * this.k; return owner === 'fed' ? [x - d, y + d * 0.75] : [x + d, y - d * 0.75]; }
+  // In 3D a fleet stands beside its world on the board: yours on the capital's side of it, the enemy's on the far side.
+  postW(p, owner) { const l = Math.hypot(p.x, p.y), ux = l > 0.01 ? p.x / l : 0, uz = l > 0.01 ? p.y / l : 1, d = worldRadius(p) + 2.4, s = owner === 'fed' ? -1 : 1; return [p.x * W + s * (ux * d - uz * d * 0.45), p.y * W + s * (uz * d + ux * d * 0.45), Math.atan2(-s * uz, -s * ux)]; }
+  post(p, owner) { if (this.gl) { const [x, z] = this.postW(p, owner); return this.gl.proj(x, 1.1, z); }
+    const [x, y] = this.xy(p), d = (SIZE[p.kind] + 9) * this.k; return owner === 'fed' ? [x - d, y + d * 0.75] : [x + d, y - d * 0.75]; }
 
   draw(g, ui, t) {
     this._glide();
-    const c = this.ctx, k = this.k, fl = g.fedLinked(), rad = p => SIZE[p.kind] * k, rd = Math.PI / 180, rot = this.rot;
-    c.fillStyle = GROUND; c.fillRect(0, 0, this.w, this.h);
+    const c = this.ctx, k = this.k, fl = g.fedLinked(), rad = p => this.gl ? Math.max(4, worldRadius(p) * this.gl.proj(p.x * W, 0, p.y * W)[2] * 1.18 + 2) : SIZE[p.kind] * k, rd = Math.PI / 180, rot = this.rot;
+    const G = this.gl; if (G) { G.setMap(g); G.paint(g, fl); c.clearRect(0, 0, this.w, this.h); } else { c.fillStyle = GROUND; c.fillRect(0, 0, this.w, this.h); }
+    const ships = [];
     // the three war fronts: the one being played is lit in its enemy's colour
     C.fronts.forEach((fr, fi) => {
       const a0 = (fr.deg - 60) * rd + rot, a1 = (fr.deg + 60) * rd + rot, on = g.fi === fi, war = g.atWar(fi);
+      if (!G) {
       c.fillStyle = col(fr.f); c.globalAlpha = on ? 0.1 : war ? 0.03 : 0;
       c.beginPath(); c.moveTo(this.cx, this.cy); c.arc(this.cx, this.cy, this.R * 0.99, a0, a1); c.closePath(); c.fill();
       c.globalAlpha = 0.25; c.strokeStyle = TEXT; c.lineWidth = 1; c.setLineDash([2, 5]);
       c.beginPath(); c.moveTo(this.cx, this.cy); c.lineTo(this.cx + Math.cos(a0) * this.R, this.cy + Math.sin(a0) * this.R); c.stroke(); c.setLineDash([]);
+      }
       c.globalAlpha = on ? 1 : 0.5; c.fillStyle = on ? col(fr.f) : DIM; c.font = '600 10px ' + HEAD; c.textAlign = 'center'; c.textBaseline = 'middle';
       const [hx, hy] = this.xy(g.P[g.map.home[fi]]);   // the front's name sits by its enemy's home: above it, or below for the south
-      c.fillText(fr.name, Math.max(52, Math.min(this.w - 52, hx)), Math.max(72, hy + (hy > this.cy ? 34 : -22) * Math.max(1, k)));
+      c.fillText(fr.name, Math.max(52, Math.min(this.w - 52, hx)), Math.max(72, hy + (G ? -26 : (hy > this.cy ? 34 : -22) * Math.max(1, k))));
       c.globalAlpha = 1;
     });
     c.strokeStyle = 'rgba(127,233,224,0.07)'; c.lineWidth = 1;
-    for (const r of C.map.radius) { c.beginPath(); c.arc(this.cx, this.cy, r * this.R, 0, 7); c.stroke(); }
+    if (!G) for (const r of C.map.radius) { c.beginPath(); c.arc(this.cx, this.cy, r * this.R, 0, 7); c.stroke(); }
     // lanes
-    for (const p of g.P) for (const n of p.adj) {
+    if (!G) for (const p of g.P) for (const n of p.adj) {
       if (n < p.id) continue; const q = g.P[n], [x1, y1] = this.xy(p), [x2, y2] = this.xy(q);
       c.globalAlpha = p.owner === q.owner ? 0.55 : 0.28;
       c.strokeStyle = p.owner === q.owner ? col(p.owner) : TEXT; c.lineWidth = p.owner === q.owner ? 1.4 : 1;
@@ -128,14 +157,14 @@ export class View {
       const dest = ui.dest && ui.dest.get(p.id);
       if (dest) { hot.add(p.id); c.strokeStyle = dest === 'attack' ? C.color.amber : col('fed'); c.lineWidth = 2; c.globalAlpha = 0.5 + 0.45 * Math.sin(t * 6); c.beginPath(); c.arc(x, y, r + 7, 0, 7); c.stroke(); c.globalAlpha = 1; }
       if (ui.valid && ui.valid.has(p.id)) { c.strokeStyle = C.color.amber; c.lineWidth = 2; c.globalAlpha = 0.45 + 0.45 * Math.sin(t * 6); c.beginPath(); c.arc(x, y, r + 8, 0, 7); c.stroke(); c.globalAlpha = 1; }
-      c.fillStyle = GROUND; c.beginPath(); c.arc(x, y, r, 0, 7); c.fill();
-      if (enemy) { c.globalAlpha = 0.35; c.fillStyle = col(p.owner); c.beginPath(); c.arc(x, y, r, 0, 7); c.fill(); c.globalAlpha = 1; }
-      c.strokeStyle = col(p.owner); c.lineWidth = 1.8; c.globalAlpha = cut ? 0.45 : 1; c.setLineDash(cut ? [3, 3] : []);
+      if (!G) { c.fillStyle = GROUND; c.beginPath(); c.arc(x, y, r, 0, 7); c.fill(); }
+      if (enemy && !G) { c.globalAlpha = 0.35; c.fillStyle = col(p.owner); c.beginPath(); c.arc(x, y, r, 0, 7); c.fill(); c.globalAlpha = 1; }
+      c.strokeStyle = col(p.owner); c.lineWidth = G ? 1.3 : 1.8; c.globalAlpha = cut ? 0.45 : G ? 0.9 : 1; c.setLineDash(cut ? [3, 3] : []);
       c.beginPath(); c.arc(x, y, r, 0, 7); c.stroke(); c.setLineDash([]); c.globalAlpha = 1;
-      if (p.kind === 'capital') { c.beginPath(); c.arc(x, y, r + 4, 0, 7); c.lineWidth = 1; c.stroke(); c.fillStyle = col('fed'); c.beginPath(); c.arc(x, y, 3 * k, 0, 7); c.fill(); }
+      if (p.kind === 'capital') { c.beginPath(); c.arc(x, y, r + 4, 0, 7); c.lineWidth = 1; c.stroke(); if (!G) { c.fillStyle = col('fed'); c.beginPath(); c.arc(x, y, 3 * k, 0, 7); c.fill(); } }
       if (p.kind === 'home') {
         const F = g.F[g.facOf(p)];
-        c.fillStyle = col(p.owner); c.fillRect(x - 2.5 * k, y - 2.5 * k, 5 * k, 5 * k);
+        if (!G) { c.fillStyle = col(p.owner); c.fillRect(x - 2.5 * k, y - 2.5 * k, 5 * k, 5 * k); }
         if (F.state === 'warn') { c.strokeStyle = C.color.foundry; c.globalAlpha = 0.5 + 0.5 * Math.sin(t * 5); c.setLineDash([4, 4]); c.beginPath(); c.arc(x, y, r + 6, 0, 7); c.stroke(); c.setLineDash([]); c.globalAlpha = 1; }
       }
       if (p.site && !enemy) { c.strokeStyle = C.color.amber; c.lineWidth = 1.4; c.strokeRect(x + r + 1, y + r - 1, 5 * k, 5 * k); }   // a special site
@@ -161,14 +190,17 @@ export class View {
       if (moving.has(key)) continue;
       const p = g.P[s.at], [x, y] = this.post(p, s.owner), bob = s.idle && g.phase === 'plan' ? Math.sin(t * 3 + s.at) * 1.5 : 0;
       c.globalAlpha = s.owner === 'fed' && !s.idle ? 0.55 : 1;
-      this.fleet(x, y + bob, (s.owner === 'fed' ? p.deg * rd : (p.deg + 180) * rd) + rot, Math.min(6, s.ships), col(s.owner), String(s.ships), s.sel);
+      if (G) { const [wx, wz, wa] = this.postW(p, s.owner); this.wing(ships, wx, wz, wa, Math.min(6, s.ships), col(s.owner), s.owner === 'fed' && !s.idle); this.tag(x, y, String(s.ships), col(s.owner), s.sel); }
+      else this.fleet(x, y + bob, (s.owner === 'fed' ? p.deg * rd : (p.deg + 180) * rd) + rot, Math.min(6, s.ships), col(s.owner), String(s.ships), s.sel);
       c.globalAlpha = 1;
     }
     // fleets on the move
     for (const a of ui.anims || []) {
       const u = Math.min(1, a.t / 0.6), [x1, y1] = this.post(g.P[a.from], a.owner), [x2, y2] = this.post(g.P[a.to], a.owner);
-      this.fleet(x1 + (x2 - x1) * u, y1 + (y2 - y1) * u, Math.atan2(y2 - y1, x2 - x1), Math.min(6, a.ships), col(a.owner), String(a.ships));
+      if (G) { const A = this.postW(g.P[a.from], a.owner), B = this.postW(g.P[a.to], a.owner), e = u * u * (3 - 2 * u); this.wing(ships, A[0] + (B[0] - A[0]) * e, A[1] + (B[1] - A[1]) * e, Math.atan2(B[1] - A[1], B[0] - A[0]), Math.min(6, a.ships), col(a.owner), false); this.tag(x1 + (x2 - x1) * e, y1 + (y2 - y1) * e, String(a.ships), col(a.owner), false); }
+      else this.fleet(x1 + (x2 - x1) * u, y1 + (y2 - y1) * u, Math.atan2(y2 - y1, x2 - x1), Math.min(6, a.ships), col(a.owner), String(a.ships));
     }
+    if (G) { G.setShips(ships); G.render(t); }
     // the system a battle is being fought for
     if (g.battle) { const p = g.P[g.battle.pid], [x, y] = this.xy(p), r = rad(p) + 6; hot.add(p.id); c.strokeStyle = C.color.amber; c.lineWidth = 2; c.setLineDash([4, 3]); c.beginPath(); c.arc(x, y, r + 2 * Math.sin(t * 6), 0, 7); c.stroke(); c.setLineDash([]); }
     // sectors: each one's name over its middle once the map is close enough to read; a sector held whole is lit in its holder's colour
