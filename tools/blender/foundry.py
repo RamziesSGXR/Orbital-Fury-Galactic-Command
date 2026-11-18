@@ -96,6 +96,7 @@ loft('cr_boiler', [((0, -0.35, 0.78), 0.02, 0.02), ((0, -0.3, 0.78), 0.3, 0.3), 
 for i in range(3): loft('cr_band%d' % i, [((0, -0.2 + i * 0.28, 0.78), 0.32, 0.32), ((0, -0.14 + i * 0.28, 0.78), 0.32, 0.32)], sides=8, m=black, parent=body, cap=False)
 tur = joint('turret', (0, -0.72, 0.56), body)
 box('cr_sensor', (0.4, 0.4, 0.24), (0, 0, 0.1), m=dark, parent=tur, bevel=0.05, taper=0.75); box('cr_eye', (0.26, 0.03, 0.06), (0, -0.2, 0.1), m=hot, parent=tur)
+cyl('cr_cannon', (0, -0.1, 0.24), (0, -1.5, 0.3), 0.13, m=black, parent=tur, sides=8, r2=0.1); cyl('cr_cannon_muzzle', (0, -1.5, 0.3), (0, -1.58, 0.3), 0.13, m=hot, parent=tur, sides=8); box('cr_mantlet', (0.5, 0.3, 0.3), (0, -0.05, 0.26), m=iron2, parent=tur, bevel=0.05)
 arm = joint('claw.L', (0.52, -1.0, -0.2), body)
 cyl('cr_arm.L', (0, 0, 0), (0.1, -0.7, -0.1), 0.13, m=steel, parent=arm, sides=6, r2=0.1)
 wr = joint('wrist.L', (0.1, -0.7, -0.1), arm)
@@ -116,7 +117,7 @@ def cr_walk(ph):
             turn('hip%d.%s' % (i, sd), y=-s * 0.14 * max(0.0, math.cos(a)), z=-s * 0.2 * math.sin(a))
     shift('body', z=0.03 * math.sin(2 * ph)); turn('body', y=0.025 * math.sin(ph)); turn('turret', z=0.25 * math.sin(ph * 0.5 + 0.4))
     turn('claw.L', z=0.1 * math.sin(ph)); turn('claw.R', z=0.1 * math.sin(ph))
-def cr_atk(): zero(J('root')); turn('claw.L', z=0.35, x=0.2); turn('claw.R', z=-0.35, x=0.2); turn('body', x=0.06); shift('body', y=-0.12)
+def cr_atk(): zero(J('root')); turn('claw.L', z=0.2); turn('claw.R', z=-0.2); turn('body', x=-0.05); shift('body', y=0.14); shift('turret', y=0.12)     # the gun has just fired: the hull rocks back
 F = {'stand': lambda: zero(J('root')), 'atk': cr_atk}
 for i in range(8): F['w%d' % i] = (lambda i=i: cr_walk(i / 8 * 2 * math.pi))
 OUT['foundry_H'] = export('foundry_H', CUR, F); zero(root); R3 = root

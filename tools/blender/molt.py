@@ -54,6 +54,7 @@ for i in range(2): spike('ma_ridge%d' % i, (0, -0.1 - i * 0.16, 0.3 + i * 0.18),
 head = joint('head', (0, -0.42, 0.5), chest)
 loft('ma_skull', [((0, 0.06, 0.02), 0.1, 0.09), ((0, -0.06, 0.02), 0.19, 0.12), ((0, -0.2, -0.04), 0.13, 0.08), ((0, -0.3, -0.1), 0.05, 0.04)], sides=7, m=dark, parent=head)
 spike('ma_horn', (0, -0.02, 0.1), (0, 0.16, 0.42), 0.05, m=pale, parent=head)
+blob('ma_gland', 0.12, (1, 1.2, 1), (0, -0.2, 0.22), sub=1, m=hot, parent=chest); blob('ma_maw', 0.05, (1, 1, 0.7), (0, -0.27, -0.09), sub=1, m=hot, parent=head)
 for s in (1, -1):
     blob('ma_eye', 0.06, (1, 1.3, 1), (s * 0.15, -0.1, 0.07), sub=1, m=eye, parent=head)
     spike('ma_fang', (s * 0.06, -0.26, -0.1), (s * 0.02, -0.4, -0.2), 0.03, sides=4, m=pale, parent=head)
@@ -70,8 +71,8 @@ def ma_walk(ph):
     zero(J('root')); walk(ph, 2, 0.36, 0.22, 0.02)
     turn('abd', z=0.1 * math.sin(ph)); turn('chest', z=-0.05 * math.sin(ph), x=0.03 * math.sin(2 * ph)); turn('head', z=-0.08 * math.sin(ph))
     turn('arm.L', x=0.12 * math.sin(ph)); turn('arm.R', x=-0.12 * math.sin(ph))
-def ma_atk():
-    zero(J('root')); turn('chest', x=0.3); turn('arm.L', x=0.9, z=0.25); turn('arm.R', x=0.9, z=-0.25); turn('elbow.L', x=0.5); turn('elbow.R', x=0.5); turn('head', x=0.2); shift('body', y=-0.12)
+def ma_atk():     # it spits: reared back, head thrown forward, scythes spread
+    zero(J('root')); turn('chest', x=-0.22); turn('head', x=0.5); turn('arm.L', z=0.5, x=-0.2); turn('arm.R', z=-0.5, x=-0.2); turn('abd', x=-0.2); shift('body', y=0.05)
 F = {'stand': lambda: zero(J('root')), 'atk': ma_atk}
 for i in range(8): F['w%d' % i] = (lambda i=i: ma_walk(i / 8 * 2 * math.pi))
 OUT['molt_M'] = export('molt_M', CUR, F); zero(root); R2 = root
