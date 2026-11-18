@@ -88,6 +88,22 @@ export class Galaxy3D {
     { const pos = new Float32Array(this.pairs.length * 6); this.pairs.forEach(([a, b], i) => { const p = g.P[a], q = g.P[b]; pos.set([p.x * W, -0.1, p.y * W, q.x * W, -0.1, q.y * W], i * 6); });
       const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.BufferAttribute(pos, 3)); lg.setAttribute('color', new THREE.BufferAttribute(new Float32Array(this.pairs.length * 6), 3));
       this.lanes = new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.85 })); S.add(this.lanes); }
+    // (0.21) THE SECTORS' BORDERS: a line round the systems of each sector, so a sector is a place you can see. Lit in its
+    // holder's colour when it is held whole, faint when it is contested.
+    for (const o of this.borders ? this.borders.values() : []) { S.remove(o); o.geometry.dispose(); }
+    this.borders = new Map();
+    { const by = new Map(); for (const p of g.P) { if (!p.sector) continue; if (!by.has(p.sector)) by.set(p.sector, []); by.get(p.sector).push([p.x * W, p.y * W]); }
+      const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+      for (const [id, pts] of by) {
+        let hull = pts;
+        if (pts.length > 2) { const P2 = [...pts].sort((a, b) => a[0] - b[0] || a[1] - b[1]), lo = [], up = []; for (const q of P2) { while (lo.length >= 2 && cross(lo[lo.length - 2], lo[lo.length - 1], q) <= 0) lo.pop(); lo.push(q); } for (const q of P2.reverse()) { while (up.length >= 2 && cross(up[up.length - 2], up[up.length - 1], q) <= 0) up.pop(); up.push(q); } hull = lo.slice(0, -1).concat(up.slice(0, -1)); }
+        const cx = pts.reduce((a, q) => a + q[0], 0) / pts.length, cz = pts.reduce((a, q) => a + q[1], 0) / pts.length, ring = [];
+        // round each corner of the hull, pushed out past the worlds on it
+        const out = 3.4, n = hull.length;
+        if (n < 3) { for (let i = 0; i < 28; i++) { const a = i / 28 * 6.283, rr = out + (n === 2 ? Math.hypot(hull[0][0] - hull[1][0], hull[0][1] - hull[1][1]) / 2 : 0); ring.push(new THREE.Vector3(cx + Math.cos(a) * rr, -0.3, cz + Math.sin(a) * rr)); } }
+        else for (let i = 0; i < n; i++) { const q = hull[i], pr = hull[(i + n - 1) % n], nx = hull[(i + 1) % n], a0 = Math.atan2(q[1] - pr[1], q[0] - pr[0]) - Math.PI / 2, a1 = Math.atan2(nx[1] - q[1], nx[0] - q[0]) - Math.PI / 2; let d = a1 - a0; while (d < 0) d += 6.283; while (d > 6.283) d -= 6.283; for (let k = 0; k <= 4; k++) { const a = a0 + d * k / 4; ring.push(new THREE.Vector3(q[0] + Math.cos(a) * out, -0.3, q[1] + Math.sin(a) * out)); } }
+        const line = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(ring), new THREE.LineBasicMaterial({ color: 0xe6eadc, transparent: true, opacity: 0.14 })); S.add(line); this.borders.set(id, line);
+      } }
     this.ships = new THREE.InstancedMesh(shipGeometry(), new THREE.MeshStandardMaterial({ roughness: 0.55, metalness: 0.35, flatShading: true, side: THREE.DoubleSide }), MAXSHIPS);
     this.ships.count = 0; this.ships.frustumCulled = false; S.add(this.ships);
     this.sig = '';
@@ -134,6 +150,7 @@ export class Galaxy3D {
     }
     this.pairs.forEach(([a, b], i) => { const p = g.P[a], q = g.P[b], same = p.owner === q.owner; c.set(same ? (C.color[p.owner] || C.color.fed) : '#e6eadc'); const k = same ? 0.6 : 0.3; lc.setXYZ(i * 2, c.r * k, c.g * k, c.b * k); lc.setXYZ(i * 2 + 1, c.r * k, c.g * k, c.b * k); });
     this.worlds.instanceColor.needsUpdate = true; hc.needsUpdate = true; lc.needsUpdate = true;
+    { const own = g.sectorOwners(); for (const [id, line] of this.borders) { const o = own.get(id); line.material.color.set(o ? (C.color[o] || C.color.fed) : '#e6eadc'); line.material.opacity = o ? 0.5 : 0.16; } }
     this.fronts.forEach((m, fi) => { m.material.opacity = g.fi === fi ? 0.13 : g.atWar(fi) ? 0.04 : 0; });
   }
   // The ships on the board this frame: [{ x, z, ang, color, dim }].

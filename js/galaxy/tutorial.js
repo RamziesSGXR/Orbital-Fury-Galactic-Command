@@ -14,6 +14,8 @@ const N = C.names;
 // your fleet on the first front to open, and a system of yours further out for it to move to
 const scout = g => g.fleets.find(f => f.owner === 'fed' && g.P[f.at].front === 0);
 const outward = g => { const f = scout(g); return f ? g.posts(f).filter(n => g.P[n].front === 0 && g.P[n].ring === 3)[0] : null; };
+// the best place to found a post just now: a station close in; a base on a deposit if there is one
+const spot = (g, kind) => (g.P.filter(p => g.canFound(p.id, kind)).sort((a, b) => (kind === 'base' ? (g.deposit(b) ? 1 : 0) - (g.deposit(a) ? 1 : 0) : 0) || a.ring - b.ring || a.id - b.id)[0] || {}).id;
 const yard = g => (g.P.filter(p => g.canBuild(p.id)).sort((a, b) => (g.fleetAt(b.id, 'fed') ? 1 : 0) - (g.fleetAt(a.id, 'fed') ? 1 : 0) || b.ring - a.ring)[0] || {}).id;
 
 export const SEED = 7;
@@ -35,6 +37,12 @@ export const STEPS = [
   { shut: true, hint: yard, skipIf: g => yard(g) == null, done: g => g.P.some(p => p.built),
     help: 'BUILD ONE FOR ME', do: (g, ui) => { ui.sel = yard(g); g.build(ui.sel); },
     text: () => 'Ships are built at your headquarters and over your stations. Building is <b>extra</b>: it does not use up your decision. Tap the ringed system, then <b>BUILD SHIP</b> in the bar at the bottom. The cost is at the top of the screen.' },
+  { shut: true, hint: g => spot(g, 'station'), skipIf: g => spot(g, 'station') == null, done: g => g.P.some(p => p.owner === 'fed' && p.station),
+    help: 'FOUND ONE FOR ME', do: (g, ui) => { ui.sel = spot(g, 'station'); g.found(ui.sel, 'station'); },
+    text: () => 'A <b>station</b> builds your ships, makes ammunition and repairs your fleets. Tap the ringed system, then <b>FOUND A STATION</b> in the panel. Later you can go aboard and run it yourself.' },
+  { shut: true, hint: g => spot(g, 'base'), skipIf: g => spot(g, 'base') == null, done: g => g.P.some(p => p.owner === 'fed' && p.base),
+    help: 'FOUND ONE FOR ME', do: (g, ui) => { ui.sel = spot(g, 'base'); g.found(ui.sel, 'base'); },
+    text: () => 'A <b>base</b> trains your troops. On a system with a <b>deposit</b> it also digs up fuel, ammunition or tech. Tap the ringed system, then <b>FOUND A BASE</b>.' },
   { shut: true, hi: '#commit', done: g => g.round >= 3 || !!g.battle,
     text: () => 'Now your decision here: <b>attack, defend, or hold</b>. To attack or defend, tap a fleet and then a ring. Nothing is in reach yet, so press <b>HOLD THE EAST</b>.' },
   { next: true, shut: true,

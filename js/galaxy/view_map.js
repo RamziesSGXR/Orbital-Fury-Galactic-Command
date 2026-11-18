@@ -161,8 +161,10 @@ export class View {
       if (ui.valid && ui.valid.has(p.id)) { c.strokeStyle = C.color.amber; c.lineWidth = 2; c.globalAlpha = 0.45 + 0.45 * Math.sin(t * 6); c.beginPath(); c.arc(x, y, r + 8, 0, 7); c.stroke(); c.globalAlpha = 1; }
       if (!G) { c.fillStyle = GROUND; c.beginPath(); c.arc(x, y, r, 0, 7); c.fill(); }
       if (enemy && !G) { c.globalAlpha = 0.35; c.fillStyle = col(p.owner); c.beginPath(); c.arc(x, y, r, 0, 7); c.fill(); c.globalAlpha = 1; }
+      // (0.21) in 3D a system wears no ring of its own: the world, its glow and its lanes say whose it is. Only a system cut off from
+      // the capital is marked (a broken ring), so that what IS ringed means something: picked, a place to go, in danger.
       c.strokeStyle = col(p.owner); c.lineWidth = G ? 1.3 : 1.8; c.globalAlpha = cut ? 0.45 : G ? 0.9 : 1; c.setLineDash(cut ? [3, 3] : []);
-      c.beginPath(); c.arc(x, y, r, 0, 7); c.stroke(); c.setLineDash([]); c.globalAlpha = 1;
+      if (!G || cut) { c.beginPath(); c.arc(x, y, r, 0, 7); c.stroke(); } c.setLineDash([]); c.globalAlpha = 1;
       // the posts on it, whoever's they are: a diamond for a station (above), a block for a base (below)
       if (p.station || p.base) { const s = Math.max(3, Math.min(6, r * 0.55)); c.fillStyle = col(p.owner); c.strokeStyle = 'rgba(8,10,9,0.9)'; c.lineWidth = 1;
         if (p.station) { const mx = x + r * 0.95, my = y - r * 0.95; c.beginPath(); c.moveTo(mx, my - s); c.lineTo(mx + s, my); c.lineTo(mx, my + s); c.lineTo(mx - s, my); c.closePath(); c.fill(); c.stroke(); }
@@ -174,7 +176,12 @@ export class View {
         if (F.state === 'warn') { c.strokeStyle = C.color.foundry; c.globalAlpha = 0.5 + 0.5 * Math.sin(t * 5); c.setLineDash([4, 4]); c.beginPath(); c.arc(x, y, r + 6, 0, 7); c.stroke(); c.setLineDash([]); c.globalAlpha = 1; }
       }
       if (p.site && !enemy) { c.strokeStyle = C.color.amber; c.lineWidth = 1.4; c.strokeRect(x + r + 1, y + r - 1, 5 * k, 5 * k); }   // a special site
-      if (ui.sel === p.id) { hot.add(p.id); c.strokeStyle = C.color.amber; c.lineWidth = 1.6; c.strokeRect(x - r - 6, y - r - 6, (r + 6) * 2, (r + 6) * 2); }
+      if (ui.sel === p.id) {     // the one you picked: a bright ring and four corner marks, nothing else looks like it
+        hot.add(p.id); const q = r + 7; c.strokeStyle = '#fff3c4'; c.lineWidth = 2.6; c.beginPath(); c.arc(x, y, q, 0, 7); c.stroke();
+        c.strokeStyle = C.color.amber; c.lineWidth = 2.2; const b = q + 6, l = 7; c.beginPath();
+        for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) { c.moveTo(x + sx * b, y + sy * (b - l)); c.lineTo(x + sx * b, y + sy * b); c.lineTo(x + sx * (b - l), y + sy * b); }
+        c.stroke();
+      }
       if (ui.hint === p.id) {   // the tutorial is pointing at this system
         const q = r + 9 + 4 * Math.sin(t * 5); c.strokeStyle = C.color.amber; c.lineWidth = 2.4; c.beginPath(); c.arc(x, y, q, 0, 7); c.stroke();
         c.globalAlpha = 0.35; c.beginPath(); c.arc(x, y, q + 6, 0, 7); c.stroke(); c.globalAlpha = 1;
@@ -184,6 +191,7 @@ export class View {
     if (g.phase === 'plan') for (const p of g.P) {
       const th = g.threat(p.id); if (!th) continue;
       const [x, y] = this.xy(p), r = rad(p), D = g.strength(p.id), state = D >= th.hp * 1.15 ? 0 : D >= th.hp * 0.9 ? 1 : 2;
+      if (G && state === 0) continue;     // (0.21) a system that can hold is not marked: only the ones that may not
       const colr = [col('fed'), C.color.amber, C.color.foundry][state];
       if (state === 2) { c.globalAlpha = 0.35 + 0.35 * Math.sin(t * 6); c.strokeStyle = colr; c.lineWidth = 2; c.beginPath(); c.arc(x, y, r + 5, 0, 7); c.stroke(); c.globalAlpha = 1; }
       shield(c, x - r - 7, y - r - 5, 5 * Math.min(1.3, k + 0.3), colr, state === 2 ? 'rgba(255,106,77,0.35)' : 'rgba(12,16,14,0.95)');
@@ -209,27 +217,39 @@ export class View {
     if (G) { G.setShips(ships); G.render(t); }
     // the system a battle is being fought for
     if (g.battle) { const p = g.P[g.battle.pid], [x, y] = this.xy(p), r = rad(p) + 6; hot.add(p.id); c.strokeStyle = C.color.amber; c.lineWidth = 2; c.setLineDash([4, 3]); c.beginPath(); c.arc(x, y, r + 2 * Math.sin(t * 6), 0, 7); c.stroke(); c.setLineDash([]); }
-    // sectors: each one's name over its middle once the map is close enough to read; a sector held whole is lit in its holder's colour
-    if (this.R > 300 && g.map.sectors) {
-      const own = g.sectorOwners(); c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = '600 9px ' + HEAD;
-      for (const sc of g.map.sectors) { if (!sc.id) continue; const [x, y] = this.xy(sc), o = own.get(sc.id); if (x < -40 || y < -20 || x > this.w + 40 || y > this.h + 20) continue;
-        c.globalAlpha = o ? 0.85 : 0.32; c.fillStyle = o ? col(o) : TEXT; c.fillText(sc.name.toUpperCase(), x, y - 16 * k); }
-      c.globalAlpha = 1;
-    }
-    // names: the capital, the homes and what you are dealing with always; the rest only when close in, only for systems that
-    // are on the screen, and never one over another
-    c.textAlign = 'center'; c.textBaseline = 'top';
-    const placed = [], near = this.R > 620;
-    const order = g.P.filter(p => p.kind !== 'sys' || hot.has(p.id) || ui.sel === p.id).concat(near ? g.P.filter(p => p.kind === 'sys' && !hot.has(p.id) && ui.sel !== p.id) : []);
+    // NAMES (0.21). One pass places every name, in order of how much it matters, and a name is only written where it lies over
+    // no other name and no world: under its system if that is free, else above, else to the right, else to the left, else not
+    // at all. Sector names take what room is left, and move up or down a little to find it.
+    const placed = [], near = this.R > 620, worlds = [];
+    for (const p of g.P) { const [x, y] = this.xy(p); if (x > -30 && y > -30 && x < this.w + 30 && y < this.h + 30) { const r = rad(p) + 2; worlds.push([x - r, y - r, x + r, y + r, p.id]); } }
+    const clear = (box, own) => !placed.some(q => box[0] < q[2] && box[2] > q[0] && box[1] < q[3] && box[3] > q[1]) && !worlds.some(q => q[4] !== own && box[0] < q[2] && box[2] > q[0] && box[1] < q[3] && box[3] > q[1]);
+    c.textBaseline = 'top';
+    const order = g.P.filter(p => ui.sel === p.id).concat(g.P.filter(p => ui.sel !== p.id && (p.kind !== 'sys' || hot.has(p.id))), near ? g.P.filter(p => p.kind === 'sys' && !hot.has(p.id) && ui.sel !== p.id) : []);
     for (const p of order) {
       const big = p.kind === 'capital' || p.kind === 'home', [x, y] = this.xy(p), r = rad(p);
       if (x < 8 || x > this.w - 8 || y < 40 || y > this.h - 30) continue;       // off the screen: no name at the edge
-      c.font = big ? '600 11px ' + HEAD : '10px ' + MONO;
-      const txt = p.name.toUpperCase(), tw = c.measureText(txt).width, ty = y + r + (p.kind === 'sys' ? 18 : 6), box = [x - tw / 2 - 3, ty - 2, x + tw / 2 + 3, ty + 13];
-      if (placed.some(q => box[0] < q[2] && box[2] > q[0] && box[1] < q[3] && box[3] > q[1])) continue;
-      placed.push(box);
-      c.fillStyle = big || ui.sel === p.id ? TEXT : DIM;
-      c.fillText(txt, x, ty);
+      c.font = big || ui.sel === p.id ? '600 11px ' + HEAD : '10px ' + MONO;
+      const txt = p.name.toUpperCase(), tw = c.measureText(txt).width, gap = r + (ui.sel === p.id ? 16 : 5);
+      let at = null;
+      for (const [ox, oy, al] of [[0, gap, 'center'], [0, -gap - 12, 'center'], [gap + 2, -6, 'left'], [-gap - 2, -6, 'right']]) {
+        const x0 = al === 'center' ? x - tw / 2 : al === 'left' ? x + ox : x + ox - tw, box = [x0 - 3, y + oy - 2, x0 + tw + 3, y + oy + 13];
+        if (clear(box, p.id)) { at = [al === 'center' ? x : x + ox, y + oy, al, box]; break; }
+      }
+      if (!at) continue;
+      placed.push(at[3]); c.textAlign = at[2];
+      const tx = at[0], ty = at[1];
+      c.fillStyle = ui.sel === p.id ? '#fff3c4' : big ? TEXT : DIM;
+      c.fillText(txt, tx, ty);
+    }
+    // the sectors' names, in what room is left: a sector held whole is written in its holder's colour
+    if (this.R > 300 && g.map.sectors) {
+      const own = g.sectorOwners(); c.textAlign = 'center'; c.font = '600 10px ' + HEAD;
+      for (const sc of g.map.sectors) {
+        if (!sc.id) continue; const [x, y] = this.xy(sc); if (x < 40 || y < 50 || x > this.w - 40 || y > this.h - 30) continue;
+        const o = own.get(sc.id), txt = sc.name.toUpperCase().split('').join('\u200a'), tw = c.measureText(txt).width;
+        for (const dy of [-8, -26, 12, -44, 30]) { const box = [x - tw / 2 - 4, y + dy - 2, x + tw / 2 + 4, y + dy + 13]; if (!clear(box, -1)) continue; placed.push(box); c.globalAlpha = o ? 0.9 : 0.5; c.fillStyle = o ? col(o) : TEXT; c.fillText(txt, x, y + dy); break; }
+      }
+      c.globalAlpha = 1;
     }
   }
 }
