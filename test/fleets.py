@@ -21,6 +21,7 @@ with sync_playwright() as pw:
         print(name, 'opening', pg.evaluate(f'{g}.opt'), 'ships', ships, 'posts', posts, 'rank', pg.evaluate(f'{g}.rank()'))
         assert ships == 18 and posts == 6, 'the opening was not applied'
         pg.click('#mins [data-t=def]') if pg.query_selector('#mins [data-t=def]') else pg.click('text=OPS'); pg.wait_for_timeout(200)
+        assert pg.query_selector('[data-a=camp]'), 'no campaigns on offer in the Ops tab'; pg.screenshot(path=f'{out}/{name}-ops.png')
         pg.click('[data-a=fleets]'); pg.wait_for_timeout(200)
         pg.click('#modal [data-a=yard][data-k=gun]'); pg.wait_for_timeout(100)
         assert pg.evaluate(f'{g}.yard') == 'gun'

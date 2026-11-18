@@ -173,6 +173,12 @@ function tabDef() {
       fs.map(f => `<button class="ln lk" data-a="pick" data-f="${f.id}">${ships(f.ships)} at <b>${esc(g.P[f.at].name)}</b> · ${f.moved ? '<span class="dim">has moved this round</span>' : '<span class="cy">ready</span>'}${f.wear >= 1 ? ` · <span class="${f.wear >= 50 ? 'rd2' : 'am'}">worn ${Math.round(f.wear)}%</span>` : ''}</button>`).join('') + '</div>';
   }
   h += `<button class="plate amber btn sm" data-a="fleets" style="margin-top:8px;width:100%">FLEET OFFICE</button>`;
+  // the campaign: the one that is running, with its goal filling up and its rounds running down; or the three on offer
+  { const cs = g.campState(), prize = (P) => [P.rat && `+${P.rat} RATINGS`, P.cr && `${P.cr} CR`, P.ships && `${P.ships} SHIPS`, P.tech && `${P.tech} TECH`].filter(Boolean).join(' · ');
+    h += `</section><section><h3>Campaign${cs ? '' : 's on offer'} · won ${g.campLog.won} · failed ${g.campLog.lost}</h3>`;
+    if (cs) h += `<div class="mis" style="display:block"><div class="row" style="justify-content:space-between"><b class="am">${cs.def.name}</b><span class="sm2 ${cs.left <= 2 ? 'rd2' : ''}">${'●'.repeat(Math.max(0, cs.left))}${'○'.repeat(Math.max(0, cs.def.rounds - cs.left))}</span></div>
+      <div class="sm2">${cs.def.text}</div><div class="bar big2"><i style="width:${Math.min(100, cs.n / cs.of * 100)}%"></i></div><div class="sm2 cy">${Math.min(cs.n, cs.of)} / ${cs.of} · PRIZE ${prize(cs.def.prize)}</div></div>`;
+    else h += `<div class="deckrow" style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px">` + g.offers.map(id => { const c = g.campDef(id); return `<button class="card t-truth" data-a="camp" data-k="${id}" ${g.canCampaign(id) ? '' : 'disabled'} style="height:auto;min-height:190px;flex:0 0 132px;width:132px">${A(ART[c.art] || '')}<b>${c.name}</b><span class="tx">${c.text} ${c.rounds} rounds.</span><span class="st" style="font-size:11px;flex-wrap:wrap"><i class="h">STAKE ${costTxt(c.stake)}</i></span><span class="st" style="font-size:11px"><i class="r">${prize(c.prize)}</i></span></button>`; }).join('') + '</div>'; }
   h += `</section><section><h3>Your battle deck · ${g.deck('fed').length} cards</h3>${deckList('fed')}</section>`;
   return h;
 }
@@ -301,7 +307,7 @@ function fight() {
   else if (b.round === 0 && !ui.cards && ui.tut == null) h += `<div class="sm2 dim" style="margin-bottom:6px">${N.factions[b.f].toUpperCase()} COMMITS ${ships(foe.ships)}${b.kind === 'atk' ? ` AND THE SYSTEM'S ${b.fort} DEFENCES` : ''} · GROUND THREAT L${g.groundLevel()} · ONE ENGAGEMENT IS ${C.battle.engage} ROUNDS</div>
     ${(() => { const st = g.stunt(); return st ? `<div class="sm2 am" style="margin:6px 0">SPONSOR STUNT · <b>${st.name}</b> · ${st.text} <span class="cy">+${C.ratings.stunt} RATINGS</span></div>` : '<div class="sm2 dim" style="margin:6px 0">NOT AIRED · one fight a round is on camera</div>'; })()}
     ${(() => { const s = g.groundSupport(b.pid), t = []; if (s.base) t.push(`<span class="cy">BASE NEARBY · GARRISON +${s.garrison}</span>`); if (s.station) t.push(`<span class="cy">STATION NEARBY · +${s.station * C.support.stationLives} REINFORCEMENTS</span>`); if (s.ratings) t.push(`<span class="${s.ratings > 0 ? 'cy' : 'rd2'}">RATINGS · ${s.ratings > 0 ? '+' : ''}${s.ratings} REINFORCEMENTS</span>`); return t.length ? `<div class="sm2" style="margin:6px 0">ON THE GROUND: ${t.join(' · ')}</div>` : ''; })()}
-    <div class="fchoice"><button class="plate btn go" data-a="ground" ${g.canGround() ? '' : 'disabled'}>${b.kind === 'atk' ? 'LAND THE ASSAULT' : 'DEFEND ON THE GROUND'} · ${C.groundAmmo} AMMO<small>${g.canGround() ? '' : 'NOT ENOUGH AMMUNITION · '}${b.kind === 'atk' ? 'ASSAULT MISSION' : 'DEFENCE MISSION'} · ARMOURY, BRIEFING, THEN THE DROP</small></button>
+    <div class="fchoice"><button class="plate btn go" data-a="ground" ${g.canGround() ? '' : 'disabled'}>${b.kind === 'atk' ? 'LAND THE ASSAULT' : g.postAt(b) === 'base' ? 'DEFEND AND EVACUATE THE BASE' : g.postAt(b) === 'station' ? 'DEFEND THE STATION\'S GROUND SITE' : 'DEFEND ON THE GROUND'} · ${C.groundAmmo} AMMO<small>${g.canGround() ? '' : 'NOT ENOUGH AMMUNITION · '}${b.kind === 'atk' ? 'ASSAULT MISSION' : 'DEFENCE MISSION'} · ARMOURY, BRIEFING, THEN THE DROP</small></button>
       <button class="plate btn" data-a="cards">FIGHT IT IN SPACE<small>FLEET ACTION · CARDS</small></button></div>`;
   else if (you.hand.length) h += `<div class="fhand">${you.hand.map((id, i) => cardHtml(id, `data-a="bplay" data-i="${i}"`)).join('')}</div><button class="plate btn sm" style="width:100%;margin-top:6px" data-a="bplay">PASS</button>`;
   else h += '<div class="fhand wait"><b class="dim">GUNS ONLY</b></div>';
@@ -411,7 +417,7 @@ document.addEventListener('click', e => {
     case 'show': g.show(+d.p, d.k); break;
     case 'totitle': $('modal').hidden = true; return app.endCampaign();
     case 'cards': ui.cards = true; break;
-    case 'ground': { const a = { battle: g.battle, system: g.P[g.battle.pid], level: g.groundLevel(), round: g.round, support: g.groundSupport(g.battle.pid) }; return app.theatre('ground', a); }
+    case 'ground': { const a = { battle: g.battle, system: g.P[g.battle.pid], level: g.groundLevel(), round: g.round, support: g.groundSupport(g.battle.pid), post: g.postAt() }; return app.theatre('ground', a); }
     case 'press': g.press(); ui.fx = null; ui.auto = 0; break;
     case 'orbit': if (!g.P[+d.p].station && !g.found(+d.p, 'station')) break; return app.theatre('orbit', { system: g.P[+d.p] });
     case 'base': if (!g.P[+d.p].base && !g.found(+d.p, 'base')) break; return app.theatre('base', { system: g.P[+d.p] });
@@ -448,6 +454,7 @@ document.addEventListener('click', e => {
     case 'zout': view.zoomAt(1 / 1.4); return;
     case 'help': return help();
     case 'log': return logModal();
+    case 'camp': g.campaign(d.k); break;
     case 'fleets': return fleetOffice();
     case 'yard': g.setYard(d.k); return fleetOffice();
     case 'asktut': return modal('<h2>Play the tutorial?</h2><p>It starts a new guided war. The war in progress will be lost.</p><button class="plate btn go" data-a="tut">START THE TUTORIAL</button><button class="plate btn" style="width:100%;margin-top:8px" data-a="close">KEEP PLAYING</button>');

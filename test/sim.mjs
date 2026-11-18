@@ -44,6 +44,7 @@ export function play(seed, mode, rounds = maxR) {
   let guard = 0, last = 0;
   while (!g.over && g.round <= rounds && guard++ < 400000) {
     if (g.round !== last) { g.x.ratMin = Math.min(g.x.ratMin, g.rat); g.x.ratSum += g.rat; g.x.ratN++; }
+    if (mode !== 'idle' && !g.camp && g.ready()) for (const id of g.offers) { const c = g.campDef(id); if ((full || c.goal.type !== 'aired') && g.canCampaign(id)) { g.campaign(id); break; } }
     if (mode !== 'idle' && g.round !== last) {     // the market: every bot sells what is spilling over and buys what it is out of
       if (!full) g.x.wal.bal += g.takeDue();
       const cap = g.resMax(); for (const k of ['fuel', 'ammo', 'tech']) { while (g.res[k] > cap - 1 && g.sellRes(k, g.x.wal)) g.x.sold++; let n = 0; while (k !== 'tech' && g.res[k] < 4 && n++ < 3 && g.buyRes(k, g.x.wal)) g.x.bought++; }
@@ -64,12 +65,12 @@ export function play(seed, mode, rounds = maxR) {
 
 if ((process.argv[1] || '').endsWith('sim.mjs')) for (const mode of (process.argv[4] ? process.argv[4].split(',') : ['bot', 'full', 'idle'])) {
   let xs = 0, xb = 0, xg = 0, xw = 0, xc = 0, xu = 0, xr = 0, xm = [0, 0, 0];
-  let ra = 0, rm = 0, mb = 0, ms = 0;
+  let ra = 0, rm = 0, mb = 0, ms = 0, cw = 0, cl = 0;
   let won = 0, lost = 0, rounds = 0, dead = [0, 0, 0], st = { taken: 0, fallen: 0, held: 0, repelled: 0 }, why = {}, ships = 0, sites = 0;
   for (let s = 1; s <= games; s++) {
     const g = play(s, mode);
     if (g.over?.result === 'won') won++; else if (g.over) { lost++; const k = g.over.why.slice(0, 24); why[k] = (why[k] || 0) + 1; }
-    rounds += g.over ? g.over.round : g.round; ra += g.x.ratSum / Math.max(1, g.x.ratN); rm += g.x.ratMin; mb += g.x.bought; ms += g.x.sold;
+    rounds += g.over ? g.over.round : g.round; ra += g.x.ratSum / Math.max(1, g.x.ratN); rm += g.x.ratMin; mb += g.x.bought; ms += g.x.sold; cw += g.campLog.won; cl += g.campLog.lost;
     C.factions.forEach((f, i) => { if (g.F[f].state === 'dead') dead[i]++; });
     for (const k in st) st[k] += g.stats[k];
     for (const p of g.P) if (p.owner === 'fed') { xs += p.station || 0; xb += p.base || 0; } xg += g.x.ground; xw += g.x.groundWon; xc += g.x.wal.bal; xu += Object.values(g.up).reduce((a, b) => a + b, 0); xr += g.x.maxRank; C.factions.forEach((f, i) => { xm[i] += g.loot[f]; });
@@ -80,6 +81,6 @@ if ((process.argv[1] || '').endsWith('sim.mjs')) for (const mode of (process.arg
   if (mode === 'full') console.log(`      per game: station tiers held at the end ${(xs / games).toFixed(1)}, base charters ${(xb / games).toFixed(1)}, ground battles ${(xg / games).toFixed(1)} (won ${(xw / Math.max(1, xg) * 100).toFixed(0)}%)`);
   if (mode === 'full') console.log(`      war chest at the end ${(xc / games).toFixed(0)} CR, upgrades bought ${(xu / games).toFixed(1)} of ${Object.values(C.shelf).flat().reduce((a, it) => a + it.lv.length, 0)}, best rank ${(xr / games).toFixed(1)}, materials left ${xm.map(x => (x / games).toFixed(0)).join(' / ')}`);
   console.log(`      enemies destroyed: ${C.factions.map((f, i) => f + ' ' + dead[i]).join(' ')} | per game: systems taken ${avg('taken')}, attacks beaten off ${avg('repelled')}, defences held ${avg('held')}, systems fallen ${avg('fallen')}, ships at the end ${(ships / games).toFixed(1)}, sites ${(sites / games).toFixed(1)}`);
-  console.log(`      ratings: average ${(ra / games).toFixed(0)}%, lowest in a war ${(rm / games).toFixed(0)}% (mean of each war's low) | market: bought ${(mb / games).toFixed(0)}, sold ${(ms / games).toFixed(0)} a war`);
+  console.log(`      ratings: average ${(ra / games).toFixed(0)}%, lowest in a war ${(rm / games).toFixed(0)}% (mean of each war's low) | market: bought ${(mb / games).toFixed(0)}, sold ${(ms / games).toFixed(0)} a war | campaigns: won ${(cw / games).toFixed(1)}, failed ${(cl / games).toFixed(1)}`);
   if (lost) console.log('      losses:', JSON.stringify(why));
 }

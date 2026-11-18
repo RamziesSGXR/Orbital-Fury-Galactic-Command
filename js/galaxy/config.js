@@ -1,5 +1,5 @@
 // Every number and every name in the game lives here, so the prototype can be retuned or renamed in one place.
-export const VERSION = '0.14.0';
+export const VERSION = '0.15.0';
 
 export const C = {
   names: {
@@ -111,7 +111,10 @@ export const C = {
   // hit points per charter to its own system, and each station next door adds coverFort (coverMax at most). On the
   // ground: the nearest base puts a garrison on site (garrisonPer more troops per charter), the nearest station sends
   // stationLives more reinforcements per tier, and ratings add or take ratLives (high or low).
-  support: { baseFort: 1, coverFort: 1, coverMax: 2, garrisonPer: 2, stationLives: 2, ratLives: 3 },
+  // A POST UNDER ATTACK: when the enemy comes for a system with your base or your station, the ground fight there is
+  // the defence and evacuation of that post. Win it and `evac` troops for every level of the posts are brought out
+  // to fight on, and the rescue is worth `evacRatings` if it was aired.
+  support: { baseFort: 1, coverFort: 1, coverMax: 2, garrisonPer: 2, stationLives: 2, ratLives: 3, evac: 2, evacRatings: 1 },
   // ---------------------------------------------------------------- WHAT EACH POST IS FOR (0.10)
   // The base trains the troops: every base charter on a linked system adds `train` troops each round, every station tier makes stationAmmo ammunition, and
   // worlds by themselves give only `worldTroops` of what they used to. The station builds the ships: a ship can only be
@@ -144,6 +147,17 @@ export const C = {
   // first you fight; the rest are not aired. Losses lower it, and above `settle` it slips back by `drift` of the
   // distance every round as the audience moves on. Effects: at `high` and above, output and the posts' pay rise; under `low` they fall;
   // under `sack` they fall hard, and sackRounds rounds in a row down there and the board replaces you.
+  // CAMPAIGNS (0.15): an operation over several rounds, with a goal, a stake and a prize. One runs at a time. Three are
+  // on offer; launching one pays its stake. Reach the goal inside its rounds and the prize is yours; run out of rounds
+  // (or, for a holding campaign, lose a system) and it fails and costs ratings. New offers are dealt when one ends.
+  // goal: take n systems | hold (lose no system) | post (take an enemy station or base) | aired (win n aired ground fights)
+  campaigns: [
+    { id: 'spear', name: 'OPERATION SPEARHEAD', art: 'volley',   text: 'Take 4 systems.',                    rounds: 6, stake: { fuel: 4, ammo: 4 }, goal: { type: 'take', n: 4 },  prize: { rat: 5, ships: 3 },  fail: 4 },
+    { id: 'wall',  name: 'NOT ONE WORLD',       art: 'bulwark',  text: 'Lose no system for 6 rounds.',       rounds: 6, stake: { army: 4 },          goal: { type: 'hold' },        prize: { rat: 6, cr: 400 },   fail: 4 },
+    { id: 'head',  name: 'CUT OFF THE HEAD',    art: 'siege',    text: 'Take an enemy station or base.',     rounds: 8, stake: { fuel: 3, ammo: 5 }, goal: { type: 'post', n: 1 },  prize: { rat: 4, tech: 6 },   fail: 3 },
+    { id: 'prime', name: 'PRIME TIME',          art: 'newsreel', text: 'Win 3 fights on camera.',            rounds: 6, stake: { ammo: 4 },          goal: { type: 'aired', n: 3 }, prize: { rat: 8, cr: 600 },   fail: 4 },
+    { id: 'sweep', name: 'THE BIG PUSH',        art: 'burn',     text: 'Take 8 systems.',                    rounds: 10, stake: { fuel: 8, ammo: 6, army: 4 }, goal: { type: 'take', n: 8 }, prize: { rat: 8, ships: 5, cr: 500 }, fail: 6 },
+  ],
   // SPONSOR STUNTS: the one aired ground fight of a round comes with a stunt from the sponsors. Win AND pull it off for
   // `stunt` more ratings. Each is judged from the mission's own result.
   stunts: [

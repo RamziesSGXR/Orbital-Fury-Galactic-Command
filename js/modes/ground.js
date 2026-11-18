@@ -22,8 +22,8 @@ const mode = {
     credits0 = g.wallet.bal; snap = JSON.stringify({ kit: g.kit, wallet: g.wallet });
     window.gcGround = {
       kit: g.kit, wallet: g.wallet, tier: app.armouryTier(), level: a.level || 1, support: a.support || null,
-      faction: GC.link.foe[b.f] || 'bugs', biome: GC.link.biome[kw.type] || 'grass', seed, obj: objs[seed % objs.length],
-      op: `Operation ${kw.name}`, callsign: (app.faction.name || '').toUpperCase().replace(/[^\w \-.]/g, '').slice(0, 16),
+      faction: GC.link.foe[b.f] || 'bugs', biome: GC.link.biome[kw.type] || 'grass', seed, obj: a.post ? 'evac' : objs[seed % objs.length], post: a.post || null,     // a post under attack is always its defence and evacuation
+      op: a.post ? `Evacuate ${a.system.name}` : `Operation ${kw.name}`, callsign: (app.faction.name || '').toUpperCase().replace(/[^\w \-.]/g, '').slice(0, 16),
       // the mission is over and its debrief has been read
       onResult: (r) => {
         const win = WON(r.outcome), earned = Math.max(0, Math.floor((g.wallet.bal - credits0) * GC.link.creditShare));
