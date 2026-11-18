@@ -402,3 +402,9 @@ button small { display: block; font: 9.5px var(--mono); letter-spacing: 0.5px; o
   .card .art { height: 44px; } .card b { font-size: 11px; } .card .st { font-size: 11px; gap: 6px; } .card .tx { font-size: 9.5px; }
   .offer .card, .fhand .card { height: 170px; }
 }
+
+/* (0.25) what a ground fight brought and cost, shown as figures on the result */
+.gains { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin: 10px 0 2px; }
+.gains span { padding: 6px 12px; border: 1px solid currentColor; font-weight: 700; font-size: 15px; letter-spacing: 0.04em; }
+.gains span i { font-style: normal; font-weight: 400; font-size: 11px; opacity: 0.8; margin-left: 4px; }
+.gains .up { color: #7dff9b; } .gains .dn { color: #ff8a6a; }

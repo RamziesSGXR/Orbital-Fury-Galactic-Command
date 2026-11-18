@@ -143,6 +143,11 @@ export class Fx3D {
     this.shell = inst(new THREE.BoxGeometry(1, 1, 1), glow('#fff2d0'), 128);
     this.strobe = inst(new THREE.SphereGeometry(1, 8, 6), glow('#ffffff'), 256);
     // a blast: a ball of fire that swells and climbs, white at first, then orange, then gone (it adds its light to the picture, so as it darkens it fades)
+    // the troops' own fire: a streak of light from tail to head at gun height; a glowing ball for what is lobbed or spat; a shield as a dome of light
+    const add = () => new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+    this.bolt = inst(new THREE.BoxGeometry(1, 1, 1), add(), 600); this.orb = inst(new THREE.IcosahedronGeometry(1, 1), add(), 160);
+    this.dome = inst(new THREE.SphereGeometry(1, 20, 8, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }), 48);
+    this.bolt.renderOrder = this.orb.renderOrder = 4; this.dome.renderOrder = 6;
     this.blast = inst(new THREE.IcosahedronGeometry(1, 2), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }), 96); this.blast.renderOrder = 5;
     this.dir = new THREE.Vector3(); this.a = new THREE.Vector3(); this.b = new THREE.Vector3(); this.z = new THREE.Vector3(0, 0, 1); this.yv = new THREE.Vector3(0, 1, 0);
   }
@@ -182,6 +187,20 @@ export class Fx3D {
       const hf = Math.max(0, 1 - p * 2.2); if (hf > 0 && w < 96) { S.setScalar(R * (0.35 + 0.3 * hf)); P.y = gy - R * 0.1; this.blast.setMatrixAt(w, M4.compose(P, Q, S)); COL.setRGB(hf, 0.9 * hf, 0.6 * hf); this.blast.setColorAt(w++, COL); }
     }
     this.blast.count = w; if (w) { this.blast.instanceMatrix.needsUpdate = true; if (this.blast.instanceColor) this.blast.instanceColor.needsUpdate = true; }
-    this.n = { drops: n, shells: k, strobes: j, blasts: w };
+    // bolts: [{ x, y, x2, y2 (tail to head, on the map), w (metres), col, up, up2 }]   orbs: [{ x, y, up, r, col }]   domes: [{ x, y, r, k (0 to 1, how bright) }]
+    let bn = 0;
+    for (const s of o.bolts || []) {
+      if (bn >= 600) break; this.a.set(s.x, ground(s.x, s.y) + (s.up ?? 1.4), s.y); this.b.set(s.x2, ground(s.x2, s.y2) + (s.up2 ?? s.up ?? 1.4), s.y2);
+      this.dir.subVectors(this.b, this.a); const len = this.dir.length(); if (len < 0.05) continue; Q.setFromUnitVectors(this.z, this.dir.normalize());
+      P.addVectors(this.a, this.b).multiplyScalar(0.5); S.set(s.w, s.w, len); this.bolt.setMatrixAt(bn, M4.compose(P, Q, S)); COL.set(s.col || '#ffe9b0'); this.bolt.setColorAt(bn++, COL);
+    }
+    this.bolt.count = bn; if (bn) { this.bolt.instanceMatrix.needsUpdate = true; if (this.bolt.instanceColor) this.bolt.instanceColor.needsUpdate = true; }
+    let on = 0;
+    for (const s of o.orbs || []) { if (on >= 160) break; Q.identity(); P.set(s.x, ground(s.x, s.y) + (s.up ?? 1.4), s.y); S.setScalar(s.r); this.orb.setMatrixAt(on, M4.compose(P, Q, S)); COL.set(s.col || '#ffffff'); this.orb.setColorAt(on++, COL); }
+    this.orb.count = on; if (on) { this.orb.instanceMatrix.needsUpdate = true; if (this.orb.instanceColor) this.orb.instanceColor.needsUpdate = true; }
+    let dn = 0;
+    for (const s of o.domes || []) { if (dn >= 48) break; Q.identity(); P.set(s.x, ground(s.x, s.y) - 0.5, s.y); S.setScalar(s.r); this.dome.setMatrixAt(dn, M4.compose(P, Q, S)); COL.setRGB(0.3 * s.k, 0.42 * s.k, 0.55 * s.k); this.dome.setColorAt(dn++, COL); }
+    this.dome.count = dn; if (dn) { this.dome.instanceMatrix.needsUpdate = true; if (this.dome.instanceColor) this.dome.instanceColor.needsUpdate = true; }
+    this.n = { drops: n, shells: k, strobes: j, blasts: w, bolts: bn, orbs: on, domes: dn };
   }
 }

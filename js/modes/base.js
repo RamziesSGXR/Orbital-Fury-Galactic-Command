@@ -7,11 +7,12 @@ import { Life } from '../base/life.js';
 import { View } from '../base/view.js';
 import { REQUESTS } from '../base/desk.js';
 import { ensureLogo } from '../base/logo.js';
+import { words } from '../core/words.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
 const ROADS = { road1: { name: 'Dirt Road', k: 'dirt', sub: 'drag to draw' }, road2: { name: 'Paved Road', k: 'paved', sub: 'two tiles wide' }, path: { name: 'Footpath', k: 'path', sub: 'for boots' },
-  wall: { name: 'Wall', k: 'wall', sub: 'close it for a bonus' }, unroad: { name: 'Bulldoze', k: null, sub: 'tap a road or wall' } };
+  wall: { name: 'Wall', k: 'wall', sub: 'close it for a bonus' }, unroad: { name: 'Bulldoze', k: null, sub: words('tap a road or wall') } };
 const TABS = GROUPS.filter((g) => g[0] !== 'landscape');
 const isZone = (t) => !!t && t.startsWith('zone:'), isRoad = (t) => !!ROADS[t];
 
@@ -44,9 +45,9 @@ function stats() {
   ui.stats([{ k: 'SUPPLIES', v: Math.round(sim.supplies).toLocaleString('en-US'), tone: sim.supplies < 100 ? 'r' : 'a' }, { k: 'CREDITS', v: Math.round(sim.credits).toLocaleString('en-US') }, { k: 'TROOPS', v: sim.troops.length },
     { k: 'MORALE', v: mo, tone: mo < 35 ? 'r' : '' }, { k: `DAY ${Math.floor(T.day)}`, v: `${String(Math.floor(T.hour)).padStart(2, '0')}:00` }, { k: 'CHARTER', v: (S.short || S.name).toUpperCase() }]);
   let tip = '';
-  if (isRoad(tool)) tip = tool === 'unroad' ? 'Tap a road or a wall to take it out.' : `${ROADS[tool].name}: drag across the ground to draw it.`;
-  else if (isZone(tool)) tip = 'Tap beside a road to zone its block, or drag a rectangle.';
-  else if (tool) tip = `${B[tool].name}: it snaps to a plot along a road. Tap to place.`;
+  if (isRoad(tool)) tip = tool === 'unroad' ? words('Tap a road or a wall to take it out.') : `${ROADS[tool].name}: drag across the ground to draw it.`;
+  else if (isZone(tool)) tip = words('Tap beside a road to zone its block, or drag a rectangle.');
+  else if (tool) tip = words(`${B[tool].name}: it snaps to a plot along a road. Tap to place.`);
   else { const nx = C.STAGES[(sim.stage || 0) + 1]; if (nx) tip = `NEXT CHARTER · ${(nx.short || nx.name).toUpperCase()}: ` + (nx.needs || []).map((t) => `${B[t] ? B[t].name : t}${sim.has(t) ? ' ✓' : ''}`).join(' · '); }
   ui.tip(tip);
 }

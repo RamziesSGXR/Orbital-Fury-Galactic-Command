@@ -2090,7 +2090,8 @@ function shipLine(res) {
 export function fillDebrief(info, res, session, block = '', startCr = null) {
   $('d-op').textContent = info.chapter ? info.op : `${info.op} · ${t('hud.mission')} ${session && session.missions ? session.missions.length : 1}`;     // (0.37: the operation, and which mission of it)
   const o = $('d-outcome'); o.textContent = t('out.' + res.outcome); o.className = res.outcome;
-  $('d-why').textContent = t('deb.why.' + res.outcome);
+  const inWar = document.documentElement.classList.contains('gc');     // (GC 0.25) a fight of the war: its result goes back to the war room
+  $('d-why').textContent = inWar && t('gc.why.' + res.outcome) !== 'gc.why.' + res.outcome ? t('gc.why.' + res.outcome) : t('deb.why.' + res.outcome);
   const b = res.breakdown, s = res.stats;
   const objNames = res.objectives.map((q) => (q.done ? OBJ_NAME[q.type] : t('obj.failed', { name: OBJ_NAME[q.type] }))).join(', ');
   const rows = [
@@ -2134,7 +2135,7 @@ export function fillDebrief(info, res, session, block = '', startCr = null) {
   $('d-sscore').textContent = fmtNum(session.score);
   $('d-diff').textContent = t('deb.diffPay', { n: res.difficulty || LEVELS, name: t(...levelName(res.difficulty || LEVELS)), x: ((res.reward || 1) * (res.bumpPay || 1)).toFixed(2) });
   const win = carriesOn(res.outcome);
-  $('btn-continue').textContent = t(win ? 'deb.next' : 'deb.report');
+  $('btn-continue').textContent = inWar ? t('gc.back') : t(win ? 'deb.next' : 'deb.report');
   $('btn-end-d').classList.toggle('hidden', !win);
   // RETRY MISSION: the same map from the start, credits back to what they were at the drop.
   $('btn-retry').textContent = t('deb.retry');

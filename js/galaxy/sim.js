@@ -580,6 +580,7 @@ export class Game {
   battleResolve(win, left = 0.5, res = null) {
     const b = this.battle; if (!b || b.done) return false;
     left = clamp(left, 0, 1);
+    const was = { fuel: this.res.fuel, ammo: this.res.ammo, tech: this.res.tech, army: this.res.army, rat: this.rat };     // (0.25) to show what the fight brought and cost
     this.res.ammo = Math.max(0, this.res.ammo - C.groundAmmo);
     if (win) this.loot[b.f] += Math.round(left * C.post.groundLoot);
     { const p = this.P[b.pid], lv = (p.station || 0) + (p.base || 0); if (win && b.kind === 'def' && lv) { const n = lv * C.support.evac; this.res.army = Math.min(Math.max(this.resMax(), this.res.army), this.res.army + n); if (this.aired !== this.round) this.rate(C.support.evacRatings); this.say('good', `${p.name}: the ${p.base ? 'base' : 'station'} is held and its people are out. ${n} troops rejoin the fight.`); } }
@@ -596,6 +597,7 @@ export class Game {
     if (win && b.win === false) { b.win = null; b.you.hp = 1; }      // a ground you won is never the round you are thrown off it
     b.lines = [win ? `The ground action is won: ${deal} damage done, ${take} taken.` : `The ground action is lost: ${take} damage taken, ${deal} done.`];
     this._settle(b);
+    b.gains = {}; for (const k of ['fuel', 'ammo', 'tech', 'army']) { const d = Math.round((this.res[k] - was[k]) * 10) / 10; if (d) b.gains[k] = d; } { const d = Math.round(this.rat - was.rat); if (d) b.gains.rat = d; }
     return true;
   }
   // What a battle leaves on the map. The result is shown until `battleClose()`.

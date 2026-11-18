@@ -37,4 +37,12 @@ with sync_playwright() as pw:
     print('in the air:', f.evaluate("(() => { const g = __game.renderer._g3, o = {}; for (const [k, m] of g.units.kinds) if (m && m.count) o[k] = m.count; return { units: o, fx: g.fx.n, dships: __game.mission.dships.length }; })()"))
     pg.wait_for_timeout(5000); pg.screenshot(path=f'{out}/air-2.png')
     print('later:', f.evaluate("(() => { const g = __game.renderer._g3, o = {}; for (const [k, m] of g.units.kinds) if (m && m.count) o[k] = m.count; return { units: o, fx: g.fx.n, dships: __game.mission.dships.map(d => d.state) }; })()"))
+    # the troops' own fire: streaks of light in the air (the squad is sent at the nearest enemy and watched until it shoots)
+    best = 0
+    for i in range(60):
+        n = f.evaluate("(() => { const g = __game.renderer._g3, m = __game.mission, a = m.alive[0]; if (a) { __game.cam.x = a.x; __game.cam.y = a.y; } return g.fx.n.bolts + g.fx.n.orbs; })()")
+        if n > best: best = n; pg.screenshot(path=f'{out}/air-3-fire.png')
+        if best >= 3: break
+        pg.wait_for_timeout(400)
+    print('streaks and balls of fire in the air at once:', best)
     print('\n'.join(errs) if errs else 'no page errors'); br.close()

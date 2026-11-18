@@ -33,6 +33,10 @@ with sync_playwright() as pw:
     # a base, seen
     f.evaluate("(() => { const m = __game.mission; for (const b of m.bases) b.seen = true; const b = m.bases.find(b => !b.destroyed); %s(b, 90); })()" % look); pg.wait_for_timeout(1500)
     pg.screenshot(path=f'{out}/props-{bio}-{foe}-base.png'); print('at a base:', f.evaluate(kinds))
+    # a side site of the enemy's
+    if f.evaluate("__game.mission.pois.filter(p => !p.done).length"):
+        f.evaluate("(() => { const p = __game.mission.pois.find(p => !p.done); %s(p, 80); })()" % look); pg.wait_for_timeout(1500)
+        pg.screenshot(path=f'{out}/props-{bio}-{foe}-site.png'); print('at a side site:', f.evaluate(kinds))
     # where the trees are thickest
     f.evaluate("(() => { const m = __game.mission, T = m.scenery.trees; if (!T.length) return; let best = T[0], bn = -1; for (const t of T.slice(0, 200)) { let n = 0; for (const u of T) if ((u.x - t.x) ** 2 + (u.y - t.y) ** 2 < 900) n++; if (n > bn) { bn = n; best = t; } } %s(best, 80); })()" % look); pg.wait_for_timeout(1500)
     pg.screenshot(path=f'{out}/props-{bio}-{foe}-trees.png'); print('in the trees:', f.evaluate(kinds), '| trees on the map:', f.evaluate('__game.mission.scenery.trees.length'))

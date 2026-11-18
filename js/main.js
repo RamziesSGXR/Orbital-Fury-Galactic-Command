@@ -14,6 +14,7 @@ import { SEED } from './galaxy/tutorial.js';
 import { shopItems, buy, equip, unequip, shownAt, TIER_MAX } from './ground/data/kit.js';
 import { Audio } from './ground/audio.js';
 import { newKit, newWallet } from './ground/data/kit.js';
+import { words } from './core/words.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
@@ -304,7 +305,7 @@ app.armoury = (then, done = 'DONE') => {
     if (armTab === 'ground') {
       const items = shopItems(kit), secs = [...new Set(items.map((i) => i.section))];
       const slots = Array.from({ length: kit.slots }, (_, i) => { const id = kit.loadout[i], it = id && items.find((x) => x.orb === id); return `<button class="plate btn sm${id ? ' on' : ''}" data-un="${i}" ${id ? '' : 'disabled'}>${id ? esc((it && it.name) || id) + ' ×' : 'EMPTY'}</button>`; }).join('');
-      h += `<h3>Loadout · tap to take one out</h3><div class="row" style="margin-bottom:10px">${slots}</div>`;
+      h += `<h3>${words('Loadout · tap to take one out')}</h3><div class="row" style="margin-bottom:10px">${slots}</div>`;
       for (const sec of secs) {
         h += `<h3>${SECTIONS[sec] || sec.toUpperCase()}</h3>`;
         for (const it of items.filter((i) => i.section === sec)) {

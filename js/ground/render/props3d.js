@@ -54,6 +54,13 @@ const MODELS = {
     part(g, CONE, hide, 0, 0.8, 0, 1.8, 1.6, 1.8); part(g, CONE, dark, 0, 0.42, 0.5, 0.7, 0.85, 0.5);
     for (let i = 0; i < 3; i++) { const t = i / 3 * 6.283; part(g, CYL, bone, Math.cos(t) * 0.12, 1.75, Math.sin(t) * 0.12, 0.05, 0.7, 0.05, Math.sin(t) * 0.35, 0, -Math.cos(t) * 0.35); }
     part(g, BLOB, lit, 0, 2.1, 0, 0.26, 0.4, 0.26); for (let i = 0; i < 5; i++) { const t = i / 5 * 6.283 + 0.6; part(g, CYL, bone, Math.cos(t) * 0.95, 0.45, Math.sin(t) * 0.95, 0.04, 0.9, 0.04); } return g; },
+  // the enemy's side sites: something of its own kind, not a spawning building
+  spire: () => { const g = new THREE.Group(), mound = mat('#7a4a22'), dark = mat('#2a1608'), hot = mat('#ff9a3a');     // the Molt: a cluster of spore towers
+    part(g, DOME, mound, 0, 0, 0, 1.9, 0.6, 1.9); part(g, CONE, mound, 0, 1.3, 0, 0.8, 2.6, 0.8); part(g, CONE, mat('#8f5a2a'), 0.5, 0.8, 0.3, 0.55, 1.6, 0.55, 0, 0, -0.2); part(g, CONE, mound, -0.45, 0.65, -0.35, 0.5, 1.3, 0.5, 0, 0, 0.25);
+    part(g, BLOB, hot, 0, 2.55, 0, 0.3, 0.3, 0.3); part(g, BLOB, hot, 0.62, 1.55, 0.3, 0.22, 0.22, 0.22); part(g, BLOB, dark, -0.55, 1.25, -0.35, 0.2, 0.2, 0.2); return g; },
+  totem: () => { const g = new THREE.Group(), bone = mat('#efe6cf'), hide = mat('#6a3ea8'), lit = mat('#c8ff6a'), dark = mat('#2c1848');     // the Talon: a standing bone, a hide wrapped round it, a living crystal
+    part(g, CYL, dark, 0, 0.12, 0, 1.8, 0.24, 1.8); part(g, CYL, bone, 0, 1.4, 0, 0.22, 2.6, 0.22); part(g, BOX, bone, 0, 2.3, 0, 1.5, 0.12, 0.12, 0, 0, 0.12); part(g, CONE, hide, 0, 0.9, 0, 0.8, 1.2, 0.8); part(g, BLOB, lit, 0, 2.9, 0, 0.3, 0.45, 0.3);
+    for (let i = 0; i < 4; i++) { const t = i / 4 * 6.283 + 0.4; part(g, CYL, bone, Math.cos(t) * 0.8, 0.5, Math.sin(t) * 0.8, 0.05, 1.0, 0.05, Math.sin(t) * 0.25, 0, -Math.cos(t) * 0.25); } return g; },
   turret: () => { const g = new THREE.Group(), a = mat('#4a4a4e'), b = mat('#26262a');     // a gun on a mount, facing +z
     part(g, CYL, b, 0, 0.25, 0, 1.5, 0.5, 1.5); part(g, BOX, a, 0, 0.8, 0, 0.9, 0.6, 1.0); part(g, CYL, b, 0.2, 0.85, 0.9, 0.14, 1.2, 0.14, Math.PI / 2); part(g, CYL, b, -0.2, 0.85, 0.9, 0.14, 1.2, 0.14, Math.PI / 2); return g; },
   cannon: () => { const g = new THREE.Group(), a = mat('#4a4a4e'), b = mat('#26262a'), hot = mat('#ff5a3a');     // the great gun: a pit, a cradle, a barrel at the sky

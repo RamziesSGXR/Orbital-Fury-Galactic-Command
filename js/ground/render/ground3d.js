@@ -84,7 +84,7 @@ export class Ground3D {
     // the light falls the way the map's own shading says it does (from the north-west when the hour has no sun)
     const lx = sun ? sun.lx : -0.6, lz = sun ? sun.ly : -0.6; this.sun.position.set(camX + lx * 200, 260, camY + lz * 200); this.sun.target.position.set(camX, 0, camY); this.sun.target.updateMatrixWorld();
     // the ship's gun hangs under the gunship, off to the right of the sight: its shells come in from the edge of the picture
-    if (this.fx) { const e = C.matrixWorld.elements; this.gun.set(C.position.x + e[0] * d * 0.5 - e[4] * d * 0.22, C.position.y + e[1] * d * 0.5 - e[5] * d * 0.22, C.position.z + e[2] * d * 0.5 - e[6] * d * 0.22); this.fx.frame({ drops: o.drops, shells: o.shells, strobes: o.strobes, blasts: o.blasts, gun: this.gun }, (x, z) => this.y(x, z)); }
+    if (this.fx) { const e = C.matrixWorld.elements; this.gun.set(C.position.x + e[0] * d * 0.5 - e[4] * d * 0.22, C.position.y + e[1] * d * 0.5 - e[5] * d * 0.22, C.position.z + e[2] * d * 0.5 - e[6] * d * 0.22); this.fx.frame({ drops: o.drops, shells: o.shells, strobes: o.strobes, blasts: o.blasts, bolts: o.bolts, orbs: o.orbs, domes: o.domes, gun: this.gun }, (x, z) => this.y(x, z)); }
     this.r.render(this.scene, C);
     this.at = { camX, camY };
   }

@@ -373,7 +373,7 @@ export class Renderer {
       else add(b, (b.r || 8) * 0.7, Math.min(9, (b.r || 8) * 0.5), 6);
       if (b.turrets) for (const t of b.turrets) if (!t.dead) add(t, Math.max(1.4, (t.r || 2) * 0.9), 3, 6);
     }
-    for (const p of m.pois || []) if (!p.done) add(p, (p.r || 12) * 0.5, Math.min(7, (p.r || 12) * 0.35), 4);
+    if (!p3) for (const p of m.pois || []) if (!p.done) add(p, (p.r || 12) * 0.5, Math.min(7, (p.r || 12) * 0.35), 4);
     if (!p3) for (const a of m.assets || []) if (a.kind === 'turret' && !a.dead) add(a, 1.6, 2.6, 6);
     if (out.length > 400) { out.sort((a, b) => (a.x - cx) ** 2 + (a.y - cy) ** 2 - (b.x - cx) ** 2 - (b.y - cy) ** 2); out.length = 400; }
     return out;
@@ -398,6 +398,8 @@ export class Renderer {
         for (const T of b.turrets || []) if (!T.dead) out.push({ k: 'turret', x: T.x, y: T.y, s: Math.max(1.3, T.r * 1.1), rot: face(T.face), tint: hit(T, T.hurtAt) || pal.enemy });
       } else out.push({ k: b.cannon ? 'cannon' : b.node ? 'node' : fk, x: b.x, y: b.y, s: Math.max(2.2, (b.r || 8) * (b.cannon ? 0.8 : b.node ? 0.6 : 0.85)), rot: b.cannon ? face(b.face) : (b.id * 1.7) % 6.28, tint: hit(b, b.lastHit) });
     }
+    { const pk = { bugs: ['spire', 'hive'], bots: ['node', 'fab'], lizards: ['totem', 'camp'] }[m.faction.id] || ['node', 'fab'];     // the enemy's side sites
+      for (const p of m.pois || []) if (!p.done && near(p)) out.push({ k: pk[(p.id || 0) % 2], x: p.x, y: p.y, s: Math.max(2.4, (p.r || 12) * 0.42), rot: ((p.id || 1) * 2.3) % 6.28, tint: hit(p, p.hurtAt), dim: m.visLevel(p.x, p.y) > 0 ? 1 : 0.7 }); }
     for (const p of m.posts || []) { const d = P3_POST[p.what]; if (d && !p.dead && !p.ghost && near(p)) out.push({ k: d[0], x: p.x, y: p.y, s: d[1], rot: face(p.face), tint: hit(p, p.hurtAt) }); }
     for (const a of m.assets || []) if (a.kind === 'turret' && !a.dead && near(a)) out.push({ k: 'aturret', x: a.x, y: a.y, s: 1.5, rot: face(a.face), tint: hit(a, a.hurtAt) });
     return out;
@@ -409,7 +411,7 @@ export class Renderer {
     if (cam.g3d && this._g3 === undefined) { try { this._g3 = new Ground3D(cam.livery); } catch (err) { console.warn('3D ground unavailable', err); this._g3 = null; } }
     const g3 = cam.g3d ? this._g3 : null; this._g3on = false; VIEW.p3 = !!(g3 && g3.props);
     const U3 = this._u3 || (this._u3 = []); U3.length = 0; const u3 = g3 && g3.units ? U3 : null;
-    const D3 = this._d3 || (this._d3 = []), S3 = this._s3l || (this._s3l = []), B3 = this._b3 || (this._b3 = []); D3.length = S3.length = B3.length = 0; this._s3 = u3 ? S3 : null; const X3 = this._x3l || (this._x3l = []); X3.length = 0; this._x3 = u3 && g3.fx ? X3 : null; VIEW.air = u3; VIEW.drops = u3 ? D3 : null;     // (GC 0.22) what falls, the ship's shells, the strobes     // (GC 0.20) who stands up in 3D this frame, and is not drawn on the sheet
+    const D3 = this._d3 || (this._d3 = []), S3 = this._s3l || (this._s3l = []), B3 = this._b3 || (this._b3 = []); D3.length = S3.length = B3.length = 0; this._s3 = u3 ? S3 : null; const X3 = this._x3l || (this._x3l = []); X3.length = 0; this._x3 = u3 && g3.fx ? X3 : null; VIEW.air = u3; VIEW.drops = u3 ? D3 : null; const T3 = this._t3l || (this._t3l = []), O3 = this._o3l || (this._o3l = []), DM3 = this._dm3l || (this._dm3l = []); T3.length = O3.length = DM3.length = 0; this._t3 = this._x3 ? T3 : null; this._o3 = this._x3 ? O3 : null; this._dm3 = this._x3 ? DM3 : null;     // (GC 0.25) the troops' fire, what is lobbed, the shields     // (GC 0.22) what falls, the ship's shells, the strobes     // (GC 0.20) who stands up in 3D this frame, and is not drawn on the sheet
     let real = null;
     if (cam.yaw || g3) { real = { ctx: this.ctx, W: this.W, H: this.H, focusY: this.focusY }; const S = this._sheet(real); this._real = real; this.ctx = this._wx; this.W = S; this.H = S; this.focusY = 0.5; }
     let ctx = this.ctx, W = this.W, H = this.H;
@@ -494,8 +496,9 @@ export class Renderer {
             if (t - (sp.hurtAt ?? -99) < 0.12) { ctx.strokeStyle = '#fff'; ctx.lineWidth = px(2); ctx.beginPath(); ctx.arc(sp.x, sp.y, sb.r * 1.1, 0, TAU); ctx.stroke(); }
             if (sp.maxShield && sp.shield > 0) {      // (0.55) the lizards' light shield: a bubble that flares when hit
               const f = sp.shield / sp.maxShield, hit = t - (sp.shieldAt ?? -9) < 0.15, R = sb.r * 1.55;
+              if (this._dm3) this._dm3.push({ x: sp.x, y: sp.y, r: R * 1.05, k: (hit ? 0.9 : 0.25) + 0.3 * f }); else {
               ctx.fillStyle = `rgba(150,200,255,${(hit ? 0.2 : 0.05) + 0.06 * f})`; ctx.beginPath(); ctx.arc(sp.x, sp.y, R, 0, TAU); ctx.fill();
-              ctx.strokeStyle = `rgba(190,225,255,${hit ? 0.95 : 0.3 + 0.4 * f})`; ctx.lineWidth = px(hit ? 2 : 1.2); ctx.beginPath(); ctx.arc(sp.x, sp.y, R, 0, TAU); ctx.stroke();
+              ctx.strokeStyle = `rgba(190,225,255,${hit ? 0.95 : 0.3 + 0.4 * f})`; ctx.lineWidth = px(hit ? 2 : 1.2); ctx.beginPath(); ctx.arc(sp.x, sp.y, R, 0, TAU); ctx.stroke(); }
               if (f < 1 && !hideUi) { const bw = sb.r * 2.2; ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(sp.x - bw / 2, sp.y + sb.r * 1.25 - px(4), bw, px(2.5)); ctx.fillStyle = '#8fd0ff'; ctx.fillRect(sp.x - bw / 2, sp.y + sb.r * 1.25 - px(4), bw * f, px(2.5)); }
             }
           }
@@ -728,7 +731,7 @@ export class Renderer {
     if (real) {     // lay the turned world on the screen
       const wc = this._wc, S = this.W; this.ctx = real.ctx; this.W = real.W; this.H = real.H; this.focusY = real.focusY; this._real = null; ctx = this.ctx; W = this.W; H = this.H;
       ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
-      if (g3) { g3.frame({ sheet: wc, S, scale, camX: v.camX, camY: v.camY, yaw: cam.yaw, tilt: cam.tilt, W, H, fy: this.focusY || 0.5, sun: this._sun, height: (x, y) => m.terrain.height(x, y), blocks: this._blocks(m, v.camX, v.camY, S / scale / 2), props: VIEW.p3 ? this._props(m, v.camX, v.camY, S / scale / 2, pal) : null, lit: 1 - Math.min(0.6, (this._dark || 0) * 0.75), units: U3, drops: D3, shells: S3, strobes: B3, blasts: X3, hot: cam.sight === 'whot' || cam.sight === 'bhot' }); ctx.filter = cam.sight === 'whot' ? 'grayscale(1) contrast(1.25) brightness(0.82)' : cam.sight === 'bhot' ? 'grayscale(1) invert(1) contrast(1.2) brightness(0.9)' : 'none'; ctx.drawImage(g3.cv, 0, 0); ctx.filter = 'none'; this._g3on = true; }     // (the sight: infrared white-hot, black-hot, or plain colour)
+      if (g3) { g3.frame({ sheet: wc, S, scale, camX: v.camX, camY: v.camY, yaw: cam.yaw, tilt: cam.tilt, W, H, fy: this.focusY || 0.5, sun: this._sun, height: (x, y) => m.terrain.height(x, y), blocks: this._blocks(m, v.camX, v.camY, S / scale / 2), props: VIEW.p3 ? this._props(m, v.camX, v.camY, S / scale / 2, pal) : null, lit: 1 - Math.min(0.6, (this._dark || 0) * 0.75), units: U3, drops: D3, shells: S3, strobes: B3, blasts: X3, bolts: T3, orbs: O3, domes: DM3, hot: cam.sight === 'whot' || cam.sight === 'bhot' }); ctx.filter = cam.sight === 'whot' ? 'grayscale(1) contrast(1.25) brightness(0.82)' : cam.sight === 'bhot' ? 'grayscale(1) invert(1) contrast(1.2) brightness(0.9)' : 'none'; ctx.drawImage(g3.cv, 0, 0); ctx.filter = 'none'; this._g3on = true; }     // (the sight: infrared white-hot, black-hot, or plain colour)
       else { ctx.translate(v.px, v.py); ctx.rotate(cam.yaw); ctx.drawImage(wc, -S / 2, -S / 2); }
     }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -1580,6 +1583,11 @@ export class Renderer {
     const hx = f.x + dx * hp, hy = f.y + dy * hp;
     let lift = 0;
     if (f.kind === 'shell' && f.fl >= 1) lift = Math.sin(Math.PI * hp) * Math.min(26, d * 0.3);   // lobbed shells arc up and come down
+    if (this._o3 && (f.kind === 'glob' || f.kind === 'shell')) {     // (GC 0.25) in 3D: a ball of light through the air, a lobbed one high over the ground
+      this._o3.push({ x: hx, y: hy, up: 1.4 + lift * 1.6, r: Math.max(f.kind === 'shell' ? 0.7 : 0.6, px(2.6)), col: f.kind === 'shell' ? '#fff2d0' : f.col });
+      if (f.kind === 'shell' && lift === 0) { const tp = Math.max(0, hp - f.len / d); this._t3.push({ x: f.x + dx * tp, y: f.y + dy * tp, x2: hx, y2: hy, w: Math.max(px(f.w), 0.3), col: f.col }); }
+      return;
+    }
     if (f.kind === 'glob') {
       ctx.fillStyle = this._rgba(f.col, 0.28); ctx.beginPath(); ctx.arc(hx, hy - lift, Math.max(2.2, px(5)), 0, TAU); ctx.fill();     // (0.38: it glows)
       ctx.fillStyle = this._rgba(f.col, 0.95); ctx.beginPath(); ctx.arc(hx, hy - lift, Math.max(1.1, px(2.4)), 0, TAU); ctx.fill();
@@ -1593,6 +1601,7 @@ export class Renderer {
     }
     const tp = tt > f.fl ? Math.min(1, Math.max(0, hp - f.len / d) + ((tt - f.fl) / 0.1) * (1 - Math.max(0, hp - f.len / d))) : Math.max(0, hp - f.len / d);
     const tx = f.x + dx * tp, ty = f.y + dy * tp;
+    if (this._t3) { this._t3.push({ x: tx, y: ty, x2: hx, y2: hy, w: Math.max(px(f.w * (f.kind === 'bolt' ? 1.6 : 1)), f.kind === 'bolt' ? 0.45 : 0.28), col: f.col }); return; }     // (GC 0.25) in 3D: a streak of light at gun height, not a line on the ground
     ctx.lineCap = 'round';
     if (f.kind === 'bolt') { ctx.strokeStyle = this._rgba(f.col, 0.28); ctx.lineWidth = px(f.w * 3.2); ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(hx, hy); ctx.stroke(); }
     else { ctx.strokeStyle = this._rgba(f.col, 0.18); ctx.lineWidth = Math.max(px(f.w * 2.6), 1.2); ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(hx, hy); ctx.stroke(); }     // (0.38: a faint glow round every tracer)

@@ -5,6 +5,7 @@ import { C } from '../orbit/config.js';
 import { Station } from '../orbit/sim.js';
 import { View } from '../orbit/view.js';
 import { ensureLogo } from '../orbit/logo.js';
+import { words } from '../core/words.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
@@ -37,7 +38,7 @@ function stats() {
   ui.stats([{ k: 'CREDITS', v: Math.round(st.credits).toLocaleString('en-US'), tone: 'a' }, { k: 'CAPABILITY', v: st.capability() }, { k: 'POWER', v: `${st.demand}/${st.supply}`, tone: st.eff < 1 ? 'r' : '' },
     { k: 'PEOPLE', v: `${st.residents()}/${st.beds()}` }, { k: 'MORALE', v: mo, tone: mo < 35 ? 'r' : '' }, { k: `WEEK ${st.week()}`, v: `D${st.dow()}` }, { k: 'TIER', v: C.tiers[st.tier].name }]);
   let tip = '';
-  if (tool) tip = `${C.parts[tool].name}: tap a glowing port to place it.`;
+  if (tool) tip = words(`${C.parts[tool].name}: tap a glowing port to place it.`);
   else if (n) tip = `NEXT · ${n.name}: ` + n.items.map((i) => `${i.label} ${i.have}/${i.need}`).join(' · ');
   ui.tip(tip);
 }

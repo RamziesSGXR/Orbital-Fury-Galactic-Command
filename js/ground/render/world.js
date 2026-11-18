@@ -428,6 +428,8 @@ export function drawAssets(ctx, m, now, px, labels, scale, pal) {
       hpBar(ctx, a.x, a.y + R + px(6), R * 2.4, px(2), mc.gat / c.gatAmmo, '#ffe600');
       hpBar(ctx, a.x, a.y + R + px(9), R * 2.4, px(2), mc.rkt / c.rktAmmo, '#ff7a4a');
       labels.push({ x: a.x, y: a.y, dy: -R * scale - 6, text: tr('lab.mechsuit'), col: '#ffb020' , pri: 0 });
+    } else if (a.sw && VIEW.p3) {     // (GC 0.25) in 3D: how much is left in the heavy weapon is a small bar at his feet, not an arc round him
+      const f = a.sw.left / a.sw.ammo; hpBar(ctx, a.x, a.y + r * 1.9, r * 2.6, px(2), Math.max(0.02, f), f > 0.25 ? '#ffe600' : '#ff4a4a');
     } else if (a.sw) {
       ctx.strokeStyle = '#ffe600'; ctx.lineWidth = px(1.4);
       ctx.beginPath(); ctx.moveTo(a.x - r * 0.3, a.y + r * 0.4); ctx.lineTo(a.x + r * 2.2, a.y - r * 0.8); ctx.stroke();
@@ -440,7 +442,7 @@ export function drawAssets(ctx, m, now, px, labels, scale, pal) {
     if (t < a.stimUntil) {
       const f = (a.stimUntil - t) / C.hd.stimBoostSec;
       ctx.strokeStyle = `rgba(125,255,155,${0.3 + 0.5 * f})`; ctx.lineWidth = px(1.4);
-      ring(ctx, a.x, a.y, r * (2.5 + 0.35 * Math.sin(now * 8))); ctx.stroke();
+      if (!VIEW.p3) { ring(ctx, a.x, a.y, r * (2.5 + 0.35 * Math.sin(now * 8))); ctx.stroke(); }
       if (a.heal > 0.5) {
         const k = (now * 1.6) % 1, hy = a.y - r * (1.6 + 1.6 * k);
         ctx.strokeStyle = `rgba(150,255,175,${1 - k})`; ctx.lineWidth = px(1.6);
@@ -642,10 +644,12 @@ export function drawPois(ctx, m, now, px, labels, scale, pal) {
     }
     const hit = t - p.hurtAt < 0.12, R = Math.max(p.r, px(9)), seen = m.visLevel(p.x, p.y) > 0;
     const col = hit ? '#ffffff' : seen ? '#ffb020' : 'rgba(255,176,32,0.65)';
-    raise(ctx, p, p.x, p.y, Math.max(p.r, px(9)) * 1.7, 1.6, (c) => drawPoiArt(c, p, m.faction.id, pal.enemy, seen, now, px), { wall: 0.56, live: true, sig: (seen ? 1 : 0) + (hit ? 2 : 0) });
+    if (!VIEW.p3) raise(ctx, p, p.x, p.y, Math.max(p.r, px(9)) * 1.7, 1.6, (c) => drawPoiArt(c, p, m.faction.id, pal.enemy, seen, now, px), { wall: 0.56, live: true, sig: (seen ? 1 : 0) + (hit ? 2 : 0) });
     ctx.strokeStyle = col; ctx.lineWidth = px(seen ? 1.6 : 1.2);
+    if (!VIEW.p3) {     // (GC 0.25) in 3D the building stands there: no ring round it
     ctx.setLineDash([px(4), px(4)]); ctx.globalAlpha = 0.7; ring(ctx, p.x, p.y, R); if (!VIEW.quiet) ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
     ctx.fillStyle = 'rgba(255,176,32,0.07)'; ring(ctx, p.x, p.y, R); ctx.fill();
+    }
     if (tgs.has(p)) bracket(ctx, p.x, p.y, R * 1.5, px(1.8), pal.ally);
     if (p.hp < p.maxHp) hpBar(ctx, p.x, p.y + R * 1.15, R * 2, px(4), p.hp / p.maxHp, '#ffb020');
     labels.push({ x: p.x, y: p.y, dy: -R * scale - 6, text: `${p.name}  +${p.reward}`, col: '#ffb020' , pri: 1 });

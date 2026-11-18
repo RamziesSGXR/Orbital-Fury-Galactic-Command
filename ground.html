@@ -10,6 +10,8 @@
 <link rel="stylesheet" href="css/fury.css">
 <style>.gc #btn-retry, .gc #s-title { display: none !important; }
 html:not(.gc) .gc-only { display: none !important; }
+/* (GC 0.25) inside the war a fight is one mission: no next mission, no second try, no operation total, no version of the old game */
+html.gc #btn-retry, html.gc #btn-end-d, html.gc #d-retry-note, html.gc .ver, html.gc .d-total.op { display: none !important; }
 #photo-bar { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 60; display: none; gap: 14px; align-items: center; padding: 8px 14px; background: rgba(8,10,9,.82); border: 1px solid rgba(255,204,51,.5); color: #e6eadc; font: 600 12px/1 ui-monospace, Menlo, Consolas, monospace; letter-spacing: .08em; }
 body.photo #photo-bar { display: flex; } body.photo.photo-clean #photo-bar { display: none; }
 body.photo #showui { display: none !important; }</style>
@@ -343,7 +345,7 @@ body.photo #showui { display: none !important; }</style>
         <div id="d-deaths" class="deaths"></div>
         <div id="d-extra" class="fine"></div>
         <div class="d-total"><span data-t="deb.mscore">MISSION SCORE</span> <b id="d-mscore">0</b></div>
-        <div class="d-total"><span data-t="deb.sscore">SESSION TOTAL</span> <b id="d-sscore">0</b></div>
+        <div class="d-total op"><span data-t="deb.sscore">SESSION TOTAL</span> <b id="d-sscore">0</b></div>
       </div>
       <!-- (0.27.3) what to do next and the report: beside the results on a computer, under them on a phone -->
       <div class="d-side">
