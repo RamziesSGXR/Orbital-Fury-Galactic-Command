@@ -464,6 +464,7 @@ export default {
   'deb.sscore': 'OPERATION TOTAL',
   'deb.next': 'NEXT MISSION',
   'gc.back': 'BACK TO THE WAR ROOM',
+  'gc.forWar': 'WHAT THIS BRINGS THE WAR',
   'gc.why.victory': 'Objective done and the squad got out. The war room is waiting for the result.',
   'gc.why.complete': 'The main objective got done, but nobody made it out. It still counts as a win for the war.',
   'gc.why.defeat': 'The squad ran out of lives before the main objective was done. The battle goes on without them.',

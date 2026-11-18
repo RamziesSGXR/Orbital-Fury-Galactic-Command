@@ -2092,6 +2092,10 @@ export function fillDebrief(info, res, session, block = '', startCr = null) {
   const o = $('d-outcome'); o.textContent = t('out.' + res.outcome); o.className = res.outcome;
   const inWar = document.documentElement.classList.contains('gc');     // (GC 0.25) a fight of the war: its result goes back to the war room
   $('d-why').textContent = inWar && t('gc.why.' + res.outcome) !== 'gc.why.' + res.outcome ? t('gc.why.' + res.outcome) : t('deb.why.' + res.outcome);
+  if (inWar) {     // (GC 0.29) first, what this brings the war
+    let pv = null; try { pv = window.parent.gcGround && window.parent.gcGround.preview ? window.parent.gcGround.preview(res) : null; } catch { pv = null; }
+    $('d-war').innerHTML = pv ? `<h4>${esc(t('gc.forWar'))}</h4>` + pv.chips.map((c) => `<span class="wc ${c.v > 0 ? 'up' : 'dn'}">${c.v > 0 ? '+' : '−'}${Math.abs(c.v)}${c.pct ? '%' : ''}<i>${esc(c.k)}</i></span>`).join('') + pv.notes.map((n) => `<p>${esc(n)}</p>`).join('') : '';
+  }
   const b = res.breakdown, s = res.stats;
   const objNames = res.objectives.map((q) => (q.done ? OBJ_NAME[q.type] : t('obj.failed', { name: OBJ_NAME[q.type] }))).join(', ');
   const rows = [

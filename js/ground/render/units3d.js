@@ -8,7 +8,7 @@
 import * as THREE from '../../vendor/three.js';
 import { makeMats, makePerson, poseKit, makeLRV, makeTank, makeDropship, makeCrate } from '../../base/models.js';
 
-const TMP = new THREE.Color(), Q2 = new THREE.Quaternion(), FWD = new THREE.Vector3(0, 0, 1);
+const TMP = new THREE.Color(), Q2 = new THREE.Quaternion(), FWD = new THREE.Vector3(0, 0, 1), SIDE = new THREE.Vector3(1, 0, 0);
 const CAP = 700;     // of one kind on screen at once
 const M4 = new THREE.Matrix4(), Q = new THREE.Quaternion(), UP = new THREE.Vector3(0, 1, 0), P = new THREE.Vector3(), S = new THREE.Vector3(), COL = new THREE.Color();
 
@@ -147,7 +147,8 @@ export class Units3D {
       if (K.frames) { const st = u.walk != null ? Math.floor((((u.walk % 6.2832) + 6.2832) % 6.2832) / 6.2832 * STEPS) % STEPS : -1; m = (u.aim && (st < 0 ? K.frames.aim : K.frames['a' + st])) || (st < 0 ? K.frames.stand : K.frames['w' + st]) || K.frames.stand; }
       const n = this.used.get(m) || 0; if (n >= m.instanceMatrix.count) continue;
       Q.setFromAxisAngle(UP, Math.PI / 2 - (u.face || 0)); P.set(u.x, ground(u.x, u.y) + (u.up || 0), u.y); S.setScalar(u.r);
-      if (u.walk != null && K.frames) P.y += Math.abs(Math.sin(u.walk)) * 0.04 * u.r;     // (a person's legs do the walking: only the rise of each step)
+      if (u.tumble != null) { Q.multiply(Q2.setFromAxisAngle(SIDE, -u.tumble)); P.y += Math.abs(Math.sin(u.tumble)) * 0.16 * u.r - (u.sink || 0) * 0.6 * u.r; }     // (GC 0.29) a body: turned over backwards about its feet, lying on the ground, sinking away as it fades
+      else if (u.walk != null && K.frames) P.y += Math.abs(Math.sin(u.walk)) * 0.04 * u.r;     // (a person's legs do the walking: only the rise of each step)
       else if (u.walk != null) { const s = Math.sin(u.walk); P.y += Math.abs(s) * 0.1 * u.r; Q.multiply(Q2.setFromAxisAngle(FWD, s * 0.11)); }     // (GC 0.26) on the move: a step's rise and a sway from foot to foot, until the models are given legs that walk
       m.setMatrixAt(n, M4.compose(P, Q, S)); COL.set(u.tint || '#ffffff'); if (u.dim != null && u.dim < 1) COL.multiplyScalar(u.dim); m.setColorAt(n, COL);
       this.used.set(m, n + 1);

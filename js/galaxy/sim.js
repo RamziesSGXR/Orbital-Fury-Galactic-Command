@@ -594,6 +594,23 @@ export class Game {
   // the winner's strength is still standing. The map is settled exactly as after a card battle.
   // The sponsors' stunt for the fight in front of you, if it is the one that will be aired this round.
   stunt() { const b = this.battle; if (!b || this.aired === this.round) return null; return C.stunts[(this.seed + this.round * 7 + b.pid * 3) % C.stunts.length]; }
+  // (0.29) What a ground result would bring the war, worked out without changing anything: shown on the mission's own debrief.
+  //   -> { chips: [{ k, v, pct }], notes: [plain lines] }
+  groundPreview(win, left = 0.5, res = null) {
+    const b = this.battle, out = { chips: [], notes: [] }; if (!b || b.done) return out;
+    left = clamp(left, 0, 1); const G = C.ratings.ground, live = this.aired !== this.round, flawless = win && left >= G.flawlessAt;
+    out.chips.push({ k: N.ammo, v: -Math.min(this.res.ammo, C.groundAmmo) });
+    const loot = win ? Math.round(left * C.post.groundLoot) : 0; if (loot) out.chips.push({ k: N[C.product[b.f]], v: loot });
+    const p = this.P[b.pid], lv = (p.station || 0) + (p.base || 0); let rat = 0;
+    if (win && b.kind === 'def' && lv) { out.chips.push({ k: N.army, v: lv * C.support.evac }); if (live) rat += C.support.evacRatings; out.notes.push(`${p.name}: the ${p.base ? 'base' : 'station'} is held and its people are out.`); }
+    const st = this.stunt(); if (st) { let ok = false; if (win && res) { try { ok = !!st.test(res); } catch { ok = false; } } if (ok) rat += C.ratings.stunt; out.notes.push(`Sponsor stunt, "${st.name}": ${ok ? 'done, live' : 'not done'}.`); }
+    if (live) rat += win ? G.win + (flawless ? G.flawless : 0) : G.loss; else out.notes.push('Not aired: one ground fight a round goes out live.');
+    if (rat) out.chips.push({ k: 'RATINGS', v: rat, pct: true });
+    if (live && flawless) out.notes.push(`A flawless action, live: the footage shows ${N.factions[b.f]}'s plan.`);
+    const K = win ? C.groundWin : C.groundLoss, n = C.battle.engage, deal = Math.ceil((b.you.fire * n + 3) * K.deal), take = Math.ceil((b.foe.fire * n + 2) * K.take * (win ? 1 - 0.7 * left : 1));
+    out.notes.push(`In the battle overhead: ${deal} damage to their fleet, ${take} to yours.`);
+    return out;
+  }
   battleResolve(win, left = 0.5, res = null) {
     const b = this.battle; if (!b || b.done) return false;
     left = clamp(left, 0, 1);

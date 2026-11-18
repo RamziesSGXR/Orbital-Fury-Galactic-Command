@@ -417,7 +417,7 @@ document.addEventListener('click', e => {
     case 'show': g.show(+d.p, d.k); break;
     case 'totitle': $('modal').hidden = true; return app.endCampaign();
     case 'cards': ui.cards = true; break;
-    case 'ground': { const a = { battle: g.battle, system: g.P[g.battle.pid], level: g.groundLevel(), round: g.round, support: g.groundSupport(g.battle.pid), post: g.postAt() }; return app.theatre('ground', a); }
+    case 'ground': { const a = { battle: g.battle, system: g.P[g.battle.pid], level: g.groundLevel(), round: g.round, support: g.groundSupport(g.battle.pid), post: g.postAt(), preview: (win, left, res) => g.groundPreview(win, left, res) }; return app.theatre('ground', a); }
     case 'press': g.press(); ui.fx = null; ui.auto = 0; break;
     case 'orbit': if (!g.P[+d.p].station && !g.found(+d.p, 'station')) break; return app.theatre('orbit', { system: g.P[+d.p] });
     case 'base': if (!g.P[+d.p].base && !g.found(+d.p, 'base')) break; return app.theatre('base', { system: g.P[+d.p] });

@@ -11,6 +11,7 @@
 import { SUBTYPES } from '../data/data.js';
 import { CONFIG as C } from '../config.js';
 import { drawAllyBody, drawEnemyBody, enemyR } from './units.js';
+import { VIEW } from './view.js';
 
 const TAU = Math.PI * 2;
 const G = 60;                 // m/s^2, so a 3 m hop lasts about 0.6 s and a 30 m arc about 2 s
@@ -30,7 +31,7 @@ export class Launch {
       this.booms.push(bm); if (this.booms.length > 24) this.booms.shift();
       for (const b of this.bodies) {            // a body still lying in the new blast is thrown again, less far than a fresh one
         if (!b.landed || b.fade < 0.4 || (b.x - bm.x) ** 2 + (b.y - bm.y) ** 2 > (bm.r * 1.1) ** 2) continue;
-        this._throw(b, bm, 0.7);
+        b.fell = false; this._throw(b, bm, 0.7);
       }
     } else if (ev.type === 'kill') { if (!ev.boss) this.pend.push({ ev, ally: false, t: now }); }
     else if (ev.type === 'ally_down') this.pend.push({ ev, ally: true, t: now });
@@ -46,15 +47,15 @@ export class Launch {
         const f = Math.hypot(ev.x - bm.x, ev.y - bm.y) / (bm.r * 1.25);
         if (f < bf) { bf = f; best = bm; }
       }
-      if (!best) continue;
+      if (!best && (!VIEW.air || p.ally)) continue;     // (GC 0.29) in 3D a death outside any blast still leaves a body: it falls where it stood
       const b = {
         x: ev.x, y: ev.y, z: 0, vx: 0, vy: 0, vz: 0, rot: ev.face || 0, spin: 0, ally: p.ally, kind: ev.kind, sub: ev.sub || '', id: ev.id || 0,
         role: ev.role, type: ev.unit, team: ev.team, r0: ev.r, landed: false, bounces: 0, marked: false, age: 0, tl: 0, fade: 1,
         mass: p.ally ? (ev.type === 'H' ? 0.7 : 0.9) : (MASS[ev.kind] ?? 0.6),
       };
-      this._throw(b, best, b.mass);
+      if (best) this._throw(b, best, b.mass); else { b.fell = true; b.landed = true; b.tl = 1.4; }     // (it lies a little longer than one that was thrown)
       this.bodies.push(b);
-      if (this.bodies.length > MAX_BODIES) this.bodies.shift();
+      if (this.bodies.length > (VIEW.air ? 90 : MAX_BODIES)) this.bodies.shift();
     }
     this.pend.length = 0;
   }
@@ -104,6 +105,12 @@ export class Launch {
       // the shadow stays on the ground and shrinks and fades as the body climbs
       ctx.globalAlpha = b.fade * Math.max(0.12, 0.38 - b.z * 0.006); ctx.fillStyle = '#000';
       ctx.beginPath(); ctx.ellipse(b.x + b.z * 0.12, b.y + b.z * 0.12, r * 1.1 * (1 - Math.min(0.4, b.z * 0.01)), r * 0.9 * (1 - Math.min(0.4, b.z * 0.01)), 0, 0, TAU); ctx.fill();
+      if (VIEW.air) {     // (GC 0.29) in 3D: the unit's own model, turning over in the air, then lying where it came down and sinking away
+        const lie = Math.PI / 2, tumble = b.fell ? lie * Math.min(1, (b.age / 0.35) ** 2) : b.landed ? lie : b.rot * 1.3;
+        VIEW.air.push({ k: b.ally ? (b.type === 'H' ? 'van' : 'inf') : fid + ':' + b.kind, x: b.x, y: b.y, r: r * (b.ally ? 1.2 : 1.25), face: b.fell || b.landed ? b.rot : b.rot * 0.35, up: b.z * 0.5, tumble, sink: 1 - b.fade,
+          tint: b.ally && b.type === 'H' && b.team !== undefined && m.teams[b.team] ? m.teams[b.team].color : null, dim: 0.75 });
+        continue;
+      }
       ctx.globalAlpha = b.fade;
       ctx.save(); ctx.translate(b.x, b.y - lift); ctx.scale(s, s);
       if (b.ally) { const tm = b.team !== undefined ? m.teams[b.team] : null; drawAllyBody(ctx, proxy, r, pal.ally, tm && b.type === 'H' ? tm.color : null, false, now, px, m.t); }

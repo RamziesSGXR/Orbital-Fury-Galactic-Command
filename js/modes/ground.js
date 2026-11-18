@@ -24,6 +24,13 @@ const mode = {
       kit: g.kit, wallet: g.wallet, tier: app.armouryTier(), level: a.level || 1, support: a.support || null, livery: app.faction,
       faction: GC.link.foe[b.f] || 'bugs', biome: GC.link.biome[kw.type] || 'grass', seed, obj: a.post ? 'evac' : objs[seed % objs.length], post: a.post || null,     // a post under attack is always its defence and evacuation
       op: a.post ? `Evacuate ${a.system.name}` : `Operation ${kw.name}`, callsign: (app.faction.name || '').toUpperCase().replace(/[^\w \-.]/g, '').slice(0, 16),
+      // (0.29) for the debrief: what this result will bring the war, before it is handed over
+      preview: (r) => {
+        const win = WON(r.outcome), left = win ? clamp(r.livesLeft / Math.max(1, r.livesMax), 0, 1) : 0;
+        const pv = a.preview ? a.preview(win, left, { minutes: r.minutes, kills: r.kills, bases: r.bases, baseTotal: r.baseTotal, livesLeft: r.livesLeft, livesMax: r.livesMax, share: r.share }) : { chips: [], notes: [] };
+        const earned = Math.max(0, Math.floor((g.wallet.bal - credits0) * GC.link.creditShare)); if (earned) pv.chips.push({ k: 'CR', v: earned });
+        return pv;
+      },
       // the mission is over and its debrief has been read
       onResult: (r) => {
         const win = WON(r.outcome), earned = Math.max(0, Math.floor((g.wallet.bal - credits0) * GC.link.creditShare));
