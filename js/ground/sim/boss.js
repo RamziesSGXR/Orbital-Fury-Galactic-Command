@@ -1,6 +1,6 @@
 // Super heavies. Now and then a giant joins a mission: a Brood Titan for the bugs, a Siege Walker for the bots, a Warp Colossus for
-// the squids. The chance grows through the session (CONFIG.boss). It turns up out of sight a few minutes in (or as soon as the
-// objective is done), hunts the squad, and it has to be destroyed before the pelican will land. Killing it pays well.
+// the lizards. The chance grows through the session (CONFIG.boss). It turns up out of sight a few minutes in (or as soon as the
+// objective is done), hunts the squad, and it has to be destroyed before the dropship will land. Killing it pays well.
 //
 // It is an enemy like any other as far as weapons go (a heavy: what hurts heavies hurts it, and its back is its weak spot), with its
 // own size, health and attacks. Movement and attacks are in enemies.js (bossMove, bossAttack); this file spawns it, keeps its
@@ -62,7 +62,7 @@ export function spawnBoss(m, opts = {}) {
 // (0.55) A super heavy brought in by a reinforcement: a bot dropship carries one, or one digs out of a bug hole. The chance per call
 // (CONFIG.boss.reinf) starts at level `from` and climbs perLevel a level; for the bots it also climbs with every dropship shot down
 // this mission past botsAfter (shooting them down from afar no longer stems the tide for free). Never while a super heavy is on the
-// field, never once the pelican is on its way, at most maxPer a mission and gapSec apart.
+// field, never once the dropship is on its way, at most maxPer a mission and gapSec apart.
 export function reinfHeavyChance(m) {
   const K = C.boss.reinf, fac = m.faction.id;
   if (!K || m.ls || fac === 'squids' || bossAlive(m)) return 0;
@@ -132,7 +132,7 @@ export function updateBoss(m, dt) {
   }
   const D = bossDef(m);
   // A stalemate breaker: the squad has been held at the extraction point for a long while and it is still alive. It withdraws and
-  // the pelican can come, but it pays nothing.
+  // the dropship can come, but it pays nothing.
   if (m.phase === 'extract' && m.extraction.state === 'open' && m.extraction.blockedSince !== undefined && t - m.extraction.blockedSince >= B.giveUpSec) {
     e.dead = true; e.paid = true; e.left = true; m.dirtyE = true;
     m.radio(COMMS.bossLeave(e.name), 'bossleave', 0);

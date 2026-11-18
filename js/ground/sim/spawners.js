@@ -7,7 +7,7 @@
 //   - The garrison and the groups an awake base sends come out of its spawners one at a time (trickle), not in a chunk, and never
 //     as heavies: heavies come by reinforcement call-in. A base can have one heavy in its garrison already when it is first found,
 //     a chance that rises with the difficulty.
-// Ordinary bases and a citadel's outer bases get spawners; the citadel's keep (Hellbomb only), domes and operation structures do
+// Ordinary bases and a citadel's outer bases get spawners; the citadel's keep (Demolition Charge only), domes and operation structures do
 // not.
 import { CONFIG as C } from '../config.js';
 import { t as tr } from '../i18n.js';
@@ -58,7 +58,7 @@ export function hitSpawners(m, b, dmg, at) {
   const L0 = liveSpawners(b);
   if (!L0.length) return false;
   const L = b.turrets ? L0.concat(b.turrets.filter((q) => !q.dead)) : L0;     // (0.55) a turret takes hits like a spawner
-  // (0.52: no 'a big enough hit takes the lot' any more: a precision strike was enough for it. A Hellbomb takes every spawner its
+  // (0.52: no 'a big enough hit takes the lot' any more: a precision strike was enough for it. A Demolition Charge takes every spawner its
   // blast reaches, as any blast does.)
   let hit = [];
   if (at && at.rad !== undefined) hit = L.filter((s) => Math.hypot(s.x - at.x, s.y - at.y) <= at.rad + s.r);

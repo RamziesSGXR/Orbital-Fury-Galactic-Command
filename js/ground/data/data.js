@@ -1,7 +1,7 @@
 import { CONFIG as C } from '../config.js';
 import { t } from '../i18n.js';
 
-// Faction traits. Blue is reserved for allies. Bugs are orange, bots red, squids purple.
+// Faction traits. Blue is reserved for allies. Bugs are orange, bots red, lizards purple.
 // sight = how far they notice allies (always shorter than ally sight). Attack ranges and damage live in
 // CONFIG.combat.atk, per faction and per size.
 // Names (name, full, baseName, heavy) come from the language tables: fac.<id>, fac.<id>.full, fac.<id>.base, kind.<id>.H.
@@ -27,8 +27,8 @@ export const attackProfile = (faction, kind) => C.combat.atk[faction][kind];
 
 // Allies. Hit points, armor (damage taken is multiplied by it) and rifle damage per second by enemy size.
 export const ALLY = {
-  H: { id: 'H', name: 'Helldiver', hp: C.combat.helldiver.hp, armor: C.combat.helldiver.armor, sight: C.sight.helldiver, r: 4,   ...pick(C.combat.helldiver) },
-  S: { id: 'S', name: 'SEAF',      hp: C.combat.seaf.hp,      armor: C.combat.seaf.armor,      sight: C.sight.seaf,      r: 2.6, ...pick(C.combat.seaf) },
+  H: { id: 'H', name: 'Vanguard', hp: C.combat.helldiver.hp, armor: C.combat.helldiver.armor, sight: C.sight.helldiver, r: 4,   ...pick(C.combat.helldiver) },
+  S: { id: 'S', name: 'Infantry',      hp: C.combat.seaf.hp,      armor: C.combat.seaf.armor,      sight: C.sight.seaf,      r: 2.6, ...pick(C.combat.seaf) },
 };
 function pick(o) { return { dps: o.dps, burst: o.burst, acc: o.acc, mult: o.mult, range: o.range }; }
 
@@ -41,7 +41,7 @@ export const BIOMES = {
   moon:   { id: 'moon',   speed: 1.15, ping: 1.0, splash: 1.2 },
   // (0.19) Mars: rust, dust and old craters. Only the last stand (sim/laststand.js) is fought there: not in the session's pool.
   mars:   { id: 'mars',   speed: 1.0,  ping: 1.1, splash: 1.1, pool: false },
-  // (0.53) the capital's outskirts: city blocks. The defence gun's ground (the campaign's finale, and some offers against squids)
+  // (0.53) the capital's outskirts: city blocks. The defence gun's ground (the campaign's finale, and some offers against lizards)
   city:   { id: 'city',   speed: 1.0,  ping: 0.9, splash: 1.0, pool: false },
 };
 for (const b of Object.values(BIOMES)) Object.defineProperty(b, 'name', { get: () => t(`biome.${b.id}`), enumerable: true });
@@ -50,7 +50,7 @@ for (const b of Object.values(BIOMES)) Object.defineProperty(b, 'name', { get: (
 export const NUKE = { id: 'nuke', get name() { return t('card.nuke.h'); }, delay: C.objective.nuke.delaySec, splash: C.objective.nuke.blastR };
 
 export const ADJECTIVES = ['Crimson', 'Steel', 'Righteous', 'Eternal', 'Mighty', 'Swift', 'Iron', 'Radiant', 'Unyielding', 'Vigilant', 'Glorious', 'Resolute'];
-export const NOUNS = ['Liberty', 'Democracy', 'Thunder', 'Hammer', 'Dawn', 'Resolve', 'Verdict', 'Harvest', 'Lance', 'Bastion', 'Fury', 'Anthem'];
+export const NOUNS = ['Victory', 'Brand', 'Thunder', 'Hammer', 'Dawn', 'Resolve', 'Verdict', 'Harvest', 'Lance', 'Bastion', 'Fury', 'Anthem'];
 
 // Radio lines (original to this project). The text lives in the language tables under c.<name>; these are the calls the sim makes.
 export const COMMS = {

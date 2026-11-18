@@ -1,8 +1,8 @@
-// (0.19) The tutorial: the last stand of the Super Earth Special Forces at their base on Mars, 20 May 2185, the day the Illuminate
-// Great Host razed the planet on its way to Super Earth. One mission that cannot be won. The base holds the last Pelicans off Mars:
-// personnel run from the shelter to the hangar (the evacuation objective, civilians.js) and every Pelican that lifts takes a load
+// (0.19) The tutorial: the last stand of the Head Office Special Forces at their base on Mars, 20 May 2185, the day the Talon
+// Great Host razed the planet on its way to Head Office. One mission that cannot be won. The base holds the last Dropships off Mars:
+// personnel run from the shelter to the hangar (the evacuation objective, civilians.js) and every Dropship that lifts takes a load
 // of them up to the fleet. The lessons (tutorial.js) come first, against small scripted groups; then the shelter opens and the
-// Great Host comes in waves that never stop, faster, bigger and stronger each time, until the last Helldiver falls. Then the fleet
+// Great Host comes in waves that never stop, faster, bigger and stronger each time, until the last Vanguard falls. Then the fleet
 // glasses the plain (a rain of beams across the map) and the mission ends 'glassed'. (0.53) It can be won: at winAt off Mars it is
 // MISSION COMPLETE, and the player fights on to the end or moves on (into the campaign, or to the main menu).
 import { CONFIG as C } from '../config.js';
@@ -22,7 +22,7 @@ const L = () => C.lastStand;
 const dryAt = (m, x, y) => m.terrain.isLand(x, y) && m.terrain.speedAt(x, y) > 0.9;
 
 // Right after the objectives are placed: the evacuation site becomes the base, in the middle of the area, and the landing zone
-// is moved next to it (the Helldivers drop at their own front door).
+// is moved next to it (the Vanguards drop at their own front door).
 export function placeBase(m) {
   const o = m.objectives.find((q) => q.type === 'evac');
   if (!o) return;
@@ -51,7 +51,7 @@ export function placeBase(m) {
 }
 
 // At the end of the setup: nothing else on the map (no bases, patrols, side missions, finds), the base's own defences, and the
-// clock. (0.53.6) No SEAF on the ground: the lessons have the player drop them, two Pelicans, and say what limits a drop.
+// clock. (0.53.6) No Infantry on the ground: the lessons have the player drop them, two Dropships, and say what limits a drop.
 export function setupLastStand(m) {
   const o = m.objectives.find((q) => q.lastStand);
   if (!o) return;
@@ -81,7 +81,7 @@ export function setupLastStand(m) {
   o.pop = K.personnel;
 }
 
-// A squad of SEAF already at its post (i: the squad, at x, y), holding it.
+// A squad of Infantry already at its post (i: the squad, at x, y), holding it.
 function posted(m, i, x, y) {
   const sq = m.seaf.squads[i], st = seafStats(m.kit);
   for (const role of rollRoles(m, L().squad, st)) { const a = m.addAlly('S', x + m.rng.range(-8, 8), y + m.rng.range(-8, 8), { role }); a.sq = sq.i; }
@@ -102,8 +102,8 @@ export function lsSpawn(m, kind, ang) {
   return g;
 }
 
-// (0.37) The Hellbomb lesson: the Great Host drops a cognitive disruptor near the base (off to the side, so the base itself is
-// not jammed). The Helldivers go for it as a side task; it only falls to a Hellbomb.
+// (0.37) The Demolition Charge lesson: the Great Host drops a cognitive disruptor near the base (off to the side, so the base itself is
+// not jammed). The Vanguards go for it as a side task; it only falls to a Demolition Charge.
 export function lsJammer(m) {
   const o = m.objectives.find((q) => q.lastStand);
   if (!o || m.over || m.lsJam) return m.lsJam || null;
@@ -117,7 +117,7 @@ export function lsJammer(m) {
   if (m.plan) m.plan.t = 0;       // (the squad looks at it now)
   return s;
 }
-// (0.37) The resupply lesson: a Helldiver asks for a supply pod now (they have run low on stims and grenades).
+// (0.37) The resupply lesson: a Vanguard asks for a supply pod now (they have run low on stims and grenades).
 export function lsSupply(m) {
   if (!m.hdAlive.length) return false;
   for (const a of m.hdAlive) { a.stims = Math.min(a.stims, 1); a.gren = 0; }
@@ -130,7 +130,7 @@ export function lsBegin(m) {
   if (!ls || !o || ls.stage !== 'lessons') return false;
   ls.stage = 'hold'; ls.holdT = 0;
   o.wait = false; o.state = 'run'; o.batchT = 1; o.open = false;
-  // (0.36.1; 0.53.6 both squads) the SEAF lessons were skipped: the shelter's and the hangar's squads are at their posts now, as
+  // (0.36.1; 0.53.6 both squads) the Infantry lessons were skipped: the shelter's and the hangar's squads are at their posts now, as
   // far as there is room under the cap
   const st = seafStats(m.kit);
   for (const [i, x, y] of [[0, o.sx, o.sy], [1, o.hx, o.hy]]) {
@@ -148,7 +148,7 @@ function glass(m, why) {
   ls.stage = 'glass'; ls.glassT = m.t; ls.fallen = why === 'fallen';
   m.hd.lives = 0;
   for (const p of m.pods) p.n = 0;
-  if (o && o.load > 0) { m.emit('shuttle', { x: o.hx, y: o.hy, n: o.load, ang: Math.atan2(o.hy - o.sy, o.hx - o.sx) }); ls.lifted++; o.load = 0; }   // the last Pelican
+  if (o && o.load > 0) { m.emit('shuttle', { x: o.hx, y: o.hy, n: o.load, ang: Math.atan2(o.hy - o.sy, o.hx - o.sx) }); ls.lifted++; o.load = 0; }   // the last Dropship
   m.radio(why === 'fallen' ? COMMS.lsFallen : COMMS.lsGlass, 'lsglass', 0);
   m.emit('ls_stage', { stage: 'glass', why });
   m.emit('glass', { x: o ? o.x : m.cx, y: o ? o.y : m.cy });
@@ -169,7 +169,7 @@ export function updateLastStand(m, dt) {
     // (0.40) at 100 off Mars (or once it turns overwhelming, if that comes first) Tharsis Control says it: they will not all get
     // off. The tutorial's card holds the game for it (tutorial.js), and it goes on the radio log (main.js).
     if (!ls.truth && (saved >= K.truthAt || ls.st === S.length - 1)) { ls.truth = true; m.emit('ls_stage', { stage: 'truth', saved }); }
-    // (0.53) the tutorial can be won: enough off Mars and it is MISSION COMPLETE (no extraction: the Helldivers stay). The player
+    // (0.53) the tutorial can be won: enough off Mars and it is MISSION COMPLETE (no extraction: the Vanguards stay). The player
     // picks: fight on to the end, or move on (main.js)
     if (!ls.complete && saved >= K.winAt) { ls.complete = true; ls.completeT = m.t; m.objDone = true; m.emit('ls_stage', { stage: 'complete', saved }); }
     const Q = S[ls.st || 0], over = ls.overAt !== undefined ? (ls.holdT - ls.overAt) / 60 : 0;
@@ -197,12 +197,12 @@ export function updateLastStand(m, dt) {
       }
     }
     if (!ls.broke && m.hd.lives <= K.breakAt) { ls.broke = true; m.radio(COMMS.lsBreaking, 'lsbreak', 0); m.emit('ls_stage', { stage: 'breaking' }); }
-    // the base falls with the last Helldiver (or the fleet stops waiting)
+    // the base falls with the last Vanguard (or the fleet stops waiting)
     const hdLeft = m.hdAlive.length || m.pendingPods('H') > 0 || m.hd.lives > 0;
     if (!hdLeft) glass(m, 'fallen');
     else if (ls.holdT >= K.maxHold) glass(m, 'time');
   } else if (ls.stage === 'lessons') {
-    // (no Helldivers left in the lessons either: straight to the glassing)
+    // (no Vanguards left in the lessons either: straight to the glassing)
     if (m.t > m.dropAt + 10 && !m.hdAlive.length && m.pendingPods('H') === 0 && m.hd.lives <= 0) { lsBegin(m); glass(m, 'fallen'); }
   }
   if (ls.stage === 'glass') {

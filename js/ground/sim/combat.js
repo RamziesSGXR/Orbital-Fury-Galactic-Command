@@ -31,8 +31,8 @@ export function hitMul(m, tgt, fx, fy, cs, pierce = false) {
   return k;
 }
 
-// (0.58) friendly fire. The armour class a blast's table is read for: an enemy's kind (a super heavy: H), an ally's (Helldivers
-// medium, SEAF light), anything else light.
+// (0.58) friendly fire. The armour class a blast's table is read for: an enemy's kind (a super heavy: H), an ally's (Vanguards
+// medium, Infantry light), anything else light.
 export const armorOf = (o) => (o.g !== undefined || o.kind === 'L' || o.kind === 'M' || o.kind === 'H' ? (o.boss ? 'H' : o.kind) : C.ff.allyArmor[o.type] || 'L');
 // The share of a hit on one's own side: half, unless it comes from right behind a unit and lands on it (a rocket in the back).
 export function ownMul(tgt, fx, fy, x = fx, y = fy) {
@@ -51,7 +51,7 @@ export function ffBlast(m, x, y, rad, dmg, mult, by, fx, fy) {
 }
 
 // ---------- enemies ----------
-// by: 'player' (the destroyer), 'squad' (rifles) or 'strat' (stratagems, turrets, vehicles, support weapons).
+// by: 'player' (the destroyer), 'squad' (rifles) or 'strat' (call-ins, turrets, vehicles, support weapons).
 // (fx, fy): where the hit comes from, for the back bonus. cs: whose crit chance (defaults to the attacker's side; '' for none).
 // Troops still under the dropship or warp ship that brought them cannot be hurt until it has pulled away (or they have walked out
 // from under it): the ship covers them.
@@ -65,8 +65,8 @@ export const revealed = (m, e) => e.revealUntil > m.t;
 export const locked = (m, e) => e.revealUntil > m.t && m.t - e.revealFrom >= C.reveal.lockSec;
 
 // A commander's jammer: the enemy jamming (x, y), if any. Nothing the destroyer or the squad calls down can land there.
-// (0.37) A jammer site (sides.js: the spore spewer, stratagem jammer or cognitive disruptor) does the same over its reach R, but the
-// ship gun's direct fire and SEAF's grenades still get through it (gun: true leaves the sites out).
+// (0.37) A jammer site (sides.js: the spore spewer, call-in jammer or cognitive disruptor) does the same over its reach R, but the
+// ship gun's direct fire and Infantry's grenades still get through it (gun: true leaves the sites out).
 export function jammedAt(m, x, y, pad = 0, gun = false) {
   for (const e of m.jammers || []) if (!e.dead && (e.x - x) ** 2 + (e.y - y) ** 2 <= (e.jamR + pad) ** 2) return e;
   if (!gun) for (const s of m.sides || []) if (s.kind === 'jammer' && !s.done && !s.failed && (s.x - x) ** 2 + (s.y - y) ** 2 <= (s.R + pad) ** 2) return s;
@@ -103,7 +103,7 @@ export function soakBubble(m, b, dmg) {
 
 // pierce: the hit goes through armour and shields (the Ultimatum's round).
 // armor: the share of the hit the body takes (a light round on a heavy: very little). (0.26) Shields do not care about armour:
-// a harvester's bubble, a squid heavy's or the Colossus's own shield soak the hit at full strength (light penetration strips them
+// a harvester's bubble, a lizard heavy's or the Colossus's own shield soak the hit at full strength (light penetration strips them
 // as well as anything), and only what gets through meets the armour.
 export function hurtEnemy(m, e, dmg, by, fx, fy, cs, pierce = false, armor = 1) {
   if (e.dead || !(dmg > 0)) return 0;
@@ -116,7 +116,7 @@ export function hurtEnemy(m, e, dmg, by, fx, fy, cs, pierce = false, armor = 1) 
   }
   const k = hitMul(m, e, fx, fy, cs === undefined ? (by === 'player' ? 'player' : 'ally') : cs, pierce);
   dmg *= k * (e.soak && !pierce ? e.soak : 1);     // the fleshmob takes only part of every hit
-  if (e.shield > 0 && !pierce) {         // a shield (a squid heavy, the Warp Colossus) soaks up damage first, at full strength
+  if (e.shield > 0 && !pierce) {         // a shield (a lizard heavy, the Warp Colossus) soaks up damage first, at full strength
     const soak = Math.min(e.shield, dmg);
     e.shield -= soak; e.shieldAt = m.t; dmg -= soak;
     const bd = m.stats.bossDmg || (m.stats.bossDmg = {}); bd.shield = (bd.shield || 0) + soak;
@@ -136,7 +136,7 @@ export function hurtEnemy(m, e, dmg, by, fx, fy, cs, pierce = false, armor = 1) 
 }
 
 // Damage everything in a circle. mult is the per-size multiplier table (L, M, H, B for bases).
-// friendly: also hurts allies (the destroyer does, stratagems do not). The blast comes from its centre (for the back bonus).
+// friendly: also hurts allies (the destroyer does, call-ins do not). The blast comes from its centre (for the back bonus).
 // cs: crit side ('' for none). Civilians on an evacuation are hurt by friendly blasts too.
 // (fx, fy): where the blow comes from, when that is not the centre (a shell fired by someone standing there).
 export function damageArea(m, x, y, rad, dmg, mult, by = 'player', friendly = true, cs, fx = x, fy = y) {
@@ -166,7 +166,7 @@ export function damageArea(m, x, y, rad, dmg, mult, by = 'player', friendly = tr
   if (rad >= 2.5) damageRock(m, x, y, rad, dmg * Math.max(mult.B ?? 0.3, 0.3));     // (0.59) a big rock in it takes the hit, and may break up
   for (const d of m.drops) if (!d.dead && d.hp > 0 && d.low && Math.hypot(d.x - x, d.y - y) <= rad + d.r) m.damageDrop(d, dmg * (mult.H ?? 1), by);
   // (0.58) every blast hurts everyone in it: an enemy's (by 'enemy') at full strength, one from the allies' own side (the player,
-  // the squad, a stratagem) at the friendly-fire share against each ally's armour. friendly 'none': a few that never touch allies
+  // the squad, a call-in) at the friendly-fire share against each ally's armour. friendly 'none': a few that never touch allies
   // (a pod landing, a ship coming down).
   if (friendly !== 'none') {
     if (by === 'enemy') {
@@ -198,9 +198,9 @@ function absorb(m, x, y, dmg) {
   return dmg;
 }
 
-// A Helldiver dodges an incoming enemy attack now and then: a quick dive sideways, and that hit does nothing. It has to be a real
+// A Vanguard dodges an incoming enemy attack now and then: a quick dive sideways, and that hit does nothing. It has to be a real
 // hit (not a nibble), and the dodge has to have come round again. Friendly fire and falling pods cannot be dodged.
-// SEAF troopers dodge too, far less often. A UAV overhead adds to either chance (its threat-warning upgrade adds more).
+// Infantry troopers dodge too, far less often. A UAV overhead adds to either chance (its threat-warning upgrade adds more).
 function tryDodge(m, a, dmg) {
   const H = a.type === 'H', D = C.hd.dodge, SD = C.hd.seafDodge, t = m.t;
   if (a.mounted || (a.mech && a.mech.hp > 0) || t < (a.dodgeAt || 0) || dmg < D.minHit) return false;
@@ -209,7 +209,7 @@ function tryDodge(m, a, dmg) {
   a.dodgeAt = t + (H ? D.cool : SD.cool) * (0.8 + 0.4 * m.rng.next());
   const e = m.eGrid.nearest(a.x, a.y, 60);
   const ang = (e ? Math.atan2(e.y - a.y, e.x - a.x) : m.rng.angle()) + (m.rng.next() < 0.5 ? 1 : -1) * Math.PI / 2;
-  if (H) a.dv = { vx: Math.cos(ang) * D.dist / D.sec, vy: Math.sin(ang) * D.dist / D.sec, until: t + D.sec };   // a Helldiver dives aside
+  if (H) a.dv = { vx: Math.cos(ang) * D.dist / D.sec, vy: Math.sin(ang) * D.dist / D.sec, until: t + D.sec };   // a Vanguard dives aside
   a.diveAt = t;
   m.stats.dodges = (m.stats.dodges || 0) + 1;
   m.emit('dodge', { id: a.id, x: a.x, y: a.y, ang });
@@ -233,11 +233,11 @@ export function hurtAlly(m, a, rawDmg, by, raw = false, src = null, fx, fy) {
   }
   let dmg = absorb(m, a.x, a.y, rawDmg * (raw ? 1 : ALLY[a.type].armor * (a.armorMul || 1)));
   if (dmg <= 0) return;
-  if (a.type === 'H' && by === 'enemy' && !raw) dmg = Math.min(dmg, a.maxHp * C.hd.maxHit);     // nothing kills a healthy Helldiver in one hit
+  if (a.type === 'H' && by === 'enemy' && !raw) dmg = Math.min(dmg, a.maxHp * C.hd.maxHit);     // nothing kills a healthy Vanguard in one hit
   a.hp -= dmg;
   if (a.hp <= 0) {
     const who = by === 'player' ? 'player' : 'enemy';
-    // (0.26) a SEAF trooper with a Medic in reach goes down instead (seaf.js); hit again while down, he is gone
+    // (0.26) an Infantry trooper with a Medic in reach goes down instead (seaf.js); hit again while down, he is gone
     if (a.type === 'S' && !a.down && medicNear(m, a)) { goDown(m, a, who, a.lastSrc); return; }
     if (a.down) a.down = null;
     m.killAlly(a, who, a.lastSrc);
@@ -257,7 +257,7 @@ export function hurtTarget(m, tgt, dmg, by, src = null, fx, fy) {
   else if (tgt.kind) hurtAsset(m, tgt, dmg); else hurtAlly(m, tgt, dmg, by, false, src, fx, fy);
 }
 
-// Nearest thing an enemy can shoot: an ally on foot, a placed asset (not mounted Helldivers, not mines), or a civilian on an
+// Nearest thing an enemy can shoot: an ally on foot, a placed asset (not mounted Vanguards, not mines), or a civilian on an
 // evacuation.
 export function nearestTarget(m, x, y, r) {
   let best = m.aGrid.nearest(x, y, r), bd = best ? (best.x - x) ** 2 + (best.y - y) ** 2 : r * r;

@@ -6,7 +6,7 @@
 // The sky is a skybox: it moves with the camera, so stars, sun and moons never slide about when you pan or zoom.
 import * as THREE from './vendor/three.js';
 import { C } from './config.js';
-import { buildPart, buildShip, buildRoom, buildSuit, buildFigure, buildRaider, buildEagle, FIGURES, SLOTS, WALK, partPath, wayPoint, onWalk, slotSpot, doorSide, sillY, liftR, FL, LIFT_R } from './parts.js';
+import { buildPart, buildShip, buildRoom, buildSuit, buildFigure, buildRaider, buildStriker, FIGURES, SLOTS, WALK, partPath, wayPoint, onWalk, slotSpot, doorSide, sillY, liftR, FL, LIFT_R } from './parts.js';
 import { paintWorld, WORLDS, WORLD_TYPES } from './planets.js';
 import { RNG } from './rng.js';
 import { drawLogo, ensureLogo } from './logo.js';
@@ -64,7 +64,7 @@ const STAND = { resident: ['quarters', 'bunks', 'mess', 'bar', 'lounge', 'market
 const KEEP_OUT = new Set(['empty', 'magazine', 'ordnance']);
 // Where each platform part fires or launches from, in its own frame.
 const MUZZLE = { gunmount: [1.9, -3.2, 0], battery: [2.5, -4.7, 0], lance: [3.2, -7.8, 0], dronebay: [1.7, -1.2, 0], relay: [1.2, -1.2, 0], eaglehangar: [7.4, -0.6, 0], pelicanbay: [8.4, -0.8, 0], hangar: [8.4, -0.8, 0], fabshop: [2.9, -1.4, 0], barracks: [2.6, -1, 0] };
-const SLOGANS = ['LIBERTY', 'SUPER EARTH', 'REPORT FOR\nGRATITUDE', 'A HAPPY STATION IS\nA COMPLIANT STATION', 'DEMOCRACY\nNEVER SLEEPS', 'HAVE YOU PAID YOUR\nLIBERTY CONTRIBUTION?'];
+const SLOGANS = ['VICTORY', 'HEAD OFFICE', 'REPORT FOR\nGRATITUDE', 'A HAPPY STATION IS\nA COMPLIANT STATION', 'BRAND\nNEVER SLEEPS', 'HAVE YOU PAID YOUR\nVICTORY CONTRIBUTION?'];
 
 export class View {
   constructor(canvas, st) {
@@ -266,7 +266,7 @@ export class View {
     c.fillStyle = L.accent; c.fillRect(0, 0, W, H);
     c.strokeStyle = L.trim; c.lineWidth = 8; c.strokeRect(10, 10, W - 20, H - 20);
     c.fillStyle = L.trim; c.strokeStyle = L.trim; c.lineJoin = 'round';
-    const name = (L.name || 'SUPER EARTH').toUpperCase().slice(0, 18), cx = 128, cy = 128;
+    const name = (L.name || 'HEAD OFFICE').toUpperCase().slice(0, 18), cx = 128, cy = 128;
     c.save(); c.translate(L.emblem === 'none' ? -400 : cx, cy);
     if (L.emblem === 'crest') { if (this.faction) drawLogo(c, this.faction.logo, -104, -104, 208); }
     else if (L.emblem === 'wings') { for (const s of [1, -1]) { c.beginPath(); c.moveTo(s * 12, -6); c.lineTo(s * 92, -52); c.lineTo(s * 70, -16); c.lineTo(s * 86, -14); c.lineTo(s * 58, 14); c.lineTo(s * 70, 16); c.lineTo(s * 12, 44); c.closePath(); c.fill(); } c.beginPath(); c.moveTo(0, -64); c.lineTo(20, 0); c.lineTo(0, 70); c.lineTo(-20, 0); c.closePath(); c.fill(); }
@@ -1105,7 +1105,7 @@ export class View {
     if (e.sys === 'gun') { for (let i = 0; i < 6; i++) beam(0.05, 6, 0xffd98a, 0.5, i * 0.12, 260); flash(0.35, 0xffd98a); }
     else if (e.sys === 'orbital') { beam(0.16, 14, 0xfff0c0, 0.9, 0, 200); flash(0.9, 0xffe0a0); }
     else if (e.sys === 'classified') { beam(0.5, 900, 0x9fe8ff, 1.8); beam(0.18, 900, 0xffffff, 1.8); flash(1.6, 0x9fe8ff); }
-    else if (e.sys === 'eagle') craft(buildEagle(), 6);
+    else if (e.sys === 'eagle') craft(buildStriker(), 6);
     else if (e.sys === 'seaf') { const s = buildShip('shuttle'); s.scale.setScalar(C.shipScale.shuttle); craft(s, 7); }
     else if (e.sys === 'uav') { const g = new THREE.Group(), c = new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.7, 4).rotateZ(-Math.PI / 2)); c.userData.role = 'hull'; const w = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.02, 0.9)); w.userData.role = 'hull'; g.add(c, w); craft(g, 6); }
     else { const g = new THREE.Group(), c = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5)); c.userData.role = 'pod'; g.add(c); craft(g, 6); }
@@ -1431,12 +1431,12 @@ function fitText(c, text, w, h, max, min, weight, family) {
 // One programme's picture: a header bar with the channel and the station's name, the message fitted in the middle, a footer.
 function drawScreen(cv, prog, msg, st, liv, k, fac) {
   const c = cv.getContext('2d'), W = cv.width, H = cv.height, Y = '#ffe600', F = 'ui-sans-serif, "Helvetica Neue", Arial, sans-serif';
-  const head = { slogans: 'MINISTRY OF TRUTH', news: 'WAR NEWS · LIVE', recruit: 'ENLIST · SEAF', station: 'STATION BULLETIN', own: 'COMMANDER’S NOTICE' }[prog];
+  const head = { slogans: 'PUBLICITY OFFICE', news: 'WAR NEWS · LIVE', recruit: 'ENLIST · INFANTRY', station: 'STATION BULLETIN', own: 'COMMANDER’S NOTICE' }[prog];
   const bg = c.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, prog === 'recruit' ? '#2a0606' : '#06090c'); bg.addColorStop(1, prog === 'recruit' ? '#0d0202' : '#020305');
   c.fillStyle = bg; c.fillRect(0, 0, W, H);
   c.fillStyle = Y; c.fillRect(0, 0, W, 54); c.fillStyle = '#111'; c.textBaseline = 'middle'; c.textAlign = 'left'; c.font = `700 26px ${F}`; c.fillText(head, fac ? 70 : 28, 28);
   if (fac) { c.save(); drawLogo(c, fac.logo, 20, 4, 46); c.restore(); }
-  c.textAlign = 'right'; c.font = `600 22px ${F}`; c.fillText(String((liv && liv.name) || 'SUPER EARTH').toUpperCase().slice(0, 26), W - 28, 28);
+  c.textAlign = 'right'; c.font = `600 22px ${F}`; c.fillText(String((liv && liv.name) || 'HEAD OFFICE').toUpperCase().slice(0, 26), W - 28, 28);
   c.textAlign = 'center';
   if (prog === 'station') {
     const nm = String((liv && liv.name) || 'Orbital Station').toUpperCase(), [l1, f1] = fitText(c, nm, W - (fac ? 300 : 120), 150, 76, 30, 800, F), tx = fac ? W / 2 + 80 : W / 2;
@@ -1450,7 +1450,7 @@ function drawScreen(cv, prog, msg, st, liv, k, fac) {
     const mid = 54 + (H - 54 - 40) / 2; lines.forEach((l, i) => c.fillText(l, W / 2, mid + (i - (lines.length - 1) / 2) * fs * 1.12));
   }
   c.fillStyle = 'rgba(255,230,0,0.85)'; c.fillRect(28, H - 34, W - 56, 3);
-  c.fillStyle = '#9fb0a8'; c.font = `600 17px ${F}`; c.textAlign = 'left'; c.fillText(prog === 'news' ? 'REPORTED BY THE MINISTRY OF TRUTH' : prog === 'recruit' ? 'SEE A DEMOCRACY OFFICER' : fac ? String(fac.motto || 'For Super Earth.').toUpperCase().slice(0, 48) : 'FOR SUPER EARTH', 28, H - 15);
+  c.fillStyle = '#9fb0a8'; c.font = `600 17px ${F}`; c.textAlign = 'left'; c.fillText(prog === 'news' ? 'REPORTED BY THE PUBLICITY OFFICE' : prog === 'recruit' ? 'SEE A BRAND OFFICER' : fac ? String(fac.motto || 'For Head Office.').toUpperCase().slice(0, 48) : 'FOR HEAD OFFICE', 28, H - 15);
   c.textAlign = 'right'; c.fillText(`WEEK ${st.week()} · DAY ${st.dow()}`, W - 28, H - 15);
   c.fillStyle = 'rgba(0,0,0,0.18)'; for (let y = 0; y < H; y += 3) c.fillRect(0, y, W, 1);
   void k;

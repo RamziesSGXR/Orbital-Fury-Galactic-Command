@@ -1,4 +1,4 @@
-// Raids, kept gentle (this is a relaxed base builder, not a defence game): something out there probes the wire. Threat builds each day; when a raid forms, the Ministry of Intelligence
+// Raids, kept gentle (this is a relaxed base builder, not a defence game): something out there probes the wire. Threat builds each day; when a raid forms, the Intelligence Office
 // warns as well as the base can listen (nothing, a lookout, a comms array), and at its hour the wall, the gates, the
 // guns and whoever is fit to fight decide how it goes.
 import { C, B } from './config.js';

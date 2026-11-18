@@ -1,4 +1,4 @@
-// Points of interest (random targets SEAF can take out for credits) and enemy breaches (temporary spawn points
+// Points of interest (random targets Infantry can take out for credits) and enemy breaches (temporary spawn points
 // the enemy opens when it calls for support). Both are soft targets that anyone can shoot and any real explosion hurts.
 import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
@@ -183,7 +183,7 @@ export function softNear(m, x, y, r) {
 }
 
 // A base or the citadel whose edge is within r of a point. Allies shoot these when nothing else needs shooting.
-// (0.53.4) Not the citadel's keep while it only falls to a Hellbomb: shot at for nothing, it held the squad standing by it, firing,
+// (0.53.4) Not the citadel's keep while it only falls to a Demolition Charge: shot at for nothing, it held the squad standing by it, firing,
 // while the base it had come for stood a little further off. prefer: the base the squad is after, when it is in reach.
 export function baseNear(m, x, y, r, prefer = null) {
   if (prefer && !prefer.destroyed && !prefer.bombOnly && Math.hypot(prefer.x - x, prefer.y - y) - prefer.r <= r) return prefer;
@@ -196,7 +196,7 @@ export function baseNear(m, x, y, r, prefer = null) {
   return best;
 }
 
-// What SEAF should clear next: breaches first, then points of interest, then bases. Distance is measured from (x, y)
+// What Infantry should clear next: breaches first, then points of interest, then bases. Distance is measured from (x, y)
 // and weighted so a breach beats a POI that is a bit closer. Anything in skip (id -> until) is passed over.
 export function nearestObjective(m, x, y, skip) {
   let best = null, bs = Infinity;

@@ -1,5 +1,5 @@
 // THE GROUND: a battle of the war fought on the planet, with fire support from orbit. This is Orbital Fury whole: its
-// armoury, briefing, mission (tactical panel, squads, building, supply pod, Hellbomb, the planning pause, the map) and its
+// armoury, briefing, mission (tactical panel, squads, building, supply pod, Demolition Charge, the planning pause, the map) and its
 // debrief, running in its own page (ground.html) inside the theatre. This file hands it the fight the war room chose
 // (`window.gcGround`) and takes the result back. The campaign's armoury and credits are the very objects it plays with.
 import { C as GC } from '../galaxy/config.js';

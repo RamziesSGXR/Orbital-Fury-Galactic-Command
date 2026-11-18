@@ -31,8 +31,8 @@ export class Game {
     this.fleets = []; this.fid = 0;
     this._put('fed', 0, C.start.fleets[0]);
     C.fronts.forEach((fr, fi) => { const p = this.P.filter(q => q.front === fi && q.ring === 2).sort((a, b) => a.id - b.id)[1]; this._put('fed', p.id, C.start.fleets[fi + 1]); });
-    this.policy = 'balanced';        // Ministry of Humanity
-    this.priority = null;            // Ministry of Employment: the priority front, 0 to 2
+    this.policy = 'balanced';        // Personnel Office
+    this.priority = null;            // Casting Office: the priority front, 0 to 2
     this.capHit = [];                // enemies that have struck the capital this round
     this.battle = null;              // the battle being fought, if any
     this.moves = [];                 // fleet moves just made, for the screen to animate: { owner, from, to, ships }
@@ -42,7 +42,7 @@ export class Game {
     for (const p of this.P) { p.station = 0; p.base = 0; p.dmg = 0; p.sp = 0; p.bp = 0; }
     this.up = {}; this.due = 0;      // armoury upgrades bought; credits owed to the war chest
     if (saved) return this._restore(saved);
-    this.say('info', `Every world on the map flies the ${N.fed} flag. Long may it last.`);
+    this.say('info', `Every world on the map carries the ${N.fed} brand. Long may it sell.`);
     this._arrivals(); this._startRound();
   }
 
@@ -155,7 +155,7 @@ export class Game {
   _truth(owner, id, why) {
     if (this.truth[owner].length >= C.truthMax) return;
     this.truth[owner].push(id);
-    this.say(owner === 'fed' ? 'good' : 'warn', `Ministry of Truth: ${owner === 'fed' ? 'you gain' : N.factions[owner] + ' gains'} ${C.bcards[id].name} (${why}).`);
+    this.say(owner === 'fed' ? 'good' : 'warn', `Publicity Office: ${owner === 'fed' ? 'you gain' : N.factions[owner] + ' gains'} ${C.bcards[id].name} (${why}).`);
   }
 
   // ---------- your decision on a front ----------
@@ -223,7 +223,7 @@ export class Game {
   // HOLD: do nothing on this front this round.
   hold() { if (!this.ready()) return false; this._afterYou(); return true; }
 
-  // ---------- the ministries (free: they do not use up your decision) ----------
+  // ---------- the offices (free: they do not use up your decision) ----------
   trade(from, to) {
     if (!this.ready() || from === to || !this.canPay({ [from]: C.trade.give })) return false;
     this.res[from] -= C.trade.give; this.res[to] = Math.min(this.resMax(), this.res[to] + C.trade.get); return true;
@@ -299,7 +299,7 @@ export class Game {
   _arrivals() {
     for (const f of C.factions) {
       const F = this.F[f], c = C.enemy[f], fr = C.fronts[F.front];
-      if (F.state === 'wait' && this.round >= F.at - C.warn) { F.state = 'warn'; this.say('warn', `Ministry of Intelligence: hostile signals near ${N.homes[f]}, on the ${fr.name.toLowerCase()}. Expected in ${Math.max(1, F.at - this.round)} round(s).`); }
+      if (F.state === 'wait' && this.round >= F.at - C.warn) { F.state = 'warn'; this.say('warn', `Intelligence Office: hostile signals near ${N.homes[f]}, on the ${fr.name.toLowerCase()}. Expected in ${Math.max(1, F.at - this.round)} round(s).`); }
       if (F.state === 'warn' && this.round >= F.at) {
         F.state = 'active'; F.arrived = this.round;
         // They burst in: the home and the systems beside it on its front fall at once.

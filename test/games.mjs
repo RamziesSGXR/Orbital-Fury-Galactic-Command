@@ -7,7 +7,7 @@ const fin = (name, v) => { if (!Number.isFinite(v)) bad.push(`${name} is ${v}`);
 if (which === 'all' || which === 'ground') {
   const { Mission } = await import('../js/ground/sim/mission.js');
   const { makeBot, botStep } = await import('../js/ground/sim/bot.js');
-  const { hbFilling, tapHellbomb } = await import('../js/ground/sim/ops.js');
+  const { hbFilling, tapDemoCharge } = await import('../js/ground/sim/ops.js');
   const { newKit, newWallet } = await import('../js/ground/data/kit.js');
   const out = {};
   for (const faction of ['bugs', 'bots', 'squids']) for (const obj of ['fortress', 'nuke', 'evac', 'vip']) {
@@ -15,7 +15,7 @@ if (which === 'all' || which === 'ground') {
     const m = new Mission({ seed: 100 + faction.length * 7 + obj.length, faction, biome: 'desert', sessionMinutes: 0, events: true, missionN: 1, opDone: 0, difficulty: 3, objectives: [obj], kit, wallet, countdown: 0, defenders: true });
     m.guard = true; m.onFault = (part, err) => { faults++; if (faults === 1) bad.push(`ground ${faction}/${obj}: fault in ${part}: ${err && err.message}`); };
     const bot = makeBot(); let i = 0;
-    try { for (; i < 30 * 2400 && !m.over; i++) { botStep(m, bot); if (hbFilling(m) && i % 8 === 0) tapHellbomb(m, -1); m.step(1 / 30); m.events.length = 0; } }
+    try { for (; i < 30 * 2400 && !m.over; i++) { botStep(m, bot); if (hbFilling(m) && i % 8 === 0) tapDemoCharge(m, -1); m.step(1 / 30); m.events.length = 0; } }
     catch (err) { bad.push(`ground ${faction}/${obj}: threw at ${Math.round(m.t)} s: ${err.message}`); }
     if (!m.over) bad.push(`ground ${faction}/${obj}: not over after ${Math.round(m.t)} s`);
     for (const a of m.alive) { fin(`ground ${faction}/${obj} unit x`, a.x); fin(`ground ${faction}/${obj} unit y`, a.y); }

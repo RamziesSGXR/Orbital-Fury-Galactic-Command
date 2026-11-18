@@ -1,5 +1,5 @@
 // The fire support platform: the part of the station that does the job the gunner calls on in Orbital Fury.
-// You build it; you never fire it. Each SYSTEM (ship gun, orbital strikes, UAV, Eagles, SEAF, buildables, Classified) has a
+// You build it; you never fire it. Each SYSTEM (ship gun, orbital strikes, UAV, Strikers, Infantry, buildables, Classified) has a
 // readiness figure made by the station's people: is it built, is it working, is it crewed, has it got shells.
 // Calls come up from the war below. A ready system answers them and nobody tells you. One it cannot answer is news.
 import { C } from './config.js';
@@ -36,10 +36,10 @@ export function installPlatform(Station) {
       if (!this.platformN) return { t: 25, why: 'The station has no gun on it. It is here to support the troops below.' };
       const P = this.platform(), log = this.callLog || [], miss = log.length ? log.filter((x) => !x).length / log.length : 0;
       const worst = P.sys.filter((s) => s.open && s.n && s.why).sort((a, b) => a.ready - b.ready)[0], gap = P.sys.find((s) => s.open && !s.n);
-      const why = worst ? `${worst.name}: ${worst.why.toLowerCase()}.` : gap ? `The Ministry expects ${gap.name.toLowerCase()} and there is nothing built for it.` : miss > 0.3 ? 'Too many calls from the ground go unanswered.' : 'The platform is answering its calls.';
+      const why = worst ? `${worst.name}: ${worst.why.toLowerCase()}.` : gap ? `The Head Office expects ${gap.name.toLowerCase()} and there is nothing built for it.` : miss > 0.3 ? 'Too many calls from the ground go unanswered.' : 'The platform is answering its calls.';
       return { t: Math.max(5, Math.min(100, 30 + 65 * P.ready - miss * 20)), why };
     },
-    // The war below: every so often a squad calls for something. Only systems the Ministry expects of this station are asked for.
+    // The war below: every so often a squad calls for something. Only systems the Head Office expects of this station are asked for.
     _platform(dt) {
       const P = C.platform;
       if (this.timers.call === undefined) { this.timers.call = P.firstSec; this.callLog = []; this.missSaid = -999; }

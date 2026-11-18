@@ -1,4 +1,4 @@
-// What the Helldivers do next. They take the nearest side task that lies roughly on their way to the main objective (a side mission
+// What the Vanguards do next. They take the nearest side task that lies roughly on their way to the main objective (a side mission
 // or an enemy base), then the main objective. Once it is done, with more than clearLives lives in hand:
 //   (0.53.7) most missions (clearChance, the mission's own roll) they are set on a full clear: every base and side mission left,
 //            nearest first, and they go on with it when the clock will not cover it. A mission that times out once its objective
@@ -41,7 +41,7 @@ function work(m, k) {
 const pace = (m) => C.squad.speed * m.biome.speed * PL().pace;      // metres a second, fights included
 const travel = (m, d) => d / pace(m);
 // (0.62.15) How far the squad walks from a to b: straight across when the way is dry, else the route round the water it would steer
-// by. Measured straight, a task across a lake or river looked close and on the way: on the first Squid mission a propaganda tower
+// by. Measured straight, a task across a lake or river looked close and on the way: on the first Lizard mission a propaganda tower
 // 570 m off was a 2 km walk round by the map's edge, and the squad set out for it. A plan is made in one go, so these searches are
 // not held to the few a tick that movers get; each answer is kept for a while (m.plan.wk) as most of them come up again next time.
 // (0.62.17) strict: Infinity where there is no way at all (else the straight line, as before)
@@ -75,7 +75,7 @@ function mainPoint(m) {
   if (!g) return null;
   return g.base ? { x: g.base.x, y: g.base.y } : { x: g.x, y: g.y };
 }
-// Time needed to get out from point p: walk to the pad, call, wait for the pelican.
+// Time needed to get out from point p: walk to the pad, call, wait for the dropship.
 const extractTime = (m, p) => travel(m, walkDist(m, p, m.extraction)) + C.extract.callSec + PL().extractPad;
 
 // Can the squad leave a main objective that is under way? Not once it is holding, carrying or running it.
@@ -220,7 +220,7 @@ export function threatNow(m) {
   }
   return w ? { w, x: x / w, y: y / w } : { w: 0, x: sq.ax, y: sq.ay };
 }
-// Helldivers lost near the squad since it last broke off (inside deathSec), and where they fell.
+// Vanguards lost near the squad since it last broke off (inside deathSec), and where they fell.
 function recentDeaths(m) {
   const B = PL().breakOff, sq = m.squad, since = Math.max(m.t - B.deathSec, m.plan.breakAt);
   const L = (m.deaths || []).filter((d) => d.type === 'H' && d.t > since && Math.hypot(d.x - sq.ax, d.y - sq.ay) <= B.deathR);
@@ -228,7 +228,7 @@ function recentDeaths(m) {
   return { n: L.length, x: L.reduce((s, d) => s + d.x, 0) / L.length, y: L.reduce((s, d) => s + d.y, 0) / L.length };
 }
 // Can the squad pull out of what it is doing now? Not while it holds a site, carries the VIP, runs an evacuation or works a
-// Hellbomb, nor in the tutorial's last stand, nor on its way out.
+// Demolition Charge, nor in the tutorial's last stand, nor on its way out.
 function canBreak(m) {
   if (m.ls || m.over || m.phase === 'extract' || !m.hdAlive.length) return false;
   if (m.phase === 'objective' && mainBusy(m)) return false;
@@ -237,7 +237,7 @@ function canBreak(m) {
   return m.t - m.plan.breakAt >= PL().breakOff.cool;
 }
 // The open side task best placed away from the trouble at D: at least sideR from it, within reach of the squad, and with the
-// time to do it and still get the job done and out. Only the quiet ones (a radio tower, pinned SEAF, an abandoned cannon): a squad
+// time to do it and still get the job done and out. Only the quiet ones (a radio tower, pinned Infantry, an abandoned cannon): a squad
 // that has just been bled is not sent to storm a base or a broadcast tower instead.
 const QUIET = new Set(['radio', 'rescue', 'arty']);
 function sideAway(m, D) {
@@ -256,7 +256,7 @@ function sideAway(m, D) {
   return best;
 }
 // The safest spot about fallD metres from the squad, away from D: few enemies round it, on dry ground, well inside the map, and
-// better still with SEAF or something built to hold there (cover, and more guns).
+// better still with Infantry or something built to hold there (cover, and more guns).
 export function fallPoint(m, D, R = PL().breakOff.fallD) {
   const sq = m.squad, A = m.ao, AR = A.R || A.size / 2, E = C.wipe.edge;
   let best = null, bs = -Infinity;
@@ -377,7 +377,7 @@ export function updatePlan(m, dt) {
   const stale = !cur || (cur.kind === 'main' ? (cur.ref.done || activeObjective(m) !== cur.ref) : !taskOpen(cur) || (m.phase === 'objective' && mainBusy(m)));
   // a full clear is called off as soon as the lives run down to clearLives: the squad breaks off and goes for extraction
   const abort = m.phase === 'clear' && !!cur && m.hd.lives <= PL().clearLives;
-  // (0.37) a Hellbomb under way for a side objective: that is the task (even if they were passing it on the way somewhere else),
+  // (0.37) a Demolition Charge under way for a side objective: that is the task (even if they were passing it on the way somewhere else),
   // and nobody leaves it until it has gone off (or been called off)
   const hb = m.hellbomb;
   if (hb && hb.o && hb.o.side && ['fill', 'inbound', 'landed', 'armed'].includes(hb.state)) {
@@ -421,7 +421,7 @@ export function planGoal(m) {
   const k = m.plan && m.plan.task;
   if (!k || !taskOpen(k)) return null;
   if (k.kind === 'base') return { base: k.ref };
-  const hg = hellbombGoal(m, k.ref);       // (0.37) a Hellbomb for it: at the bomb to arm it, then well clear
+  const hg = hellbombGoal(m, k.ref);       // (0.37) a Demolition Charge for it: at the bomb to arm it, then well clear
   if (hg) return { ...hg, side: k.ref };
   if (k.kind === 'jammer') return { x: k.x, y: k.y, stop: 14, side: k.ref };
   if (k.kind === 'propaganda' || k.kind === 'spore') return { x: k.x, y: k.y, stop: 20, side: k.ref };

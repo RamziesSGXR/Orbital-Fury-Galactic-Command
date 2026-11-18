@@ -1,4 +1,4 @@
-// (0.24) The campaign, told by Super Earth Special Forces command (0.53: Operation Sweet Liberty; it was Operation Freedom Vista
+// (0.24) The campaign, told by Head Office Special Forces command (0.53: Operation Sweet Victory; it was Operation Freedom Vista
 // on Fronteria, five chapters). Every chapter is a set mission
 // (the enemy, the ground, the map, the hour and the objective) with a briefing before it and a debrief after it, played like the
 // tutorial's cinematics, and the cast on the radio during it. A chapter starts a session; the chapters after it are that session's
@@ -13,16 +13,16 @@ export const CAST = {
   mota: { name: 'MOTA', unit: 'cast.u.mota', tag: 'MOTA', col: '#c9b8ff' },
   // (0.28) the tutorial's voices on the command radio: Base Tharsis, Mars
   tharsis: { name: 'THARSIS CONTROL', unit: 'cast.u.tharsis', tag: 'THARSIS', col: '#ffd24a' },
-  pelican: { name: 'PELICAN LEAD', unit: 'cast.u.pelican', tag: 'PELICAN', col: '#9fd3ff' },
-  sarge: { name: 'SEAF SERGEANT', unit: 'cast.u.sarge', tag: 'SEAF SGT', col: '#7dffb0' },
+  pelican: { name: 'DROPSHIP LEAD', unit: 'cast.u.pelican', tag: 'DROPSHIP', col: '#9fd3ff' },
+  sarge: { name: 'INFANTRY SERGEANT', unit: 'cast.u.sarge', tag: 'INFANTRY SGT', col: '#7dffb0' },
 };
 export const CAST_ORDER = ['ramzies', 'ktl', 'rudolph', 'neonboot', 'mota'];
 
 // Each chapter: play (the mission), brief / win / lose (who says each line of the cinematic, in order; the text is
 // cp.<id>.c<n>.<part><k> in the language files), and night for a scene on the planet's dark side.
-// (0.53) Operation Sweet Liberty: the Illuminate close in on Super Earth, and the one answer is a planetary defence gun on the
+// (0.53) Operation Sweet Victory: the Talon close in on Head Office, and the one answer is a planetary defence gun on the
 // outskirts of the capital. Ten chapters in three arcs and a finale, each arc on one world (named by its ground, not by name):
-// E-710 fuel from the bugs on the dunes, scrap parts from the bots on the glaciers, and the squids' vanguard broken in the jungle
+// Biofuel fuel from the bugs on the dunes, scrap parts from the bots on the glaciers, and the squids' vanguard broken in the jungle
 // on the road to the capital; then the gun is held in the capital while it brings down the mothership. The tutorial teaches the
 // basics, so the chapters teach only what is new in them (teach).
 const B5 = ['ramzies', 'ktl', 'neonboot', 'mota', 'ramzies'], W3 = ['rudolph', 'neonboot', 'ramzies'], L2 = ['rudolph', 'ramzies'];

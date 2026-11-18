@@ -1,7 +1,7 @@
 // Landing sites. Every planet has a region map: hills, water, flats and deposits laid out by one seeded field. You pick a
 // spot on it, and the base's own ground is cut from that spot at full detail, so what you saw is what you land on.
 //
-// Ground kinds, one per tile: 0 open ground, 1 water, 2 rock (cliffs and outcrops), 3 an E-710 seep, 4 an ore field.
+// Ground kinds, one per tile: 0 open ground, 1 water, 2 rock (cliffs and outcrops), 3 an Biofuel seep, 4 an ore field.
 // Water and rock can't be built on or walked through; nothing is laid across water; both shut the base in like a
 // wall would. Deposits are open ground with something under it.
 import { Noise } from './noise.js';
@@ -96,7 +96,7 @@ export function survey(seed, biome, cx, cy, Nfull, S = 120) {
   return { open, water: cnt[1] / n, rock: cnt[2] / n, seeps: cnt[3], ore: cnt[4], cover,
     notes: [open > 0.8 ? 'Wide open ground: room to grow, little natural cover.' : open < 0.55 ? 'Cramped: water and rock limit how big the base can get.' : 'A fair amount of buildable ground.',
       cover > 0.35 ? 'Good natural defences: cliffs and water close much of the perimeter for free.' : cover > 0.15 ? 'Some natural cover on the approaches.' : 'Exposed on every side: the wall will be long.',
-      cnt[3] ? `E-710 seeps (${cnt[3]} tiles): an Extractor can pump your own fuel.` : 'No E-710 under this ground.',
+      cnt[3] ? `Biofuel seeps (${cnt[3]} tiles): an Extractor can pump your own fuel.` : 'No Biofuel under this ground.',
       cnt[4] ? `Ore fields (${cnt[4]} tiles): a Mine can dig your own supplies.` : 'No ore worth digging.',
       cnt[1] / n > 0.08 ? 'Water on site: nothing is built on it, but the shore is a wall you never pay for.' : ''].filter(Boolean) };
 }

@@ -21,8 +21,8 @@ import { rollPerks, addPerk, perkRoom } from './data/perks.js';
 import * as UI from './ui.js';
 import { sunAt, todName, todClock } from './render/sky.js';
 import { acceptSupply, declineSupply, fillSupply, launchSupply, supplyFilling } from './sim/supply.js';
-import { hbFilling, tapHellbomb } from './sim/ops.js';
-const handsBusy = (m) => !!m && (supplyFilling(m) || hbFilling(m));     // the supply loader or the Hellbomb is open
+import { hbFilling, tapDemoCharge } from './sim/ops.js';
+const handsBusy = (m) => !!m && (supplyFilling(m) || hbFilling(m));     // the supply loader or the Demolition Charge is open
 import { t, tEn, setLang, getLang, applyDom, startLang } from './i18n.js';
 import { clampLevel, LEVELS, levelName, levelAt, TOP } from './difficulty.js';
 import { answerTime } from './sim/planner.js';
@@ -78,7 +78,7 @@ let paused = false;
 let soft = false;             // a soft pause: the game is frozen (paused is true too) but the menu stays shut, so the player can look around
 let startSnap = null;         // the session as it was at the drop, for RETRY MISSION (same map, credits as they were)
 let retryArm = false;         // RETRY MISSION asks for a second tap
-let coinMode = false;         // (0.44) the armory: the next thing picked is paid with an SESF coin
+let coinMode = false;         // (0.44) the armory: the next thing picked is paid with an challenge coin
 let endArmed = null, endT = 0;     // (0.44) END OPERATION asks for a second tap (the button's id)
 let menuSoft = false;         // the HUD menu stopped the game (closing it, or a panel opened from it, plays on)
 let speed = 1;                // game speed: 1, or 0.5 (half speed: everything still works, only slower)
@@ -89,7 +89,7 @@ let acc = 0, lastT = 0, overAt = 0, endHandled = false;
 let focusT = 0, focusTo = 0.5;
 let terrainKey = '', briefCtl = null, settingsReturn = null, namesReturn = null, armNote, armBal = 0;
 let placing = null; // desktop placement mode for orders: 'seaf' | 'pickup' | 'move' | 'protect' | 'attack' | 'build:<what>'
-// (0.39) while a build is being placed: which way it faces (null: away from the Helldivers' landing, as before) and, for the
+// (0.39) while a build is being placed: which way it faces (null: away from the Vanguards' landing, as before) and, for the
 // bastions, ring or line. Q / E (or the turn button) turn it; R (or the shape button) switches ring and line.
 let placeFace = null, placeShape = 'ring';
 let sel = null;      // the selected post, sentry or defence site (posts.js): a panel over it shows, and its reach on the map
@@ -229,7 +229,7 @@ const input = new Input(canvas, $('minimap'), cam, {
     }
   },
   fire: (b) => {
-    if (mission && handsBusy(mission)) { if (mission) mission.setFiring(false); return; }   // hands on the supply loader (or the Hellbomb)
+    if (mission && handsBusy(mission)) { if (mission) mission.setFiring(false); return; }   // hands on the supply loader (or the Demolition Charge)
     if (b && !armed) { if (act() && input.touch) { audio.deny(); hud.toast(deny('noweapon'), 1600); } return; }   // nothing armed: CALL has nothing to call
     if (b && plan()) { planFire(); return; }                                                                         // (0.22) paused: the call joins the plan
     if (b && live()) { audio.unlock(); firePending = true; keepArmed = shiftHeld(); }      // (Shift at the click keeps it armed after the call)
@@ -294,12 +294,12 @@ input.setTouch(window.matchMedia && window.matchMedia('(pointer: coarse)').match
 applyLayout();
 hud.onWeapon = (i) => {     // (0.25.1: in the pause too, so a weapon call can be planned from the bar)
   audio.unlock(); if (!act()) return;
-  // (0.53.2) an Eagle with no runs left: its button calls the Eagle back to rearm (the others come back full with it)
+  // (0.53.2) a Striker with no runs left: its button calls the Striker back to rearm (the others come back full with it)
   const s = mission.player.slots[i];
   if (s && s.eu !== undefined && s.eu <= 0 && mission.t >= mission.player.eagle.rearmAt) { eagleRearmNow(); return; }
   arm(i);
 };
-// (0.53.2) EAGLE REARM (L, or the button of an Eagle out of runs): the Eagle flies back now and every Eagle comes back full
+// (0.53.2) STRIKER REARM (L, or the button of a Striker out of runs): the Striker flies back now and every Striker comes back full
 function eagleRearmNow() {
   if (!act() || !mission) return;
   const r = mission.eagleRearm();
@@ -338,7 +338,7 @@ hud.onArmory = () => { audio.unlock(); if (live() || (soft && state === 'play'))
 hud.onToSquad = (i) => input.h.toSquad(i);
 hud.onPickOne = (id) => { if (!live()) return; const a = mission.seafAlive.find((x) => x.id === id); if (!a) return; audio.click(); if (a.inside) { cam.follow = false; cam.x = a.x; cam.y = a.y; return; } deselect(); mission.pickSeaf([a]); hud.fillTactical(mission, sel); };
 // The tactical build screen (O, or TACTICAL at the top left): what is selected, the builds and the formations, and a box dragged on
-// the map picks troopers. The Helldivers and the SEAF squads fold away into two drop menus. It runs in real time (0.18): Space
+// the map picks troopers. The Vanguards and the Infantry squads fold away into two drop menus. It runs in real time (0.18): Space
 // pauses, to look round without giving orders.
 // (0.20) The command panel is always up in a mission: troops, build or armory, one at a time. "Shutting" it goes back to the troops.
 function setTac(on) {
@@ -401,7 +401,7 @@ function setForm(f) {
   audio.chirp(); hud.toast(t('hud.formSet', { f: t('form.' + f) }), 1200);
   if (tac) hud.fillTactical(mission, sel);
 }
-// ---- selecting (the cursor, with no weapon armed): what SEAF built, a sentry or a walled defence site, or a SEAF trooper (which
+// ---- selecting (the cursor, with no weapon armed): what Infantry built, a sentry or a walled defence site, or an Infantry trooper (which
 // selects his squad). What is under (sx, sy), or null.
 function pickAt(sx, sy) {
   if (!mission || mission.over) return null;
@@ -474,7 +474,7 @@ function holdOn(o) {
   if (tac) hud.fillTactical(mission, sel);
   return true;
 }
-// A right click (or, on the tactical screen, a tap) with a SEAF squad selected: an order where it lands. On a post or a defence site
+// A right click (or, on the tactical screen, a tap) with an Infantry squad selected: an order where it lands. On a post or a defence site
 // they man it, on an enemy, a bug hole or a target they attack it, anywhere else they move there.
 // A crate on the ground (or a foxhole being dug) at (x, y) in the world, or null.
 function crateAt(x, y) {
@@ -555,8 +555,8 @@ function tapAt(type, x, y) {
     if (w) { ghostAt = { x: w.x, y: w.y }; audio.click(); }
     return;
   }
-  // (0.42) a stratagem or weapon armed: the tap aims it (the map slides so the reticle sits on the spot). It never orders the
-  // SEAF or picks anything: CALL is what throws it.
+  // (0.42) a call-in or weapon armed: the tap aims it (the map slides so the reticle sits on the spot). It never orders the
+  // Infantry or picks anything: CALL is what throws it.
   // (0.62.4) the ship gun still armed and one of your own tapped (a trooper, a post, a work site): the gun is put away and the
   // tap selects it. Before, the tap slid the reticle onto the trooper, so nothing could be selected after the gun had been
   // used, and the next burst went into your own squad.
@@ -642,7 +642,7 @@ keyHints();
 hud.onSupTap = (i) => { audio.unlock(); supTap(i); };
 hud.onSupLaunch = () => { if (live() && launchSupply(mission)) audio.click(); };
 hud.onHbTap = (i) => { audio.unlock(); hbTap(i); };
-function hbTap(i) { if (live() && i >= 0 && i < 4) tapHellbomb(mission, i); }
+function hbTap(i) { if (live() && i >= 0 && i < 4) tapDemoCharge(mission, i); }
 
 // ---------------- supply requests, the loading game and pulling the camera to a callout ----------------
 let camPan = null;     // { x, y, w (how much of the way from the squad), untilT (mission time), track() (a moving target) }
@@ -695,7 +695,7 @@ function lookLatest() {
 }
 
 const live = () => state === 'play' && !paused && mission && !mission.over;
-// (0.22) Planning in the soft pause: orders, builds, SEAF drops and weapon calls given while it is paused wait in planQ and go out,
+// (0.22) Planning in the soft pause: orders, builds, Infantry drops and weapon calls given while it is paused wait in planQ and go out,
 // in order, as soon as the game runs again. Picking (squads, troopers, posts) works as usual; the plan shows on the map.
 const plan = () => state === 'play' && soft && !!mission && !mission.over;
 const act = () => live() || plan();
@@ -718,12 +718,12 @@ function runPlan() {
     let r = null; try { r = it.run(); } catch (e) { console.error(e); }
     if (!r || r.ok === false) bad++;
   }
-  // (0.53.4) the calls the plan made are marked: they do not put down the weapon the player has in hand (a planned stratagem going
+  // (0.53.4) the calls the plan made are marked: they do not put down the weapon the player has in hand (a planned call-in going
   // out on RESUME emptied the cursor of the one picked after it; only the ship gun was spared)
   for (let k = e0; k < mission.events.length; k++) mission.events[k].planned = true;
   sf.sel = keep.sel; sf.pick = keep.pick; sf.multi = keep.multi;
   // (0.47) the weapons the plan called were picked to call them: the one in hand when the game ran again (the ship gun, say) is
-  // put back, so it is not dropped for the last stratagem called
+  // put back, so it is not dropped for the last call-in called
   if (mission.player.weapon !== w0 && mission.player.slots[w0] && mission.player.slots[w0].type !== 'empty') { mission.player.weapon = w0; mission.player.swapUntil = mission.t; mission.player.queued = -1; }
   hud.toast(t(bad ? 'plan.ranSome' : 'plan.ran', { n: q.length - bad, all: q.length }), 1800);
   if (tac) hud.fillTactical(mission, sel);
@@ -754,7 +754,7 @@ hud.onMerge = (L) => {
   if (tac) hud.fillTactical(mission, sel);
 };
 
-// ---------------- orders: SEAF drop and SEAF orders ----------------
+// ---------------- orders: Infantry drop and Infantry orders ----------------
 // Why a call or a purchase was refused: deny.<reason> in the language tables.
 const DENY_KEYS = new Set(['onbase', 'artyrange', 'nocoverage', 'nearlz', 'cooldown', 'full', 'noseaf', 'nohd', 'noallies', 'nomark', 'funds', 'between', 'maxed', 'locked', 'novisual', 'gundry',
   'short', 'water', 'jammed', 'nocrew', 'nogarrison', 'eaglefull', 'eagleempty', 'noeagle', 'boxnone', 'boxnosquad', 'noweapon', 'picksquad', 'postfull', 'nosight', 'nospan', 'merge', 'planfull', 'shielded', 'rearm', 'nodemo', 'jamsite', 'coin']);
@@ -825,7 +825,7 @@ function strokeEnd() {
   if (r && r.ok) { audio.chirp(); hud.toast(t('hud.p.played', { kind: t('hud.p.kind.' + r.kind) }), 1100); }
 }
 function aimWorld() { const sa = input.screenAim(), w = renderer.screenToWorld(sa.x, sa.y, canvas); return w; }
-// Clicking on a breach or a point of interest sends SEAF straight at it.
+// Clicking on a breach or a point of interest sends Infantry straight at it.
 function snap(x, y) {
   const m = mission, r2 = Math.max(24, cam.view * 0.06) ** 2;
   let best = null, bd = r2;
@@ -972,7 +972,7 @@ function beginSession(resume, key = 'session') {
       session.callsign = cs; session.difficulty = chosenDiff(); session.held = null; session.op = tEn(`cp.${STORY.id}.t`); delete session.slot;     // (0.41: a new run, in no slot until saved to one)
       session.story = { id: STORY.id, ch: storyPick.n - session.missions.length };     // (its next mission is the chapter picked)
     } else session = S.newSession(cs, chosenDiff(), S.opName($('op-name').value));     // (0.45: the name typed, or a rolled one if blank)
-    session.feed = 1;     // (0.43) a new operation: the SESF feed hears of it at its first drop
+    session.feed = 1;     // (0.43) a new operation: the community feed hears of it at its first drop
     session.opId = `${Date.now().toString(36)}${Math.floor(Math.random() * 1e9).toString(36)}`;     // (0.48.1) posted once per id
   }
   storyPick = null;
@@ -1002,7 +1002,7 @@ function goNext() {
     },
   });
 }
-// The armory: before every mission. Buy and equip orbitals, UAV, SEAF and squad upgrades with the session's credits.
+// The armory: before every mission. Buy and equip orbitals, UAV, INFANTRY and squad upgrades with the session's credits.
 function goShop(focus = false, note) {
   if (GCX && session && session.missions.length) return gcDone();     // one mission: after it, back to the war room
   if (briefCtl) { briefCtl.cancel(); briefCtl = null; }
@@ -1065,7 +1065,7 @@ function drawShop(note, focus = false) {
     onCoin: () => { coinMode = !coinMode; audio.click(); drawShop(coinMode ? t('arm.coinPickNote', { v: S.fmtNum(S.coinVals()[0] || 0) }) : undefined); },     // (0.44) SPEND A COIN / CANCEL
     onBuy: (id) => {
       const nm = (r) => String(r.item.name).toUpperCase();
-      if (coinMode && !session.tutorial && S.getCoins() > 0) {      // (0.50) an SESF coin: its credits paid toward the item
+      if (coinMode && !session.tutorial && S.getCoins() > 0) {      // (0.50) an challenge coin: its credits paid toward the item
         const r = payToward(session.kit, session.wallet, id, S.coinVals()[0], false, tierNow(), true);
         if (!r.ok) { audio.deny(); drawShop(deny(r.reason)); return; }
         S.spendCoin(); coinMode = false;
@@ -1134,7 +1134,7 @@ function goBrief(again = false) {
     pre: { objectives: pre.objectives.map((o) => o.type), defenders: pre.defenders, teams: pre.teams, ao: Math.round(pre.ao.size), difficulty: pre.difficulty, start: session.difficulty, lives: pre.hd.max, opBonus: pre.opBonus, opDone: pre.opDone },
     onReveal: () => audio.chirp(),
     onContinue: () => { briefCtl = null; audio.click(); deploy(); },
-    onEnd: (stop) => endTap('btn-end', () => { stop(); briefCtl = null; endSession(true); }),     // (0.44: a second tap; ending by choice pays an SESF coin)
+    onEnd: (stop) => endTap('btn-end', () => { stop(); briefCtl = null; endSession(true); }),     // (0.44: a second tap; ending by choice pays an challenge coin)
     // CANCEL: back to the armory. The mission keeps its map, enemy and hour for when you deploy again.
     onCancel: () => { briefCtl = null; audio.click(); holdMission(); persist(); goShop(); },
     onMenu: () => { audio.unlock(); audio.click(); outMenu(true); },
@@ -1180,7 +1180,7 @@ const BIOME_OK = (b) => ['ice', 'grass', 'desert', 'jungle', 'moon', 'mars', 'ci
 function deploy() {
   audio.unlock();
   holdMission();     // (0.41) the run is kept as it is now, with this mission waiting in it, until the mission is over
-  // (0.48.1) every run has an id the SESF feed posts by, once each for its start and its end (feed.js); an old run without the flag
+  // (0.48.1) every run has an id the community feed posts by, once each for its start and its end (feed.js); an old run without the flag
   // posts nothing more (0.46 gave it a start post, and loading old saves posted again)
   if (!session.opId) session.opId = `${Date.now().toString(36)}${Math.floor(Math.random() * 1e9).toString(36)}`;
   if (session.feed === 1) session.feed = 2;     // (0.50.1: the start is no longer posted; one post an operation, at its end)
@@ -1266,7 +1266,7 @@ function lsReset() {
   document.body.classList.remove('ls-warn', 'ls-glass'); $('glassfx').classList.remove('on', 'white', 'soft');
 }
 // (0.53) The tutorial is MISSION COMPLETE: the game stops and the player picks: fight on to the end (the stand goes on until the
-// last Helldiver falls), or move on (straight into the campaign's first mission, or to the main menu). There is no extraction.
+// last Vanguard falls), or move on (straight into the campaign's first mission, or to the main menu). There is no extraction.
 function lsComplete(saved) {
   S.save('tutDone', true);
   if (!soft) softPause(true);
@@ -1405,7 +1405,7 @@ function retryMission() {
 }
 
 // (0.44) END OPERATION: in the armory, the briefing (from the second mission) and the debrief after a mission that carried on. It
-// takes a second tap, and ending by choice pays an SESF coin (session.js earnCoin) for a later operation's armory.
+// takes a second tap, and ending by choice pays an challenge coin (session.js earnCoin) for a later operation's armory.
 function coinNow() { const last = session && session.missions[session.missions.length - 1]; return !session || session.tutorial || !last || !S.carriesOn(last.outcome) ? null : S.coinPreview(session); }
 function endLabels() {
   if (!session) return;
@@ -1424,13 +1424,13 @@ function endTap(id, go) {
 function endSession(byChoice = false) {
   if (GCX) return gcDone();
   state = 'final'; audio.humStop(); endArmed = null; coinMode = false;
-  const coin = byChoice && coinNow() ? S.earnCoin(session) : null;      // (0.44) an SESF coin for ending it by choice
+  const coin = byChoice && coinNow() ? S.earnCoin(session) : null;      // (0.44) an challenge coin for ending it by choice
   const fin = S.finalise(session);
   const block = aarSession(session, fin);      // (0.27: the after action report, ready for Discord)
-  if (session.feed !== 3 && !BOT) { session.feed = 3; feedEnd(session, fin, settings); }     // (0.43) the SESF feed: the score, and how far it got
+  if (session.feed !== 3 && !BOT) { session.feed = 3; feedEnd(session, fin, settings); }     // (0.43) the community feed: the score, and how far it got
   lastFin = { fin, block };
   UI.fillFinal(session, fin, block, coin);
-  // (0.50.1) said on the final screen: this operation's result went to the SESF Discord (Settings > SESF feed)
+  // (0.50.1) said on the final screen: this operation's result went to the community Discord (Settings > community feed)
   const shared = !session.tutorial && session.missions.length > 0 && feedOn(settings) && !BOT;
   $('f-feed').classList.toggle('hidden', !shared); if (shared) $('f-feed').textContent = t('fin.posted');
   S.drop(runKey(session));
@@ -1531,7 +1531,7 @@ function drawArmory(note) {
       const msg = r.slot >= 0 && r.slot !== undefined ? t(out ? 'arm.swapped' : 'arm.slotted', { name: r.item.name.toUpperCase(), n: r.slot + 2, old: out ? out.name.toUpperCase() : '' }) : t('arm.bought', { name: r.item.name.toUpperCase() });
       if (r.ok) { audio.ready(); persist(); hud.toast(msg, 2200); drawArmory(); } else { audio.deny(); drawArmory(deny(r.reason)); }
     },
-    // (0.47) the tutorial: put a stratagem back in the bar (one a new purchase took the slot of)
+    // (0.47) the tutorial: put a call-in back in the bar (one a new purchase took the slot of)
     onEquip: session.tutorial ? (sid) => {
       const r = mission.equipLive(sid);
       if (!r.ok) { audio.deny(); drawArmory(); return; }
@@ -1570,7 +1570,7 @@ function drawArm(note) {
       const it = shopItems(session.kit).find((x) => x.id === id), nm = String((r.item || it || {}).name || '').toUpperCase();
       drawArm(r.bought ? t('arm.bought', { name: nm }) : t('arm.paidIn', { n: S.fmtNum(total), name: nm, left: S.fmtNum(it ? it.due : 0) }));
     },
-    // (0.47) the tutorial: put a stratagem back in the bar (one a new purchase took the slot of)
+    // (0.47) the tutorial: put a call-in back in the bar (one a new purchase took the slot of)
     onEquip: tutM ? (sid) => {
       const r = mission.equipLive(sid);
       if (!r.ok) { audio.deny(); drawArm(); return; }
@@ -1758,7 +1758,7 @@ function closeCredits() {
 }
 hud.onInfo = () => openInfo();
 for (const a of document.querySelectorAll('a.fb')) a.href = C.share.feedbackUrl;
-// (0.62.8) FEEDBACK opens a form in the game: what is typed goes to the SESF Discord through the feed (feed.js feedFeedback),
+// (0.62.8) FEEDBACK opens a form in the game: what is typed goes to the community Discord through the feed (feed.js feedFeedback),
 // with the debug report if the box is ticked. The links keep the Discord's address, for a middle click and for copies of the
 // game that cannot send; the form has OPEN THE DISCORD too.
 let fbUnder = null;
@@ -1781,7 +1781,7 @@ function openFeedback() {
 function closeFeedback() { UI.overlay('s-feedback', false); if (fbUnder) UI.overlay(fbUnder, true); fbUnder = null; }
 for (const a of document.querySelectorAll('a.fb')) a.addEventListener('click', (e) => { if (e.button || e.ctrlKey || e.metaKey || e.shiftKey) return; e.preventDefault(); openFeedback(); });
 // (0.62.9) Folds: on a phone the long reading on the way into a mission (how an operation works, the situation, the squad's
-// stratagems) is shut behind its heading, so the screen fits without scrolling; a tap on the heading opens it.
+// call-ins) is shut behind its heading, so the screen fits without scrolling; a tap on the heading opens it.
 for (const h of document.querySelectorAll('[data-fold]')) {
   const flip = () => { const box = $(h.dataset.fold); if (box) { box.classList.toggle('open'); h.setAttribute('aria-expanded', box.classList.contains('open')); audio.click(); } };
   h.addEventListener('click', flip); h.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); flip(); } });
@@ -1924,7 +1924,7 @@ $('callsign').value = S.load('callsign', '');
 { const old = S.load('session', null); if (old && old.story && !S.load('campRun', null)) { S.save('campRun', old); S.drop('session'); } }     // (0.37: runs from before are kept apart)
 document.addEventListener('visibilitychange', () => { if (document.hidden && live()) togglePause(true); });
 // (0.46) A failed mission ends the operation unless it is retried. If the page is closed on that debrief, before CONTINUE, the
-// SESF feed still hears it ended (fetch keepalive outlives the page). (0.48.1: only when the page is closed, not when it is just
+// community feed still hears it ended (fetch keepalive outlives the page). (0.48.1: only when the page is closed, not when it is just
 // put away for a moment)
 function failedOut() {
   if (state !== 'debrief' || !session || BOT || !lastRes || S.carriesOn(lastRes.outcome) || session.feed === 3) return;
@@ -1978,7 +1978,7 @@ function musicScene() {
   return state === 'debrief' || state === 'next' || state === 'final' || state === 'glass' ? 'end' : 'menu';     // (0.51: MISSION COMPLETE keeps the debrief's music)
 }
 // How hot the fight is, 0..1, for the music: the enemy close to the squad (a heavy counts for more), a super heavy on the field,
-// and a kick from things going wrong (a Helldiver down, an alarm) that fades over a few seconds. Counted every 0.3 s.
+// and a kick from things going wrong (a Vanguard down, an alarm) that fades over a few seconds. Counted every 0.3 s.
 // (0.30) And how crowded the screen is, for the swarm music: the enemy in the camera's view that can be seen (weighted the same
 // way), scaled back when the view is zoomed out wider than the usual 400 m (so zooming out doesn't fill it on its own).
 let heatT = 0, heatV = 0, heatKick = 0, crowdV = 0, hypeT = 0;
@@ -2032,7 +2032,7 @@ function onEvent(ev, now) {
       if (ev.r >= 10 && input.touch && !settings.reduceFlash && navigator.vibrate) navigator.vibrate(ev.nuke ? 80 : 12);
       break;
     case 'tracer': if (shots.length < 600) shots.push({ x: ev.x, y: ev.y, t: mission.t }); if (mission.visLevel(ev.x, ev.y) > 0 || mission.visLevel(ev.tx, ev.ty) > 0) audio.snd(ev.snd || ev.s, L, P); break;
-    // (0.62.10) a line said has a voice: each Helldiver their own, SEAF over the handset
+    // (0.62.10) a line said has a voice: each Vanguard their own, Infantry over the handset
     case 'bark': { const a = mission.alive.find((q) => q.id === ev.id); if (a) audio.say(a.x, a.y, { pitch: ev.h ? 100 + (a.id * 37) % 90 : 120 + (a.id * 53) % 100, radio: !ev.h, syll: 5 + Math.min(8, ((a.say && a.say.text.length) || 20) / 9 | 0), vol: ev.h ? 0.17 : 0.11 }); break; }
     case 'beam': case 'beam_walk': audio.beam(); break;
     case 'gun': audio.snd('shipgat', L, P); break;
@@ -2065,7 +2065,7 @@ function onEvent(ev, now) {
     case 'supply_launch': audio.slowOut(); audio.supLaunch(ev.fast); break;
     case 'supply_down': audio.supDown(L, P); break;
     case 'supply_no': audio.deny(); break;
-    case 'board': case 'seaf_pickup': audio.board(); break;     // (0.39: a trooper going up into a pickup pelican too)
+    case 'board': case 'seaf_pickup': audio.board(); break;     // (0.39: a trooper going up into a pickup dropship too)
     case 'shuttle': audio.shuttle(Math.max(0.5, L), P); break;
     case 'civ_down': audio.civDown(L, P); break;
     case 'extract_call': audio.alarm(); hud.message(t('msg.exCall'), 2400); break;
@@ -2174,7 +2174,7 @@ function debugReport() {
   L.push(`settings quality ${settings.quality} fps ${settings.fps || 'auto'} 3d ${settings.relief3d} smooth ${settings.smooth !== false}`);
   L.push(`fps ${fps.toFixed(0)}  ${gameLine()}`);
   L.push(`hold: paused ${paused} soft ${soft} cinema ${!!cinema.on} card ${!!(tut && tut.held)} tac ${tac} speed ${speed}  step faults ${simFails}`);
-  if (m) L.push(`enemies ${m.enemies.length} groups ${m.groups.length} allies ${m.alive.length} seaf ${m.seafAlive.length} squads ${m.seaf.squads.length} posts ${(m.posts || []).length} shells ${m.shells.length} over ${m.over}`);
+  if (m) L.push(`enemies ${m.enemies.length} groups ${m.groups.length} allies ${m.alive.length} infantry ${m.seafAlive.length} squads ${m.seaf.squads.length} posts ${(m.posts || []).length} shells ${m.shells.length} over ${m.over}`);
   L.push('');
   if (!errLog.length) L.push('no errors logged');
   for (const e of errLog.slice().reverse()) { L.push(`[${e.at}] v${e.v} ${e.where} x${e.n || 1}: ${e.msg}`); L.push(`  ${e.game}`); if (e.stack) L.push(e.stack.split('\n').map((s) => '  ' + s.trim().replace(/\(?file:\/\/[^)\s]*\/|\(?https?:\/\/[^)\s]*\//g, '(')).join('\n')); }
@@ -2190,7 +2190,7 @@ function debugPaint(now) {
   if (debugBroke) $('debug-warn').textContent = t('dbg.broke');
   $('debug-t').textContent = `v${C.share.version}  fps ${fps.toFixed(0)}  ${gameLine()}` +
     `\nhold: ${paused ? (soft ? 'soft pause' : 'pause') : cinema.on ? 'cinematic' : tut && tut.held ? 'tutorial card' : 'none'}  speed ${speed}  faults ${simFails}` +
-    (m ? `\nenemies ${m.enemies.length}  allies ${m.alive.length}  seaf ${m.seafAlive.length}  posts ${(m.posts || []).length}  P ${m.pressure.toFixed(2)}  fx ${renderer.fx.length}  cr ${m.wallet.bal}` : '') +
+    (m ? `\nenemies ${m.enemies.length}  allies ${m.alive.length}  infantry ${m.seafAlive.length}  posts ${(m.posts || []).length}  P ${m.pressure.toFixed(2)}  fx ${renderer.fx.length}  cr ${m.wallet.bal}` : '') +
     (last ? `\nlast error (${errLog.length} kept): ${last.where} x${last.n || 1}: ${last.msg}` : '');
 }
 $('debug-copy').onclick = async () => {
@@ -2360,7 +2360,7 @@ function simulate(dt, now) {
     if (w && !bot) m.setAim(w.x, w.y);
     if (!bot && firePending) { m.fire(); firePending = false; }
   }
-  // half speed if picked; slow motion while the supply pod or the Hellbomb is loaded (the tactical screen runs in real time)
+  // half speed if picked; slow motion while the supply pod or the Demolition Charge is loaded (the tactical screen runs in real time)
   const slow = hbFilling(m) ? C.objective.hellbomb.slowmo : supplyFilling(m) ? C.supply.slowmo : 1;
   acc += dt * FAST * speed * slow;
   let n = 0;

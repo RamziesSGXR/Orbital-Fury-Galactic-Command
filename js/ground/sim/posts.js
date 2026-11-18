@@ -1,5 +1,5 @@
-// Buildables ("posts"): what SEAF put up from the tactical menu. Each one is paid for when it is ordered (the foxhole is free and
-// dug on the spot), a cargo pelican drops its crate and the squad deploys it. There is no limit on how many stand.
+// Buildables ("posts"): what Infantry put up from the tactical menu. Each one is paid for when it is ordered (the foxhole is free and
+// dug on the spot), a cargo dropship drops its crate and the squad deploys it. There is no limit on how many stand.
 //   foxhole:  places in light cover, one for each trooper who digs it (a pit for three, a trench for more, a crescent for eight or
 //             more; 0.28); whoever shoots from one fires faster. Not in the armory: it has no levels.
 //   wire:     (0.39) concertina wire: a run of coils that slows the enemy (a light one stops when it walks into it, then crawls
@@ -11,11 +11,11 @@
 //   lookout:  the Lookout Tower: while someone is up it, the ground a long way round it stays in view (strikes can be called
 //             there), and it spots for the fire support: enemies farther out, inside the strike zone, are shown on the map.
 //   bridge:   a light bridge, a hard-light span over the water from bank to bank; everyone walks it (the enemy too).
-//   tower:    the Propaganda Tower: a SEAF drop point, and while someone mans it, the ground round it (as far as the UAV scan
+//   tower:    the Propaganda Tower: an Infantry drop point, and while someone mans it, the ground round it (as far as the UAV scan
 //             reaches) stays in view, strikes can be called there and allies under it get the UAV's lift.
 //   sam:      a SAM site: automatic, it fires at dropships and warp ships as far out as the UAV scan reaches.
 //   arty:     the Artillery Cannon: weapon 9, a mini-nuke on a slow recharge, fired by the gunner while someone mans it.
-// Anyone standing in a post's places is its crew (Helldivers too). SEAF sent to a post (a 'post' order) take its places and stay:
+// Anyone standing in a post's places is its crew (Vanguards too). Infantry sent to a post (a 'post' order) take its places and stay:
 // they walk back if they are pushed off, never leave cover to chase, and patch it up when nothing is shooting at them. A post's
 // crew can be garrisoned: they leave their squad and stay with the post until they are released.
 import { t as tr } from '../i18n.js';
@@ -145,7 +145,7 @@ export function postReach(m, p) {
 }
 const towerReach = (m, p) => Math.round(uavStats(m.kit.uav).r * (p.what === 'tower' ? 1 + 0.05 * (p.lvl - 1) : p.what === 'lookout' ? buildStats('lookout', p.lvl).reach : 1));
 // How far out a lookout spots for the fire support (enemies there, inside the strike zone, are shown).
-// (0.47) How far a lookout sees down its cone: twice a Helldiver's sight (on this biome) at level 1, 8% more a level.
+// (0.47) How far a lookout sees down its cone: twice a Vanguard's sight (on this biome) at level 1, 8% more a level.
 export const lookoutReach = (m, p) => Math.round(C.build.lookout.coneMul * C.sight.helldiver * ((m.biome && m.biome.ping) || 1) * (buildStats('lookout', p.lvl || 1).reach / C.build.lookout.reach));
 // (0.47) A lookout's view as relay circles: one all round it (an ally's sight) and a fan along its face. Each fan circle has the
 // tower and the point R out along its own bearing as its diameter, so together the bearings -72..72 cover the half disc toward the
@@ -161,7 +161,7 @@ export function lookoutFan(m, p, R) {
 // is (x, y) inside a lookout's cone (a 180-degree half disc toward its face)?
 export const inCone = (u, x, y) => u.dir == null || (x - u.x) * Math.cos(u.dir) + (y - u.y) * Math.sin(u.dir) >= 0;
 
-// Put one up at (x, y), facing away from the Helldivers (toward the enemy) unless turned. opts: { captured, lvl, size (a foxhole's
+// Put one up at (x, y), facing away from the Vanguards (toward the enemy) unless turned. opts: { captured, lvl, size (a foxhole's
 // places), face, shape ('line' for a line of bastions) }.
 export function makePost(m, what, x, y, opts = {}) {
   const lvl = Math.max(1, opts.lvl || postLevel(m, what)), S = buildStats(what, lvl);
@@ -174,7 +174,7 @@ export function makePost(m, what, x, y, opts = {}) {
     captured: !!opts.captured, built: !opts.captured, repairing: false, get name() { return postName(this.what); } };
   if (what === 'wire') { p.ends = wireEnds(x, y, face, S.len); p.wireHp = S.wireHp; p.wireMax = S.wireHp; }
   // cover: the places are cover pieces (the bastions are a ring of walls), so whoever stands in one is in cover, and the
-  // Helldivers and SEAF holding near it spread out to them
+  // Vanguards and Infantry holding near it spread out to them
   const site = { x, y, R: what === 'bastion' ? p.r : fox ? Math.max(4, p.r) : 4, pieces: [], kind: 'built', post: p };
   p.site = site;
   if (line) {
@@ -343,7 +343,7 @@ function blowPost(m, p) {
 }
 
 // ---------------------------------------------------------------- garrisons
-// The SEAF crew on a post (up to its places) leave their squad and stay with it. Returns how many.
+// The Infantry crew on a post (up to its places) leave their squad and stay with it. Returns how many.
 // sq: only troopers of that squad (a squad sent in through the post's door).
 export function garrisonPost(m, p, sq = null) {
   let n = 0;
@@ -382,7 +382,7 @@ export function updatePosts(m, dt) {
     const line = p.shape === 'line' || p.shape === 'corner', R = p.what === 'bastion' ? p.r + 3 : p.r, inside = INSIDE.has(p.what);
     for (const a of m.alive) {
       if (a.dead || a.mounted || (a.x - p.x) ** 2 + (a.y - p.y) ** 2 > R * R) continue;
-      if (inside && a.type === 'S' && a.post !== p) continue;          // a building's crew is its garrison (Helldivers at it help too)
+      if (inside && a.type === 'S' && a.post !== p) continue;          // a building's crew is its garrison (Vanguards at it help too)
       if (line) { if (!p.slots.some((s) => (s.x - a.x) ** 2 + (s.y - a.y) ** 2 <= 9)) continue; }     // (0.39) a line: at one of its walls
       else if (p.what === 'bastion') { if (Math.hypot(a.x - p.x, a.y - p.y) < p.r - 3.5) continue; }
       else if (n >= p.cap) continue;

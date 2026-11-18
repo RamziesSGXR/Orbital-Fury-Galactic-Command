@@ -72,14 +72,14 @@ export const Land = {
     this.stats.parcels = (this.stats.parcels || 0) + 1;
     this.rebuildNet(); this.events.push({ t: 'land', px, pz });
     const f = this.parcelInfo(px, pz);
-    this.say('bur', `Land grant ${String.fromCharCode(65 + px - 1)}${pz}: ${f.buildKm2} km² of buildable ground${f.seeps ? ', E-710 under it' : ''}${f.ore ? ', ore to dig' : ''}. ${c.sup} supplies and a ${c.cr} credit filing fee, in triplicate.`);
+    this.say('bur', `Land grant ${String.fromCharCode(65 + px - 1)}${pz}: ${f.buildKm2} km² of buildable ground${f.seeps ? ', Biofuel under it' : ''}${f.ore ? ', ore to dig' : ''}. ${c.sup} supplies and a ${c.cr} credit filing fee, in triplicate.`);
     return { ok: true, ...c };
   },
   // a name for a parcel on the grid: columns lettered A.., rows numbered 1..
   parcelName(px, pz) { return `${String.fromCharCode(65 + px - 1)}${pz}`; },
 
   // ---------------------------------------------------------------- the landing: flag first, then the Command Post
-  // The first pelican comes down where the Commander points. The troopers raise the Super Earth flag there, and the
+  // The first dropship comes down where the Commander points. The troopers raise the Head Office flag there, and the
   // 3 x 3 parcels round it are granted, cleared of scrub from orbit. Then the Commander sets down the Command Post (the HQ
   // and its landing pad, with the HQ's stores) anywhere on that ground: the nexus of the base.
   // the 3 x 3 parcels round a point, kept off the ungranted edge
@@ -129,7 +129,7 @@ export const Land = {
     this.rebuildNet();
     return { ok: true };
   },
-  // last, the colours: the Super Earth flag goes up wherever the Commander wants it on the new ground
+  // last, the colours: the Head Office flag goes up wherever the Commander wants it on the new ground
   canPadPost(x, z) { return this.fits('pad', x, z, 0); },
   placePad(x, z) { const c = this.canPadPost(x, z); if (!c.ok) return c; this.place('pad', x, z, 0, true); this.callIn = 'flagpost'; this.rebuildNet(); return { ok: true }; },
   canFlagPost(x, z) { return this.fits('seflag', x, z, 0); },

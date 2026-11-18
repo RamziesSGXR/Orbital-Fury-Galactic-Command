@@ -5,7 +5,7 @@
 //          Allies can shoot it closed, but not in its first seconds.
 //   bots   a dropship flies in, hovers low while the troops jump out, and climbs away. It can be shot down while it is low; some of
 //          the troops still aboard live through the crash (0.31).
-//   squids a warp ship slides over the spot and teleports its troops down. Tougher, with a shield like a harvester's (0.31), but it
+//   lizards a warp ship slides over the spot and teleports its troops down. Tougher, with a shield like a harvester's (0.31), but it
 //          can be shot down too, and everyone aboard goes with it.
 // (0.31) A call can come in at several places at once, from different sides (more often later in a mission, and at extraction).
 // Every number is in CONFIG.reinf.

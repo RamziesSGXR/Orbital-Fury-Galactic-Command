@@ -1,4 +1,4 @@
-// THE WAR ROOM: the galaxy map. Resources on top, the map with the camera on the front in play, the ministries in a
+// THE WAR ROOM: the galaxy map. Resources on top, the map with the camera on the front in play, the offices in a
 // row, the decision bar along the bottom, and the battle screen when fleets meet. All the rules are in sim.js.
 // From here the commander goes down to a system: into a ground battle, up to its station, or onto its base (main.js).
 import { C, VERSION } from './config.js';
@@ -76,7 +76,7 @@ function turnbar() {
   $('turn').innerHTML = h + sub;
 }
 
-// ---------- the ministries ----------
+// ---------- the offices ----------
 const head = () => '';
 const shieldSvg = cl => `<svg class="shd ${cl}" viewBox="0 0 14 16"><path d="M1 1h12v8l-6 6-6-6z"/></svg>`;
 function threatLine(p, t) {
@@ -173,7 +173,7 @@ function tabExp() {
 }
 function tabTru() {
   const list = (o, none) => (g.truth[o].length ? g.truth[o].map(id => `<div class="sm2"><b class="cy">${C.bcards[id].name}</b> <span class="dim">${C.bcards[id].text}</span></div>`).join('') : `<div class="sm2 dim">${none}</div>`);
-  let h = head('tru') + `<section><h3>Your propaganda · ${g.truth.fed.length} of ${C.truthMax}</h3>${list('fed', 'None yet.')}</section>
+  let h = head('tru') + `<section><h3>Your publicity · ${g.truth.fed.length} of ${C.truthMax}</h3>${list('fed', 'None yet.')}</section>
     <section><h3>Enemy propaganda</h3>`;
   for (const f of C.factions) if (g.F[f].state === 'active') h += `<div class="front" style="--fc:${C.color[f]}"><div class="fh"><b>${N.factions[f]}</b></div>${list(f, 'None.')}</div>`;
   return h + '</section>';
@@ -212,7 +212,7 @@ function side() {
   $('mins').innerHTML = TABS.map(k => `<button class="min${ui.open && ui.tab === k ? ' on' : ''}" data-a="tab" data-t="${k}">${svg(MICON[k])}<span>${C.ministries[k].short}</span>${dot[k] ? `<i>${dot[k]}</i>` : ''}</button>`).join('');
   $('side').classList.toggle('open', ui.open);
   const p = g.P[ui.sel];
-  $('panel').innerHTML = `<div class="sh"><b>${ui.tab === 'sys' ? (p ? esc(p.name.toUpperCase()) : 'SYSTEM') : 'MINISTRY OF ' + C.ministries[ui.tab].name}</b><button class="plate btn sm" data-a="shut" aria-label="Close">×</button></div>` + TAB[ui.tab]();
+  $('panel').innerHTML = `<div class="sh"><b>${ui.tab === 'sys' ? (p ? esc(p.name.toUpperCase()) : 'SYSTEM') : 'HEAD OFFICE OF ' + C.ministries[ui.tab].name}</b><button class="plate btn sm" data-a="shut" aria-label="Close">×</button></div>` + TAB[ui.tab]();
 }
 
 // ---------- the decision bar ----------
@@ -439,8 +439,9 @@ export function frame(now) {
 // ---------- in and out ----------
 // open(): the war room comes on screen with this war (a saved one, or a new one from a seed).
 export function open(a, { saved = null, seed = 0, tutorial = false } = {}) {
-  app = a; active = true; N.fed = a.faction.name || N.fed;
+  app = a; active = true; N.fed = a.faction.name || N.fed; N.capital = a.faction.capital || N.capital;
   if (saved || !g || seed || tutorial) start(seed, saved, tutorial);
+  g.P[0].name = N.capital;
   view.resize(); if (view.front != null) view.focus(view.front);
   refresh();
 }

@@ -40,7 +40,7 @@ const DILEMMAS = [
     opts: [
       { label: 'CONFISCATE IT', fx: { security: 8, maintenance: -8 }, note: ['Lost the still to Security.', 'Confiscated a still from Maintenance.'], say: ['security', 'Unapproved beverages destroyed. Mostly.'] },
       { label: 'LOOK AWAY', fx: { maintenance: 9, security: -8 }, unrest: 4, note: ['Kept the still, with the Commander looking the other way.', 'Was told to forget about the still.'], say: ['maintenance', 'Coolant experiment continues. Results are promising.'] },
-      { label: 'MOVE IT TO THE BAR', fx: { maintenance: 3, security: -2, command: -4 }, unrest: -4, need: 'bar', note: ['Now supplies the Liberty Lounge, unofficially.', 'Was overruled about the still.'], say: ['colonists', 'The Liberty Lounge has a new house special. Morale is up.'] },
+      { label: 'MOVE IT TO THE BAR', fx: { maintenance: 3, security: -2, command: -4 }, unrest: -4, need: 'bar', note: ['Now supplies the Victory Lounge, unofficially.', 'Was overruled about the still.'], say: ['colonists', 'The Victory Lounge has a new house special. Morale is up.'] },
     ] },
   { id: 'overtime',
     need: (st) => st.staff.medic && st.residents() > 6 ? { a: st.someone('medic'), b: st.someone('resident') } : null,
@@ -52,10 +52,10 @@ const DILEMMAS = [
     ] },
   { id: 'readings',
     need: (st) => st.staff.scientist && st.staff.aide ? { a: st.someone('scientist'), b: st.someone('aide') } : null,
-    text: (c) => `Scientist ${c.a.name} wants to publish readings that show the planet below is less pacified than the Ministry says. Aide ${c.b.name} wants the file sealed.`,
+    text: (c) => `Scientist ${c.a.name} wants to publish readings that show the planet below is less pacified than the Head Office says. Aide ${c.b.name} wants the file sealed.`,
     opts: [
       { label: 'SEAL IT', fx: { command: 10, science: -10 }, note: ['Had their readings sealed.', 'Sealed the readings, with the Commander\'s backing.'], say: ['truth', 'The planet is entirely pacified. It always has been.'] },
-      { label: 'PUBLISH', fx: { science: 12, command: -10 }, unrest: 5, research: 20, note: ['Published the readings.', 'Was overruled about the readings.'], say: ['science', 'Published. The Directorate thanks you. The Ministry may not.'] },
+      { label: 'PUBLISH', fx: { science: 12, command: -10 }, unrest: 5, research: 20, note: ['Published the readings.', 'Was overruled about the readings.'], say: ['science', 'Published. The Directorate thanks you. The Head Office may not.'] },
     ] },
   { id: 'inspection',
     need: (st) => st.staff.aide && st.staff.engineer ? { a: st.someone('aide'), b: st.someone('engineer') } : null,
@@ -419,7 +419,7 @@ export function installStory(Station) {
     _goal() {
       if (this.t < 5 || !this.goalItems().every((i) => i.ok)) return;
       this.goal.done = true; this.stats.raidsWon += 2;
-      this.say('ministry', 'STATION RESTORED. Every part lit, the decks refitted, people aboard. The Ministry has taken notice, Commander.', { gold: true });
+      this.say('ministry', 'STATION RESTORED. Every part lit, the decks refitted, people aboard. The Head Office has taken notice, Commander.', { gold: true });
       this.events.push({ type: 'restored' });
     },
 

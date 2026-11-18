@@ -1,13 +1,13 @@
-// The faction operations (0.18) and the citadel's Hellbomb. objectives.js places them and runs them through the same steps as the
+// The faction operations (0.18) and the citadel's Demolition Charge. objectives.js places them and runs them through the same steps as the
 // others (travel, a quiet set-up, then the work while the enemy calls in backup).
-//   oil (bugs):     hold an oil pump while it fills a tank; a pelican comes for each full tank. Three loads and it is done.
+//   oil (bugs):     hold an oil pump while it fills a tank; a dropship comes for each full tank. Three loads and it is done.
 //   cannon (bots):  an orbital defence cannon shooting at the destroyer. While it stands the ship has to keep dodging, so the
 //                   player's strikes land wide and the ship gun spreads. It is a structure: knock it down.
-//   dome (squids):  a shield dome over two warp-ship bases. Nothing from outside gets through it (strikes, the ship gun, fire from
+//   dome (lizards):  a shield dome over two warp-ship bases. Nothing from outside gets through it (strikes, the ship gun, fire from
 //                   outside), but anyone can walk in. The nodes round the generator tower in the middle hold it up; with them
 //                   gone it falls, and then the bases have to go.
-//   hellbomb:       the citadel's keep only falls to one. With the outer bases down and the keep clear, the squad calls it in; the
-//                   player puts it together in slow motion (the parts in the order they light up), a Helldiver arms it, and
+//   demolition charge:       the citadel's keep only falls to one. With the outer bases down and the keep clear, the squad calls it in; the
+//                   player puts it together in slow motion (the parts in the order they light up), a Vanguard arms it, and
 //                   everyone runs.
 import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
@@ -73,7 +73,7 @@ export function setupDome(m, p) {
   (m.bubbles || (m.bubbles = [])).push({ x: p.x, y: p.y, r: K.R, dome });
   return { type: 'dome', state: 'travel', x: p.x, y: p.y, dome, nodes, bases, parts: [...nodes, ...bases], get text() { return tr('c.obj.dome'); } };
 }
-// The citadel: its keep only falls to a Hellbomb.
+// The citadel: its keep only falls to a Demolition Charge.
 export function setupKeep(m, o) { o.base.bombOnly = true; o.base.quiet = true; o.hb = null; }     // (the keep sends nobody out: its bases do, until the bomb is down)
 
 // ---------------------------------------------------------------- every tick
@@ -143,7 +143,7 @@ export function updateDome(m, o, dt, fns) {
   // (0.62.11) Breaking the nodes. The gunner cannot reach under the dome, and with the enemy all round them the troops' rifles
   // hardly ever turned on a node: the squad stood beside one for minutes and was ground down. Now anyone on foot who is up to a
   // node works on it while they fight (charges, cutting its feeds): each trooper beside it takes it down at a steady rate, so four
-  // Helldivers break a node in about breakSec seconds and SEAF sent in with them make it quicker.
+  // Vanguards break a node in about breakSec seconds and Infantry sent in with them make it quicker.
   if (d.up) {
     // (0.62.11) Every node gone, the dome is smaller: more of the ground under it, and at the last node the bases themselves, are
     // open to the ship again. (It closes in at a walking pace, so nothing jumps.)
@@ -188,11 +188,11 @@ export function domeBlocks(m, b, fx, fy) {
   return true;
 }
 
-// ---------------------------------------------------------------- the Hellbomb
-// (0.37) One Hellbomb job at a time, for whatever needs one: the citadel's keep (the objective), or a side objective only a
-// Hellbomb brings down (sides.js: the spore spewer, the stratagem jammer, the cognitive disruptor; the enemy broadcast tower takes
+// ---------------------------------------------------------------- the Demolition Charge
+// (0.37) One Demolition Charge job at a time, for whatever needs one: the citadel's keep (the objective), or a side objective only a
+// Demolition Charge brings down (sides.js: the spore spewer, the call-in jammer, the cognitive disruptor; the enemy broadcast tower takes
 // one too). owner: the objective or side it is for; tg: what it lands beside ({ x, y, r }). The job: fill (the gunner assembles it,
-// in slow motion) -> inbound -> landed (the nearest Helldiver arms it) -> armed (everyone runs) -> done (it goes off).
+// in slow motion) -> inbound -> landed (the nearest Vanguard arms it) -> armed (everyone runs) -> done (it goes off).
 const HB = () => O().hellbomb;
 export const HB_PARTS = ['casing', 'core', 'detonator', 'fuse'];
 export const hbFilling = (m) => !!(m.hellbomb && m.hellbomb.state === 'fill');
@@ -204,7 +204,7 @@ export function hbClear(m, tg) {
   m.eGrid.near(tg.x, tg.y, K.clearR + (tg.r || 0), () => { n++; });
   return n < K.clearN;
 }
-// Ask for a Hellbomb for owner, beside tg, once the squad is there, the ground is clear and no other job is running. callText: what
+// Ask for a Demolition Charge for owner, beside tg, once the squad is there, the ground is clear and no other job is running. callText: what
 // the squad says on the radio. Returns true when the gunner is asked.
 export function hbRequest(m, owner, tg, callText) {
   const K = HB();
@@ -215,7 +215,7 @@ export function hbRequest(m, owner, tg, callText) {
 }
 // Run the job if it is owner's. siege(): called while the bomb sits on the ground being armed (the enemy comes for it). Returns true
 // on the tick it goes off (the caller does what it does to the target).
-// (0.38.1) One ally inside an armed Hellbomb's reach runs straight away from it (round water), at a sprint. True while he is in it.
+// (0.38.1) One ally inside an armed Demolition Charge's reach runs straight away from it (round water), at a sprint. True while he is in it.
 export function runClear(m, a, hb, R, step) {
   let dx = a.x - hb.x, dy = a.y - hb.y, d = Math.hypot(dx, dy);
   if (d >= R) return false;
@@ -230,8 +230,8 @@ export function runClear(m, a, hb, R, step) {
   return true;
 }
 
-// (0.38.1) The Hellbomb goes off: who is still inside its blast and dives clear. The nearer the rim, the likelier (dodge.mid at the
-// centre to dodge.edge at the rim; a SEAF trooper at dodge.seaf x that); a mech, or anyone mounted or inside a building, does not.
+// (0.38.1) The Demolition Charge goes off: who is still inside its blast and dives clear. The nearer the rim, the likelier (dodge.mid at the
+// centre to dodge.edge at the rim; an Infantry trooper at dodge.seaf x that); a mech, or anyone mounted or inside a building, does not.
 export function hbDives(m, hb) {
   const K = C.objective.hellbomb, D = K.dodge, t = m.t, dived = new Set();
   m.aGrid.near(hb.x, hb.y, K.blastR, (a) => {
@@ -260,7 +260,7 @@ export function hbStep(m, owner, dt, siege) {
     return false;
   }
   if (hb.state === 'landed') {
-    // the nearest Helldiver goes to it and arms it
+    // the nearest Vanguard goes to it and arms it
     if (!hb.armer || hb.armer.dead || !m.hdAlive.includes(hb.armer)) {
       let bd = Infinity; hb.armer = null;
       for (const a of m.hdAlive) { if (a.mounted) continue; const d = (a.x - hb.x) ** 2 + (a.y - hb.y) ** 2; if (d < bd) { bd = d; hb.armer = a; } }
@@ -314,7 +314,7 @@ export function updateKeep(m, o, dt, fns) {
   if (hb.state === 'landed') b.quiet = false;                       // the keep turns everything out against the bomb
   if (hbStep(m, o, dt, () => fns.siege(m, o, b.x, b.y, dt))) { b.bombOnly = false; m.damageBase(b, b.hp + 1, 'strat'); }
 }
-// Where the squad should be for the Hellbomb right now (or null): at it to arm it, then well clear of it.
+// Where the squad should be for the Demolition Charge right now (or null): at it to arm it, then well clear of it.
 export function hellbombGoal(m, o) {
   const hb = m.hellbomb;
   if (!hb || hb.o !== o) return null;
@@ -343,7 +343,7 @@ function dud(m, o) {
   m.emit('hellbomb_dud', {});
 }
 // One tap on part i (0 to 3). The part that is lit is the one that takes it; any other costs a moment.
-export function tapHellbomb(m, i) {
+export function tapDemoCharge(m, i) {
   const hb = m.hellbomb, K = HB();
   if (!hb || hb.state !== 'fill') return false;
   const f = hb.fill, want = f.order[f.i];

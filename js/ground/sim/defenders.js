@@ -1,6 +1,6 @@
-// (0.18) SEAF already on the ground: now and then a squad of them is holding the site the Helldivers are heading for (a launch
+// (0.18) Infantry already on the ground: now and then a squad of them is holding the site the Vanguards are heading for (a launch
 // site, an evacuation site, an oil pump, the VIP's pickup point) when the mission starts. They are the player's from the start;
-// the site still needs the Helldivers to get there and start the work. The briefing says so (mission.defenders).
+// the site still needs the Vanguards to get there and start the work. The briefing says so (mission.defenders).
 import { CONFIG as C } from '../config.js';
 import { RNG } from '../util/rng.js';
 import { rollRoles, setSquadOrder } from './seaf.js';

@@ -5,7 +5,7 @@
   --g-dim: rgba(157, 255, 184, 0.55);
   --line: rgba(157, 255, 184, 0.32);
   --panel: rgba(2, 14, 7, 0.62);
-  --yellow: #ffe600;       /* Super Earth accent (placeholder) */
+  --yellow: #ffe600;       /* Head Office accent (placeholder) */
   --blue: #3da9ff;
   --red: #ff4a4a;
   --amber: #ffb020;
@@ -180,7 +180,7 @@ textarea {
 @keyframes blink { 50% { box-shadow: 0 0 18px rgba(255, 230, 0, 0.5); } }
 #place-hint { width: 100%; text-align: center; color: var(--yellow); border-color: var(--yellow); font-size: 11px; }
 
-/* the twelve stratagems: four groups, one Helldiver each */
+/* the twelve stratagems: four groups, one Vanguard each */
 
 
 .sg { --tc: var(--g); min-width: 0; padding: 3px; border: 1px solid color-mix(in srgb, var(--tc) 45%, transparent); border-radius: 4px; background: rgba(var(--bg1), 0.4); }
@@ -213,7 +213,7 @@ textarea {
 #radio .line.old { opacity: 0; }
 @keyframes fadein { from { opacity: 0; transform: translateX(-6px); } }
 
-/* SEAF orders */
+/* Infantry orders */
 #orders { position: absolute; left: max(10px, env(safe-area-inset-left)); bottom: 94px; width: min(500px, 66vw); display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 5px; padding: 5px; pointer-events: auto; }
 .ord {
   position: relative; min-width: 0; height: 50px; padding: 5px 3px 3px; text-align: center; touch-action: none; cursor: pointer;
@@ -225,14 +225,14 @@ textarea {
 .ord.ready .s { color: #7dff9b; } .ord.cd .s { color: var(--amber); } .ord.off { opacity: 0.45; } .ord.off .s { color: var(--g-dim); }
 .ord.active { border-color: var(--yellow); background: rgba(70, 60, 0, 0.7); box-shadow: 0 0 12px rgba(255, 230, 0, 0.3); } .ord.active .s { color: var(--yellow); }
 .ord:hover:not(.off) { border-color: var(--g); }
-/* the build menu: what SEAF can put up */
+/* the build menu: what Infantry can put up */
 #orders { grid-template-columns: repeat(7, minmax(0, 1fr)); width: min(550px, 70vw); }
 .bld { min-width: 0; height: 50px; padding: 4px 3px; text-align: center; font: inherit; font-size: 10px; color: var(--g); background: rgba(var(--bg2), 0.92); border: 1px solid var(--line); border-radius: 5px; cursor: pointer; touch-action: none; }
 .bld .n { display: block; font-size: 9.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bld .s { display: block; margin-top: 5px; font-size: 10px; color: #fff; white-space: nowrap; }
 .bld.ready .s { color: #7dff9b; } .bld.poor .s { color: var(--amber); } .bld.off { opacity: 0.45; }
 .bld:hover:not(.off) { border-color: var(--g); }
-/* SEAF squads: pick one, draw it a play, split it, merge it, hand it troopers */
+/* Infantry squads: pick one, draw it a play, split it, merge it, hand it troopers */
 #squads { position: absolute; left: max(10px, env(safe-area-inset-left)); bottom: 160px; width: min(500px, 66vw); display: grid; grid-template-columns: repeat(5, minmax(0, 1.1fr)) repeat(4, minmax(0, 1fr)); gap: 4px; padding: 4px; pointer-events: auto; }
 .sqb, .sqa {
   position: relative; min-width: 0; height: 40px; padding: 3px 2px; text-align: center; touch-action: none; cursor: pointer;
@@ -249,7 +249,7 @@ textarea {
 .sqa.ready .n { color: #7dff9b; } .sqa.off { opacity: 0.45; }
 .sqa.active { border-color: var(--yellow); background: rgba(70, 60, 0, 0.7); box-shadow: 0 0 12px rgba(255, 230, 0, 0.3); } .sqa.active .n { color: var(--yellow); }
 .sqb:hover, .sqa:hover:not(.off) { border-color: var(--g); }
-/* Helldivers: one button per group beside the SEAF squads, in the same style (a double tap on either moves the camera there) */
+/* Vanguards: one button per group beside the Infantry squads, in the same style (a double tap on either moves the camera there) */
 
 
 body.drawing #view { cursor: crosshair; }
@@ -398,7 +398,7 @@ tr.sum td { color: #fff; border-top: 1px solid var(--line); font-weight: 700; }
 /* ---------- smaller screens ---------- */
 @media (max-width: 1100px) {
 
-  /* no room beside the SEAF squads: the Helldivers sit just above them */
+  /* no room beside the Infantry squads: the Vanguards sit just above them */
 
   #radio { bottom: 264px; }
 }
@@ -487,7 +487,7 @@ tr.sum td { color: #fff; border-top: 1px solid var(--line); font-weight: 700; }
 
 /* ---------- phones and tablets (touch): the compact HUD ----------
    Top row: a slim status chip (left), the objective (middle), the minimap with MENU and pause buttons (right).
-   Bottom: the weapon bar, a dock (SEAF squads, SEAF drop, re-center once the camera has moved) and CALL.
+   Bottom: the weapon bar, a dock (Infantry squads, Infantry drop, re-center once the camera has moved) and CALL.
    The stratagem grid, squad status, armory and camera live in the MENU. News is one short feed of two lines at most.
    Everything steps back after a few seconds without a touch on it, and the map stays readable. */
 .nt.radio { --nc: var(--yellow); }
@@ -739,7 +739,7 @@ body.touch .callout .co-b kbd { display: none; }
 #supgame .sg-foot .fine { margin: 0; font-size: 10.5px; }
 body.touch #supgame { top: auto; bottom: max(12px, env(safe-area-inset-bottom)); transform: translateX(-50%); }
 body.touch .sg-slot .sg-cells i { height: 22px; }
-/* (0.18) the Hellbomb: four parts, put in in the order they light up */
+/* (0.18) the Demolition Charge: four parts, put in in the order they light up */
 #hbgame { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -38%); width: min(520px, 96vw); z-index: 8; pointer-events: auto; padding: 12px 14px; text-align: center;
   border-color: rgba(255, 90, 60, 0.7); }
 #hbgame .sg-h { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 12px; letter-spacing: 0.1em; }
@@ -845,10 +845,10 @@ body.touch #tray .tray-x { display: block; position: static; align-self: flex-en
 /* ---------- 0.16: the HUD in four corners ----------
    Computer: top left the buttons (INFO, ARMORY, MENU, speed, pause) and the news; top right the clock, the mission number and
    the difficulty, the score, and under it the objective and its callouts; bottom right the round minimap; bottom left the
-   Helldivers (one row each: designation, name, ship, health, kit, what they are doing and their stratagems), the SEAF squads and
+   Vanguards (one row each: designation, name, ship, health, kit, what they are doing and their stratagems), the Infantry squads and
    their orders, and the tactical menu. The weapon bar stays at the bottom in the middle; the radio is at the top in the middle.
    Phones: the same pieces, compact: the clock box top left, the objective in the middle, the minimap and buttons top right, and
-   the Helldivers, squads and orders in the tray that opens from the dock. */
+   the Vanguards, squads and orders in the tray that opens from the dock. */
 #hud .hud-tr, #hud .hud-br { zoom: var(--ui, 1); }
 .tl-btns { display: flex; gap: 6px; pointer-events: auto; }
 .tl-btns .btn { min-height: 36px; padding: 4px 10px; font-size: 11px; }
@@ -870,7 +870,7 @@ body.touch #tray .tray-x { display: block; position: static; align-self: flex-en
 #flavor { position: static; text-align: right; }
 #radio { left: 50%; transform: translateX(-50%); top: max(10px, env(safe-area-inset-top)); bottom: auto; width: min(420px, 40vw); align-items: center; }
 #radio .line { text-align: center; }
-/* bottom left: one column, from the Helldivers down to the orders (above the weapon bar's height, clear of it) */
+/* bottom left: one column, from the Vanguards down to the orders (above the weapon bar's height, clear of it) */
 #tray { display: flex; flex-direction: column; gap: 4px; position: absolute; left: max(10px, env(safe-area-inset-left)); bottom: 84px; width: min(530px, calc(50vw - 60px)); pointer-events: none; }
 #tray > * { pointer-events: auto; }
 #tray #squads, #tray #orders { position: static; width: auto; }
@@ -969,7 +969,7 @@ body.touch #callouts { top: calc(max(8px, env(safe-area-inset-top)) + 110px); }
 .shop-tabs .tab { flex: 1; min-width: 0; position: relative; }
 .shop-tabs .tab.can::after { content: ''; position: absolute; top: 5px; right: 6px; width: 6px; height: 6px; border-radius: 50%; background: #7dff9b; box-shadow: 0 0 6px #7dff9b; }
 .tabpane { display: none; } .tabpane.on { display: block; }
-/* phones: with the tactical menu open, the Helldiver rows step aside so the tray does not cover the map */
+/* phones: with the tactical menu open, the Vanguard rows step aside so the tray does not cover the map */
 /* (restored for the new HUD pieces) */
 .tl-btns #btn-info { color: var(--yellow); border-color: rgba(255, 230, 0, 0.5); }
 body.touch #mbox, body.touch #objective, body.touch .tl-btns { transition: opacity 0.6s; }
@@ -1032,7 +1032,7 @@ body.hide-ui #hud > *:not(#showui) { display: none !important; }
 body.hide-ui #showui { display: block; }
 body.touch #showui kbd { display: none; }
 
-/* bottom left: the Helldivers, half as wide: designation and ship in full, health, then what they are doing and their stratagems */
+/* bottom left: the Vanguards, half as wide: designation and ship in full, health, then what they are doing and their stratagems */
 #tray #sqpanel { align-self: flex-start; width: 50%; min-width: 262px; }
 .hr { grid-template-columns: 14px minmax(0, 1fr); gap: 5px; padding: 2px 0; }
 .hr .h1 { flex-wrap: wrap; row-gap: 0; }
@@ -1081,7 +1081,7 @@ body.touch #objective { right: calc(max(8px, env(safe-area-inset-right)) + var(-
 #tactical .bld.on { border-color: var(--yellow); box-shadow: 0 0 12px rgba(255, 230, 0, 0.4); }
 #tactical .bld:hover:not(.off) { border-color: var(--g); }
 #tactical .frm { height: 44px; }
-/* its two drop menus, at the bottom of the left column: the Helldivers, and the SEAF squads with their orders */
+/* its two drop menus, at the bottom of the left column: the Vanguards, and the Infantry squads with their orders */
 #tac-drops { display: none; gap: 6px; order: 20; }
 .tdb { min-height: 30px; padding: 3px 12px; font-size: 11px; letter-spacing: 0.12em; background: rgba(3, 16, 9, 0.95); }
 .tdb i { font-style: normal; display: inline-block; margin-left: 4px; transition: transform 0.15s; }
@@ -1159,7 +1159,7 @@ body.touch #tactical .bld .ic { max-width: 50px; }
   body.touch .tc-l { margin-bottom: 2px; }
   body.touch #tactical .frm { height: 30px; } body.touch #tactical .frm .fg { height: 12px; }
 }
-/* phones: each Helldiver on two lines (designation and ship; then health, what they are doing and the stratagems) */
+/* phones: each Vanguard on two lines (designation and ship; then health, what they are doing and the stratagems) */
 body.touch .hr .hm { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 6px; align-items: center; }
 body.touch .hr .h1 { grid-column: 1 / -1; }
 body.touch .hr .hm > .hp { grid-column: 1; margin-top: 2px; }
@@ -1196,7 +1196,7 @@ body.hide-ui #hottip { display: none !important; }
 #hottip { pointer-events: none; } #hottip .tt-i, #hottip .tt-more, #hottip.open { pointer-events: auto; }
 
 /* ======================= 0.17.3 ======================= */
-/* TACTICAL BUILD: a big blue button under the SEAF orders (on a phone, in the dock) */
+/* TACTICAL BUILD: a big blue button under the Infantry orders (on a phone, in the dock) */
 #btn-tac { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 42px; padding: 6px 12px; pointer-events: auto; cursor: pointer;
   font: inherit; font-size: 13px; font-weight: 700; letter-spacing: 0.22em; color: #bfe9ff; background: rgba(10, 46, 70, 0.92);
   border: 1px solid rgba(127, 216, 255, 0.75); border-radius: 6px; box-shadow: 0 0 14px rgba(127, 216, 255, 0.18); }
@@ -1421,8 +1421,8 @@ body.ls-glass #hud > :not(#glassfx):not(#tut) { opacity: 0.12; transition: opaci
 
 /* ======================= 0.19.1: one sheet, and nothing on top of anything ======================= */
 /* Fixed places: the top corners; the feed under the top left; the minimap (bottom right on a computer, top right on a touch
-   screen); and two rows along the bottom: the dock (the Helldivers' health, the squads, SEAF DROP, TACTICAL) over the weapon bar,
-   with CALL beside them on a touch screen. TACTICAL, the squads, the Helldivers and the armory all open one sheet over the bottom
+   screen); and two rows along the bottom: the dock (the Vanguards' health, the squads, INFANTRY DROP, TACTICAL) over the weapon bar,
+   with CALL beside them on a touch screen. TACTICAL, the squads, the Vanguards and the armory all open one sheet over the bottom
    third, the same height for every tab: the dock folds into it, the weapon bar rides on top of it (not on a short screen), the
    minimap shrinks, and the camera's point moves up into the room left above it. ui.js layout() trims what has to give: the
    sheet's height on a short screen, the feed's length, and where the big message, the toasts and the drop countdown go. */
@@ -1441,7 +1441,7 @@ body.touch { --g: 6px; --wbh: 44px; --dkh: 36px; --callw: calc(var(--wbh) * var(
 body.touch.lefty { --rowL: calc(var(--L) + var(--callw) + var(--g)); --rowR: var(--R); }
 @media (max-height: 520px) { body { --sheet: clamp(140px, 46vh, 200px); } }
 
-/* the old bottom-left column and the touch tray: their parts moved into the sheet (the squads, the Helldivers) */
+/* the old bottom-left column and the touch tray: their parts moved into the sheet (the squads, the Vanguards) */
 #hud #tray, #hud #btn-tac, #hud #tac-drops, #hud .tray-x { display: none !important; }
 
 /* the bottom rows */
@@ -1457,7 +1457,7 @@ body.touch.lefty { --rowL: calc(var(--L) + var(--callw) + var(--g)); --rowR: var
 #hud #dock > #dk-tac { flex: 0 0 auto; max-width: none; padding: 0 14px; color: #7fd8ff; border-color: rgba(127, 216, 255, 0.6); background: rgba(10, 40, 60, 0.6); }
 #hud #dock > #dk-tac .n { font-size: 11px; color: #7fd8ff; letter-spacing: 0.16em; }
 body:not(.touch) #hud #dock > #dk-tac .n::after { content: ' TAB'; font-size: 9px; color: var(--g-dim); letter-spacing: 0.04em; }
-/* the Helldivers' chips: a letter and a bar each */
+/* the Vanguards' chips: a letter and a bar each */
 #hud #dock > #dk-hd { flex: 0 1 auto; max-width: 230px; padding: 3px 6px; }
 #dk-hd .hdc { display: flex; gap: 6px; height: 100%; align-items: center; }
 #dk-hd .hc { --tc: var(--g); display: flex; flex-direction: column; justify-content: center; gap: 3px; width: 36px; }
@@ -1496,7 +1496,7 @@ body.touch #hud #tactical { left: var(--L); right: var(--R); }
 #hud #tactical #squads { position: static; left: auto; right: auto; bottom: auto; top: auto; width: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(50px, 1fr)) !important;
   gap: 4px; padding: 0; background: none; border: 0; }
 #hud #tactical #squads .sqb, #hud #tactical #squads .sqa { height: 34px; }
-/* the Helldivers: their rows and the supply */
+/* the Vanguards: their rows and the supply */
 #hud #tactical #sqpanel { position: static; left: auto; right: auto; bottom: auto; top: auto; width: auto; max-height: none; padding: 0; background: none; border: 0; display: block; }
 #tactical #hdrows { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 4px 12px; }
 #tactical .hr { grid-template-columns: 14px minmax(0, 1fr); }
@@ -1631,7 +1631,7 @@ body:not(.touch) #hud.idle #minimap:not(.hot) { opacity: 0.6; }
 body:not(.touch) #hud.idle #flavor { opacity: 0.4; }
 
 /* ======================= 0.19.5 ======================= */
-/* the Helldivers' lives beside the credits: the mission is lost when they run out */
+/* the Vanguards' lives beside the credits: the mission is lost when they run out */
 .cr-row { display: flex; align-items: stretch; gap: 6px; pointer-events: none; }
 #hud .bigcr.lives { border-color: rgba(127, 216, 255, 0.4); }
 #hud .bigcr.lives b, #hud .bigcr.lives span { color: #bfe9ff; text-shadow: 0 0 10px rgba(127, 216, 255, 0.3), 0 1px 2px rgba(0, 0, 0, 0.9); }
@@ -1645,8 +1645,8 @@ body:not(.touch) #hud.idle .bigcr.lives.low { opacity: 1; }
 body.touch #hud.ls #mb-diff { display: block; font-size: 8.5px; letter-spacing: 0.06em; }
 
 /* ======================= 0.20: the HUD as an RTS ======================= */
-/* Age of Empires' frame with the Helldivers' HUD in it. Top left, the resource bar (credits, the Helldivers' lives, SEAF); top
-   centre, big alerts in red; top right, the clock, the objective and requests. Bottom left, what is selected, and the Helldivers
+/* Age of Empires' frame with the Vanguards' HUD in it. Top left, the resource bar (credits, the Vanguards' lives, Infantry); top
+   centre, big alerts in red; top right, the clock, the objective and requests. Bottom left, what is selected, and the Vanguards
    just above it; bottom centre, the command panel (troops, build or armory: one at a time, and it always fits), the weapons
    above it; bottom right, the minimap with the buttons round it and a short log above. Every block has one place; nothing moves
    when something is picked, and nothing scrolls. The whole HUD scales with Settings > UI size. */
@@ -1675,7 +1675,7 @@ body.rts #hud #callouts .callout { pointer-events: auto; max-width: none; } body
 body.rts #hud #center-msg { left: var(--mL, calc(var(--L) + 300px)); right: var(--mR, calc(var(--R) + 290px)); top: var(--T); padding: 5px 12px; font-size: clamp(13px, 1.5vw, 18px); letter-spacing: 0.12em;
   color: #ffd9d4; background: rgba(150, 20, 10, 0.72); border: 1px solid rgba(255, 90, 60, 0.85); border-radius: 4px; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8); width: auto; margin: 0 auto; max-width: 640px; }
 body.rts #hud #center-msg:not(.show) { visibility: hidden; }
-/* left: the Helldivers, always on show, just above what is selected */
+/* left: the Vanguards, always on show, just above what is selected */
 body.rts #hud #hdpanel { position: absolute; left: var(--L); bottom: calc(var(--B) + var(--bb) + var(--g)); width: var(--selw); pointer-events: auto; }
 body.rts #hud #hdpanel #sqpanel { position: static; display: block; width: auto; max-height: none; padding: 4px 6px; left: auto; right: auto; top: auto; bottom: auto; }
 body.rts #hud #hdpanel #hdrows { display: flex; flex-direction: column; gap: 2px; }
@@ -1835,7 +1835,7 @@ body.rts #hud #selpanel.flash { animation: selFlash 0.5s ease-out; }
 /* Settings > Interface layout (AUTO picks by the screen) puts lay-phone, lay-tab or lay-desk on the body, and lay-port or lay-land.
    Desktop is 0.20's layout. Tablet is the same frame with controls sized for fingers. Phone puts the game first: thin bars at the
    top (MENU, PAUSE and half speed with the resource bar; the clock and the objective; the drop countdown and the alerts), the
-   Helldivers as four chips, one line for what is picked (only when something is), the weapons by CALL, and a command panel two
+   Vanguards as four chips, one line for what is picked (only when something is), the weapons by CALL, and a command panel two
    rows high; BUILD and ARMORY pull it up as a drawer while they are used. */
 
 /* every layout: the top centre holds the drop countdown (one line) and the big alerts under it, off the middle of the map */
@@ -1888,7 +1888,7 @@ body.rts.lay-tab.lay-port #hud { --wsh: 64px; --mbw: 50px; --mmp: calc(min(196px
 body.rts.lay-tab.lay-port #hud #tactical { left: var(--L); right: var(--R); }
 body.rts.lay-tab.lay-port #hud #weapons { left: var(--L); right: calc(var(--R) + 84px + var(--g)); }
 body.rts.lay-tab.lay-port.touch #hud #fire-btn { width: 84px; height: var(--wsh); border-radius: 12px; bottom: calc(var(--B) + var(--bb) + var(--g)); }
-/* one band over the weapons: the Helldivers, what is picked, the minimap */
+/* one band over the weapons: the Vanguards, what is picked, the minimap */
 body.rts.lay-tab.lay-port #hud #hdpanel { bottom: var(--up); left: var(--L); width: min(46%, 380px); }
 body.rts.lay-tab.lay-port #hud #selpanel { bottom: var(--up); left: calc(var(--L) + min(46%, 380px) + var(--g)); right: calc(var(--R) + var(--rcol) + var(--g)); width: auto; height: var(--mmp); }
 body.rts.lay-tab.lay-port #hud .hud-br { bottom: var(--up); }
@@ -1933,7 +1933,7 @@ body.rts.lay-phone #hud #topmid #dropcd .dc-t small { font-size: 10px; } body.rt
 body.rts.lay-phone #hud #topmid #dropcd kbd { display: none; }
 body.rts.lay-phone #hud #topmid .dc-l { display: none; } body.rts.lay-phone #hud #topmid .dc-s { display: inline; }
 body.rts.lay-phone #hud #topmid #center-msg { font-size: 12px; padding: 4px 10px; letter-spacing: 0.1em; }
-/* the Helldivers: four chips (a letter, the health, how many stratagems are ready); a tap opens the full row for a moment */
+/* the Vanguards: four chips (a letter, the health, how many stratagems are ready); a tap opens the full row for a moment */
 body.rts.lay-phone #hud #hdpanel { left: var(--L); top: calc(var(--T) + var(--tb) + var(--g)); bottom: auto; width: var(--chw); }
 body.rts.lay-phone #hud #hdpanel #sqpanel { padding: 3px 5px; position: relative; }
 body.rts.lay-phone #hud #hdpanel #hdrows { gap: 3px; }
@@ -2022,7 +2022,7 @@ body.rts.lay-phone.lay-port #hud #selpanel { right: var(--R); bottom: calc(var(-
 body.rts.lay-phone.lay-port #hud #notices { right: var(--R); bottom: calc(var(--B) + var(--bbn) + var(--wsh) + 36px + 3 * var(--g)); }
 body.rts.lay-phone.lay-port #hud #toast { bottom: calc(var(--B) + var(--bbn) + var(--wsh) + 36px + 50px + 4 * var(--g)); }
 body.rts.lay-phone.lay-port #hud #softpause .sp-bar { bottom: calc(var(--B) + var(--bbn) + var(--wsh) + 36px + 3 * var(--g)); }
-/* the Helldivers before they land (or while one waits for a new drop): the chip says when */
+/* the Vanguards before they land (or while one waits for a new drop): the chip says when */
 body.rts.lay-phone #hud #hdpanel .hr:is(.drop, .wait, .lost):not(.open) .h3 { display: flex; } body.rts.lay-phone #hud #hdpanel .hr:is(.drop, .wait, .lost):not(.open) .h3 .cells { display: none; }
 body.rts.lay-phone #hud #hdpanel .hr:is(.drop, .wait, .lost):not(.open) .st { display: block; font-size: 10.5px; color: var(--g-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 body.rts.lay-phone #hud #hdpanel .hr:is(.drop, .wait, .lost):not(.open) .hp, body.rts.lay-phone #hud #hdpanel .hr:is(.drop, .wait, .lost) .rn { display: none; }
@@ -2071,15 +2071,15 @@ body.rts.lay-phone #hud:has(#place-ok:not(.hidden)) #softpause .sp-bar { visibil
 #hud #merge-pop, body.rts #hud #topmid #ask, #hud #place-ok { background: rgba(4, 20, 11, 0.95); box-shadow: 0 4px 18px rgba(0, 0, 0, 0.6); }
 body.rts.lay-phone.lay-port #hud #tactical #squads .sqb { min-width: 34px; }
 
-/* ======================= 0.23: stratagem kinds, Eagles, minefields ======================= */
-/* each weapon carries its kind's colour along its top, as in Helldivers 2: orbital, Eagle, defence */
+/* ======================= 0.23: stratagem kinds, Strikers, minefields ======================= */
+/* each weapon carries its kind's colour along its top, as in Vanguards 2: orbital, Striker, defence */
 #hud .wbtn.cat-orbital { box-shadow: inset 0 2px 0 #ff7a3d; } #hud .wbtn.cat-eagle { box-shadow: inset 0 2px 0 #ffd24a; } #hud .wbtn.cat-defense { box-shadow: inset 0 2px 0 #7dff9b; }
 #hud .wbtn.cat-eagle .n { color: #ffe27a; } #hud .wbtn.cat-defense .n { color: var(--g); }
 #hud .wbtn.sel.cat-orbital, #hud .wbtn.sel.cat-eagle, #hud .wbtn.sel.cat-defense { box-shadow: inset 0 2px 0 var(--yellow), 0 0 12px rgba(255, 230, 0, 0.3); }
 .sec-eagles { --sec: #ffd24a; } .sec-minefields { --sec: #7dff9b; }
 .la-it.sec-eagles { --sc: #ffd24a; } .la-it.sec-minefields { --sc: #7dff9b; }
 
-/* ---------- (0.24) title screen: the view from the Super Destroyer ---------- */
+/* ---------- (0.24) title screen: the view from the Fire-Support Ship ---------- */
 #title-bg { position: fixed; inset: 0; width: 100%; height: 100%; display: none; pointer-events: none; }
 body:has(#s-title.on) #title-bg, body:has(#s-campaign.on) #title-bg { display: block; }
 #s-title, #s-campaign { background: radial-gradient(ellipse 70% 80% at 28% 40%, rgba(1, 4, 6, 0.55), transparent 70%); padding: 0; }
@@ -2380,7 +2380,7 @@ body.touch #doors .door { min-height: 36px; font-size: 11.5px; padding: 0 12px 0
 body.rts.lay-phone.lay-port #hud #tactical #squads .sqb { flex-direction: column; gap: 0; line-height: 1.1; }
 body.rts.lay-phone.lay-port #hud #tactical #squads .sqb .s { overflow: visible; }
 body.rts.lay-phone.touch #hud #fire-btn { padding: 0; letter-spacing: 0.04em; }
-/* the Helldiver chips before a drop: just the arrow and the time (the full words are in the open row) */
+/* the Vanguard chips before a drop: just the arrow and the time (the full words are in the open row) */
 #hud #hdpanel .hr .sts { display: none; }
 body.rts.lay-phone.lay-port #hud #hdpanel .hr:is(.drop, .wait, .lost):not(.open) .st { display: none; }
 body.rts.lay-phone.lay-port #hud #hdpanel .hr:is(.drop, .wait, .lost):not(.open) .sts { display: block; font-size: 10.5px; color: var(--g-dim); white-space: nowrap; letter-spacing: 0; }
@@ -2529,12 +2529,12 @@ body.rts.lay-phone #hud #selpanel .tsd { padding: 0 6px; letter-spacing: 0.02em;
 body:not(.touch) #hud #place-ok #po-go, body:not(.touch) #hud #place-ok #po-x { display: none; }
 body:not(.touch) #hud #place-ok { bottom: calc(var(--dcb, 210px) + 8px); }
 body.touch #dk-pick { width: 74px; }
-/* (0.39) the mid-mission armory has a HANGAR tab now (the Pelican Fleet can be bought there): the tabs share the row and shrink */
+/* (0.39) the mid-mission armory has a HANGAR tab now (the Dropship Fleet can be bought there): the tabs share the row and shrink */
 .la-top { min-width: 0; overflow: hidden; }
 .la-tab { flex: 0 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 body.rts.lay-tab #hud .la-tab { padding: 0 8px; }
 
-/* (0.44) END OPERATION, and the SESF coin it pays */
+/* (0.44) END OPERATION, and the challenge coin it pays */
 .btn.endop { border-color: var(--amber); color: var(--amber); }
 .btn.endop small { color: #ffe27a; font-size: 10px; letter-spacing: 0.08em; margin-top: 1px; }
 .btn.endop.armed { background: var(--amber); color: #000; font-weight: 700; }

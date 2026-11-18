@@ -1,4 +1,4 @@
-// Ally rifles, SEAF grenadiers and rocket troopers, and enemy awareness, movement and attacks.
+// Ally rifles, Infantry grenadiers and rocket troopers, and enemy awareness, movement and attacks.
 // Enemy damage depends on size and faction (CONFIG.combat.atk): light enemies nibble, mediums hurt, heavies are special.
 import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
@@ -51,11 +51,11 @@ export function noise(m, x, y, r) {
 // Rifle profile per ally type: damage per burst is dps x burst seconds.
 const RIFLE = {};
 for (const k of ['H', 'S']) { const d = ALLY[k]; RIFLE[k] = { dmg: d.dps * d.burst, acc: d.acc, splash: 0, mult: { ...d.mult, B: 0.04 }, burst: d.burst, range: d.range }; }
-// (0.26) SEAF by role: the Squad Leader and Riflemen carry the Liberator (RIFLE.S), the Specialist the MG-43, the Medic the SMG-37
+// (0.26) Infantry by role: the Squad Leader and Riflemen carry the Liberator (RIFLE.S), the Specialist the MG-43, the Medic the SMG-37
 for (const [k, d] of [['spec', C.combat.seafMg], ['medic', C.combat.seafSmg]]) RIFLE[k] = { dmg: d.dps * d.burst, acc: d.acc, splash: 0, mult: { ...d.mult, B: 0.04 }, burst: d.burst, range: d.range };
 const gunOf = (a) => (a.type === 'H' ? RIFLE.H : RIFLE[a.role] || RIFLE.S);
 
-// SEAF specialists. A grenadier lobs frags at groups; a rocket trooper hunts mediums and heavies.
+// Infantry specialists. A grenadier lobs frags at groups; a rocket trooper hunts mediums and heavies.
 const GRENADE = { dmg: C.combat.grenadier.dmg, acc: C.combat.grenadier.acc, splash: C.combat.grenadier.splash, flight: C.combat.grenadier.flight, range: C.combat.grenadier.range, fuse: C.combat.grenadier.fuse, mult: C.combat.grenadier.mult };
 const ROCKET = { dmg: C.combat.rocketeer.dmg, acc: C.combat.rocketeer.acc, splash: C.combat.rocketeer.splash, flight: C.combat.rocketeer.flight, range: C.combat.rocketeer.range, mult: C.combat.rocketeer.mult };
 
@@ -66,17 +66,17 @@ export function updateAllies(m, dt) {
     const mechOn = a.mech && a.mech.hp > 0 && (a.mech.gat > 0 || a.mech.rkt > 0);
     const H = a.type === 'H';
 
-    // Rifle (the Liberator for a Helldiver): a burst every half second or so at the nearest enemy in range that has a clear lane;
+    // Rifle (the Liberator for a Vanguard): a burst every half second or so at the nearest enemy in range that has a clear lane;
     // a friendly in the way means the trigger is held (and now and then it is not, and the friendly pays for it). The exosuit
-    // replaces it; a Helldiver with a support weapon keeps it, but fires it less often.
-    // Helldivers hold fire while the squad is setting up on an enemy that has not noticed them.
+    // replaces it; a Vanguard with a support weapon keeps it, but fires it less often.
+    // Vanguards hold fire while the squad is setting up on an enemy that has not noticed them.
     if (!mechOn) {
       a.atk -= dt;
       if (a.atk <= 0) {
-        const G = gunOf(a), range = G.range;       // the rifle's reach (by role for SEAF); long shots are weaker (see fireShot)
+        const G = gunOf(a), range = G.range;       // the rifle's reach (by role for Infantry); long shots are weaker (see fireShot)
         const pick = pickClear(m, a, range, null);
         const e = pick && pick.e;
-        // (0.53.4) a stalemate at the base the squad came for (it has pushed in): a Helldiver with nothing right on him shoots the
+        // (0.53.4) a stalemate at the base the squad came for (it has pushed in): a Vanguard with nothing right on him shoots the
         // structure, so a base feeding troops in is not fought for ever (a citadel's last outer base held a squad for good)
         const tb = H && sq.pushed && sq.stage === 'go' && sq.base && !sq.base.destroyed && !sq.base.bombOnly ? sq.base : null;
         const breakIt = !!tb && Math.hypot(tb.x - a.x, tb.y - a.y) - tb.r <= C.structure.range && (!e || Math.hypot(e.x - a.x, e.y - a.y) > C.structure.breakR);
@@ -107,7 +107,7 @@ export function updateAllies(m, dt) {
             m.emit('tracer', { x: a.x, y: a.y, tx: soft.x, ty: soft.y, s: 'a', hit: true, big: false, fl: 0, snd: H ? 'rifle' : 'smg' });
             if (dmg > 0) (soft.isPoi ? m.damagePoi(soft, dmg, 'squad') : m.damageBreach(soft, dmg, 'squad'));
           } else if (bs) {
-            // A base or the citadel: the squad shoots it down itself, so nothing the destroyer can break is out of the Helldivers' reach.
+            // A base or the citadel: the squad shoots it down itself, so nothing the destroyer can break is out of the Vanguards' reach.
             a.atk += G.burst;
             const hit = m.rng.next() < G.acc, dx = a.x - bs.x, dy = a.y - bs.y, d = Math.hypot(dx, dy) || 1, k = bs.r * 0.7 / d;
             m.emit('tracer', { x: a.x, y: a.y, tx: bs.x + dx * k, ty: bs.y + dy * k, s: 'a', hit, big: false, fl: 0, snd: H ? 'rifle' : 'smg' });
@@ -117,7 +117,7 @@ export function updateAllies(m, dt) {
       }
     }
 
-    // (0.26) SEAF: every role throws G-12 grenades at groups while it has some; the Specialist fires the EAT-17 at heavies and
+    // (0.26) Infantry: every role throws G-12 grenades at groups while it has some; the Specialist fires the EAT-17 at heavies and
     // armour (and at a dropship hovering in reach). Each has its own timer.
     if (!H) {
       if (a.role === 'spec') {
@@ -125,7 +125,7 @@ export function updateAllies(m, dt) {
         if (a.spT <= 0) {
           const spec = C.combat.rocketeer;
           let e = dropNear(m, a.x, a.y, spec.range), bs = -Infinity;     // a dropship hovering in reach is the best target there is
-          // (0.40) not a target another Specialist (or a Helldiver's Ultimatum) is on already: something else, or wait a moment
+          // (0.40) not a target another Specialist (or a Vanguard's Ultimatum) is on already: something else, or wait a moment
           if (!e) m.eGrid.near(a.x, a.y, spec.range, (q, d2) => { if (q.kind === 'L') return; const sc = (q.kind === 'H' ? 90 : 30) - Math.sqrt(d2) * 0.2; if (sc > bs && !shared(m, a, q)) { bs = sc; e = q; } });
           const soft = !e && softNear(m, a.x, a.y, spec.range);
           if (e || soft) {
@@ -266,7 +266,7 @@ function segDist(px, py, x1, y1, x2, y2) {
   return Math.hypot(px - (x1 + u * dx), py - (y1 + u * dy));
 }
 
-// Harvester (squid heavy): picks a target, charges for a couple of seconds with a visible line, then fires a beam.
+// Harvester (lizard heavy): picks a target, charges for a couple of seconds with a visible line, then fires a beam.
 function squidHeavy(m, e, p, t) {
   if (e.ch) {
     const c = e.ch;
@@ -345,7 +345,7 @@ function colossusBeam(m, e, p, t, dt) {
 // they can see it, and no farther
 export const bossReach = (m) => C.sight.helldiver * ((m.biome && m.biome.ping) || 1) * (C.boss.reachMul || 1);
 function bossMove(m, e, dt, size) {
-  let best = null, bd = Infinity;     // it hunts the Helldivers (anyone else only once they are gone)
+  let best = null, bd = Infinity;     // it hunts the Vanguards (anyone else only once they are gone)
   for (const a of (m.hdAlive.length ? m.hdAlive : m.alive)) { if (a.dead || a.mounted) continue; const d2 = (a.x - e.x) ** 2 + (a.y - e.y) ** 2; if (d2 < bd) { bd = d2; best = a; } }
   const gx = best ? best.x : m.hx, gy = best ? best.y : m.hy, d = Math.sqrt(bd);
   // (0.55) every super heavy fights from the edge of the allies' own sight (bossReach): it closes to standOff of that and stops,
@@ -603,7 +603,7 @@ function arrangeSchool(g, t) {
     let sx = g.cx + q.ox, sy = g.cy + q.oy;
     if (AOB) { const dx = sx - AOB.cx, dy = sy - AOB.cy, d2 = dx * dx + dy * dy; if (d2 > aR * aR) { const k = aR / Math.sqrt(d2); sx = AOB.cx + dx * k; sy = AOB.cy + dy * k; } }     // (a place past the rim of the map: as near to it as anyone can stand)
     // (0.62.8) one that is AHEAD of its place (nearer where the school is going than its place is) is not behind: on a hunt the
-    // squids near enough to go for the ring ran on, that read as the school falling behind, and its point stopped to wait
+    // lizards near enough to go for the ring ran on, that read as the school falling behind, and its point stopped to wait
     const T = g.tp || g.target;
     if (T && (q.x - T.x) ** 2 + (q.y - T.y) ** 2 < (sx - T.x) ** 2 + (sy - T.y) ** 2) { ln++; continue; }
     lag += Math.hypot(q.x - sx, q.y - sy); ln++;
@@ -675,9 +675,9 @@ function lineMove(m, g, e, tgt, dt, size) {
   moveToward(e, tgt.x - g.ux * stand + nx * (e.lane || 0), tgt.y - g.uy * stand + ny * (e.lane || 0), e.speed * 1.3, dt, size);
 }
 
-// Squids: encirclement. Everything hunting one target spreads evenly round it (assignRings, twice a second); each one walks the
+// Lizards: encirclement. Everything hunting one target spreads evenly round it (assignRings, twice a second); each one walks the
 // ring toward its own slot while it closes to its firing distance, shooting as it goes, and stops once it is in place.
-// (0.54) a squid leader (a medium that is not the fleshmob) keeps inside the ring instead of on it
+// (0.54) a lizard leader (a medium that is not the fleshmob) keeps inside the ring instead of on it
 const midOf = (e) => e.kind === 'M' && !e.sub && !e.boss;
 // (0.62.2) The leaders get their own evenly spaced slots on the inner ring, as the lights do on the outer one. Before this they
 // only held their current bearing, so every leader hunting one target could end up on the same side of it, in a heap.
@@ -816,7 +816,7 @@ export function updateEnemies(m, dt) {
         e.tgt = null;
         if (e.stunUntil > t) { e.vx = 0; e.vy = 0; continue; }
         const h = homeOf(g, e);
-        moveToward(e, h.x, h.y, e.speed * (fac.id === 'squids' ? ((e.x - h.x) ** 2 + (e.y - h.y) ** 2 > 9 ? 1.6 : 1.1) : 0.8), dt, size);     // (0.62.4: a squid keeps up with its place in the arrow)
+        moveToward(e, h.x, h.y, e.speed * (fac.id === 'squids' ? ((e.x - h.x) ** 2 + (e.y - h.y) ** 2 > 9 ? 1.6 : 1.1) : 0.8), dt, size);     // (0.62.4: a lizard keeps up with its place in the arrow)
       }
       continue;
     }
@@ -940,7 +940,7 @@ export function updateEnemies(m, dt) {
         for (const cv of m.civs) if (!cv.dead && !cv.safe && (cv.x - tx) ** 2 + (cv.y - ty) ** 2 <= p.splash * p.splash) m.hurtCiv(cv, p.dmg * m.dmgMul, 'enemy');
         m.emit('boom', { x: tx, y: ty, r: p.splash, dmg: p.dmg, by: 'enemy' });
       } else {
-        // (0.58) the same glancing hits on our side: a light round on a Helldiver's armour may skip off
+        // (0.58) the same glancing hits on our side: a light round on a Vanguard's armour may skip off
         const R = C.ric, k = a.type ? Math.max(R.minPen, (R.vs[e.kind] || {})[armorOf(a)] ?? 1) : 1;
         if (k < 1 && rng.next() < Math.min(R.max, R.base + (1 - k) * R.perGap)) {
           hurtTarget(m, a, p.dmg * m.dmgMul * hi * Math.max(R.minPen, k * R.chip), 'enemy', e.kind, e.x, e.y);

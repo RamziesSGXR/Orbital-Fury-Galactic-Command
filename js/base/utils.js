@@ -108,7 +108,7 @@ export const Utilities = {
     this.stats.sick = (this.stats.sick || 0) + n;
     const what = SICK[cause][Math.floor(this.rng.next() * SICK[cause].length)];
     const fix = cause === 'bad' ? 'Move the well away from the lagoon.' : cause === 'water' ? 'More water: wells, a purification unit, towers to carry it.' : 'Sewage: a lagoon or a treatment plant in reach of the bunks.';
-    this.say('base', `Outbreak: ${n} votes are down with ${what}. ${this.b.some(b => b.done && B[b.type].ward) ? 'The medics have them.' : 'Without a Medical Bay they will mend slowly in their bunks.'} ${fix}`);
+    this.say('base', `Outbreak: ${n} recruits are down with ${what}. ${this.b.some(b => b.done && B[b.type].ward) ? 'The medics have them.' : 'Without a Medical Bay they will mend slowly in their bunks.'} ${fix}`);
     this.events.push({ t: 'outbreak', n, cause });
   },
   nearWater(x, z, w, d, r) {

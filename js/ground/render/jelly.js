@@ -1,4 +1,4 @@
-// (0.53.5) The Illuminate mothership, a jellyfish of a ship, from the project lead's side-view sketch: a broad ribbed cap with a pale
+// (0.53.5) The Talon mothership, a jellyfish of a ship, from the project lead's side-view sketch: a broad ribbed cap with a pale
 // blue rim, a rounded collar under it with a row of lights, a short neck, and a bundle of long tapering tendrils with pale blue
 // edges. In a mission (the defence gun's fight) it is a small 3D model drawn as if seen from 45 degrees above (the map is straight
 // down; the ship is tipped toward the camera so its shape reads), turning slowly, with its shadow thrown across the city. In the

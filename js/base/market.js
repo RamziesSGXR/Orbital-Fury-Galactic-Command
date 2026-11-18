@@ -1,11 +1,11 @@
-// The planet's market and the Ministry commitments.
+// The planet's market and the Head Office commitments.
 //
-// Four goods trade between the bases on the planet for credits: supplies, rations, E-710 fuel and ammo. Each has a price
-// that moves every day. Three Ministry indices (100 is normal) say how hard every base on the planet is chasing each
-// Ministry's favour: when everyone pushes Defence, ammo and rations get dear and Defence standing gets expensive to buy.
+// Four goods trade between the bases on the planet for credits: supplies, rations, Biofuel fuel and ammo. Each has a price
+// that moves every day. Three Head Office indices (100 is normal) say how hard every base on the planet is chasing each
+// Head Office's favour: when everyone pushes Defence, ammo and rations get dear and Defence standing gets expensive to buy.
 //
-// Commitments are how a base buys standing: for each Ministry a level from NONE to ALL OUT, paid every day in goods.
-// Standing per day = level x rate x 100 / index, so standing is cheap when a Ministry is out of fashion. Maxing all three
+// Commitments are how a base buys standing: for each Head Office a level from NONE to ALL OUT, paid every day in goods.
+// Standing per day = level x rate x 100 / index, so standing is cheap when a Head Office is out of fashion. Maxing all three
 // costs more than a base makes, which is the point: pick what to chase, and trade for what you are short of.
 //
 // Mixed into Sim (see the end of sim.js); every function here runs with `this` as the Sim.
@@ -106,7 +106,7 @@ export const Market = {
     const M = this.market, day = this.time?.day || 1;
     if (M.offers.length >= 3 || !this.rng.chance(0.55)) return;
     const r = this.rng.pick(this.rivals), m = MKEYS_ALL.reduce((a, k) => r.w[k] > r.w[a] ? k : a, 'def');
-    // what a rival chasing a Ministry wants is that Ministry's goods; it sells the others
+    // what a rival chasing a Head Office wants is that Head Office's goods; it sells the others
     let wantG = GK.filter(g => MARKET.goods[g].idx === m), sellG = GK.filter(g => MARKET.goods[g].idx !== m);
     if (!wantG.length) wantG = GK;   // a base chasing Truth buys a bit of everything
     const buys = this.rng.chance(0.5), g = this.rng.pick(buys ? wantG : sellG), d = MARKET.goods[g];

@@ -1,6 +1,6 @@
 // Unit art, seen from straight above, with a clear front and back. Every unit is drawn in its own frame turned to where it faces
-// (+x is the front). Allies: a Helldiver has a helmet and rifle at the front and a backpack (with its IR strobe,
-// edged in the squad colour) behind; a SEAF trooper is smaller and plainer. Enemies show their head, eyes or gun at the front; heavies carry a glowing weak spot on the
+// (+x is the front). Allies: a Vanguard has a helmet and rifle at the front and a backpack (with its IR strobe,
+// edged in the squad colour) behind; an Infantry trooper is smaller and plainer. Enemies show their head, eyes or gun at the front; heavies carry a glowing weak spot on the
 // back, where hits do the most. All sizes are in metres with a floor in screen pixels (px), so a unit reads at any zoom.
 import { CONFIG as C } from '../config.js';
 import { elevK } from './relief.js';
@@ -17,7 +17,7 @@ function rect(ctx, x0, y0, x1, y1) { ctx.beginPath(); ctx.rect(x0, y0, x1 - x0, 
 function line(ctx, x0, y0, x1, y1) { ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke(); }
 
 // ---------------------------------------------------------------- allies
-// strobe: whether the IR strobe on the backpack is lit this frame. team: the Helldiver's group colour (null for SEAF).
+// strobe: whether the IR strobe on the backpack is lit this frame. team: the Vanguard's group colour (null for Infantry).
 // (0.61) the slight 3D look is on: the dark halo behind a body is smaller and lighter (renderer.js sets it each frame)
 let RELIEF = false;
 export function setRelief(v) { RELIEF = v === 2 ? 2 : v ? 1 : false; }
@@ -48,7 +48,7 @@ export function drawAllyBody(ctx, a, r, col, team, strobe, now, px, mt = 0) {
   ctx.restore();
 }
 
-// (0.26) A SEAF trooper, by role. Facing +x, the right side is +y. The Squad Leader: a big radio pack with its antenna, a pad on
+// (0.26) An Infantry trooper, by role. Facing +x, the right side is +y. The Squad Leader: a big radio pack with its antenna, a pad on
 // the right shoulder, a mic off the helmet. Riflemen: plain, some with a small pack. The Specialist: the most armour (pads on
 // both shoulders, a neck guard), the MG-43 with its ammo box, the EAT-17 tube across the back. The Medic: light grey armour with
 // red, a white medical pack with a red cross, a helmet that comes forward over the cheeks; some wear orange. A trooper who is
@@ -231,14 +231,14 @@ export function drawEnemyBody(ctx, e, fac, r, col, now, px, hot) {
       }
     }
   } else {
-    // squids (0.62.2)
+    // lizards (0.62.2)
     if (k === 'H') drawHarvester(ctx, e, r, col, body, dark, lw, now, px, pulse);
     else drawSquidBiped(ctx, e, r, col, body, dark, lw, now, px, pulse);
   }
   ctx.restore();
 }
 
-// (0.62.2) The squids, redrawn. Not blobs: an armoured warrior caste. From above each one reads as a pair of flared shoulder
+// (0.62.2) The lizards, redrawn. Not blobs: an armoured warrior caste. From above each one reads as a pair of flared shoulder
 // plates with a narrow head set between them, a lit visor facing front, limbs folded back under a tapering mantle, and a
 // plasma weapon held across the body. Their own light is cold cyan against the purple.
 const SQ_LIT = '#8fe9ff', SQ_HOT = '#eafaff', SQ_DK = 'rgba(18,9,34,0.95)';

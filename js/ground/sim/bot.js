@@ -1,4 +1,4 @@
-// A simple bot that plays the destroyer through the same input API as a human: UAV scans, orbital strikes, SEAF drops,
+// A simple bot that plays the destroyer through the same input API as a human: UAV scans, orbital strikes, Infantry drops,
 // the nuke, and shopping between missions. Used by the headless balance test and the ?bot=1 demo.
 import { CONFIG as C } from '../config.js';
 import { buy, shopItems, seafStats } from '../data/kit.js';
@@ -6,14 +6,14 @@ import { touchSquad } from './seaf.js';
 import { slotStats, aimGeom, UAV_REACH, ORB_SLOTS, eagleReady } from './player.js';
 import { pickNukeTarget } from './objectives.js';
 import { acceptSupply, fillSupply } from './supply.js';
-import { tapHellbomb } from './ops.js';
+import { tapDemoCharge } from './ops.js';
 import { covered } from './combat.js';
 import { beaconLit } from './sides.js';
 import { answerTime } from './planner.js';
 
 // skill: aimNoise (metres of error on a strike), react (seconds between looks for an orbital to call), gun (the share of the time it
-// works the ship gun), orders (seconds between SEAF and UAV decisions), supply (seconds before it answers a supply request), split
-// (whether it splits its SEAF into two squads). The defaults are a sharp, tireless gunner; NOVICE is closer to a new player.
+// works the ship gun), orders (seconds between Infantry and UAV decisions), supply (seconds before it answers a supply request), split
+// (whether it splits its Infantry into two squads). The defaults are a sharp, tireless gunner; NOVICE is closer to a new player.
 export function makeBot(skill = {}) {
   return { next: 0, orderT: 0, nukeT: null, rot: 0, aimNoise: skill.aimNoise ?? 3, react: skill.react ?? 0.3, gunT: 0, gunOn: false, lineFor: 0, splitDone: false, commit: null,
     gun: skill.gun ?? 1, orders: skill.orders ?? 1, supply: skill.supply ?? 1.5, split: skill.split ?? true, reorder: skill.reorder ?? 70 };
@@ -111,7 +111,7 @@ export function splitHalf(m) {
   return r;
 }
 
-// SEAF pods when there is room (at a lit drop beacon near where the squad is going, if there is one), and a UAV whenever it is ready.
+// Infantry pods when there is room (at a lit drop beacon near where the squad is going, if there is one), and a UAV whenever it is ready.
 function orders(m, bot) {
   const t = m.t, dir = m.squad.dir, p = m.player;
   if (!m.alive.length) return;
@@ -273,12 +273,12 @@ export function botStep(m, bot) {
     if (f.t >= (f.nextTap || 0)) { fillSupply(m, -1); f.nextTap = f.t + f.tapEvery; }
     return;    // the player's hands are on the loader
   }
-  // The Hellbomb: the lit part each time, at about the same rate (and now and then a wrong one, like a player in a hurry)
+  // The Demolition Charge: the lit part each time, at about the same rate (and now and then a wrong one, like a player in a hurry)
   const HBm = m.hellbomb;
   if (HBm && HBm.state === 'fill') {
     const f = HBm.fill, K = C.objective.hellbomb;
     if (f.tapEvery === undefined) f.tapEvery = K.slowmo * (0.3 + ((HBm.n * 5 + m.seed) % 4) * 0.06);
-    if (f.t >= (f.nextTap || 0)) { tapHellbomb(m, ((f.taps * 7 + m.seed) % 9) === 0 ? (f.order[f.i] + 1) % 4 : -1); f.nextTap = f.t + f.tapEvery; }
+    if (f.t >= (f.nextTap || 0)) { tapDemoCharge(m, ((f.taps * 7 + m.seed) % 9) === 0 ? (f.order[f.i] + 1) % 4 : -1); f.nextTap = f.t + f.tapEvery; }
     return;
   }
 
@@ -309,7 +309,7 @@ export function botStep(m, bot) {
     bot.rot = (bot.rot + 1) % ORB_SLOTS;
     for (let k = 0; k < ORB_SLOTS; k++) {
       const idx = 1 + ((bot.rot + k) % ORB_SLOTS), s = p.slots[idx];
-      if (s.type !== 'orb' || t < s.readyAt || s.uses <= 0 || (s.eu !== undefined && !eagleReady(m, s))) continue;     // (0.53.2: an Eagle out of runs, or the Eagle away)
+      if (s.type !== 'orb' || t < s.readyAt || s.uses <= 0 || (s.eu !== undefined && !eagleReady(m, s))) continue;     // (0.53.2: a Striker out of runs, or the Striker away)
       const st = slotStats(m, idx);
       const tgt = targetFor(m, st);
       if (!tgt) continue;

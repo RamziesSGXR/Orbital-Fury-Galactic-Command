@@ -1,14 +1,14 @@
-// (0.52) Work sites. Each mission has one, dressed for the enemy: an E-710 refinery (bugs), a salvage yard (bots) or a dark-fluid
-// lab (squids). It is a building SEAF can be sent into (its door, like any post's): the troopers inside work it, the ones left
+// (0.52) Work sites. Each mission has one, dressed for the enemy: an Biofuel refinery (bugs), a salvage yard (bots) or a dark-fluid
+// lab (lizards). It is a building Infantry can be sent into (its door, like any post's): the troopers inside work it, the ones left
 // outside guard it. While anyone works it:
 //   - it pays credits as it goes (pay x workers every payEvery seconds, at the mission's pay rate), never taken back;
-//   - it gives the gunner's tools a lift, more the fuller it is (none of it is something SEAF can build): the refinery's fuel
+//   - it gives the gunner's tools a lift, more the fuller it is (none of it is something Infantry can build): the refinery's fuel
 //     recharges the orbitals faster, the yard's scrap makes what is ordered from the ship cheaper (builds and bridges), the lab's
 //     samples widen the UAV's scan and recharge it faster (so it finds more of what is hidden).
-// The enemy does not care much about it at first. (0.53.6) It leaves it alone altogether (no probes, no fire) until SEAF first
+// The enemy does not care much about it at first. (0.53.6) It leaves it alone altogether (no probes, no fire) until Infantry first
 // work it: then the radio says to defend it. From then on a small probe comes for it now and then, more often and bigger as the
 // mission runs and as the alert climbs, and the radio says when one is on its way. Shot down, it falls: the workers spill out and
-// it stops, and the enemy leaves the ruin be (no fire, no probes). SEAF at it patch it up (as any post); back at half its health,
+// it stops, and the enemy leaves the ruin be (no fire, no probes). Infantry at it patch it up (as any post); back at half its health,
 // it can be worked again.
 import { CONFIG as C } from '../config.js';
 import { t as tr } from '../i18n.js';

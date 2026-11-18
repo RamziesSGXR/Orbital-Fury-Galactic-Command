@@ -200,7 +200,7 @@ export class Hud {
       bar.appendChild(b); this.wb.push({ el: b, n: b.querySelector('.n'), sub: b.querySelector('.sub'), bar: b.querySelector('.bar i'), key: '' });
     }
     this.sqb = []; this.sqa = {}; this.drawing = false;
-    // a double tap (or double click) on a team, Helldiver or SEAF, moves the camera to it
+    // a double tap (or double click) on a team, Vanguard or Infantry, moves the camera to it
     this._taps = {};
     this.dbl = (key) => { const now = performance.now(), last = this._taps[key] || 0; this._taps[key] = now; if (now - last < 400) { this._taps[key] = 0; return true; } return false; };
     // (0.18) nine squads; only those with troops show. A double tap on one moves what was selected before into it (or, when that
@@ -242,7 +242,7 @@ export class Hud {
       e.addEventListener('pointerdown', (ev) => { ev.preventDefault(); this.onOrder && this.onOrder(kind); });
       this.ord[kind] = { el: e, sub: e.querySelector('.s'), key: '' };
     });
-    // The tactical build screen (main.js opens it): what is selected, a picture of everything SEAF can build (0.36.1: picked with a click; the number keys stay on the weapons), and
+    // The tactical build screen (main.js opens it): what is selected, a picture of everything Infantry can build (0.36.1: picked with a click; the number keys stay on the weapons), and
     // the formations for the selected squad (clicked: Z X C V and B are orders and BUILD since 0.20). It runs in real time.
     this.bld = {}; this.frm = {};
     const tb = document.querySelector('#tactical .tac-build'), tf = document.querySelector('#tactical .tac-form');
@@ -284,7 +284,7 @@ export class Hud {
     // (0.21) phones have no INFO button: a tap on the clock or the objective opens the mission info
     for (const q of ['#mbox', '#objective']) document.querySelector(q).addEventListener('click', () => { if (document.body.classList.contains('lay-phone')) this.onInfo && this.onInfo(); });
     $('dropcd-go').addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); this.onDeployNow && this.onDeployNow(); });
-    // (0.19.1) one bottom sheet, five tabs: the troops (with the squad bar), the Helldivers (their rows and the supply), building,
+    // (0.19.1) one bottom sheet, five tabs: the troops (with the squad bar), the Vanguards (their rows and the supply), building,
     // the ship's weapons, and the armory (live: the war goes on while you shop)
     this.tcTab = 'units';
     document.querySelector('#tactical .tc-sqs').appendChild($('squads'));
@@ -322,11 +322,11 @@ export class Hud {
     document.querySelector('#tactical .tc-x').addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); this.onTac && this.onTac(false); });
     $('btn-tac').addEventListener('click', () => this.onTac && this.onTac());
     $('dk-tac').addEventListener('pointerdown', (e) => { e.preventDefault(); this.onTac && this.onTac(); });
-    // its two drop menus: the Helldivers, and the SEAF squads with their orders
+    // its two drop menus: the Vanguards, and the Infantry squads with their orders
     for (const [id, cls] of [['td-hd', 'tac-hd'], ['td-sf', 'tac-sf']]) {
       $(id).addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); const b = document.body, on = !b.classList.contains(cls); b.classList.remove('tac-hd', 'tac-sf'); b.classList.toggle(cls, on); });
     }
-    // What is selected on the map: a small panel just above it, with a door to send SEAF in (or to bring them out).
+    // What is selected on the map: a small panel just above it, with a door to send Infantry in (or to bring them out).
     $('selpop').addEventListener('pointerdown', (ev) => { ev.stopPropagation(); const b = ev.target.closest('[data-sa]'); if (!b) return; ev.preventDefault(); this.onSelAct && this.onSelAct(b.dataset.sa); });
     // SHOW UI: the HUD was hidden (F2)
     $('showui').addEventListener('click', () => this.onHideUi && this.onHideUi(false));
@@ -368,7 +368,7 @@ export class Hud {
       this.sg.slots.push({ el: b, cells: [...cells.children], key: '' });
     });
     $('sg-launch').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); this.onSupLaunch && this.onSupLaunch(); });
-    // (0.18) the Hellbomb's parts
+    // (0.18) the Demolition Charge's parts
     this.hbg = { el: $('hbgame'), slots: [], key: '', wrongAt: -9 };
     document.querySelectorAll('#hbgame .hb-slot').forEach((b) => {
       const i = Number(b.dataset.i), cells = b.querySelector('.sg-cells');
@@ -400,7 +400,7 @@ export class Hud {
   // ---- callouts under the objective: a free-fire zone to saturate, and supply requests
   _callouts(m) {
     const tt = m.t;
-    // a super heavy on the field: where it is, how hurt, and that the pelican won't come until it's dead
+    // a super heavy on the field: where it is, how hurt, and that the dropship won't come until it's dead
     const B = m.boss && !m.boss.dead ? m.boss : null, cb = $('co-boss');
     cb.classList.toggle('hidden', !B);
     if (B) {
@@ -651,7 +651,7 @@ export class Hud {
     setTimeout(() => d.remove(), life + 1200);
   }
 
-  // The notice feed: Helldiver deployments and deaths, breaches, points of interest, purchases.
+  // The notice feed: Vanguard deployments and deaths, breaches, points of interest, purchases.
   notice(text, tone = 'info') {
     const touch = document.body.classList.contains('touch');
     if (touch && tone === 'dim') return;   // phones: only news worth a glance
@@ -863,8 +863,8 @@ export class Hud {
     if (this.placing) this.setPlacing(this.placing);
   }
 
-  // Build the per-mission parts: one row per Helldiver group (designation, name and ship in full, health, kit, what it is doing,
-  // and its four stratagems with their cooldowns and which are in use), and the weapon bar.
+  // Build the per-mission parts: one row per Vanguard group (designation, name and ship in full, health, kit, what it is doing,
+  // and its four call-ins with their cooldowns and which are in use), and the weapon bar.
   setMission(m) {
     this.m = m;
     const rows = $('hdrows'); rows.innerHTML = ''; this.rr = []; this.sc = []; this._hdOpen = -1; $('hdpanel').classList.remove('pop');
@@ -885,7 +885,7 @@ export class Hud {
       rows.appendChild(r);
       this.rr.push({ el: r, t: r.querySelector('.t'), ship: r.querySelector('.ship'), hp: r.querySelector('.hp u'), st: r.querySelector('.st'), sts: r.querySelector('.sts'), rn: r.querySelector('.rn'), key: '', rk: '' });
     });
-    // (0.19.1) the dock's chips: a letter and a health bar each, so the Helldivers can be watched with the sheet shut
+    // (0.19.1) the dock's chips: a letter and a health bar each, so the Vanguards can be watched with the sheet shut
     const hc = document.querySelector('#dk-hd .hdc'); hc.innerHTML = ''; this.hc = [];
     m.teams.forEach((tm) => {
       const c = el('span', 'hc', `<b>${tm.letter}</b><i><u></u></i>`); c.style.setProperty('--tc', tm.color);
@@ -900,7 +900,7 @@ export class Hud {
 
   update(m, cam, session) {
     // (0.19: on Mars the clock counts how long the base has held, once the evacuation is open)
-    // (0.39) once the Helldivers are away, the clock counts down to the destroyer leaving orbit
+    // (0.39) once the Vanguards are away, the clock counts down to the destroyer leaving orbit
     const orbit = !m.ls && m.extraction && m.extraction.state === 'away' && m.extraction.leaveAt ? Math.max(0, m.extraction.leaveAt - m.t) : null;
     const left = m.ls ? (m.ls.stage === 'lessons' ? null : m.ls.holdT) : orbit !== null ? orbit : Math.max(0, m.limitSec - m.t);
     this._set('timer', $('timer'), left === null ? '--:--' : fmtTime(left));
@@ -946,7 +946,7 @@ export class Hud {
       if (m.ls.stage !== 'lessons') this.hot($('mbox'), 2500);
     }
     $('hud').classList.toggle('ls', !!m.ls);
-    // (0.19.5) the Helldivers' lives beside the credits: the mission is lost when they are gone (red with a quarter or less left)
+    // (0.19.5) the Vanguards' lives beside the credits: the mission is lost when they are gone (red with a quarter or less left)
     const lv = Math.max(0, m.hd.lives), lmax = m.hd.max || lv || 1;
     if (this.last.lives !== lv) {
       const d = this.last.lives === undefined ? 0 : lv - this.last.lives;
@@ -1016,7 +1016,7 @@ export class Hud {
       r.el.className = 'hr' + (cls ? ' ' + cls : '') + (this._hdOpen === i ? ' open' : '');
     });
   }
-  // (0.21) phones: the Helldivers are four chips (letter, health, stratagems ready); a tap on one shows its full row for a few
+  // (0.21) phones: the Vanguards are four chips (letter, health, call-ins ready); a tap on one shows its full row for a few
   // seconds (a tap again, or another chip, closes it)
   hdOpen(i) {
     clearTimeout(this._hdT);
@@ -1044,12 +1044,12 @@ export class Hud {
     const key = `${lives}|${m.hd.max}|${sf}|${pods}|${st.max}|${up}|${getLang()}`;
     if (this.last.supply === key) return;
     this.last.supply = key;
-    // (0.20) SEAF on the ground, out of the most there can be, on the resource bar (0.39: and ▲ those aboard the destroyer)
+    // (0.20) Infantry on the ground, out of the most there can be, on the resource bar (0.39: and ▲ those aboard the destroyer)
     $('seafc-v').innerHTML = `${sf}<small>/${st.max}</small>${pods ? ` <i>+${pods}</i>` : ''}${up ? ` <i class="up">▲${up}</i>` : ''}`;
-    $('supply').innerHTML = `<span>${t('hud.lives')} <b class="lives${lives <= 4 ? ' low' : ''}">${lives}</b></span><span>SEAF <b>${sf}</b>/${st.max}${pods ? ` <i>+${pods}</i>` : ''}</span>`;
+    $('supply').innerHTML = `<span>${t('hud.lives')} <b class="lives${lives <= 4 ? ' low' : ''}">${lives}</b></span><span>Infantry <b>${sf}</b>/${st.max}${pods ? ` <i>+${pods}</i>` : ''}</span>`;
   }
 
-  // Cooldown fill and state for each stratagem, grouped by Helldiver.
+  // Cooldown fill and state for each call-in, grouped by Vanguard.
   _strats(m) {
     const tt = m.t;
     for (const c of this.sc) {
@@ -1062,14 +1062,14 @@ export class Hud {
       if (c.key === key) continue;
       c.key = key; c.el.className = 'sc ' + st; c.f.style.height = `${(1 - rdy) * 100}%`;
     }
-    // (0.21) how many of each Helldiver's stratagems are ready (the phone's chips)
+    // (0.21) how many of each Vanguard's call-ins are ready (the phone's chips)
     (this.rr || []).forEach((r, i) => {
       const n = this.sc.filter((c) => c.row === i && /^sc rdy/.test(c.el.className) && !/\boff\b/.test(c.el.className)).length, k = String(n);
       if (r.rk !== k) { r.rk = k; r.rn.textContent = `${n}⚡`; r.rn.classList.toggle('z', !n); }
     });
   }
 
-  // State of the SEAF order buttons. Orders go to the selected squad, or to every squad when ALL is selected.
+  // State of the Infantry order buttons. Orders go to the selected squad, or to every squad when ALL is selected.
   _orders(m) {
     const tt = m.t, placing = this.placing, sf = m.seaf;
     const tq = (sf.sel >= 0 ? [sf.squads[sf.sel]] : sf.squads).filter((q) => q.n > 0), none = !tq.length;
@@ -1082,7 +1082,7 @@ export class Hud {
       if (kind === 'pickup' && this.dkPick) { this.dkPick.className = 'dkb drop ' + cls; this.dkPick.lastElementChild.textContent = sub; }
     };
     const act = (kind, sub, cls) => set(kind, placing === kind ? t('hud.o.place') : sub, placing === kind ? 'active' : cls);
-    // (0.39) the hangar's pelicans are shared by drops and pickups: ready ones (of how many), or when the next is back
+    // (0.39) the hangar's dropships are shared by drops and pickups: ready ones (of how many), or when the next is back
     const st = seafStats(m.kit), room = Math.max(0, st.max - seafHeld(m)) + sf.reserve.length;
     const F = fleet(m), rdy = F.filter((v) => v <= tt).length, next = Math.min(...F), pels = F.length > 1 ? ` · ${t('hud.o.pels', { a: rdy, b: F.length })}` : '';
 
@@ -1299,7 +1299,7 @@ export class Hud {
     this._set('tacsel', $('tc-sel'), h, 'innerHTML');
   }
   // The selected post, site or sentry: name, level, health and crew in a small panel just above it on the map, with a door to send
-  // the selected SEAF squad in (they garrison it) and a door out when someone is garrisoned there. pos: where it is on screen.
+  // the selected Infantry squad in (they garrison it) and a door out when someone is garrisoned there. pos: where it is on screen.
   selPop(m, s, pos, force = false) {
     const c = $('selpop');
     this.selObj = s && !s.dead ? s : null;
@@ -1353,7 +1353,7 @@ export class Hud {
     }
     c.style.transform = `translate(${Math.round(pos.x)}px, ${Math.round(pos.y)}px) translate(-50%, -100%)`;
   }
-  // The Helldiver bar: each group's Helldiver, its health and what it is doing, or when the next one lands.
+  // The Vanguard bar: each group's Vanguard, its health and what it is doing, or when the next one lands.
   _hdbar(m) {
     m.teams.forEach((tm, i) => {
       const b = this.hb && this.hb[i]; if (!b) return;
@@ -1435,8 +1435,8 @@ export class Hud {
         } else if (s.type === 'orb') {
           const st = orbStats(s.id, s.level);
           name = touch ? shortName(s.id) : t('hud.w.lvl', { name: shortName(s.id), n: s.level });   // phones: no room for the level
-          // (0.23) an Eagle: its runs left, or rearming. (0.53.2) Each Eagle its own runs (s.eu); one out of them says how to rearm early.
-          const eg = st.cat === 'EAGLE' ? p.eagle : null, H = eg ? hangarStats(m.kit) : null;
+          // (0.23) a Striker: its runs left, or rearming. (0.53.2) Each Striker its own runs (s.eu); one out of them says how to rearm early.
+          const eg = st.cat === 'STRIKER' ? p.eagle : null, H = eg ? hangarStats(m.kit) : null;
           if (s.uses <= 0) { sub = t('hud.w.spent'); frac = 0; cls = 'cd'; }
           else if (eg && tt < eg.rearmAt) { sub = t('hud.w.rearm', { n: Math.max(0, Math.ceil(eg.rearmAt - tt)) }); frac = Math.max(0, 1 - (eg.rearmAt - tt) / H.rearm); cls = 'cd'; }
           else if (eg && !(s.eu > 0)) { sub = touch ? t('hud.w.emptyTap') : t('hud.w.empty', { k: keyLabelOf('eagleRearm') }); frac = 0; cls = 'cd'; }
@@ -1469,7 +1469,7 @@ export class Hud {
       if (w.key !== key) {
         w.key = key; w.el.style.display = hidden ? 'none' : '';
         w.n.textContent = name; w.sub.textContent = sub; w.subText = sub; w.cls = cls;
-        const cat = s.type === 'orb' && STRATS[s.id] ? STRATS[s.id].cat : '';     // (0.23) the stratagem's kind, coloured as in Helldivers 2
+        const cat = s.type === 'orb' && STRATS[s.id] ? STRATS[s.id].cat : '';     // (0.23) the stratagem's kind, coloured as in Vanguards 2
         w.el.className = 'wbtn' + (s.type === 'nuke' ? ' big-w obj-w' : s.type === 'arty' ? ' big-w arty-w' : s.type === 'uav' ? ' uav-w' : s.type === 'gun' ? ' gun-w' : ' orb-w') + (cat ? ' cat-' + cat.toLowerCase() : '') + (on ? ' sel' : '') + (cls ? ' ' + cls : '');
       }
       w.bar.style.width = `${Math.max(0, Math.min(1, frac)) * 100}%`;
@@ -1477,7 +1477,7 @@ export class Hud {
   }
 }
 
-// One line on what the Helldivers are doing right now.
+// One line on what the Vanguards are doing right now.
 export function squadStatus(m) {
   if (m.over) return '';
   if (!m.hdAlive.length) return t(m.pendingPods('H') ? 'sq.dropping' : 'sq.none');
@@ -1497,7 +1497,7 @@ export function squadStatus(m) {
     if (ao.type === 'fortress' && hb && hb.o === ao && hb.state === 'armed') return t('sq.runHb');
   }
   const k = m.plan && m.plan.task;
-  { const hb = m.hellbomb; if (k && k.ref && hb && hb.o === k.ref && hb.state === 'landed') return t('sq.armHb'); if (k && k.ref && hb && hb.o === k.ref && hb.state === 'armed') return t('sq.runHb'); }     // (0.37: a Hellbomb for a side task)
+  { const hb = m.hellbomb; if (k && k.ref && hb && hb.o === k.ref && hb.state === 'landed') return t('sq.armHb'); if (k && k.ref && hb && hb.o === k.ref && hb.state === 'armed') return t('sq.runHb'); }     // (0.37: a Demolition Charge for a side task)
   if (k && k.kind !== 'main' && k.kind !== 'base' && !sq.engaged) {
     const near = Math.hypot(sq.ax - k.x, sq.ay - k.y) < 40, s = k.ref;
     if (k.kind === 'jammer') return t(near ? 'sq.jamOn' : 'sq.jamGo', { name: s.name });
@@ -1535,12 +1535,12 @@ export function runBriefing({ info, mission, touch, onContinue, onEnd, onCancel,
   $('r-enemy').innerHTML = `<span class="r-k">${t('brief.enemy')}</span> <b style="color:${f.color}">${f.name}</b> <span style="color:var(--g-dim)">(${f.full})</span>`;
   $('r-biome').innerHTML = `<span class="r-k">${t('brief.biome')}</span> <b>${b.name.toUpperCase()}</b> <span class="r-long" style="color:var(--g-dim)">· ${t('brief.area')} ${t('brief.areaVal', { n: pre.ao })}</span>`;
   $('r-obj').innerHTML = `<span class="r-k">${t('brief.objective')}</span> <b style="color:var(--yellow)">${pre.objectives.map((o) => OBJ_NAME[o]).join(' + ')}</b>`
-    + (pre.defenders ? `<br><b class="r-def">${esc(t('brief.defenders', { n: pre.defenders.n, place: t('place.' + (pre.defenders.type === 'nuke' ? 'launch' : pre.defenders.type === 'vip' ? 'pickup' : pre.defenders.type)) }))}</b>` : '');   // (0.18) SEAF already holding the site
+    + (pre.defenders ? `<br><b class="r-def">${esc(t('brief.defenders', { n: pre.defenders.n, place: t('place.' + (pre.defenders.type === 'nuke' ? 'launch' : pre.defenders.type === 'vip' ? 'pickup' : pre.defenders.type)) }))}</b>` : '');   // (0.18) Infantry already holding the site
   const dl = pre.difficulty || LEVELS, st = pre.start || dl;      // (0.19) the level climbs each mission from where the session started
   $('r-diff').innerHTML = `<span class="r-k">${t('brief.diff')}</span> <b>${dl} · ${esc(t(...levelName(dl)).toUpperCase())}</b> <span class="r-long" style="color:var(--g-dim)">· ${esc(t('brief.pay', { x: reward(dl).toFixed(2) }))}</span><span class="r-short" style="color:var(--g-dim)">· ${esc(t('nx.pay', { x: reward(dl).toFixed(2) }))}</span>${pre.opBonus > 1 ? ` <span class="r-opb">· ${esc(t('brief.opBonus', { n: pre.opDone, x: pre.opBonus.toFixed(1) }))}</span>` : ''} <span class="lockchip">${esc(t(dl > st ? 'brief.climbed' : 'brief.climbs', { n: st }))}</span>`;
   $('r-fail').innerHTML = `<span class="r-k">${esc(t('brief.fail'))}</span> <b class="r-long">${esc(t('brief.failIf', { n: pre.lives || C.helldivers.lives }))}</b><b class="r-short">${esc(t('brief.failShort', { n: pre.lives || C.helldivers.lives }))}</b>`;
 
-  // The squad's twelve stratagems appear group by group while the mission loads.
+  // The squad's twelve call-ins appear group by group while the mission loads.
   const box = $('b-strats'), chips = [];
   box.innerHTML = '';
   for (const tm of pre.teams) {
@@ -1611,14 +1611,14 @@ function statLine(it, kit) {
       return `${what} · ${rc(o.cd)} · ${t('st.equips')}`;
     }
     if (o.k === 'beam') return `${t('st.beam', { dps: Math.round(o.beam.dps), s: f0(o.beam.dur) })} · ${rc(o.cd)}`;
-    // (0.23) an Eagle calls on the Hangar's Eagle (its calls, then a rearm); a minefield: how many mines, how hard they hit
-    const H = hangarStats(kit), eg = o.cat === 'EAGLE' ? ` · ${t('st.eagle', { n: H.uses, s: H.rearm })}` : '';
+    // (0.23) a Striker calls on the Hangar's Striker (its calls, then a rearm); a minefield: how many mines, how hard they hit
+    const H = hangarStats(kit), eg = o.cat === 'STRIKER' ? ` · ${t('st.eagle', { n: H.uses, s: H.rearm })}` : '';
     if (o.k === 'mines') return `${t('st.mines', { n: o.n, dmg: Math.round(o.dmg), s: f0(o.life) })}${o.heavyOnly ? ` · ${t('st.minesAT')}` : o.fire ? ` · ${t('st.minesFire')}` : ''} · ${rc(o.cd)}`;
     if (o.k === 'zone') return `${t('st.zone', { r: f0(o.zone.r), s: f0(o.zone.sec) })}${eg || ` · ${rc(o.cd)}`}`;
     return `${t('st.strike', { dmg: Math.round(o.dmg), n: o.n, r: f0(o.splash) })}${eg || ` · ${rc(o.cd)}`}`;
   }
   const s = seafStats(kit);
-  if (id === 'pel') return t('st.pel', { n: fleetSize(kit), s: Math.round(s.cool) });      // (0.39) the hangar's pelicans
+  if (id === 'pel') return t('st.pel', { n: fleetSize(kit), s: Math.round(s.cool) });      // (0.39) the hangar's dropships
   if (id === 'uav') { const u = uavStats(kit.uav), lv = Math.min(C.radar.every.length, kit.uav); return t('st.uav', { r: u.r, s: u.sec, cd: u.cd, rad: C.radar.every[lv - 1] }); }
   if (id === 'seaf.cap') return t('st.seafCap', { n: s.max });
   if (id === 'seaf.drop') return t('st.seafDrop', { n: s.drop, s: s.cool });
@@ -1869,7 +1869,7 @@ export function renderShop(root, opts) {
     lo.appendChild(s);
   }
   root.appendChild(lo);
-  // (0.50) the troop mix: who comes down with each SEAF drop, picked between missions like the orbitals (it heads the SEAF tab)
+  // (0.50) the troop mix: who comes down with each Infantry drop, picked between missions like the orbitals (it heads the Infantry tab)
   let mixRow = null;
   if (!live && opts.onMix) {
     const mx = mixRow = el('div', 'shop-mix');
@@ -1886,7 +1886,7 @@ export function renderShop(root, opts) {
   // (0.25) your rank, and a bar to the next one: one segment a rank, the classified ones (6 to 9) in red
   if (!live && opts.done !== undefined) root.appendChild(rankBar(tier, opts.done));
 
-  // The armory is tabbed: orbitals (and the loadout slots), the ship (gun, UAV, support), SEAF troops, and buildables. Every item
+  // The armory is tabbed: orbitals (and the loadout slots), the ship (gun, UAV, support), Infantry troops, and buildables. Every item
   // is in the page; only the open tab shows. A tab with something affordable in it carries a dot.
   const tabs = el('div', 'shop-tabs');
   tabs.setAttribute('role', 'tablist');
@@ -1933,7 +1933,7 @@ export function renderShop(root, opts) {
       const b = el('button', 'btn buy');
       if (shut && it.cost !== null) { b.innerHTML = `${t('arm.rankN', { n: rk })}<small>${esc(t('rank.' + rk))}</small>`; b.disabled = true; b.classList.add('small', 'rankb'); }     // (0.25) not your rank yet
       else if (it.cost === null) { b.textContent = t(it.locked ? 'arm.locked' : 'arm.max'); b.disabled = true; }
-      else if (it.locked && it.needs) { b.innerHTML = `${t('arm.needs.' + it.needs)}<small>${t('arm.cr', { n: fmtNum(it.cost) })}</small>`; b.disabled = true; b.classList.add('small'); }     // (0.23: Eagles need the Hangar)
+      else if (it.locked && it.needs) { b.innerHTML = `${t('arm.needs.' + it.needs)}<small>${t('arm.cr', { n: fmtNum(it.cost) })}</small>`; b.disabled = true; b.classList.add('small'); }     // (0.23: Strikers need the Hangar)
       else if (later(it)) { b.textContent = t('arm.between'); b.disabled = true; b.classList.add('small'); }
       else if (coinMode && !coinOk(it)) { b.innerHTML = `${t('arm.coinNo')}<small></small>`; b.disabled = true; b.classList.add('small'); }      // (0.44) no coin for the Classified ones
       else if (coinMode) {
@@ -2006,7 +2006,7 @@ export function renderLiveArmory(root, opts) {
   // opts.focus opens the tab with the first of them
   const fresh = new Set(opts.fresh || []), isNew = (it) => fresh.has(it.id) || (it.orb && fresh.has('own:' + it.orb));
   const all = shopItems(kit).filter((it) => (it.live || opts.any) && it.cost !== null && !it.locked && shownAt(it, opts.tier ?? TIER_MAX));
-  // (0.47) the tutorial: a stratagem owned but out of the bar (a new one took its slot) can be put back, from the front of its tab
+  // (0.47) the tutorial: a call-in owned but out of the bar (a new one took its slot) can be put back, from the front of its tab
   if (opts.onEquip) for (const it of shopItems(kit)) if (it.orb && kit.owned[it.orb] && !kit.loadout.slice(0, kit.slots).includes(it.orb) && (it.id.startsWith('up:'))) all.unshift({ ...it, id: 'equip:' + it.orb, equip: true, cost: 0 });
   const tabOf = (it) => (SHOP_TABS.find((x) => x.secs.includes(it.section)) || SHOP_TABS[0]).id;
   if (opts.focus) { const f = firstNew(all, opts.fresh); if (f) { liveTab = tabOf(f); livePage = 0; } }
@@ -2080,7 +2080,7 @@ function deathList(res) {
   if (d.length > 140) rows.push(`<div class="d-none">${esc(t('deb.more', { n: d.length - 140 }))}</div>`);
   return rows.join('');
 }
-// (0.53.12) the Super Destroyer each group flew from, and how many of its Helldivers were lost
+// (0.53.12) the Fire-Support Ship each group flew from, and how many of its Vanguards were lost
 function shipLine(res) {
   const tms = (res.teams || []).filter((tm) => tm.ship);
   if (!tms.length) return '';
@@ -2145,7 +2145,7 @@ export function fillDebrief(info, res, session, block = '', startCr = null) {
   const ta = $('d-text'); ta.value = block; ta.rows = Math.min(15, block.split('\n').length);
   $('d-msg').textContent = '';
 }
-// (0.44) END OPERATION: what ending pays under it (an SESF coin), and TAP AGAIN TO END after the first tap.
+// (0.44) END OPERATION: what ending pays under it (an challenge coin), and TAP AGAIN TO END after the first tap.
 export function endBtn(b, armed, sub) {
   if (!b) return;
   b.classList.add('endop'); b.classList.toggle('armed', !!armed);
@@ -2165,7 +2165,7 @@ export function fillFinal(session, fin, block, coin = null) {
   $('f-score').textContent = fmtNum(session.score);
   $('f-eyebrow').textContent = session.op ? t('fin.eyebrowOp', { op: session.op }) : t('fin.eyebrow');     // (0.37: the operation's name)
   $('f-local').textContent = fin.isBest ? t('fin.best') : fin.bestBefore ? t('fin.bestWas', { n: fmtNum(Math.max(fin.bestBefore, session.score)) }) : '';
-  // (0.44) the SESF coin this ending paid (or why it paid none)
+  // (0.44) the challenge coin this ending paid (or why it paid none)
   $('f-coin').classList.toggle('hidden', !coin);
   if (coin) $('f-coin').innerHTML = `<i class="coin" aria-hidden="true"></i><span>${esc(coin.got ? t('fin.coin', { n: coin.n, v: fmtNum(coin.v || 0) }) : t('fin.coin.' + coin.why, { n: coin.n }))}</span>`;
   const dl = session.difficulty || LEVELS, top = levelReached(session);
@@ -2418,7 +2418,7 @@ export function weaponInfo(m, i) {
   return h + `<div class="ic-b">${esc(t('card.orb.b', { b: st.blurb }))}</div>`;
 }
 
-// What a SEAF squad (or all of them) is made of and doing.
+// What an Infantry squad (or all of them) is made of and doing.
 // A buildable, for the tactical menu's hover card: what it does, its cost and build time at the armory level.
 export function buildInfo(m, what) {
   const lvl = buildLevel(m.kit, what), B = { ...buildStats(what, Math.max(1, lvl)), cost: m.buildPrice(what, Math.max(1, lvl)) };     // (the price now, 0.62.13)
@@ -2438,7 +2438,7 @@ export function squadInfo(m, i) {
   return h + `<div class="ic-b">${esc(t(i >= 0 ? 'card.sq.b' : 'card.sqAll.b'))}</div>`;
 }
 
-// What one of the Helldivers' stratagems is, who calls it and when it is ready.
+// What one of the Vanguards' call-ins is, who calls it and when it is ready.
 export function stratInfo(m, id) {
   const g = m.strat.groups[id]; if (!g) return '';
   const d = g.def, tm = m.teams[g.team], left = Math.max(0, g.readyAt - m.t);

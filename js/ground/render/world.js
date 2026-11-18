@@ -1,5 +1,5 @@
-// World-space drawing: stratagem markers, zones, placed assets, objectives, heavy-enemy telegraphs, points of interest,
-// enemy breaches, UAV circles and Helldiver pings. (SEAF squads and the pelican are in squads.js.)
+// World-space drawing: call-in markers, zones, placed assets, objectives, heavy-enemy telegraphs, points of interest,
+// enemy breaches, UAV circles and Vanguard pings. (Infantry squads and the dropship are in squads.js.)
 // Every function draws in world space (meters). px(n) converts screen pixels to meters at the current zoom.
 import { jellyModel, drawJelly, drawJellyShadow, jellyFoot } from './jelly.js';
 import { VIEW } from './view.js';
@@ -9,7 +9,7 @@ import { CONFIG as C } from '../config.js';
 import { STRATS } from '../data/strat.js';
 import { seafTargets } from './squads.js';
 import { TEAM_COLOR } from '../data/names.js';
-import { drawPoiArt, drawNukeSite, drawCrash, drawPad, drawLootArt, drawOilSite, drawDome, drawDomeHit, drawHellbomb } from './sites.js';
+import { drawPoiArt, drawNukeSite, drawCrash, drawPad, drawLootArt, drawOilSite, drawDome, drawDomeHit, drawDemoCharge } from './sites.js';
 import { pelicanBody, pelicanDetail } from './squads.js';
 import { sentryArt } from './posts.js';
 
@@ -30,7 +30,7 @@ function rgba(hex, a) {
 
 // ---------- zones: fire, gas, EMS, smoke ----------
 // (0.53) The planetary defence gun: a round armoured base, a turret ring and a long barrel aimed up at the sky; while it charges,
-// coils glow along the barrel; a shot is a column of light. (0.53.5) The mothership over it is the Illuminate's jellyfish
+// coils glow along the barrel; a shot is a column of light. (0.53.5) The mothership over it is the Talon's jellyfish
 // (render/jelly.js), tipped toward the camera, its shadow across the city; it is drawn over everything else (drawGunSky), its
 // shadow here on the ground. Every shot cracks it; it burns and falls when the last one lands.
 let jellyAt = -1, jellyM = null;
@@ -170,7 +170,7 @@ function drawApproach(ctx, mk, mx, my, now, px, col, ext, active) {
   ctx.globalAlpha = 1;
 }
 
-// The stratagem beacon a Helldiver throws: a light on the ground with a column above it.
+// The call-in beacon a Vanguard throws: a light on the ground with a column above it.
 function hexRgb(hex) { const n = parseInt(hex.slice(1), 16); return `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`; }
 function beacon(ctx, x, y, now, px, col) {
   const pulse = 0.5 + 0.5 * Math.sin(now * 9);
@@ -180,8 +180,8 @@ function beacon(ctx, x, y, now, px, col) {
   ctx.strokeStyle = `rgba(${col},${0.8 * (1 - ((now * 1.5) % 1))})`; ctx.lineWidth = px(1.4); ring(ctx, x, y, Math.max(3, px(6)) * (1 + ((now * 1.5) % 1) * 2)); ctx.stroke();
 }
 
-// (0.26) A call that is not the player's (the Helldivers' stratagems, a SEAF leader's radio strike): no strike circle, only the
-// red stratagem beacon where it was thrown (a glowing dot and its beam) and a call-out with what is coming.
+// (0.26) A call that is not the player's (the Vanguards' call-ins, an Infantry leader's radio strike): no strike circle, only the
+// red call-in beacon where it was thrown (a glowing dot and its beam) and a call-out with what is coming.
 const RED = '255,48,36';
 function redBeacon(ctx, x, y, now, px, scale, live) {
   const pulse = 0.5 + 0.5 * Math.sin(now * 10), h = Math.max(px(38), 3);      // (a short beam: the same height on screen at any zoom)
@@ -199,7 +199,7 @@ function redBeacon(ctx, x, y, now, px, scale, live) {
 }
 function callout(labels, x, y, lift, text) { labels.push({ x, y, dy: -lift - 8, text, col: '#ff5a4a', pri: 2 }); }
 
-// ---------- markers: stratagem calls, pods, rail / barrage / laser / nuke warnings ----------
+// ---------- markers: call-in calls, pods, rail / barrage / laser / nuke warnings ----------
 export function drawMarkers(ctx, m, now, px, labels, scale, outlines = true) {
   const t = m.t;
   for (const mk of m.markers) {
@@ -214,7 +214,7 @@ export function drawMarkers(ctx, m, now, px, labels, scale, outlines = true) {
       continue;
     }
     if (mk.type === 'pod' && !mk.util) {
-      // (0.26) a Helldiver's drop: the red beacon, the pod coming down on it, and a call-out
+      // (0.26) a Vanguard's drop: the red beacon, the pod coming down on it, and a call-out
       const f = Math.max(0, Math.min(1, (mk.end - t) / (mk.end - mk.start)));
       const lift = redBeacon(ctx, mx, my, now, px, scale, true);
       ctx.strokeStyle = `rgba(${RED},0.8)`; ctx.lineWidth = px(2); ctx.beginPath(); ctx.moveTo(mx, my - 120 * f); ctx.lineTo(mx, my - 120 * f + Math.max(6, px(16))); ctx.stroke();
@@ -224,12 +224,12 @@ export function drawMarkers(ctx, m, now, px, labels, scale, outlines = true) {
     }
     if (mk.type === 'strat') {
       const first = mk.impact ?? mk.end, left = Math.max(0, first - t);
-      // a Helldiver's call is in his group's colour; the player's own strikes in yellow
+      // a Vanguard's call is in his group's colour; the player's own strikes in yellow
       const tc = mk.team >= 0 ? TEAM_COLOR[mk.team] : null;
       const col = left > 0 ? (tc ? hexRgb(tc) : '255,230,0') : '255,170,40';
       if (tc && left > 0) beacon(ctx, mx, my, now, px, col);
       const corridor = (mk.pat === 'line' || mk.pat === 'walk') && mk.ux !== undefined;
-      // (0.61.4) the player's own strikes (the ship's and the Eagles') always show where they will land; only these reach here
+      // (0.61.4) the player's own strikes (the ship's and the Strikers') always show where they will land; only these reach here
       const own = outlines || mk.by === 'player' || mk.by === undefined;
       if (!own) { /* (0.58) where it will land is not drawn: the blast is what shows */ }
       else if (corridor) drawCorridor(ctx, mk, mx, my, now, px, col, pulse);
@@ -333,7 +333,7 @@ export function drawObjectives(ctx, m, now, px, labels, scale, pal) {
       labels.push({ x: o.x, y: o.y, dy: -o.base.r * scale - 20, text: tr('lab.citadelOf', { base: m.faction.baseName }).toUpperCase(), col: pal.enemy , pri: 2 });
       const hb = m.hellbomb;
       if (hb && hb.o === o) {
-        drawHellbomb(ctx, hb, O.hellbomb, now, px, m.t);
+        drawDemoCharge(ctx, hb, O.hellbomb, now, px, m.t);
         if (hb.state === 'landed') labels.push({ x: hb.x, y: hb.y, dy: -14, text: tr('lab.hbArm'), col: '#7dff9b', pri: 3 });
         if (hb.state === 'armed') labels.push({ x: hb.x, y: hb.y, dy: -14, text: tr('lab.hbRun', { n: Math.max(0, Math.ceil(hb.fuseAt - m.t)) }), col: '#ff6a4a', pri: 3 });
       }
@@ -354,7 +354,7 @@ export function drawObjectives(ctx, m, now, px, labels, scale, pal) {
         ctx.strokeStyle = o.onPump ? '#ff6a4a' : '#7dff9b'; ctx.lineWidth = px(4);
         ctx.beginPath(); ctx.arc(o.x, o.y, o.r + px(6), -Math.PI / 2, -Math.PI / 2 + TAU * (o.state === 'load' ? 1 : o.fill)); ctx.stroke();
       }
-      // the pelican coming for the tank: in, down on the pad, away
+      // the dropship coming for the tank: in, down on the pad, away
       if (o.pel) {
         const K = O.oil, k = m.t - o.pel.at, sx = o.px - 140, sy = o.py - 90;
         let x = o.px, y = o.py, alt = 0;
@@ -377,7 +377,7 @@ export function drawObjectives(ctx, m, now, px, labels, scale, pal) {
   }
 }
 
-// ---------- placed assets and what the Helldivers carry ----------
+// ---------- placed assets and what the Vanguards carry ----------
 export function drawAssets(ctx, m, now, px, labels, scale, pal) {
   const t = m.t, ac = pal.ally;
   for (const s of m.assets) {
@@ -415,7 +415,7 @@ export function drawAssets(ctx, m, now, px, labels, scale, pal) {
       labels.push({ x: s.x, y: s.y, dy: -L * 0.5 * scale - 12, text: s.wreck ? tr('lab.burning') : tr('lab.frv', { n: s.seats.length }), col: ac , pri: 0 });
     }
   }
-  // Support weapons and exosuits on the Helldivers
+  // Support weapons and exosuits on the Vanguards
   for (const a of m.hdAlive) {
     if (a.mounted) continue;
     const r = Math.max(4, px(4.5));
@@ -508,7 +508,7 @@ export function drawEnemyExtras(ctx, m, now, px, labels, scale, pal, vb = null) 
         ctx.stroke();
       }
     }
-    // squid charge: a thin line that tightens, then a hard lock line for the last moments
+    // lizard charge: a thin line that tightens, then a hard lock line for the last moments
     if (e.ch) {
       const c = e.ch, p = Math.max(0, Math.min(1, (t - c.t0) / c.dur)), pr = C.combat.atk.squids.H;
       const dx = c.tx - e.x, dy = c.ty - e.y, d = Math.hypot(dx, dy) || 1, L = Math.max(pr.range, d);
@@ -523,10 +523,10 @@ export function drawEnemyExtras(ctx, m, now, px, labels, scale, pal, vb = null) 
       ctx.beginPath(); ctx.moveTo(e.x, e.y); ctx.lineTo(e.x + Math.cos(a) * r * 1.6, e.y + Math.sin(a) * r * 1.6); ctx.stroke();
     }
     ctx.strokeStyle = rgba(col, 0.9); ctx.lineWidth = px(1.2); ring(ctx, e.x, e.y, r * 1.35); ctx.stroke();
-    // a squid heavy's shield: a bubble that flares when hit
+    // a lizard heavy's shield: a bubble that flares when hit
     if (e.maxShield && e.shield > 0) {
       const f = e.shield / e.maxShield, hit = t - (e.shieldAt || -9) < 0.15;
-      const R = e.bubR || r * 1.7;     // the harvester's bubble reaches out past it, over the squids round it
+      const R = e.bubR || r * 1.7;     // the harvester's bubble reaches out past it, over the lizards round it
       ctx.fillStyle = `rgba(150,200,255,${(hit ? 0.16 : 0.05) + 0.05 * f})`; ring(ctx, e.x, e.y, R); ctx.fill();
       ctx.strokeStyle = `rgba(190,225,255,${hit ? 0.95 : 0.3 + 0.4 * f})`; ctx.lineWidth = px(hit ? 2 : 1.2); ring(ctx, e.x, e.y, R); ctx.stroke();
     }
@@ -681,7 +681,7 @@ export function drawUavs(ctx, m, now, px, labels, scale) {
   }
 }
 
-// ---------- Helldiver pings: where each one is going, or what it is fighting. One each. ----------
+// ---------- Vanguard pings: where each one is going, or what it is fighting. One each. ----------
 export function drawPings(ctx, m, now, px, labels, scale) {
   for (const a of m.hdAlive) {
     const pg = a.ping; if (!pg) continue;
@@ -696,7 +696,7 @@ export function drawPings(ctx, m, now, px, labels, scale) {
       ctx.beginPath(); ctx.moveTo(pg.x - r * 1.9, pg.y); ctx.lineTo(pg.x - r * 0.7, pg.y); ctx.moveTo(pg.x + r * 0.7, pg.y); ctx.lineTo(pg.x + r * 1.9, pg.y);
       ctx.moveTo(pg.x, pg.y - r * 1.9); ctx.lineTo(pg.x, pg.y - r * 0.7); ctx.moveTo(pg.x, pg.y + r * 0.7); ctx.lineTo(pg.x, pg.y + r * 1.9); ctx.stroke();
     } else if (pg.kind === 'ult' || pg.kind === 'gren') {
-      // a target mark: a red diamond in the Helldiver's colour brackets, closing in
+      // a target mark: a red diamond in the Vanguard's colour brackets, closing in
       const R = Math.max(px(11), (pg.e ? pg.e.r : 4) + px(5)), c = R * 0.45;
       ctx.strokeStyle = 'rgba(255,90,70,0.95)'; ctx.lineWidth = px(2);
       ctx.beginPath(); ctx.moveTo(pg.x, pg.y - R); ctx.lineTo(pg.x + R, pg.y); ctx.lineTo(pg.x, pg.y + R); ctx.lineTo(pg.x - R, pg.y); ctx.closePath(); ctx.stroke();

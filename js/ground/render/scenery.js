@@ -1,7 +1,7 @@
 // (0.59) Drawing the scenery (sim/scenery.js) as near to an isometric view as a flat map allows: one light, from the upper left, so
 // everything with height casts its shadow down and to the right, shows a darker side below and a lit top above. Rocks, trees, grass,
 // the enemy's banners, ruins and mushroom patches. Grass bends away from anyone walking through it and springs back; wading raises
-// ripples. The enemy also leaves its mark on the ground it holds and walks: the bugs an orange scent, the squids a heat haze, the
+// ripples. The enemy also leaves its mark on the ground it holds and walks: the bugs an orange scent, the lizards a heat haze, the
 // bots a drift of black smoke, strongest where they gather (their bases) and fading where they have gone.
 const TAU = Math.PI * 2;
 // (0.58.2) a banner or flag whose base, objective or side structure is destroyed lies on the ground

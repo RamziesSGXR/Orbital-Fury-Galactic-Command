@@ -2,7 +2,7 @@
 //   - Standards: tent, prefab and permanent (doctrine's initial, temporary and semi-permanent). Built at one, upgraded in place.
 //   - Engineers: crews of three do every building job, one job per crew. Two crews land with you; each Engineer Yard trains
 //     another from three of your recruits.
-//   - Clearing: the SEAF security detachment sweeps the landing zone before work starts, and the ground is covered in scrub
+//   - Clearing: the Infantry security detachment sweeps the landing zone before work starts, and the ground is covered in scrub
 //     and debris that engineers clear (for a little salvage) before anything goes up on it.
 // Mixed into Sim (see the end of sim.js), so `this` is the simulation.
 import { B, C, DESIGNS, STD, STANDARDS, ENG, SCRUB, SWEEP, RANKS, LAND } from './config.js';
@@ -17,8 +17,8 @@ const SWEEP_FIND = {
   desert: [['A pack of sand-skippers was driven off the ridge.', 'Two burrows were collapsed with charges.'], ['A wrecked crawler was stripped for parts.', 'An old supply cache was dug out of a dune.']],
   steppe: [['Grazers were chased off the flats and did not come back.', 'A nest of something with too many legs was cleared from the gully.'], ['A downed drone was salvaged.', 'Fence wire and posts from an abandoned homestead were recovered.']],
   ice: [['A den of snow-stalkers was smoked out.', 'Something large moved off under the ice shelf and was not followed.'], ['A frozen supply drop was cut free.', 'A survey hut was found intact and stripped.']],
-  jungle: [['Stalker tracks were found and followed out of the clearing.', 'Two Terminid scouts were dealt with quietly.'], ['A crashed pelican was salvaged for plate and wiring.', 'An overgrown outpost was searched and stripped.']],
-  ash: [['Automaton scrap-crawlers were shot off the slag heaps.', 'A dormant patrol bot was found and disabled.'], ['A bot wreck was stripped for steel.', 'Fuel drums were recovered from a burned-out depot.']],
+  jungle: [['Stalker tracks were found and followed out of the clearing.', 'Two Swarm scouts were dealt with quietly.'], ['A crashed dropship was salvaged for plate and wiring.', 'An overgrown outpost was searched and stripped.']],
+  ash: [['Foundry scrap-crawlers were shot off the slag heaps.', 'A dormant patrol bot was found and disabled.'], ['A bot wreck was stripped for steel.', 'Fuel drums were recovered from a burned-out depot.']],
 };
 
 export const Build = {

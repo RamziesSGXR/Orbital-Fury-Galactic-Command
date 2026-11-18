@@ -4,7 +4,7 @@
 // out while the walls are made (baking()), so it does not get a wall of its own.
 //   the enemy's targets (points of interest):  relay · cache · battery, by faction
 //   side objectives:  the enemy's broadcast tower (propaganda), the spore spewer, the jammer (by faction),
-//                     the radio tower, the SEAF redoubt (rescue), the abandoned howitzer
+//                     the radio tower, the Infantry redoubt (rescue), the abandoned howitzer
 import { baking } from './relief.js';
 const TAU = Math.PI * 2;
 const hash = (n, k) => { const s = Math.sin(n * 127.1 + k * 311.7) * 43758.5453; return s - Math.floor(s); };
@@ -179,9 +179,9 @@ export function poiArt(c, kind, fac, col, r, id, seen, now, px) {
   else battery(c, fac, col, r, id, now, px, q);
 }
 
-// ---------------------------------------------------------------- the jammer (a Hellbomb's job), by faction
-// bugs: a shrieker nest (a ring of chitin horns round a dark shaft, wings wheeling over it); bots: a stratagem jammer (an
-// eight-sided blockhouse under a turning three-armed array); squids: a cognitive disruptor (a split ring turning round a lens)
+// ---------------------------------------------------------------- the jammer (a Demolition Charge's job), by faction
+// bugs: a shrieker nest (a ring of chitin horns round a dark shaft, wings wheeling over it); bots: a call-in jammer (an
+// eight-sided blockhouse under a turning three-armed array); lizards: a cognitive disruptor (a split ring turning round a lens)
 export function jammerBody(c, fac, col, r, id, face, now, px) {
   const q = pal(fac, true), p = baking() ? 0.5 : 0.5 + 0.5 * Math.sin(now * 2.4 + id);
   if (fac === 'bugs') {
@@ -212,7 +212,7 @@ export function jammerBody(c, fac, col, r, id, face, now, px) {
   }
 }
 
-// ---------------------------------------------------------------- Super Earth's own
+// ---------------------------------------------------------------- Head Office's own
 // the radio tower: a square lattice mast on a hazard-striped pad, a dish, guy anchors; its lamp turns blue when it is on the air
 export function radioBody(c, r, id, on, now, px) {
   const q = P.se(1), a0 = hash(id, 3) * TAU;
@@ -230,7 +230,7 @@ export function radioBody(c, r, id, on, now, px) {
   c.fillStyle = on ? '#7fd8ff' : '#e6c22a'; c.fillRect(r * 0.3, r * 0.34, r * 0.1, r * 0.1);
   if (!baking()) { c.fillStyle = on ? '#7fd8ff' : blink(now, id, 1.5) ? '#ff5050' : 'rgba(255,255,255,0.25)'; circ(c, 0, 0, Math.max(px(1.8), r * 0.12)); c.fill(); }
 }
-// SEAF under fire: a sandbag redoubt, open at two gaps, with a flag and their crates inside
+// Infantry under fire: a sandbag redoubt, open at two gaps, with a flag and their crates inside
 export function redoubtBody(c, r, id, hot, now, px) {
   const a0 = hash(id, 4) * TAU, n = 14;
   for (let i = 0; i < n; i++) {
@@ -246,7 +246,7 @@ export function redoubtBody(c, r, id, hot, now, px) {
   slab(c, -r * 0.3, r * 0.2, r * 0.34, r * 0.26, 'rgba(96,112,84,1)', px); slab(c, r * 0.18, r * 0.34, r * 0.26, r * 0.22, 'rgba(120,112,86,1)', px);
   c.fillStyle = '#e6c22a'; c.fillRect(-r * 0.42, r * 0.16, r * 0.08, r * 0.08);
   c.restore();
-  // the flag: a pole and a banner that hangs east, blue for Super Earth, red when they are under siege
+  // the flag: a pole and a banner that hangs east, blue for Head Office, red when they are under siege
   c.fillStyle = 'rgba(220,226,230,1)'; circ(c, 0, -r * 0.12, Math.max(px(1.1), r * 0.06)); c.fill();
   const w = baking() ? 0 : Math.sin(now * 3 + id) * r * 0.04;
   c.fillStyle = hot ? '#ff6a4a' : '#5aa8ff'; poly(c, [[0, -r * 0.12], [r * 0.46, -r * 0.2 + w], [r * 0.46, r * 0.02 + w], [0, -r * 0.02]]); c.fill();

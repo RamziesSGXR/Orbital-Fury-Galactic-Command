@@ -12,10 +12,10 @@ const gone = (g) => !g || g.members.every((e) => e.dead);
 
 // g: the game's side of it (main.js): mission, touch, tac, soft, cam. Each step: done(g, s) (s: the step's own state, with the
 // events seen since it began), start(g, s) when it comes up, next: a button instead of a condition, hl: what to point at.
-// (0.19.5) Only the controls a new player needs, and each card says why, not just how: look round, the ship gun, an orbital, a SEAF
-// drop, picking troopers and ordering them (0.20: in the command panel, always up), then dropping the Helldivers (their lives are
-// the mission). (0.37) Then building, cover, resupply and the Hellbomb, and how an operation carries over from mission to mission.
-// tick(g, s): every frame while the step is up (the resupply and Hellbomb lessons keep their moment going).
+// (0.19.5) Only the controls a new player needs, and each card says why, not just how: look round, the ship gun, an orbital, an Infantry
+// drop, picking troopers and ordering them (0.20: in the command panel, always up), then dropping the Vanguards (their lives are
+// the mission). (0.37) Then building, cover, resupply and the Demolition Charge, and how an operation carries over from mission to mission.
+// tick(g, s): every frame while the step is up (the resupply and Demolition Charge lessons keep their moment going).
 const hdDown = (g) => g.mission.hdAlive.length > 0;
 export const STEPS = [
   { id: 'intro', next: true },
@@ -41,7 +41,7 @@ export const STEPS = [
   { id: 'supply', hl: (g) => (g.mission.supply && g.mission.supply.state === 'fill' ? '#supgame' : '#co-sup'),
     tick: (g, s) => { const S = g.mission.supply; if (S && S.state === 'idle' && !(g.mission.stats.supplies > 0) && hdDown(g) && g.mission.t - (s.askAt ?? -99) > 4) { s.askAt = g.mission.t; g.mission.lsSupply(); } },
     done: (g) => g.mission.stats.supplies > 0 },
-  // (0.37) the Hellbomb: a cognitive disruptor comes down by the base; the squad clears round it and asks for one
+  // (0.37) the Demolition Charge: a cognitive disruptor comes down by the base; the squad clears round it and asks for one
   { id: 'hellbomb', hl: (g) => (g.mission.hellbomb && g.mission.hellbomb.state === 'fill' ? '#hbgame' : null),
     start: (g, s) => { s.j = g.mission.lsJammer(); if (s.j && g.lookAt) g.lookAt(s.j.x, s.j.y); },
     done: (g, s) => !!(s.j && s.j.done) },
@@ -84,7 +84,7 @@ export class Tutorial {
   begin() {
     if (this.stage !== 'lessons') return;
     const m = this.g.mission;
-    if (m.t < m.dropAt) m.deployNow();       // (skipped the drop: the Helldivers come now)
+    if (m.t < m.dropAt) m.deployNow();       // (skipped the drop: the Vanguards come now)
     m.lsBegin();
     this.stage = 'hold'; this.i = STEPS.length;
     this.card(t('tut.hold.h'), t('tut.hold.b'), { ok: true });

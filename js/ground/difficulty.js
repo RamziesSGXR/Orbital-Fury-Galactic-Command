@@ -40,7 +40,7 @@ export function warAt(d) {
   return d <= LEVELS ? W[d - 1] : W[LEVELS - 1] + D().warBeyond * (d - LEVELS);
 }
 export function warMinutes(d, S = 0) { return d === undefined || d === null ? S : warAt(d) + D().sessionRamp * S; }
-// A level's name in the language tables: diff.1 to diff.10, and past 10 'Super Helldive +n' (t(...levelName(d))).
+// A level's name in the language tables: diff.1 to diff.10, and past 10 'Apocalypse +n' (t(...levelName(d))).
 export const levelName = (d) => (clampAny(d) <= LEVELS ? ['diff.' + clampAny(d)] : ['diff.beyond', { n: clampAny(d) - LEVELS }]);
 // The rank a session has with `done` missions done (as the armory's ranks: CONFIG.ranks.at).
 export const rankAt = (done) => C.ranks.at.filter((a) => done >= a).length;

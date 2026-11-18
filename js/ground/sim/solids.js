@@ -5,7 +5,7 @@
 // along a shore. Who is let in:
 //   - whoever is already inside (enemies come out of their own bases; a drop can land on a rock): they walk out freely
 //   - a trooper into the post it mans or was sent to man
-//   - what flies, a Helldiver on a jump pack, bosses (they are bigger than what they would go round); the heavies walk over
+//   - what flies, a Vanguard on a jump pack, bosses (they are bigger than what they would go round); the heavies walk over
 //     trees and small boulders, and round the rest
 //   - anyone who has been held up by solids for a second and a half without getting anywhere: let through for three seconds
 //     (the way out of any corner the discs can make, and how a bug reaches the wall it wants to claw)
@@ -52,12 +52,12 @@ function build(m) {
     if (b.turrets) for (const t of b.turrets) if (!t.dead) add(t.x, t.y, Math.max(1.2, (t.r || 2) * (S.turret || 0.8)), b);
   }
   // (0.62.8) the small buildings too: a point of interest, a side mission's tower or gun, a wreck or a strongbox. Only the
-  // structure in the middle is solid; the ground round it, where whoever works it stands, stays open. Hidden SEAF are people,
+  // structure in the middle is solid; the ground round it, where whoever works it stands, stays open. Hidden Infantry are people,
   // not a building.
   for (const p of m.pois) if (!p.done) add(p.x, p.y, (p.r || 12) * ((S.poiBy && S.poiBy[p.kind]) || S.poi), p);
   for (const s of m.sides) if (!s.isPoi && !s.done && !s.failed && s.kind !== 'rescue') add(s.x, s.y, (s.r || 9) * ((S.sideBy && S.sideBy[s.kind]) ?? S.side), s);
   for (const q of m.loot) if (!q.done) add(q.x, q.y, (q.r || 10) * ((S.lootBy && S.lootBy[q.kind]) || S.loot), q);
-  // the mission's own sites: the oil pump, the launch silo, the crashed shuttle; and the Helldivers' sentries
+  // the mission's own sites: the oil pump, the launch silo, the crashed shuttle; and the Vanguards' sentries
   for (const o of m.objectives || []) {
     if (o.type === 'oil') add(o.x, o.y, o.r * S.oil, o);
     else if (o.type === 'nuke') add(o.x, o.y, o.r * S.nuke, o);

@@ -4,14 +4,14 @@
 //     slow melody on a soft lead.
 //   BRIEFING (the loading screen, while the mission is made): 100 BPM, suspended chords. A clock ticking, a low pulse on the beat,
 //     data blips and a slow swell every four bars: waiting to drop.
-//   DROP (the start of a match, once): 120 BPM, 10 s. A riser and a snare roll, a hellpod whoosh, then the drop: a braam, a crash
+//   DROP (the start of a match, once): 120 BPM, 10 s. A riser and a snare roll, a drop pod whoosh, then the drop: a braam, a crash
 //     and a march for three bars, which hands over to the battle music.
 //   BATTLE (a match, Dynamic): a theme for each enemy, each with two sections that take turns, so it doesn't go round the same
 //     sixteen seconds. It follows the fight: drone and pad when it's quiet, a pulse when the enemy closes on the squad, the theme's
 //     own colour and drums in a firefight, and in a heavy one everything, with a braam on each chord change.
-//       BUG HUNT (Terminids): 120 BPM, A minor. Tribal drums and toms, a skittering hat.
-//       IRON FRONT (Automatons): 128 BPM, C minor. A square-wave bass line, metal clanks, four on the floor.
-//       COLD LIGHT (Illuminate): 112 BPM, F# minor. A shimmering arpeggio, rim clicks, a deep sine pulse.
+//       BUG HUNT (Swarm): 120 BPM, A minor. Tribal drums and toms, a skittering hat.
+//       IRON FRONT (Foundry): 128 BPM, C minor. A square-wave bass line, metal clanks, four on the floor.
+//       COLD LIGHT (Talon): 112 BPM, F# minor. A shimmering arpeggio, rim clicks, a deep sine pulse.
 //   SWARM (a ton of enemies on screen): 140 BPM, E Phrygian, two sections. A 16th-note ostinato, double-time drums, a braam every
 //     bar and a fill every four. In when the screen fills up, back to BATTLE once it has thinned out for a while.
 //   VICTORY (a win, and its debrief): 96 BPM, A major. A braam and rising bells, then an anthem on a bright lead.
@@ -171,7 +171,7 @@ const CUES = {
         const every = i < 16 ? 4 : i < 24 ? 2 : 1;
         if (i % every === 0) D.snare(t, i < 16 ? 0.35 : i < 24 ? 0.5 : 0.3 + 0.07 * (i - 24));
         if (bar === 0) D.taiko(t, 0.6);
-        if (i === 22) D.whoosh(t, 10 * D.stepDur, 0.9);     // the hellpod coming down
+        if (i === 22) D.whoosh(t, 10 * D.stepDur, 0.9);     // the drop pod coming down
         return;
       }
       if (i === 32) { D.braam(t, ch.root, 3, 1); D.crash(t, 1); D.taiko(t, 1.2); return; }     // the drop
@@ -388,7 +388,7 @@ class Deck {
     const sg = c.createGain(); this.env(sg, t, 0.02, 0.4 * a, dur * 0.8); sg.connect(this.L.hits);
     const s = this.osc('sine', 72, t, dur, sg); s.frequency.exponentialRampToValueAtTime(36, t + dur * 0.7);
   }
-  // a cymbal-like wash, a rising sweep, and a falling one (the hellpod)
+  // a cymbal-like wash, a rising sweep, and a falling one (the drop pod)
   crash(t, a) {
     const c = this.c, f = c.createBiquadFilter(), g = c.createGain(); f.type = 'highpass'; f.frequency.value = 2500;
     this.env(g, t, 0.002, 0.12 * a, 1.7); this.noise(t, 1.8, f); f.connect(g); g.connect(this.L.hits);

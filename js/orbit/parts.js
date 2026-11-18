@@ -771,14 +771,14 @@ export function buildRoom(room, w, d, door = null, variant = 0) {
     for (const x of [-a, a]) add(g, new THREE.BoxGeometry(0.03, 0.008, b * 2), 'lane', x, 0.044, 0);
     for (const x of [-a * 0.6, 0, a * 0.6]) add(g, new THREE.BoxGeometry(0.2, 0.008, 0.03), 'alarm', x, 0.044, 0);
     for (const [x, z] of [[a * 0.85, b * 0.8], [-a * 0.85, b * 0.8]]) { add(g, new THREE.BoxGeometry(0.12, 0.09, 0.08), 'locker', x, 0.085, z); add(g, new THREE.BoxGeometry(0.1, 0.05, 0.06), 'alarm', x, 0.155, z); }
-    if (room === 'eaglepad') { const eg = buildEagle(); eg.scale.setScalar(C.shipScale.eagle); eg.position.set(-0.1, 0.045, 0); g.add(eg); add(g, new THREE.CylinderGeometry(0.025, 0.025, 0.2, 8).rotateZ(Math.PI / 2), 'shell', a * 0.85, 0.2, b * 0.8); }
+    if (room === 'eaglepad') { const eg = buildStriker(); eg.scale.setScalar(C.shipScale.eagle); eg.position.set(-0.1, 0.045, 0); g.add(eg); add(g, new THREE.CylinderGeometry(0.025, 0.025, 0.2, 8).rotateZ(Math.PI / 2), 'shell', a * 0.85, 0.2, b * 0.8); }
     if (room === 'pelicanpad') { const pg = buildShip('shuttle'); pg.scale.setScalar(C.shipScale.shuttle); pg.position.set(0, 0.32, 0); g.add(pg); }
     if (room === 'fighterbay') for (const z of [-d * 0.2, d * 0.2]) { const c = new THREE.ConeGeometry(0.18, 0.8, 3); c.rotateZ(-Math.PI / 2); add(g, c, 'hull', 0, 0.2, z); }
   }
   return bake(g);
 }
-// An Eagle on its pad: a wedge of a fuselage, swept wings, twin tails and bombs under the wings. Drawn at C.shipScale.eagle: about 15 m.
-export function buildEagle() {
+// A Striker on its pad: a wedge of a fuselage, swept wings, twin tails and bombs under the wings. Drawn at C.shipScale.eagle: about 15 m.
+export function buildStriker() {
   const g = new THREE.Group();
   const put = (geom, role, x = 0, y = 0, z = 0) => { geom.translate(x, y, z); const m = new THREE.Mesh(geom); m.userData.role = role; g.add(m); return m; };
   const P = (pts, depth, y) => { const sh = new THREE.Shape(); pts.forEach(([x, z], i) => (i ? sh.lineTo(x, z) : sh.moveTo(x, z))); const e = new THREE.ExtrudeGeometry(sh, { depth, bevelEnabled: false }); e.rotateX(Math.PI / 2); e.translate(0, y + depth, 0); return e; };
@@ -900,7 +900,7 @@ export function buildShip(kind) {
     return m;
   };
   if (kind === 'shuttle') {
-    // A Pelican, after the one in Orbital Fury: a troop bay with a blunt nose, broad wings, twin tail fins, a jet pod under each wing.
+    // A Dropship, after the one in Orbital Fury: a troop bay with a blunt nose, broad wings, twin tail fins, a jet pod under each wing.
     const k = 1.25, P = (pts, depth, y) => { const sh = new THREE.Shape(); pts.forEach(([x, z], i) => (i ? sh.lineTo(x * k, z * k) : sh.moveTo(x * k, z * k))); const e = new THREE.ExtrudeGeometry(sh, { depth, bevelEnabled: false }); e.rotateX(Math.PI / 2); e.translate(0, y + depth, 0); return e; };
     put(P([[1, -0.1], [1, 0.1], [0.78, 0.26], [-0.8, 0.24], [-1, 0.12], [-1, -0.12], [-0.8, -0.24], [0.78, -0.26]], 0.42, -0.2), 'hull');
     for (const g of [-1, 1]) {
@@ -915,7 +915,7 @@ export function buildShip(kind) {
     put(new THREE.BoxGeometry(0.3 * k, 0.16, 0.34 * k), 'glass', 0.74 * k, 0.24, 0);
     put(new THREE.BoxGeometry(0.5 * k, 0.03, 0.4 * k).rotateZ(0.35), 'hull', -1.08 * k, -0.24, 0);
   } else if (kind === 'warship') {
-    // After the Super Destroyer in Orbital Fury: a long hull with blue light lines, a bridge fin, and a black drive block astern.
+    // After the Fire-Support Ship in Orbital Fury: a long hull with blue light lines, a bridge fin, and a black drive block astern.
     const prof = new THREE.Shape(); prof.moveTo(4.4, 0); prof.lineTo(3.2, 0.45); prof.lineTo(-2.6, 1.05); prof.lineTo(-2.6, -1.05); prof.lineTo(3.2, -0.45); prof.closePath();
     const hull = new THREE.ExtrudeGeometry(prof, { depth: 0.8, bevelEnabled: false }); hull.rotateX(Math.PI / 2); hull.translate(0, 0.4, 0);
     put(hull, 'hull');

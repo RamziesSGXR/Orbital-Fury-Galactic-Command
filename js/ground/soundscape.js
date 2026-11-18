@@ -1,8 +1,8 @@
 // (0.62.10) What is making noise on the field, and where. The game has no music for now: what you hear is what is there.
 // A few times a second this lists the field's sound sources, and audio.js keeps the nearest few playing, each from its own
 // place: louder near the middle of the view and when zoomed in, left or right by where it is on screen.
-//   packs of enemies in sight (each faction its own noise)      the Helldivers and each SEAF squad (boots, radio, voices)
-//   fights (wherever shots are being traded, in or out of view)  enemy bases, SEAF posts, radio masts, Pelicans in the air
+//   packs of enemies in sight (each faction its own noise)      the Vanguards and each Infantry squad (boots, radio, voices)
+//   fights (wherever shots are being traded, in or out of view)  enemy bases, Infantry posts, radio masts, Dropships in the air
 // Nothing the gunner cannot see gives itself away by sound, except gunfire.
 import { CONFIG as C } from './config.js';
 
@@ -28,7 +28,7 @@ export function soundSources(m, shots = []) {
     if (to) to.n += p.n; else kept.push(p);
   }
   for (const p of kept) if (p.n >= S.pack) out.push({ key: 'e' + p.k, kind: fac, x: p.x, y: p.y, vol: Math.min(1, 0.4 + p.n * 0.04), n: p.n });
-  // ---- the Helldivers, and each SEAF squad
+  // ---- the Vanguards, and each Infantry squad
   const group = (key, kind, list, min) => {
     let n = 0, x = 0, y = 0;
     for (const a of list) { if (a.dead || a.down || a.inside) continue; n++; x += a.x; y += a.y; }

@@ -1,7 +1,7 @@
-// The Helldiver's own kit, on top of the Liberator rifle (see enemies.js): four stims, four grenades (for groups and for heavies),
+// The Vanguard's own kit, on top of the Liberator rifle (see enemies.js): four stims, four grenades (for groups and for heavies),
 // the Ultimatum (a one-round launcher that kills almost anything it hits square; a supply pod reloads it), a dodge that comes
 // round every so often (see combat.js), and the sense to pull back when badly hurt. A target worth a grenade or the Ultimatum is
-// marked on the map first, so the gunner sees it too. A Helldiver who is running calls stratagems as he goes (see strat.js).
+// marked on the map first, so the gunner sees it too. A Vanguard who is running calls call-ins as he goes (see strat.js).
 // Every number is in CONFIG.hd.
 import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
@@ -16,7 +16,7 @@ const EH = C.enemies.hp;
 // What a light, a medium and a heavy have now (the war toughens them as the session goes on).
 const hpNow = (m) => ({ L: EH.light * m.hpMul, M: EH.medium * m.hpMul, H: EH.heavy * m.hpMul });
 
-// A fresh Helldiver (a new drop, or a replacement pod) comes with a full kit.
+// A fresh Vanguard (a new drop, or a replacement pod) comes with a full kit.
 export function initKit(m, a) {
   const t = m.t;
   Object.assign(a, {
@@ -26,10 +26,10 @@ export function initKit(m, a) {
   });
 }
 
-// How fast a Helldiver moves relative to normal: a stim is a burst of speed.
+// How fast a Vanguard moves relative to normal: a stim is a burst of speed.
 export const underUav = (m, a) => a.uavAt !== undefined && m.t - a.uavAt < 0.25;
 // (0.26) The UAV's lift helps allies get somewhere, not charge: it is off while they are in a fight (shot in the last few seconds,
-// or a SEAF trooper engaging). Faster allies in a fight drew the enemy in and made it look as if the UAV sped the enemy up.
+// or an Infantry trooper engaging). Faster allies in a fight drew the enemy in and made it look as if the UAV sped the enemy up.
 export const inFight = (m, a) => a.engaged || m.t - (a.shotAt ?? -99) < C.uav.liftCalm;
 export const speedMul = (m, a) => (m.t < a.stimUntil ? K.stimSpeed : 1) * (m.supply && m.t < m.supply.boostUntil ? C.supply.boostSpeed : 1) * (underUav(m, a) && !inFight(m, a) ? 1 + uavBuff(m.kit).speed : 1);
 
@@ -44,7 +44,7 @@ export function useStim(m, a) {
   return true;
 }
 
-// A supply pod restocks every Helldiver. stimFrac and grenFrac are how full those compartments were (1 = a full refill).
+// A supply pod restocks every Vanguard. stimFrac and grenFrac are how full those compartments were (1 = a full refill).
 // Any pod that brings grenades reloads the Ultimatum too.
 export function restock(m, stimFrac = 1, grenFrac = 1) {
   for (const a of m.hdAlive) {
@@ -54,7 +54,7 @@ export function restock(m, stimFrac = 1, grenFrac = 1) {
   }
 }
 
-// Mark a target on the map: the Helldiver's ping turns into a target mark the gunner can see (and hit) too.
+// Mark a target on the map: the Vanguard's ping turns into a target mark the gunner can see (and hit) too.
 function mark(m, a, e, kind) {
   a.ping = { x: e.x, y: e.y, kind, until: m.t + 3.5, e };
   m.emit('hd_mark', { x: e.x, y: e.y, kind, team: a.team, heavy: e.kind === 'H' });
@@ -65,7 +65,7 @@ function friendNear(m, a, x, y, r) {
   return false;
 }
 const aware = (m, e) => m.squad.free || e.g.state === 'hunt' || m.squad.state === 'assault';
-// (0.40) Who has what on which target. A claim: another Helldiver's grenade (for a moment after the throw) or Ultimatum (aimed, or
+// (0.40) Who has what on which target. A claim: another Vanguard's grenade (for a moment after the throw) or Ultimatum (aimed, or
 // in flight) on a target; the rest of the squad leaves anything within its blast to him, so they do not all spend theirs on one.
 export function claim(m, a, e, kind, r, sec) {
   (m.hdClaims || (m.hdClaims = [])).push({ by: a, e, x: e.x, y: e.y, kind, r, until: m.t + sec });
@@ -136,9 +136,9 @@ export function fireUltimatum(m, a, e) {
     ultAoe: U.splash, bossDmg: e.boss ? dmg : 0, dmg: 0, splash: 0, miss: !hit, dmgMul: a.dmgMul || 1 });
 }
 
-export function updateHelldivers(m, dt) {
+export function updateVanguards(m, dt) {
   const t = m.t, bm = m.biome.speed;
-  if (m.hdClaims && m.hdClaims.length) m.hdClaims = m.hdClaims.filter((c) => c.until > t && !c.by.dead);     // (SEAF's claims are in the same list: enemies.js)
+  if (m.hdClaims && m.hdClaims.length) m.hdClaims = m.hdClaims.filter((c) => c.until > t && !c.by.dead);     // (Infantry's claims are in the same list: enemies.js)
   for (const a of m.hdAlive) {
     // heal over time, from a stim
     if (a.heal > 0) {
@@ -176,7 +176,7 @@ export function updateHelldivers(m, dt) {
       }
     } else {
       a.calmT = thr ? 0 : a.calmT + dt;
-      // back to the fight once healed or once it is quiet; and never for long: a Helldiver who has run out of room turns and fights
+      // back to the fight once healed or once it is quiet; and never for long: a Vanguard who has run out of room turns and fights
       if (frac >= R.resume || (a.calmT >= R.calmSec && t - a.retreatT >= R.minSec) || t - a.retreatT >= R.maxSec) { a.retreat = false; a.noRetreatUntil = t + R.cool; }
     }
     if (a.retreat) {

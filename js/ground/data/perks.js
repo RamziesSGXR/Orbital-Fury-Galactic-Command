@@ -10,9 +10,9 @@ export const perksTotal = (kit) => PERKS.reduce((a, k) => a + perkN(kit, k), 0);
 export const perkRoom = (kit) => perksTotal(kit) < P().max;
 // what each does, at n stacks
 export const orbCdMul = (kit, n = perkN(kit, 'orb')) => Math.max(P().orb.min, (1 - P().orb.cd) ** n);          // orbital, utility and minefield recharge
-export const eagleMul = (kit, n = perkN(kit, 'eagle')) => Math.max(P().eagle.min, (1 - P().eagle.rearm) ** n);  // Eagle rearm and pelican turnaround
+export const eagleMul = (kit, n = perkN(kit, 'eagle')) => Math.max(P().eagle.min, (1 - P().eagle.rearm) ** n);  // Striker rearm and dropship turnaround
 export const gunMul = (kit, n = perkN(kit, 'ship')) => 1 + P().ship.dmg * n;                                    // ship gun damage and ammo regeneration
-export const seafMul = (kit, n = perkN(kit, 'seaf')) => 1 + P().seaf.hp * n;                                    // SEAF health and damage
+export const seafMul = (kit, n = perkN(kit, 'seaf')) => 1 + P().seaf.hp * n;                                    // Infantry health and damage
 export const buildCostMul = (kit, n = perkN(kit, 'build')) => Math.max(P().build.min, 1 - P().build.cost * n);  // what a build costs
 // The headline number of a kind at n stacks (for its card): a percentage
 export function perkPct(k, n) {

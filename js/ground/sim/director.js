@@ -32,7 +32,7 @@ function specialKit(fid, e) {
   if (P.jamR) { e.jamR = P.jamR; e.jamPh = (e.id * 7.31) % (P.jamSec + P.jamCool); }     // (0.40: where in its on / off cycle it starts)
 }
 
-// (0.54) The new enemy of the faction: a light bug may be a leaper, a medium bot a rocketeer, a medium squid a commander.
+// (0.54) The new enemy of the faction: a light bug may be a leaper, a medium bot a rocketeer, a medium lizard a commander.
 function variantKit(m, fid, e) {
   const V = C.variants[fid];
   if (!V || e.sub || e.kind !== (fid === 'bugs' ? 'L' : 'M') || m.vrng.next() >= V.share) return;
@@ -126,7 +126,7 @@ export function spawnNear(m, x, y, rmin, rmax, state = 'patrol', opts = {}) {
   return g;
 }
 
-// A point just outside what the squad (and the player) can see, mostly in the direction the Helldivers are heading.
+// A point just outside what the squad (and the player) can see, mostly in the direction the Vanguards are heading.
 export function pickSpawn(m, extra = 0) {
   const rng = m.rng, al = m.alive, hds = m.hdAlive, sp = Math.max(m.faction.spread, extra);
   if (!al.length) return null;
@@ -202,8 +202,8 @@ export function updateDirector(m, dt) {
       }
     }
 
-    // A base's garrison takes its place when the Helldivers come within garrisonRadius: it sits at the base, unaware. The base
-    // itself wakes only when an ally walks into its detection ring (detectR; SEAF know nothing of it) or the structure is hit
+    // A base's garrison takes its place when the Vanguards come within garrisonRadius: it sits at the base, unaware. The base
+    // itself wakes only when an ally walks into its detection ring (detectR; Infantry know nothing of it) or the structure is hit
     // (mission.damageBase). Awake, it turns its garrison out and keeps sending groups while it stands; a cluster's neighbours
     // wake a few seconds later, and send faster for every neighbour still standing.
     const R2 = C.bases.garrisonRadius * C.bases.garrisonRadius;
@@ -240,7 +240,7 @@ export function updateDirector(m, dt) {
     }
   }
 
-  // Pods land: each Helldiver pod brings back the Helldiver of one group; SEAF where the player called them.
+  // Pods land: each Vanguard pod brings back the Vanguard of one group; Infantry where the player called them.
   for (let i = m.pods.length - 1; i >= 0; i--) {
     const p = m.pods[i];
     if (t < p.landAt) continue;

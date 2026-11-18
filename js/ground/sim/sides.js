@@ -1,16 +1,16 @@
-// Side missions the Helldivers take on around the main objective, and the SEAF drop beacons.
-//   radio tower:       stand by it while it powers up (holdSec); once active it relights the SEAF drop beacons around it.
+// Side missions the Vanguards take on around the main objective, and the Infantry drop beacons.
+//   radio tower:       stand by it while it powers up (holdSec); once active it relights the Infantry drop beacons around it.
 //   propaganda tower:  an enemy structure (a point of interest of its own kind, see pois.js) that rallies nearby patrols onto the
 //                      squad while it stands. Destroy it.
-//   hidden SEAF:       a SEAF squad lying low (the sheep of an old strategy game): nobody sees them or anything round them, and
-//                      they see nothing for the player, until a Helldiver or a SEAF trooper walks close by. Then they join.
+//   hidden Infantry:       an Infantry squad lying low (the sheep of an old strategy game): nobody sees them or anything round them, and
+//                      they see nothing for the player, until a Vanguard or an Infantry trooper walks close by. Then they join.
 //                      (Nobody goes looking for them: they are near the ways the squad is likely to walk.)
 //   spore tower (0.40): the bugs' fungal stalk (a point of interest of its own kind, like the broadcast tower): allies near it
 //                      see a lot less far while it stands. Destroy it.
-//   jammer (0.37):     an enemy structure only a Hellbomb brings down (a spore spewer, a stratagem jammer, a cognitive disruptor,
+//   jammer (0.37):     an enemy structure only a Demolition Charge brings down (a spore spewer, a call-in jammer, a cognitive disruptor,
 //                      by the enemy): no orbital can be called within its reach while it stands. The squad clears round it and asks
-//                      the gunner for a Hellbomb (ops.js); the enemy broadcast tower takes one too.
-// Drop beacons: places the player can send a SEAF drop to without a strike zone. SEAF build them (seaf.js); a radio tower powered
+//                      the gunner for a Demolition Charge (ops.js); the enemy broadcast tower takes one too.
+// Drop beacons: places the player can send an Infantry drop to without a strike zone. Infantry build them (seaf.js); a radio tower powered
 // up keeps the ground round it in view for the rest of the mission (a relay, mission.js visLevel).
 import { revealBases } from './spawners.js';
 import { CONFIG as C } from '../config.js';
@@ -40,7 +40,7 @@ function kindsFor(m) {
   const pool = ['radio', 'propaganda', 'rescue'], out = [];
   const order = m.rng.shuffle(pool.slice());
   for (let i = 0; i < n; i++) out.push(order[i % order.length]);
-  // some maps have an abandoned SEAF howitzer the squad can take over (from the second mission of a session)
+  // some maps have an abandoned Infantry howitzer the squad can take over (from the second mission of a session)
   if ((m.missionN || 1) >= C.arty.fromMission && m.rng.next() < C.arty.chance) out.push('arty');
   return out;
 }
@@ -78,7 +78,7 @@ export function setupSides(m) {
     }
   }
   // (0.62.8) One of each at most, and none that repeats the mission's own objective (sides.notWith): a big map used to get the
-  // same side mission twice (two radio towers, two broadcast towers), and SEAF to rescue beside a VIP, a howitzer beside a
+  // same side mission twice (two radio towers, two broadcast towers), and Infantry to rescue beside a VIP, a howitzer beside a
   // defence gun. They are all placed as before and the ones not wanted taken off again, so the map's dice roll as they did
   // and everything else is where it was.
   {
@@ -110,7 +110,7 @@ export function setupSides(m) {
     const r0 = m.rng; m.rng = sr;
     try { const p = findSpot(m, avoid(), 70, way); addSpore(m, p.x, p.y); } finally { m.rng = r0; }
   }
-  // SEAF drop beacons are no longer on the map at the start: SEAF build them (seaf.js, the build order)
+  // Infantry drop beacons are no longer on the map at the start: Infantry build them (seaf.js, the build order)
   m.beacons = [];
 }
 // (0.40) a spore tower at (x, y): a structure (a point of interest), so everything that hurts one hurts it
@@ -137,7 +137,7 @@ export function addJammer(m, x, y) {
 
 
 export const beaconLit = (m, b) => b.relit || b.built || m.t < C.beacons.darkSec;
-// A lit beacon a SEAF drop at (x, y) can use, or null.
+// A lit beacon an Infantry drop at (x, y) can use, or null.
 export function beaconAt(m, x, y) {
   const r2 = C.beacons.r * C.beacons.r;
   for (const b of m.beacons || []) if (beaconLit(m, b) && (b.x - x) ** 2 + (b.y - y) ** 2 <= r2) return b;
@@ -156,10 +156,10 @@ function finish(m, s, ok) {
   m.radio(COMMS.sideDone(s.kind), 'sidedone', 0);
   m.notice(COMMS.sideDoneNotice(s.kind, R.reward), 'good');
   m.emit('side_done', { kind: s.kind, x: s.x, y: s.y });
-  // the ground round a powered radio tower stays in view (0.51: only the radio tower: a propaganda tower blown up or SEAF got out
+  // the ground round a powered radio tower stays in view (0.51: only the radio tower: a propaganda tower blown up or Infantry got out
   // used to leave a bubble of view behind too, which read as a leftover)
   if (s.kind === 'radio') (m.relays || (m.relays = [])).push({ x: s.x, y: s.y, r: C.relay.r, kind: s.kind });
-  // (0.49) the radio tower powered: every enemy base's layout shows (how many spawners, where), like Helldivers 2's radio point
+  // (0.49) the radio tower powered: every enemy base's layout shows (how many spawners, where), like Vanguards 2's radio point
   if (s.kind === 'radio') { const n = revealBases(m); if (n) m.notice(tr('n.basesRevealed', { n }), 'good'); }
 }
 
@@ -168,7 +168,7 @@ export function sideDestroyed(m, p) { hbCancel(m, p); if (!p.failed) finish(m, p
 
 export function updateSides(m, dt) {
   const S = SD();
-  // (0.37) a Hellbomb already armed for a side that fell some other way still goes off
+  // (0.37) a Demolition Charge already armed for a side that fell some other way still goes off
   const hb = m.hellbomb;
   if (hb && hb.state === 'armed' && hb.o && hb.o.side && (hb.o.done || hb.o.failed)) hbStep(m, hb.o, dt, null);
   for (const s of m.sides || []) {
@@ -190,7 +190,7 @@ export function updateSides(m, dt) {
         finish(m, s, true);
       }
     } else if (s.kind === 'arty') {
-      // an abandoned artillery cannon: a Helldiver gets it working again (then it needs a crew, like one SEAF build); the enemy
+      // an abandoned artillery cannon: a Vanguard gets it working again (then it needs a crew, like one Infantry build); the enemy
       // comes to see what the noise is
       const a = hdNear(m, s.x, s.y, S.arty.holdR);
       if (a && s.state === 'idle') { s.state = 'active'; m.radio(COMMS.artyStart, 'artystart', 0); m.emit('side_state', { kind: 'arty', state: 'active', x: s.x, y: s.y }); }
@@ -203,11 +203,11 @@ export function updateSides(m, dt) {
         finish(m, s, true);
       }
     } else if (s.kind === 'jammer') {
-      // the squad there and the ground clear: a Hellbomb; it is the only thing that brings one down
+      // the squad there and the ground clear: a Demolition Charge; it is the only thing that brings one down
       if (m.hellbomb && m.hellbomb.o === s) { if (hbStep(m, s, dt, () => siteActivity(m, s, dt))) finish(m, s, true); continue; }
       if (hbRequest(m, s, s, tr('c.hb.callSide', { name: s.name }))) { s.state = 'bomb'; m.emit('side_state', { kind: 'jammer', state: 'bomb', x: s.x, y: s.y }); }
     } else if (s.kind === 'propaganda') {
-      // (0.37) a tower still standing strong when the squad gets there: they call a Hellbomb on it (its guns still work on it too)
+      // (0.37) a tower still standing strong when the squad gets there: they call a Demolition Charge on it (its guns still work on it too)
       if (m.hellbomb && m.hellbomb.o === s) { if (hbStep(m, s, dt, null) && !s.done) { s.hp = 0; s.done = true; s.by = 'strat'; finish(m, s, true); m.emit('poi_down', { x: s.x, y: s.y, r: s.r, id: s.id }); } }
       else if (!m.noHbSides && (m.missionN || 1) >= S.jammer.fromMission && s.hp > s.maxHp * S.propBomb) hbRequest(m, s, s, tr('c.hb.callSide', { name: s.name }));
       // while it stands it rallies the patrols round it onto the squad, when the squad is in its reach
@@ -222,7 +222,7 @@ export function updateSides(m, dt) {
         }
       }
     } else if (s.kind === 'rescue') {
-      // found: a Helldiver or a SEAF trooper walks close by, and they join the player's SEAF (the finder's squad, for a trooper)
+      // found: a Vanguard or an Infantry trooper walks close by, and they join the player's Infantry (the finder's squad, for a trooper)
       const R2 = S.rescue.claimR * S.rescue.claimR;
       let by = null;
       for (const a of m.alive) if (!a.mounted && !a.hidden && (a.x - s.x) ** 2 + (a.y - s.y) ** 2 <= R2) { by = a; break; }
@@ -237,7 +237,7 @@ export function updateSides(m, dt) {
   }
 }
 
-// A spot for hidden SEAF near a way the squad is likely to walk: part way from the drop to an objective (or the pad), a little
+// A spot for hidden Infantry near a way the squad is likely to walk: part way from the drop to an objective (or the pad), a little
 // to one side. null if nothing there will do.
 function alongTheWay(m, avoid) {
   const goals = [...m.objectives, m.extraction].filter(Boolean);

@@ -1,6 +1,6 @@
 // The ant farm: everyone you can watch walking about. Troops go to work, drill, salute the flag, queue at the
 // vending machine, train on the range, march out on patrol and come home, and board transports to the front;
-// pelicans bring supplies and recruits; inspectors poke at things. Trucks and forklifts live in the simulation.
+// dropships bring supplies and recruits; inspectors poke at things. Trucks and forklifts live in the simulation.
 // It reads the simulation and never changes it. Positions are in tiles (a tile's centre is i + 0.5).
 import { B, ROADS, LAND } from './config.js';
 
@@ -11,7 +11,7 @@ const SHIFT = new Set(['gen', 'motorpool', 'pad', 'depot', 'medbay', 'mess', 'co
 const phaseAt = h => h < 6 || h >= 21 ? 'night' : h < 6.5 ? 'firstcall' : h < 7 ? 'reveille' : h < 8 ? 'pt' : h < 9 ? 'chow' : h < 11.5 ? 'work' : h < 13 ? 'mess' : h < 17 ? 'work' : h < 17.5 ? 'retreat' : 'evening';
 const watchPhase = (s, n) => n % 4 === 0 ? phaseAt((s.time.hour + 12) % 24) : s.time.phase;   // one in four stands the night watch
 const HOUSING = ['hq', 'hab', 'barracks', 'block'];
-const HD_PER = 4;   // Helldivers thawed and walking about per Helldiver Barracks
+const HD_PER = 4;   // Vanguards thawed and walking about per Vanguard Barracks
 const EAT = ['mess', 'burger', 'chicken', 'cola'];
 const rnd = (a, b) => a + Math.random() * (b - a);
 const pick = a => a[Math.floor(Math.random() * a.length)];
@@ -21,10 +21,10 @@ export class Life {
     this.sim = sim; this.N = sim.N;
     this.actors = new Map();      // id -> person (troops by their sim id, inspectors by negative ids)
     this.flights = []; this.queue = []; this.plans = [];
-    this.hold = new Set();        // recruits still on the pelican
+    this.hold = new Set();        // recruits still on the dropship
     this.ceremony = null; this.nextFake = -1; this.t = 0;
     this.gridKey = '';
-    // a new base: the first pelican brings everyone down onto the landing zone beside the HQ
+    // a new base: the first dropship brings everyone down onto the landing zone beside the HQ
     if (sim.t < 1 && sim.b.some(b => b.type === 'hq') && !sim.lzLanded) {
       // onto the Command Post's own pad, if it has one; otherwise beside the HQ
       const ids = sim.troops.map(t => t.id), hq = sim.b.find(b => b.type === 'hq'), [cx, cz] = hq ? this.centre(hq) : [this.N / 2, this.N / 2];
@@ -124,11 +124,11 @@ export class Life {
     if (flag) this.ceremony = { t: 26, flag: flag.id, hero, slots: new Map() };
   }
 
-  // ---------------------------------------------------------------- pelicans
+  // ---------------------------------------------------------------- dropships
   pad(id) { const pads = this.sim.b.filter(b => b.type === 'pad' && b.done); return pads.find(b => b.id === id) || pads[0]; }
   landAt(id) { const p = this.pad(id); return p ? this.centre(p) : [this.N / 2, this.N - 4]; }
   flightsUpdate(dt) {
-    // one pelican per pad at a time; pads work side by side
+    // one dropship per pad at a time; pads work side by side
     for (let i = 0; i < this.queue.length; i++) {
       const job = this.queue[i], p = job.at ? null : this.pad(job.pad), key = job.at ? 'lz' : p ? p.id : 0;
       if (this.flights.some(f => f.padKey === key)) continue;
@@ -225,7 +225,7 @@ export class Life {
     for (const [w, f] of opts) { r -= w; if (r <= 0) { f(); return; } }
   }
 
-  // the landing, before the clock starts: the first pelican comes down on the landing zone the moment it is marked,
+  // the landing, before the clock starts: the first dropship comes down on the landing zone the moment it is marked,
   // and the detachment and its crates wait there while the track, the Command Post and the flag go in
   callInLand(x, z) {
     const s = this.sim; if (s.lzLanded) return; s.lzLanded = true;
@@ -429,8 +429,8 @@ export class Life {
     this.go(a, x + 0.5, z + 0.5, () => { a.act = Math.random() < 0.6 ? 'aim' : 'look'; a.face = [cx + Math.cos(ang) * (r + 6), cz + Math.sin(ang) * (r + 6)]; a.wait = rnd(1.5, 3.5); });
   }
 
-  // ---------------------------------------------------------------- Helldivers and citizens: people the Bureau doesn't bill you for
-  // Helldivers live at their barracks and keep a Marine's day; citizens staff the counters and desks and keep office hours.
+  // ---------------------------------------------------------------- Vanguards and citizens: people the Bureau doesn't bill you for
+  // Vanguards live at their barracks and keep a Marine's day; citizens staff the counters and desks and keep office hours.
   extras() {
     const s = this.sim, want = new Set();
     for (const b of s.b) {
@@ -449,7 +449,7 @@ export class Life {
   extra(a, dt) {
     const s = this.sim, h = a.n % 4 === 0 ? (s.time.hour + 12) % 24 : s.time.hour, ph = watchPhase(s, a.n), b = s.byId(a.home); if (!b) return;
     const hd = a.extra === 'hd', flag = s.b.find(o => o.type === 'seflag');
-    // Marines: reveille 05:30, PT, chow, Morning Colors at 08:00, training, Evening Colors, liberty, taps at 22:00
+    // Marines: reveille 05:30, PT, chow, Morning Colors at 08:00, training, Evening Colors, victory, taps at 22:00
     // Citizens: in at 07:30, lunch, out at 17:30, the evening broadcast, home
     const colours = (ph === 'reveille' || ph === 'retreat' || (hd && h >= 8 && h < 8.25)) && flag;
     const want = this.ceremony && !a.hidden ? 'honors' : colours ? 'honors'

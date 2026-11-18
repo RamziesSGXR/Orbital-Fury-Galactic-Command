@@ -1,38 +1,39 @@
 // Every number and every name in the game lives here, so the prototype can be retuned or renamed in one place.
-export const VERSION = '0.5.0';
+export const VERSION = '0.5.1';
 
 export const C = {
   names: {
     game: 'GALACTIC COMMAND',
-    fed: 'Federation',
-    capital: 'Aurelia',
+    fed: 'The Fleet',
+    capital: 'Aurelia',     // the default; the player names their own headquarters when founding the command
+    capitals: ['Aurelia', 'Highmark', 'Port Meridian', 'Castellan', 'Ardent', 'Kestrel Station', 'Longwatch', 'Solace'],
     drop: 'VANGUARD', army: 'ARMY', fuel: 'FUEL',
-    factions: { swarm: 'The Swarm', foundry: 'The Foundry', veil: 'The Veil' },
-    homes: { swarm: 'Nest Prime', foundry: 'Anvil', veil: 'Lumen Null' },
+    factions: { swarm: 'The Swarm', foundry: 'The Foundry', veil: 'The Talon' },
+    homes: { swarm: 'Nest Prime', foundry: 'Anvil', veil: 'Sunstone Roost' },
     planets: ['Tarsen', 'Okoro', 'Vell', 'Duskar', 'Imrie', 'Pallas', 'Korvan', 'Sable', 'Ythe', 'Marrow', 'Calder', 'Nimbus', 'Orrin', 'Brakk', 'Solen',
       'Vantage', 'Kessrin', 'Halcyon', 'Dray', 'Umber', 'Lyss', 'Penumbra', 'Garnet', 'Ostra', 'Javel', 'Quill', 'Rookfall', 'Stenn', 'Wend', 'Zorya',
       'Thane', 'Corvale', 'Isk', 'Meru', 'Aldous', 'Brine', 'Cassel', 'Dunmore', 'Eris Gap', 'Fenwick', 'Galt', 'Hollin', 'Ixion', 'Jorvik', 'Kael',
       'Lorne', 'Mirel', 'Noss', 'Orlan', 'Pryce', 'Quenby', 'Rhys', 'Sorrel', 'Tamsin', 'Ulric', 'Varda', 'Wythe', 'Xanthe', 'Yarrow', 'Zephyr',
       'Ashby', 'Bexley', 'Corin', 'Dace', 'Elsin'],
   },
-  // The ministries, as in FOB Super Commander. Each is a button; `does` is the one line shown under its name.
+  // The offices, as in FOB Super Commander. Each is a button; `does` is the one line shown under its name.
   ministries: {
     int: { short: 'INTEL',    name: 'INTELLIGENCE', does: 'Reports, warnings and suggested actions.' },
-    def: { short: 'DEFENCE',  name: 'DEFENCE',      does: 'Your fleets, and the battle deck they fight with.' },
-    pro: { short: 'PROSPER',  name: 'PROSPERITY',   does: 'Manages what you have: stock, income, exchange.' },
-    exp: { short: 'EXPAND',   name: 'EXPANSION',    does: 'Grows what you have: develops systems and builds special sites.' },
-    tru: { short: 'TRUTH',    name: 'TRUTH',        does: 'Propaganda cards. They come from what happens in the war, not from you.' },
-    hum: { short: 'HUMANITY', name: 'HUMANITY',     does: 'Regulates the population: volunteers or conscripts.' },
-    emp: { short: 'EMPLOY',   name: 'EMPLOYMENT',   does: 'Decides which war front the work and supply flow to.' },
-    uni: { short: 'UNITY',    name: 'UNITY',        does: 'The standing of the war.' },
+    def: { short: 'OPS',      name: 'OPERATIONS',     does: 'Your fleets, and the battle deck they fight with.' },
+    pro: { short: 'FINANCE',  name: 'FINANCE',      does: 'Manages what you have: stock, income, exchange.' },
+    exp: { short: 'GROWTH',   name: 'GROWTH',       does: 'Grows what you have: develops systems and builds special sites.' },
+    tru: { short: 'PUBLICITY', name: 'PUBLICITY',   does: 'Publicity cards. They come from what happens in the war, not from you.' },
+    hum: { short: 'PERSONNEL', name: 'PERSONNEL',   does: 'Who the colonies send: volunteers or conscripts.' },
+    emp: { short: 'LOGISTICS', name: 'LOGISTICS',    does: 'Decides which war front the work and supply flow to.' },
+    uni: { short: 'RATINGS',  name: 'RATINGS',      does: 'The standing of the war, and of your brand.' },
   },
   // The three war fronts, in the order they are played each round. On each front the enemy acts first, then you.
   // `deg` is where the front lies on the map (screen degrees: 0 is east, 90 is south).
   // `loot` is the front's own resource: you win some with every victory there, and spend it on special sites.
   fronts: [
-    { f: 'swarm',   name: 'EASTERN FRONT',  short: 'EAST',  deg: 330, loot: 'OIL', lootShort: 'OIL' },
+    { f: 'swarm',   name: 'EASTERN FRONT',  short: 'EAST',  deg: 330, loot: 'BIOMASS', lootShort: 'BIOMASS' },
     { f: 'foundry', name: 'WESTERN FRONT',  short: 'WEST',  deg: 210, loot: 'METALS', lootShort: 'METAL' },
-    { f: 'veil',    name: 'SOUTHERN FRONT', short: 'SOUTH', deg: 90,  loot: 'TECHNOLOGY PARTS', lootShort: 'TECH' },
+    { f: 'veil',    name: 'SOUTHERN FRONT', short: 'SOUTH', deg: 90,  loot: 'BIO-TECH', lootShort: 'BIOTECH' },
   ],
   color: { fed: '#7fe9e0', swarm: '#ff9a3d', foundry: '#ff6a4d', veil: '#b58cff', amber: '#f5d547' },
 
@@ -55,7 +56,7 @@ export const C = {
   // The worlds inside each star system. A world pays its resource each round while its system is linked to the
   // capital, and every few worlds of a kind put a card of that kind in your battle deck.
   worlds: {
-    capital:  { name: 'CAPITAL WORLD',  col: '#7fe9e0', text: 'The seat of the Federation.' },
+    capital:  { name: 'CAPITAL WORLD',  col: '#7fe9e0', text: 'Your headquarters.' },
     refinery: { name: 'GAS REFINERY',   col: '#d9a45b', res: 'fuel', y: 0.13, card: 'burn',    yard: 'Ships built here cost no fuel.' },
     forge:    { name: 'FORGE WORLD',    col: '#c8643c', res: 'army', y: 0.09, card: 'armour',  yard: 'Ships built here cost no Army.' },
     colony:   { name: 'COLONY',         col: '#5fa8d8', res: 'drop', y: 0.05, card: 'drop',    yard: 'Ships built here cost no Vanguard.' },
@@ -100,8 +101,8 @@ export const C = {
   // One currency for the whole war: credits (CR), kept in the war chest. The ground pays into it; so does every station
   // and base that is running in profit, every round; so does every sector held whole. It buys everything in the armoury.
   chest: { post: 30, sector: 2 },             // CR a round: for each tier or charter of a post in profit; for each whole sector
-  // Deposits: about `share` of the systems on a front hold that front's material (oil on the east, metals on the west,
-  // technology parts in the south; every enemy home has one). A base on a deposit lifts `per` a round, `profit` more
+  // Deposits: about `share` of the systems on a front hold that front's material (biomass on the east, metals on the west,
+  // bio-tech in the south; every enemy home has one). A base on a deposit lifts `per` a round, `profit` more
   // when it is running in profit.
   deposit: { share: 0.3, per: 1, profit: 1 },
   // Armoury rank: one for every tier of a station and every charter of a base that is linked AND running in profit.
@@ -142,9 +143,9 @@ export const C = {
     bulwark: { name: 'BULWARK',         kind: 'world', block: 5, text: 'Fortress worlds' },
     // from special sites
     railgun: { name: 'PROTOTYPE RAILGUN', kind: 'site', atk: 6, pierce: true, text: 'Cannot be blocked' },
-    acid:    { name: 'ICHOR WARHEADS',  kind: 'site', atk: 3, sap: 1, text: 'Enemy fire −1' },
-    mirror:  { name: 'PEARL MIRROR',    kind: 'site', block: 99, reflect: 3, text: 'Turns 3 back' },
-    // Ministry of Truth
+    acid:    { name: 'ACID WARHEADS',  kind: 'site', atk: 3, sap: 1, text: 'Enemy fire −1' },
+    mirror:  { name: 'LIVING MIRROR',    kind: 'site', block: 99, reflect: 3, text: 'Turns 3 back' },
+    // Publicity Office
     newsreel:{ name: 'VICTORY NEWSREEL', kind: 'truth', power: 2, heal: 4, atk: 1, text: 'System taken' },
     heroes:  { name: 'HEROES OF THE LINE', kind: 'truth', power: 3, block: 3, atk: 2, text: 'System held' },
     lastStand: { name: 'NOT ONE STEP BACK', kind: 'truth', power: 4, block: 4, heal: 3, text: 'System lost' },
@@ -171,11 +172,11 @@ export const C = {
   // else has into your battle deck. A site is lost with its system.
   sites: {
     testing: { name: 'TESTING CENTRE', loot: 'foundry', cost: 6, card: 'railgun', text: 'Two PROTOTYPE RAILGUN cards.' },
-    biolab:  { name: 'WARHEAD LAB',      loot: 'swarm',   cost: 6, card: 'acid',    text: 'Two ICHOR WARHEADS cards.' },
-    array:   { name: 'OPTICS ARRAY',    loot: 'veil',    cost: 6, card: 'mirror',  text: 'Two PEARL MIRROR cards.' },
+    biolab:  { name: 'WARHEAD LAB',      loot: 'swarm',   cost: 6, card: 'acid',    text: 'Two ACID WARHEADS cards.' },
+    array:   { name: 'GROWTH VAT',    loot: 'veil',    cost: 6, card: 'mirror',  text: 'Two LIVING MIRROR cards.' },
   },
 
-  // ---------- what the ministries can do (none of these use up your decision) ----------
+  // ---------- what the offices can do (none of these use up your decision) ----------
   trade: { give: 3, get: 2 },                         // Prosperity: exchange one resource for another
   develop: { max: 2, fuel: 3, army: 2, mult: 0.5 },   // Expansion: cost × (level + 1); each level adds 50% to the system's output
   policy: {                                           // Humanity: who the colonies send

@@ -18,12 +18,12 @@
   <!-- In-mission HUD -->
   <div id="hud" class="hidden">
     <!-- top left: the buttons, and the news under them -->
-    <!-- (0.20) the HUD as an RTS: the resource bar at the top left (credits, the Helldivers' lives, SEAF) -->
+    <!-- (0.20) the HUD as an RTS: the resource bar at the top left (credits, the Vanguards' lives, Infantry) -->
     <div id="topbar">
       <div class="cr-row">
         <div id="bigcr" class="bigcr" data-tt="hud.crTitle"><b id="bigcr-v">0</b><span data-t="hud.cr">CR</span><i id="bigcr-d"></i></div>
         <div id="lives" class="bigcr lives" data-tt="hud.livesTitle"><b id="lives-v">0</b><span data-t="hud.lives">LIVES</span><i id="lives-d"></i></div>
-        <div id="seafc" class="bigcr seafc" data-tt="hud.seafTitle"><b id="seafc-v">0</b><span>SEAF</span></div>
+        <div id="seafc" class="bigcr seafc" data-tt="hud.seafTitle"><b id="seafc-v">0</b><span>Infantry</span></div>
         <div id="alertc" class="bigcr alertc" data-tt="hud.alertTitle"><b id="alertc-v"></b><span id="alertc-n">CALM</span></div>
       </div>
     </div>
@@ -68,8 +68,8 @@
       <div class="rl-h"><span data-t="radio.title">COMMAND RADIO</span><button id="radio-full" class="rl-b" type="button" data-ta="radio.log" data-tt="radio.log">⤢</button><button id="radio-x" class="rl-b" type="button" data-ta="radio.map" data-tt="radio.map">✕</button></div>
       <div id="rl-body" class="rl-body"></div>
     </div>
-    <!-- bottom left: the Helldivers (health, kit, stratagems, ships), then the SEAF squads and their orders -->
-    <!-- (0.20) left: the Helldivers (always shown), just above what is selected -->
+    <!-- bottom left: the Vanguards (health, kit, stratagems, ships), then the Infantry squads and their orders -->
+    <!-- (0.20) left: the Vanguards (always shown), just above what is selected -->
     <div id="hdpanel"><div id="sqpanel" class="panel" data-tt="hud.hdbarTitle"><div id="hdrows"></div><div id="supply"></div></div></div>
     <div id="selpanel" class="panel"><div id="tc-sel" class="tc-sel"></div></div>
     <div id="tray">
@@ -83,7 +83,7 @@
       <button class="sqa" data-a="merge"><i class="gl">⧉</i><span class="n" data-t="hud.merge">MERGE</span></button>
     </div>
     <div id="orders" class="panel">
-      <button class="ord" data-o="seaf"><span class="k" data-k="seaf">G</span><span class="n" data-t="hud.seafDrop">SEAF DROP</span><span class="s">--</span></button>
+      <button class="ord" data-o="seaf"><span class="k" data-k="seaf">G</span><span class="n" data-t="hud.seafDrop">INFANTRY DROP</span><span class="s">--</span></button>
       <button class="ord" data-o="pickup"><span class="k" data-k="pickup">⇧G</span><span class="n" data-t="hud.pickup">PICKUP</span><span class="s">--</span></button>
       <button class="ord" data-o="auto"><span class="k" data-k="auto">X</span><span class="n" data-t="hud.auto">AUTO</span><span class="s">--</span></button>
       <button class="ord" data-o="move"><span class="k" data-k="move">V</span><span class="n" data-t="hud.move">MOVE</span><span class="s">--</span></button>
@@ -92,13 +92,13 @@
       <button class="ord" data-o="escort"><span class="k" data-k="escort">C</span><span class="n" data-t="hud.escort">ESCORT</span><span class="s">--</span></button>
     </div>
     <button id="btn-tac" class="tacb" type="button" data-tt="hud.tacTitle"><span class="n" data-t="tac.title">TACTICAL BUILD</span><kbd data-k="map">TAB</kbd></button>
-    <!-- the tactical build screen: the Helldivers and the SEAF squads fold away into these two drop menus -->
+    <!-- the tactical build screen: the Vanguards and the Infantry squads fold away into these two drop menus -->
     <div id="tac-drops">
-      <button id="td-hd" class="btn tdb" type="button"><span data-t="tac.dropHd">HELLDIVERS</span> <i>▴</i></button>
-      <button id="td-sf" class="btn tdb" type="button"><span data-t="tac.dropSf">SEAF SQUADS</span> <i>▴</i></button>
+      <button id="td-hd" class="btn tdb" type="button"><span data-t="tac.dropHd">VANGUARDS</span> <i>▴</i></button>
+      <button id="td-sf" class="btn tdb" type="button"><span data-t="tac.dropSf">INFANTRY SQUADS</span> <i>▴</i></button>
     </div>
     </div>
-    <!-- the tactical screen (Tab or O; it runs in real time): what is selected, the orders, what SEAF can build, the ship's weapons,
+    <!-- the tactical screen (Tab or O; it runs in real time): what is selected, the orders, what Infantry can build, the ship's weapons,
          the armory, and formations -->
     <div id="tactical" class="panel hidden" role="dialog">
       <div class="tc-h"><b data-t="tac.title">TACTICAL BUILD</b><span id="tc-state" class="tc-state"></span><span class="tc-help" id="tc-help"></span><button class="x-close tc-x" type="button" data-ta="hud.closeTac">✕</button></div>
@@ -133,7 +133,7 @@
     <div id="dock">
       <button id="dk-hd" class="dkb dkh" type="button" data-ta="tac.tHd"><span class="hdc"></span></button>
       <button id="dk-sq" class="dkb"><span class="n"></span><span class="s">--</span></button>
-      <button id="dk-drop" class="dkb"><span class="n" data-t="hud.seafDrop">SEAF DROP</span><span class="s">--</span></button>
+      <button id="dk-drop" class="dkb"><span class="n" data-t="hud.seafDrop">INFANTRY DROP</span><span class="s">--</span></button>
       <button id="dk-pick" class="dkb"><span class="n" data-t="hud.pickup">PICKUP</span><span class="s">--</span></button>
       
       <button id="dk-tac" class="dkb tacb" type="button"><span class="n" data-t="hud.tactical">TACTICAL</span></button>
@@ -151,7 +151,7 @@
       <div class="sg-foot"><span class="fine" id="sg-hint" data-t="sg.hint"></span><button id="sg-launch" class="btn primary" type="button" data-t="sg.launch">LAUNCH NOW</button></div>
     </div>
     <div id="hbgame" class="panel hidden" role="dialog" data-ta="hb.title">
-      <div class="sg-h"><b data-t="hb.title">ASSEMBLE THE HELLBOMB</b><span id="hb-sub" data-t="hb.sub">BEFORE IT DROPS</span></div>
+      <div class="sg-h"><b data-t="hb.title">ASSEMBLE THE DEMOLITION CHARGE</b><span id="hb-sub" data-t="hb.sub">BEFORE IT DROPS</span></div>
       <div class="sg-bars"><div class="sg-time"><i id="hb-time"></i></div></div>
       <div class="hb-pod">
         <button class="sg-slot hb-slot" data-i="0" type="button"><span class="sg-k">1</span><span class="sg-cells"></span><span class="sg-n" data-t="hb.casing">CASING</span></button>
@@ -176,7 +176,7 @@
     </div>
     <!-- (0.21) top centre: the drop countdown (one line), then the big alerts under it -->
     <div id="topmid">
-      <div id="dropcd" class="hidden" role="status"><div class="dc-t"><small class="dc-l" data-t="hud.dropIn">HELLDIVERS DROP IN</small><small class="dc-s" data-t="hud.dropShort">DROP IN</small><b id="dropcd-n">0:30</b></div><button id="dropcd-go" class="btn primary" type="button"><span class="dc-l" data-t="hud.deployNow">DEPLOY NOW</span><span class="dc-s" data-t="hud.deployShort">DEPLOY</span> <kbd data-k="deploy">ENTER</kbd></button></div>
+      <div id="dropcd" class="hidden" role="status"><div class="dc-t"><small class="dc-l" data-t="hud.dropIn">VANGUARDS DROP IN</small><small class="dc-s" data-t="hud.dropShort">DROP IN</small><b id="dropcd-n">0:30</b></div><button id="dropcd-go" class="btn primary" type="button"><span class="dc-l" data-t="hud.deployNow">DEPLOY NOW</span><span class="dc-s" data-t="hud.deployShort">DEPLOY</span> <kbd data-k="deploy">ENTER</kbd></button></div>
       <div id="center-msg"></div>
       <!-- (0.22) a question the game asks (go inside a building?), answered with a tap; it goes by itself -->
       <div id="ask" class="panel hidden" role="alertdialog"><span class="ask-t"></span><span class="ask-b"></span></div>
@@ -192,7 +192,7 @@
   <section id="s-title" class="screen">
     <div class="ttl">
       <header class="tt-head">
-        <p class="tt-eyebrow" data-t="title.eyebrow">Super Earth Special Forces</p>
+        <p class="tt-eyebrow" data-t="title.eyebrow">Head Office Special Forces</p>
         <h1 class="tt-mark" aria-label="Orbital Fury"><span>ORBITAL</span><span>FURY</span></h1>
         <p class="tt-tag" data-t="title.tag"></p>
         <p id="tt-wiped" class="tt-wiped hidden" role="status"></p>
@@ -212,7 +212,7 @@
         <button id="btn-play" class="btn tt-item" type="button"><span data-t="title.quick">QUICK PLAY</span><small data-t="title.quickSub">Mission after mission against the enemy you pick</small></button>
         <button id="btn-settings" class="btn tt-item" type="button"><span data-t="ui.settings">SETTINGS</span><small data-t="title.setSub">Sound, layout, language</small></button>
         <button id="btn-credits-t" class="btn tt-item" type="button"><span data-t="ui.credits">CREDITS</span><small data-t="title.aboutSub">The team, the tools and the story</small></button>
-        <a id="lnk-fb-t" class="btn fb tt-item" target="_blank" rel="noopener"><span data-t="ui.feedback">FEEDBACK</span><small data-t="title.fbSub">The SESF Helldivers Discord</small></a>
+        <a id="lnk-fb-t" class="btn fb tt-item" target="_blank" rel="noopener"><span data-t="ui.feedback">FEEDBACK</span><small data-t="title.fbSub">The community Discord</small></a>
         <a id="lnk-sp-t" class="btn sp tt-item" target="_blank" rel="noopener"><span data-t="ui.support">SUPPORT</span><small data-t="title.spSub">Back the project on GitHub Sponsors</small></a>
       </nav>
       <footer class="tt-foot">
@@ -229,7 +229,7 @@
   <section id="s-campaign" class="screen">
     <div class="cp">
       <button id="cp-back" class="btn cp-back" type="button" data-t="cp.back">BACK</button>
-      <p class="tt-eyebrow" data-t="cp.eyebrow">SUPER EARTH SPECIAL FORCES · CAMPAIGN</p>
+      <p class="tt-eyebrow" data-t="cp.eyebrow">HEAD OFFICE SPECIAL FORCES · CAMPAIGN</p>
       <h2 class="cp-title" id="cp-title"></h2>
       <div class="cp-dev" role="note"><b data-t="cp.devH">In development</b> <span data-t="cp.dev"></span></div>
       <p class="cp-prog" id="cp-prog"></p>
@@ -264,7 +264,7 @@
           <div id="r-obj" class="r-line"></div>
           <div id="r-diff" class="r-line"></div>
           <div id="r-fail" class="r-line fail"></div>
-          <h3 id="b-load-h" class="fold-h b-load-h" data-fold="b-load" role="button" tabindex="0"><span data-t="brief.loadouts">THE SQUAD'S STRATAGEMS</span></h3>
+          <h3 id="b-load-h" class="fold-h b-load-h" data-fold="b-load" role="button" tabindex="0"><span data-t="brief.loadouts">THE SQUAD'S CALL-INS</span></h3>
           <div id="b-load"><div id="b-strats"></div>
           <div id="b-strat-note" class="fine"></div></div>
           <div class="progress"><i id="b-prog"></i></div>
@@ -483,7 +483,7 @@
       <button class="x-close" data-close="s-map" data-ta="map.close">✕</button>
       <div class="eyebrow" data-t="map.title">Tactical map</div>
       <div class="mapwrap"><canvas id="bigmap" width="900" height="900" data-ta="map.aria"></canvas></div>
-      <div class="map-key"><span class="k-hd">● <span data-t="map.k.allies">ALLIES</span></span><span class="k-en">■ <span data-t="map.k.enemies">ENEMIES</span></span><span class="k-rad">▪ <span data-t="map.k.radar">RADAR</span></span><span class="k-obj">◆ <span data-t="map.k.obj">OBJECTIVE</span></span><span class="k-base">○ <span data-t="map.k.base">ENEMY BASE</span></span><span class="k-poi">□ <span data-t="map.k.poi">TARGET</span></span><span class="k-side">◇ <span data-t="map.k.side">SIDE OBJECTIVE</span></span><span class="k-bcn">⊥ <span data-t="map.k.beacon">SEAF DROP</span></span><span class="k-boss">⊗ <span data-t="map.k.boss">SUPER HEAVY</span></span></div>
+      <div class="map-key"><span class="k-hd">● <span data-t="map.k.allies">ALLIES</span></span><span class="k-en">■ <span data-t="map.k.enemies">ENEMIES</span></span><span class="k-rad">▪ <span data-t="map.k.radar">RADAR</span></span><span class="k-obj">◆ <span data-t="map.k.obj">OBJECTIVE</span></span><span class="k-base">○ <span data-t="map.k.base">ENEMY BASE</span></span><span class="k-poi">□ <span data-t="map.k.poi">TARGET</span></span><span class="k-side">◇ <span data-t="map.k.side">SIDE OBJECTIVE</span></span><span class="k-bcn">⊥ <span data-t="map.k.beacon">INFANTRY DROP</span></span><span class="k-boss">⊗ <span data-t="map.k.boss">SUPER HEAVY</span></span></div>
       <p class="fine" data-t="map.note"></p>
       <div class="btns"><button id="map-follow" class="btn" data-t="map.follow">FOLLOW SQUAD</button><button id="map-close" class="btn primary" data-t="map.back">BACK</button></div>
     </div>
@@ -538,7 +538,7 @@
   <section id="s-manual" class="screen overlay">
     <div class="card wide">
       <button class="x-close" data-close="s-manual" data-ta="ui.close">✕</button>
-      <div class="eyebrow" data-t="man.eyebrow">Super Destroyer gunner</div>
+      <div class="eyebrow" data-t="man.eyebrow">Fire-Support Ship gunner</div>
       <h2 data-t="ui.manual">FIELD MANUAL</h2>
       <p class="man-intro" data-t="man.intro"></p>
       <div id="manual-body" class="manual"></div>

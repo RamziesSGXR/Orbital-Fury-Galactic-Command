@@ -1,5 +1,5 @@
 // Where the enemy on the map comes from. There are no random spawns: every base (and the citadel) keeps a garrison and sends out
-// patrols that walk a route of their own, the faction's way (bugs roam round their nest, bots march between their sites, squids sweep
+// patrols that walk a route of their own, the faction's way (bugs roam round their nest, bots march between their sites, lizards sweep
 // a wide circle round their gate). A patrol that sees the squad, or hears it fighting, comes for it. A base replaces its lost patrols
 // while it stands, so destroying bases thins the map out. On top of that, now and then a patrol is already waiting just out of sight
 // on the way the squad is heading (an intercept), and the enemy calls in reinforcements by flare, at mission sites and at extraction
@@ -84,7 +84,7 @@ export function roamEvery(m) {
   return Math.max(Q.min * 0.6, s / alertMul(m));     // (0.48) more often with every alert star
 }
 export const roamGroups = (m) => Math.min(C.roam.maxGroups + (alertStars(m) >= C.alert.hunt ? 1 : 0), 1 + Math.floor(m.t / 60 / C.roam.groupsEvery) + Math.floor(alertStars(m) / 2));     // (0.48: and more of them with the alert)
-// Where they are headed: the extraction once it is open, otherwise where the squad (or, without Helldivers, any ally) is.
+// Where they are headed: the extraction once it is open, otherwise where the squad (or, without Vanguards, any ally) is.
 function roamGoal(m) {
   const ex = m.extraction;
   if (m.phase === 'extract' && ex && ex.x !== undefined) return { x: ex.x, y: ex.y };

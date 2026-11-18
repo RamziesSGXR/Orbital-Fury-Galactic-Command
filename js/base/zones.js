@@ -94,7 +94,7 @@ export const Zones = {
     for (const g of GKEYS) { const want = Math.max(20, use[g] * 3), have = this.storage(g) + this.b.filter(b => !b.done && B[b.type].store?.[g]).reduce((a, b) => a + B[b.type].store[g] * 0.75, 0); store[g] = Math.max(0, Math.round(want - have)); }
     const shopsHave = this.b.reduce((a, b) => a + (b.type === 'vend' ? 1 : b.type === 'club' ? 2 : B[b.type].chain ? 3 : 0), 0);
     const d = {
-      bunks: Math.max(0, Math.max(jobs + head, Math.min(12 + this.week * 8, votes + head)) - this.beds - bunksComing), jobs,   // and the Ministry's growth target, which the audit checks
+      bunks: Math.max(0, Math.max(jobs + head, Math.min(12 + this.week * 8, votes + head)) - this.beds - bunksComing), jobs,   // and the Head Office's growth target, which the audit checks
       seats: Math.max(0, home + 2 - (this.seats || 0) - seatsComing),
       latrines: Math.max(0, Math.ceil(home / 10) - pots),
       storage: Object.values(store).reduce((a, b) => a + b, 0), store,

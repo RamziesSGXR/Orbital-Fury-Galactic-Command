@@ -31,13 +31,13 @@ function drop(key) { try { localStorage.removeItem(key); } catch { /* no storage
 
 // ---------------------------------------------------------------- the command (faction): one identity for every post
 const NAMES = ['Aurelian Vanguard', 'Ninth Meridian', 'Lantern Guard', 'Cinder Legion', 'Halcyon Watch', 'Iron Chorus', 'Harrow Company', 'Sable Dawn', 'Emberline Corps', 'Vigil of Tarsen'];
-const MOTTOS = ['Hold the centre.', 'First in, last out.', 'The line is here.', 'By our hands.', 'Never the second step back.', 'Light the way.'];
+const MOTTOS = ['As seen on every front.', 'First in, best lit.', 'Victory, brought to you by us.', 'Trusted by nine planets in ten.', 'We hold the line. Ask for us by name.', 'Results you can broadcast.'];
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
 function rollFaction() {
   const bg = pick(['#1b2a1a', '#111111', '#1d3f8a', '#3d4247', '#8a1c1c', '#2e4a2a']), fg = pick(['#ffe600', '#f4f4f4', '#ffb020', '#3da9ff']);
   const pc = pick(['#3d4247', '#8a1c1c', '#1d3f8a', '#2e4a2a', '#111111', '#c0392b'].filter((c) => c !== bg));     // the pattern: dark, and never the field's or the symbol's colour
   const name = pick(NAMES);
-  return { name, motto: pick(MOTTOS), primary: pick(['#22262a', '#2e4a2a', '#3a4f6a', '#5d6a4a', '#8a5a44']), secondary: fg,
+  return { name, capital: pick(GC.names.capitals), motto: pick(MOTTOS), primary: pick(['#22262a', '#2e4a2a', '#3a4f6a', '#5d6a4a', '#8a5a44']), secondary: fg,
     logo: { shape: pick(SHAPES), symbol: pick(SYMBOLS.filter((s) => s !== 'none')), bg, fg, rim: fg, text: name.split(/\s+/).map((w) => w[0]).join('').slice(0, 4).toUpperCase(), pattern: pick(PATTERNS), pc },
     look: { uniform: '#5d6a4a', helmet: '#4c5a3c', armband: fg, crest: true } };
 }
@@ -103,7 +103,8 @@ function credits() {
   War.modal(`<h2>Credits</h2><p>Design and direction: Ramzies. Built with Claude (Anthropic) as a coding assistant.</p>
     <p>Galactic Command brings four prototypes into one game: Orbital Fury, Super Orbital Simulator, FOB Super Commander and Super Galactic Strategy. Art is drawn in code and sound is synthesised in the browser.</p>
     <p>3D is drawn with three.js (MIT licence, js/vendor/THREE-LICENSE).</p>
-    <p class="dim">An unofficial fan project. Not affiliated with or endorsed by any game studio or publisher.</p>
+    <p>Thanks to the SESF community for testing, ideas and feedback.</p>
+    <p class="dim">An original setting. Not affiliated with or endorsed by any game studio or publisher.</p>
     <button class="plate btn go" data-x="close">CLOSE</button>`);
   $('modal').querySelector('[data-x=close]').onclick = () => { $('modal').hidden = true; audio.click(); };
 }
@@ -141,7 +142,7 @@ let draft = rollFaction();
 const CYCLE = { shape: SHAPES, symbol: SYMBOLS, pattern: PATTERNS };
 function toFound() {
   state = 'found'; show('s-found');
-  $('f-name').value = draft.name; $('f-motto').value = draft.motto; $('f-text').value = draft.logo.text || '';
+  $('f-name').value = draft.name; $('f-capital').value = draft.capital || ''; $('f-motto').value = draft.motto; $('f-text').value = draft.logo.text || '';
   const sw = (id, get, set) => { $(id).innerHTML = PALETTE.map((c) => `<button style="background:${c}" data-c="${c}" class="${get() === c ? 'on' : ''}" aria-label="${c}"></button>`).join(''); $(id).onclick = (e) => { const b = e.target.closest('[data-c]'); if (!b) return; set(b.dataset.c); audio.click(); toFound(); }; };
   sw('f-bg', () => draft.logo.bg, (c) => { draft.logo.bg = c; });
   sw('f-fg', () => draft.logo.fg, (c) => { draft.logo.fg = c; });
@@ -163,6 +164,7 @@ $('s-found').addEventListener('click', (e) => {
   draft.logo[b.dataset.f] = list[(i + +b.dataset.d + list.length) % list.length]; audio.click(); foundDraw();
 });
 $('f-name').oninput = () => { draft.name = $('f-name').value; };
+$('f-capital').oninput = () => { draft.capital = $('f-capital').value; };
 $('f-motto').oninput = () => { draft.motto = $('f-motto').value; };
 $('f-text').oninput = () => { draft.logo.text = $('f-text').value.toUpperCase(); foundDraw(); };
 $('f-roll').onclick = () => { draft = rollFaction(); audio.click(); toFound(); };
@@ -176,7 +178,7 @@ $('f-unup').onclick = () => { delete draft.logo.img; audio.click(); toFound(); }
 $('f-back').onclick = () => { audio.click(); toTitle(); };
 $('f-go').onclick = () => {
   audio.ready();
-  draft.name = (draft.name || '').trim() || 'The Command'; draft.motto = (draft.motto || '').trim();
+  draft.name = (draft.name || '').trim() || 'The Command'; draft.motto = (draft.motto || '').trim(); draft.capital = (draft.capital || '').replace(/[<>&]/g, '').trim() || GC.names.capital;
   app.endCampaignQuiet();
   camp = { v: 1, faction: JSON.parse(JSON.stringify(draft)), war: null, kit: newKit(), wallet: newWallet(), sites: {}, stats: { ground: 0, groundWon: 0 }, at: Date.now() };
   how(() => {
@@ -277,7 +279,7 @@ $('th-leave').onclick = () => { audio.click(); if (mode && mode.askLeave) mode.a
 // Everything is bought from the war chest. Four shelves: the ground (the ship's weapons, Orbital Fury's own list), the
 // stations, the bases and the fleet. What a shelf will sell is set by the armoury rank: one for every station tier and
 // base charter that is linked to the capital and running in profit. What you own, you keep.
-const SECTIONS = { orbitals: 'ORBITALS', eagles: 'EAGLES', defense: 'DEFENCES', utilities: 'UTILITIES', hangar: 'HANGAR', gun: 'SHIP GUN', uav: 'UAV', seaf: 'TROOPS', build: 'BUILDING', support: 'SUPPORT', classified: 'CLASSIFIED' };
+const SECTIONS = { orbitals: 'ORBITALS', eagles: 'STRIKERS', defense: 'DEFENCES', utilities: 'UTILITIES', hangar: 'HANGAR', gun: 'SHIP GUN', uav: 'UAV', seaf: 'TROOPS', build: 'BUILDING', support: 'SUPPORT', classified: 'CLASSIFIED' };
 const SHELVES = { ground: 'GROUND', station: 'STATIONS', base: 'BASES', fleet: 'FLEET' };
 app.armouryTier = () => { const g = War.war(); return g ? Math.min(TIER_MAX, g.rank()) : 0; };
 app.grant = (id) => { const g = War.war(), it = g && g.shelfItem(id); return it ? g.lv(id) * it.per : 0; };

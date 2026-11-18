@@ -1,5 +1,5 @@
 // World-space drawing for Revision 7: enemy reinforcements (flares, bug holes, dropships, warp ships), the free-fire zone, the
-// evacuation site and its civilians, and the extraction pad with its pelican. Every function draws in metres; px(n) is n screen
+// evacuation site and its civilians, and the extraction pad with its dropship. Every function draws in metres; px(n) is n screen
 // pixels in metres at the current zoom.
 import { t as tr } from '../i18n.js';
 import { VIEW } from './view.js';
@@ -164,7 +164,7 @@ export function drawDrops(ctx, m, now, px, labels, scale, pal) {
 
 
 // ---------------------------------------------------------------- resupply
-// The Helldiver asking for supplies, the pod on its way down, and the squad's boost after a fast load.
+// The Vanguard asking for supplies, the pod on its way down, and the squad's boost after a fast load.
 export function drawSupply(ctx, m, now, px, labels, scale, teamColor) {
   const S = m.supply;
   if (!S) return;
@@ -240,7 +240,7 @@ export function drawEvac(ctx, m, now, px, labels, scale) {
   }
 }
 
-// ---------------------------------------------------------------- the extraction pad and its pelican
+// ---------------------------------------------------------------- the extraction pad and its dropship
 export function drawExtraction(ctx, m, now, px, labels, scale) {
   const ex = m.extraction;
   if (!ex.revealed) return;
@@ -292,7 +292,7 @@ export function drawExtraction(ctx, m, now, px, labels, scale) {
     ctx.strokeStyle = '#7dff9b'; ctx.lineWidth = px(4); ctx.beginPath(); ctx.arc(ex.x, ex.y, R + px(6), -Math.PI / 2, -Math.PI / 2 + TAU * f); ctx.stroke();
     text = tr('lab.pelicanIn', { n: Math.ceil(left) });
   }
-  // the pelican's line (the pelican itself is drawn later, over the pad's walls: drawExtractionPelican)
+  // the pelican's line (the dropship itself is drawn later, over the pad's walls: drawExtractionDropship)
   if (ex.state === 'boarding') {
     const hds = m.hdAlive.length;
     text = tr(hds ? 'lab.boardingLeft' : 'lab.boarding', { on: ex.boardedH || 0, left: hds, n: Math.max(0, Math.ceil(ex.leaveBy - t)) });
@@ -301,16 +301,16 @@ export function drawExtraction(ctx, m, now, px, labels, scale) {
   labels.push({ x: ex.x, y: ex.y, dy: -R * scale - 10, text, col: '#ffe600', pri: 3 });
 }
 
-// (0.53.5) The extraction pelican: coming down, waiting on the pad with its ramp open, then climbing away. Drawn after the walls round
+// (0.53.5) The extraction dropship: coming down, waiting on the pad with its ramp open, then climbing away. Drawn after the walls round
 // the pad and every unit (it was drawn under the pad's barricades).
-export function drawExtractionPelican(ctx, m, now, px) {
+export function drawExtractionDropship(ctx, m, now, px) {
   const ex = m.extraction, t = m.t;
   if (!ex || !(ex.state === 'landing' || ex.state === 'boarding' || ex.state === 'away')) return;
   let alt = 0, x = ex.x, y = ex.y;
   const ang = -Math.PI / 2;
   if (ex.state === 'landing') alt = Math.max(0, (ex.touchAt - t) / C.extract.landSec);
   if (ex.state === 'away') { const k = t - ex.awayAt; alt = Math.min(1.4, k * 0.5); y -= k * k * 6; }
-  // (0.62.8) the same size as the SEAF's troop Pelican (squads.js drawPelicans): it was 18 m against that one's 8
+  // (0.62.8) the same size as the Infantry's troop Dropship (squads.js drawDropships): it was 18 m against that one's 8
   const s = Math.max(8, px(14)) * (1 + 0.4 * alt), off = 4 + alt * 26;
   ctx.fillStyle = 'rgba(0,0,0,0.18)'; pelicanBody(ctx, x + off * 1.05, y + off * 0.76, ang, s * 1.08); ctx.fill();
   ctx.fillStyle = 'rgba(0,0,0,0.42)'; pelicanBody(ctx, x + off * 1.05, y + off * 0.76, ang, s * 0.92); ctx.fill();

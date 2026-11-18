@@ -1,12 +1,12 @@
 // Extraction. Once the objective is done (and the bonus bases are cleared or their time is up) the extraction point goes live:
 //   open      the squad heads for it
-//   beacon    a Helldiver reached it and threw the blue extraction beacon; it falls for CONFIG.extract.beaconSec
-//   called    the beacon is down: the pelican arrives in CONFIG.extract.callSec. The enemy always answers: a first wave the moment
+//   beacon    a Vanguard reached it and threw the blue extraction beacon; it falls for CONFIG.extract.beaconSec
+//   called    the beacon is down: the dropship arrives in CONFIG.extract.callSec. The enemy always answers: a first wave the moment
 //             the beacon lands (drop ships, or bugs breaching), then more every so often. Nobody has to clear the map to leave.
-// (The pad is on the map from the drop, locked until the objective is done, so SEAF can dig in round it early.)
-//   landing   the pelican comes down on the pad
-//   boarding  every Helldiver runs for the ramp and boards
-//   away      the pelican climbs out; (0.39) the destroyer leaves orbit CONFIG.extract.orbitSec later and the mission ends. SEAF
+// (The pad is on the map from the drop, locked until the objective is done, so Infantry can dig in round it early.)
+//   landing   the dropship comes down on the pad
+//   boarding  every Vanguard runs for the ramp and boards
+//   away      the dropship climbs out; (0.39) the destroyer leaves orbit CONFIG.extract.orbitSec later and the mission ends. Infantry
 //             go home only by a pickup (seaf.js): anyone still on the ground then is left behind. The extraction pelican's belly
 //             autocannon fires on the way down and while it waits.
 import { alertRaise, callPressure } from './alert.js';
@@ -48,12 +48,12 @@ export function updateExtract(m, dt) {
   if (ex.state === 'open') {
     for (const a of m.hdAlive) {
       if (a.mounted || (a.x - ex.x) ** 2 + (a.y - ex.y) ** 2 > X.radius * X.radius) continue;
-      if (bossAlive(m)) {               // a super heavy on the field: the pelican will not come in until it is dead
+      if (bossAlive(m)) {               // a super heavy on the field: the dropship will not come in until it is dead
         if (ex.blockedSince === undefined) ex.blockedSince = t;
         if (t >= (ex.blockSaid || 0)) { ex.blockSaid = t + 15; m.radio(COMMS.bossBlock(m.boss.name), 'bossblock', 0); m.emit('boss_block', {}); }
         break;
       }
-      // the blue beacon: thrown, it falls to the pad; the pelican is called when it lands
+      // the blue beacon: thrown, it falls to the pad; the dropship is called when it lands
       ex.state = 'beacon'; ex.beaconAt = t; ex.beaconDown = t + X.beaconSec; ex.wait = X.callSec;
       m.emit('extract_beacon', { x: ex.x, y: ex.y });
       bark(m, a, 'extract', '', true);
@@ -68,7 +68,7 @@ export function updateExtract(m, dt) {
     ex.waveAt = t + C.reinf.extractEvery / Math.max(0.8, Math.min(C.reinf.extractPMax, callPressure(m)));     // (0.53.7: with the alert, and never easier than the start)
     m.radio(COMMS.extractCalled(wait), 'excall', 0);
     m.notice(tr('n.exCalled', { n: wait }), 'warn');
-    if (m.seafAlive.length && !m.ls) { m.notice(tr('n.exSeaf'), 'warn'); m.radio(COMMS.exSeaf, 'exseaf', 0); }     // (0.39) get the SEAF picked up
+    if (m.seafAlive.length && !m.ls) { m.notice(tr('n.exSeaf'), 'warn'); m.radio(COMMS.exSeaf, 'exseaf', 0); }     // (0.39) get the Infantry picked up
     m.emit('extract_call', { x: ex.x, y: ex.y });
     alertRaise(m, 1, 'extract');     // (0.48)
     ex.calledAt = t;
@@ -101,14 +101,14 @@ export function updateExtract(m, dt) {
   if (ex.state === 'boarding') {
     for (const a of m.hdAlive) if (!a.mounted && !a.dead && (a.x - ex.x) ** 2 + (a.y - ex.y) ** 2 <= X.boardR * X.boardR) board(m, a);
     const waiting = m.hdAlive.filter((a) => !a.dead).length + m.pendingPods('H');
-    // (0.53.7) nobody aboard yet but Helldivers still on their way (or coming down): it holds a little longer (holdMore)
+    // (0.53.7) nobody aboard yet but Vanguards still on their way (or coming down): it holds a little longer (holdMore)
     const coming = m.hd.lives > 0 ? m.teams.filter((q) => !q.hd && !q.boarded).length : 0;     // (and those about to drop back in)
     const hold = ex.boardedH === 0 && waiting + coming > 0 && t < ex.leaveBy + X.holdMore;
     if ((waiting === 0 && ex.boardedH > 0) || (t >= ex.leaveBy && !hold) || (waiting === 0 && m.hd.lives <= 0)) {
       ex.state = 'away'; ex.awayAt = t; ex.leaveAt = t + X.orbitSec;
       m.radio(ex.boardedH ? COMMS.victory : COMMS.extractEmpty, 'exaway', 0);
       m.emit('extract_away', { x: ex.x, y: ex.y, n: ex.boardedH });
-      // (0.39) the destroyer will not wait: SEAF still on the ground have orbitSec to be picked up
+      // (0.39) the destroyer will not wait: Infantry still on the ground have orbitSec to be picked up
       const left = m.seafAlive.filter((a) => !a.dead).length;
       m.notice(tr(left ? 'n.orbitLeaveN' : 'n.orbitLeave', { s: X.orbitSec, n: left }), left ? 'bad' : 'info');
       m.radio(COMMS.orbitLeave(X.orbitSec, left), 'orbitleave', 0);
@@ -117,7 +117,7 @@ export function updateExtract(m, dt) {
     return;
   }
   if (ex.state === 'away') {
-    // the mission is won only by getting Helldivers out: a pelican that leaves without one is a failed mission
+    // the mission is won only by getting Vanguards out: a dropship that leaves without one is a failed mission
     if (t >= ex.leaveAt) m.finish(ex.boardedH > 0 ? 'victory' : m.objDone ? 'complete' : 'defeat');
   }
 }

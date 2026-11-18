@@ -15,16 +15,16 @@ import { solidOf, inSolid } from './solid.js';
 const NAMES = ['Honest Work', 'Steady Progress', 'Fair Weather', 'Good Neighbors', 'Quiet Resolve', 'Open Skies', 'Sturdy Ballots',
   'Shared Prosperity', 'Cheerful Compliance', 'Sensible Shoes', 'Unanimous Consent', 'Bright Mornings', 'Fair Play', 'Civic Duty',
   'Common Sense', 'Rightful Order', 'Patient Thunder', 'Reliable Freedom'];
-const WARSHIPS = ['SES Hammer of Justice', 'SES Fist of Steady Progress', 'SES Banner of Fair Play', 'SES Gavel of Civic Duty', 'SES Rampart of Liberty', 'SES Pledge of Quiet Resolve'];
+const WARSHIPS = ['FS Hammer of Justice', 'FS Fist of Steady Progress', 'FS Banner of Fair Play', 'FS Gavel of Civic Duty', 'FS Rampart of Victory', 'FS Pledge of Quiet Resolve'];
 const PROPAGANDA = [
   'Every crate unloaded is a bullet delivered. Thank you, citizen.',
   'A happy station is a compliant station.',
-  'The Liberty Contribution keeps the lights on. Literally.',
+  'The Victory Contribution keeps the lights on. Literally.',
   'Remember: the hull is load-bearing. So is your loyalty.',
   'Today\'s mess special: Freedom Loaf. Seconds are patriotic.',
-  'Report unapproved goods to your nearest Democracy Officer.',
+  'Report unapproved goods to your nearest Brand Officer.',
   'The war is going well. Please continue to work.',
-  'Space is cold. Democracy is warm. Stay inside.',
+  'Space is cold. Brand is warm. Stay inside.',
 ];
 const FIRST = ['Mara', 'Teo', 'Ines', 'Dax', 'Lena', 'Okoye', 'Priya', 'Jonas', 'Sana', 'Rook', 'Ada', 'Viktor', 'Nell', 'Kofi', 'Mina', 'Bram', 'Yuki', 'Hale',
   'Corin', 'Tala', 'Emeka', 'Rhea', 'Soren', 'Zadie', 'Marek', 'Imani', 'Cass', 'Oren', 'Dilys', 'Pavel'];
@@ -48,7 +48,7 @@ const PRAISE = {
   maintenance: 'Maintenance reports: good layout, short walks, hands happy. Wrenches up.',
   security: 'Security reports: every bay watched. The Officers are in good spirits.',
   medical: 'Medical reports: the Medbay is where it should be. Spirits are high.',
-  command: 'Command notes: the station is a credit to the Ministry. The brass were impressed.',
+  command: 'Command notes: the station is a credit to the Head Office. The brass were impressed.',
   science: 'Science reports: clean readings, short walks to the instruments. The Directorate is pleased.',
   gunnery: 'Gunnery reports: every call answered. The squads below send their thanks, in their way.',
 };
@@ -414,7 +414,7 @@ export class Station {
   }
   taxPerMin() { return this.residents() * this.tax * C.econ.taxPerPct; }
   setTax(x) { this.tax = Math.max(0, Math.min(30, Math.round(x))); }
-  // A LIBERTY DAY: a day of flags, speeches and an open bar, paid for in credits. Morale goes up at once and wears off over a few
+  // A VICTORY DAY: a day of flags, speeches and an open bar, paid for in credits. Morale goes up at once and wears off over a few
   // days. One a week at most.
   // A CONTRABAND AMNESTY: hand it in, no questions asked. Unrest is halved at once; it costs credits; one every few days.
   canAmnesty() {
@@ -443,7 +443,7 @@ export class Station {
     const F = C.morale.festival;
     if (!this.sandbox) this._money(-F.cost, 'festival');
     this.cheer = F.gain; this.cheerT = this.t;
-    this.say('truth', `Liberty Day is declared. Flags on every deck, speeches at noon, and the bar is open. Morale +${F.gain}, for a few days.`, { gold: true });
+    this.say('truth', `Victory Day is declared. Flags on every deck, speeches at noon, and the bar is open. Morale +${F.gain}, for a few days.`, { gold: true });
     return chk;
   }
   setAllot(k, x) { this.div[k].allot = Math.max(0, Math.min(C.allotMax, Math.round(x))); this._refresh(); }
@@ -505,7 +505,7 @@ export class Station {
     this.tier++; this.radius = C.tiers[this.tier].radius;
     const u = this.unlocksOf(this.tier);
     this.events.push({ type: 'tier', tier: this.tier });
-    this.say('ministry', `${C.tiers[this.tier].name} STATUS GRANTED. The build zone grows to ${this.radius} units. Unlocked: ${[...u.parts, ...u.rooms].join(', ') || 'the Ministry\'s gratitude'}.`, { gold: true });
+    this.say('ministry', `${C.tiers[this.tier].name} STATUS GRANTED. The build zone grows to ${this.radius} units. Unlocked: ${[...u.parts, ...u.rooms].join(', ') || 'the Head Office\'s gratitude'}.`, { gold: true });
     this._refresh();
   }
 
@@ -581,8 +581,8 @@ export class Station {
       out.science = { t: clamp(100 - d * 3), why: `The labs are ${Math.round(d)} units from the nearest instruments.` };
     }
     out.gunnery = this._gunneryTarget();
-    // A faction cannot be blamed for a room the Ministry has not allowed yet.
-    for (const k of FACTIONS) if (!this.roomOpen(C.factions[k].room)) out[k] = { t: 55, why: `The Ministry has not yet allowed ${C.factions[k].ask.replace(/^an? /, '')}s.` };
+    // A faction cannot be blamed for a room the Head Office has not allowed yet.
+    for (const k of FACTIONS) if (!this.roomOpen(C.factions[k].room)) out[k] = { t: 55, why: `The Head Office has not yet allowed ${C.factions[k].ask.replace(/^an? /, '')}s.` };
     for (const [role, k] of Object.entries(STAFF)) if (this.homes[role] > 0 && this.staff[role] === 0) { out[k].t = Math.max(5, out[k].t - 20); out[k].why = `There is no allotment to keep anyone on duty. ${out[k].why}`; }
     for (const k of FACTIONS) if (this.short[k]) { out[k].t = Math.max(5, out[k].t - C.faction.short); out[k].why = `We are out of ${C.supplies[C.div[k].uses].name.toLowerCase()}. ${out[k].why}`; }
     return out;
@@ -655,9 +655,9 @@ export class Station {
     const w = this.wages(); if (w) this._money(-w * k, 'wages');
     const p = this.moraleParts(), target = Math.max(0, Math.min(100, Object.values(p).reduce((s, x) => s + x, 0)));
     this.morale += Math.max(-1.5 * dt, Math.min(1.5 * dt, target - this.morale));
-    // Unrest fades by itself, faster with Democracy Officers on duty, and never runs past its ceiling.
+    // Unrest fades by itself, faster with Brand Officers on duty, and never runs past its ceiling.
     this.unrest = Math.min(C.morale.unrestMax, Math.max(0, this.unrest - dt * C.morale.contraband / C.morale.unrestDecaySec * (1 + 0.25 * Math.min(4, this.staff.officer || 0))));
-    if (this.cheer) this.cheer = Math.max(0, this.cheer - dt * C.morale.festival.gain / (C.morale.festival.days * C.time.daySec));      // a Liberty Day wears off
+    if (this.cheer) this.cheer = Math.max(0, this.cheer - dt * C.morale.festival.gain / (C.morale.festival.days * C.time.daySec));      // a Victory Day wears off
     this._factions(dt);
     this._requests(dt);
     this._story(dt);
@@ -950,8 +950,8 @@ export class Station {
     if (s.kind === 'warship') { this.say('traffic', `${s.name} is in the drydock. Engineers to EVA stations.`); return; }
     s.crates = this.def(p).crates || 6;
     s.manifest = this.manifest(s.crates);
-    this.say(this.rng.chance(0.5) ? 'captain' : 'traffic', this.rng.chance(0.5) ? `${s.name}, clamps locked at ${this.name(p)}. ${s.crates} crates of liberty for you.` : `${s.name} has docked at ${this.name(p)} with ${s.crates} crates.`);
-    // Democracy Officers check freighters at bays near a Security Office.
+    this.say(this.rng.chance(0.5) ? 'captain' : 'traffic', this.rng.chance(0.5) ? `${s.name}, clamps locked at ${this.name(p)}. ${s.crates} crates of victory for you.` : `${s.name} has docked at ${this.name(p)} with ${s.crates} crates.`);
+    // Brand Officers check freighters at bays near a Security Office.
     const every = this.div.security.order.checks === 'every';
     const post = this.staff.officer ? this.list((d, x) => this.has(x, 'secoffice')).find((o) => { const r = this.route(o.id, (x) => x.id === p.id); return r && this.walkDist(o.id, r) <= C.securityReach; }) : null;
     if (post && every) s.inspect = C.walk.inspectSec;
@@ -961,7 +961,7 @@ export class Station {
       const caught = (post && (every || this.rng.chance(0.5))) || (scan && this.rng.chance(C.morale.scanner));
       if (caught) {
         this.stats.caught++; this._money(C.econ.fine, 'trade', 'fines');
-        this.say('security', `Unapproved goods seized from ${s.name}. A ${C.econ.fine} CR fine has been collected. Democracy is safe.`, { gold: true });
+        this.say('security', `Unapproved goods seized from ${s.name}. A ${C.econ.fine} CR fine has been collected. Brand is safe.`, { gold: true });
         const off = this.agents.find((a) => a.role === 'officer' && !a.task);
         if (off) { this._go(off, (x) => x.id === p.id, 'inspect'); this.note(off, `Seized unapproved goods from ${s.name}.`); }
       } else {
@@ -989,8 +989,8 @@ export class Station {
       case 'traffic': { const bf = this.berths('freighter').length; return `Berths: ${bf} for freighters, ${this.berths('shuttle').length} for shuttles, ${this.berths('warship').length} drydock. Ships served: ${this.stats.ships}, lost: ${this.stats.lost}. Average time at berth: ${this.avgBerth() == null ? 'no data yet' : this.avgBerth().toFixed(0) + ' s'}.`; }
       case 'command': return `Aides on staff: ${st.aide} of ${this.homes.aide} places. Open faults: ${open.length}. Stores running short: ${Object.entries(this.short).filter(([, x]) => x).map(([k2]) => k2).join(', ') || 'none'}. ${this.homes.aide ? 'The suite is ready for inspection at any hour.' : 'We have nowhere fit to receive the brass, Commander.'}`;
       case 'science': return `Scientists: ${st.scientist} of ${this.homes.scientist} places. Research logged: ${Math.floor(this.stats.research)}. ${this.homes.scientist ? 'Readings are coming in.' : 'Give us a Laboratory and we will tell you things about this planet you will wish you did not know.'}`;
-      case 'gunnery': { const P = this.platform(); return `Gunners, pilots and troopers on duty: ${st.gunner} of ${this.homes.gunner} places. Platform readiness: ${Math.round(P.ready * 100)}%. Calls answered: ${this.stats.calls || 0}, missed: ${this.stats.missed || 0}. ${this.platformN ? (P.ready > 0.8 ? 'The troops below know we are here.' : 'We are not where the Ministry expects us to be, Commander.') : 'There is no gun on this station. Build a Ship Gun or an Orbital Battery.'}`; }
-      case 'truth': return this.div.truth.order.broadcast === 'silence' ? 'The Ministry is silent, by your order. Citizens are left alone with their thoughts.' : `Broadcasting ${this.div.truth.order.broadcast === 'patriotic' ? 'the Patriotic Hour' : 'the Recruitment Drive'} on every screen. Morale from broadcasts: +${this.broadcastBoost().toFixed(0)}. Truth Offices aboard: ${this.broadcast}.`;
+      case 'gunnery': { const P = this.platform(); return `Gunners, pilots and troopers on duty: ${st.gunner} of ${this.homes.gunner} places. Platform readiness: ${Math.round(P.ready * 100)}%. Calls answered: ${this.stats.calls || 0}, missed: ${this.stats.missed || 0}. ${this.platformN ? (P.ready > 0.8 ? 'The troops below know we are here.' : 'We are not where the Head Office expects us to be, Commander.') : 'There is no gun on this station. Build a Ship Gun or an Orbital Battery.'}`; }
+      case 'truth': return this.div.truth.order.broadcast === 'silence' ? 'The Head Office is silent, by your order. Citizens are left alone with their thoughts.' : `Broadcasting ${this.div.truth.order.broadcast === 'patriotic' ? 'the Patriotic Hour' : 'the Recruitment Drive'} on every screen. Morale from broadcasts: +${this.broadcastBoost().toFixed(0)}. Truth Offices aboard: ${this.broadcast}.`;
     }
     return '';
   }
@@ -1000,7 +1000,7 @@ export class Station {
       rations: { normal: 'Standard rations for all hands.', double: 'Double rations. The mess will be a happier place, while the lockers last.', short: 'Short rations from today. Nobody will thank us for it.' },
       plan: { reactive: 'Understood. We fix what breaks.', preventive: 'Preventive maintenance schedule in effect.' },
       checks: { spot: 'Spot checks only. Faster, and riskier.', every: 'Every ship will be inspected. No exceptions.' },
-      care: { free: 'Free care for all citizens. Democracy heals.', fees: 'Fees in effect. Payment before treatment.' },
+      care: { free: 'Free care for all citizens. Brand heals.', fees: 'Fees in effect. Payment before treatment.' },
       mix: { all: 'Clearing all traffic to approach.', freight: 'Freighters only. Shuttles will be waved off.', colonists: 'Colonist shuttles only. Freighters will be waved off.' },
       rate: { low: 'Thinning the traffic.', normal: 'Normal traffic.', high: 'Opening the lanes. Expect a crowd.' },
       broadcast: { patriotic: 'The Patriotic Hour begins now.', recruitment: 'The Recruitment Drive is on every screen.', silence: 'Broadcasts suspended. This is highly irregular.' },

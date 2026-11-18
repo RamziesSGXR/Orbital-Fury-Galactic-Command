@@ -1,4 +1,4 @@
-// The evacuation objective: one large site with a shelter and a hangar. While a Helldiver holds the site, the shelter sends
+// The evacuation objective: one large site with a shelter and a hangar. While a Vanguard holds the site, the shelter sends
 // civilians out a few at a time; they walk to the hangar under fire and board the shuttles inside, and a shuttle flies out for every
 // ten aboard. The objective is done once forty are out. Enemies go for the civilians as readily as for the squad, and the
 // destroyer's own strikes kill them too. Every number is in CONFIG.objective.evac.
@@ -25,7 +25,7 @@ export function hurtCiv(m, c, dmg, by) {
   m.emit('civ_down', { x: c.x, y: c.y, by });
 }
 
-// Squad holding the site: a Helldiver within E.hdR of its centre.
+// Squad holding the site: a Vanguard within E.hdR of its centre.
 function held(m, o) {
   for (const a of m.hdAlive) if ((a.x - o.x) ** 2 + (a.y - o.y) ** 2 <= E.hdR * E.hdR) return true;
   return false;

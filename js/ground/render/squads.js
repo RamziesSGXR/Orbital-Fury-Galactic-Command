@@ -1,4 +1,4 @@
-// SEAF on the map: squad colours and standing orders, drawn plays (routes, lines, rings), the troop pelican, the stroke the
+// Infantry on the map: squad colours and standing orders, drawn plays (routes, lines, rings), the troop dropship, the stroke the
 // player is drawing. Every function draws in world space (meters).
 import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
@@ -28,7 +28,7 @@ export function seafTargets(m) {
 }
 export const squadColor = (i) => SQUAD_COLOR[i] || '#9dd8ff';
 
-// ---------- the ring and the role mark drawn on every SEAF trooper ----------
+// ---------- the ring and the role mark drawn on every Infantry trooper ----------
 export function drawSeafMark(ctx, m, a, r, px, multi, on) {
   const sel = m.seaf.sel, pk = sel === -2 && m.seaf.pick ? m.seaf.pick.includes(a.id) : false;
   if (multi && a.sq >= 0) {
@@ -65,7 +65,7 @@ export function drawSquadOrders(ctx, m, now, px, labels, scale, pal) {
   const sf = m.seaf, multi = squadsInUse(m) > 1 || sf.sel >= 0, seen = new Set();
   for (const q of sf.squads) {
     if (!q.n) continue;
-    const col = multi ? squadColor(q.i) : pal.ally, lit = sf.sel < 0 || sf.sel === q.i, o = q.order, nm = multi ? `S${q.i + 1}` : 'SEAF';
+    const col = multi ? squadColor(q.i) : pal.ally, lit = sf.sel < 0 || sf.sel === q.i, o = q.order, nm = multi ? `S${q.i + 1}` : 'Infantry';
     ctx.globalAlpha = lit ? 1 : 0.5;
     ctx.fillStyle = col; ctx.strokeStyle = col; ctx.lineJoin = 'round';
 
@@ -173,7 +173,7 @@ export function drawStroke(ctx, m, now, px, labels, scale, dr) {
   }
 }
 
-// ---------- the troop pelican ----------
+// ---------- the troop dropship ----------
 // (0.39.1) The heavy dropship from above, nose along +x: a wide armoured troop bay with a ramp at the back, broad wings with a big
 // jet pod slung under each (they swivel down to hover and back to fly), and a tall tail with its stabilisers. pelicanBody lays its
 // outline as one path (for the shadow and the body); pelicanDetail adds the jets' flames, the pods' nozzles, the cockpit and the
@@ -228,7 +228,7 @@ export function pelicanDetail(ctx, x, y, ang, s, now, thrust = 1, down = 1, col 
   ctx.beginPath(); ctx.moveTo(s * 0.55, -s * 0.2); ctx.lineTo(-s * 0.7, -s * 0.2); ctx.moveTo(s * 0.55, s * 0.2); ctx.lineTo(-s * 0.7, s * 0.2); ctx.moveTo(-s * 0.7, -s * 0.18); ctx.lineTo(-s * 0.7, s * 0.18); ctx.stroke();
   ctx.restore();
 }
-export function drawPelicans(ctx, m, now, px, labels, scale, pal) {
+export function drawDropships(ctx, m, now, px, labels, scale, pal) {
   const P = C.pelican, multi = squadsInUse(m) > 1 || m.seaf.sel >= 0;
   for (const p of m.pelicans) {
     // (0.39) it comes down from orbit: big and high to start with (its shadow far off), settling to its working height
@@ -257,7 +257,7 @@ export function drawPelicans(ctx, m, now, px, labels, scale, pal) {
     pelicanDetail(ctx, p.x, p.y, ang, s, now, 0, down, col);
     // the belly cannon
     ctx.fillStyle = '#ffd24a'; ring(ctx, p.x + fx * s * 0.35, p.y + fy * s * 0.35, Math.max(px(2.2), 1.2)); ctx.fill();
-    // a cargo pelican carries its crate slung underneath until it is down
+    // a cargo dropship carries its crate slung underneath until it is down
     if (p.cargo && !p.cargo.landed) {
       const cs = s * 0.32;
       ctx.fillStyle = 'rgba(255,214,120,0.95)'; ctx.fillRect(p.x - cs, p.y - cs, cs * 2, cs * 2);

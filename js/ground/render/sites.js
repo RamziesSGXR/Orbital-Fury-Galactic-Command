@@ -1,4 +1,4 @@
-// The art of fixed places, seen from above: enemy bases and the citadel (a hive nest, a fabricator or a warp gate, by faction),
+// The art of fixed places, seen from above: enemy bases and the citadel (a hive nest, a assembler or a roost, by faction),
 // points of interest, the nuclear launch site and the VIP's crash site and pickup pad. Each draws in metres around the place's
 // centre; the state that matters (health, progress, labels) is drawn by the callers in renderer.js and world.js.
 import { raise, isFlat, baking } from './relief.js';
@@ -39,7 +39,7 @@ export function drawBaseArt(ctx, b, fac, col, lit, now, px) {
     ctx.fillStyle = `rgba(255,220,120,${glow})`;
     for (let i = 0; i < 4; i++) { const a = a0 + 0.5 + i * 1.6; circ(ctx, Math.cos(a) * r * 0.62, Math.sin(a) * r * 0.62, r * 0.06); ctx.fill(); }
   } else if (fac === 'bots') {
-    // a fabricator: a square works with roof vents and smokestacks, a wall round it with gaps
+    // a assembler: a square works with roof vents and smokestacks, a wall round it with gaps
     ctx.rotate(a0);
     const W = r * 0.75, wall = r * 1.05;
     ctx.strokeStyle = lit ? 'rgba(170,170,165,0.85)' : 'rgba(140,140,135,0.6)'; ctx.lineWidth = Math.max(px(2), r * 0.08);
@@ -59,7 +59,7 @@ export function drawBaseArt(ctx, b, fac, col, lit, now, px) {
     }
     ctx.fillStyle = rgba(col, 0.9); ctx.fillRect(W - W * 0.1, -W * 0.25, W * 0.18, W * 0.5);   // the door, lit red
   } else {
-    // a warp gate: a ring on pylons with a slow swirl of light inside, spires round it
+    // a roost: a ring on pylons with a slow swirl of light inside, spires round it
     const n = big ? 8 : 6;
     ctx.fillStyle = 'rgba(0,0,0,0.45)'; circ(ctx, 0, 0, r * 1.1); ctx.fill();
     ctx.strokeStyle = lit ? 'rgba(200,190,215,0.9)' : 'rgba(160,150,175,0.7)'; ctx.lineWidth = Math.max(px(2.2), r * 0.1);
@@ -198,7 +198,7 @@ export function drawCitadelWalls(ctx, m, col, px) {
 }
 
 // ---------------------------------------------------------------- finds (sim/pois.js loot)
-// A crashed pelican, a lost hellpod, a Super Earth strongbox, a SEAF supply cache: each drawn as a small scene, with a beacon light
+// A crashed dropship, a lost drop pod, a Head Office strongbox, an Infantry supply cache: each drawn as a small scene, with a beacon light
 // that blinks while it has not been found. Found: the wreck stays, burnt out; the rest are gone.
 export function drawLootArt(ctx, q, now, px) {
   const f = Math.max(1, px(2)) * 0.92, id = q.id || 1, blink = 0.5 + 0.5 * Math.sin(now * 3 + id);
@@ -216,7 +216,7 @@ export function drawLootArt(ctx, q, now, px) {
       for (let k = 0; k < 3; k++) { const u = ((now * 0.25 + k / 3) % 1); ctx.fillStyle = `rgba(90,90,90,${0.35 * (1 - u)})`; ctx.beginPath(); ctx.arc(1.5 + u * 5, -u * 4, 1.2 + u * 2.5, 0, TAU); ctx.fill(); }
     }
   } else if (q.kind === 'pod') {
-    // a hellpod half buried, its hatch open, a yellow and black ring and its blue beacon
+    // a drop pod half buried, its hatch open, a yellow and black ring and its blue beacon
     ctx.fillStyle = 'rgba(30,24,16,0.5)'; ctx.beginPath(); ctx.ellipse(0, 0, 4.6, 3.6, 0, 0, TAU); ctx.fill();
     ctx.fillStyle = '#2b2f2d'; ctx.beginPath(); ctx.arc(0, 0, 2.6, 0, TAU); ctx.fill();
     for (let k = 0; k < 8; k++) { ctx.fillStyle = k % 2 ? '#1a1a1a' : '#ffe600'; ctx.beginPath(); ctx.arc(0, 0, 2.6, (k / 8) * TAU, ((k + 1) / 8) * TAU); ctx.arc(0, 0, 2.0, ((k + 1) / 8) * TAU, (k / 8) * TAU, true); ctx.fill(); }
@@ -224,7 +224,7 @@ export function drawLootArt(ctx, q, now, px) {
     ctx.fillStyle = '#c8d3cc'; ctx.fillRect(-1.3, -0.25, 2.6, 0.5);  // the weapon inside
     ctx.fillStyle = `rgba(90,180,255,${0.4 + 0.6 * blink})`; ctx.beginPath(); ctx.arc(0, 0, 0.6, 0, TAU); ctx.fill();
   } else if (q.kind === 'vault') {
-    // a Super Earth strongbox on a concrete pad, the eagle-and-globe seal on the lid and a glint of gold
+    // a Head Office strongbox on a concrete pad, the eagle-and-globe seal on the lid and a glint of gold
     ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(-4.2, -3.2, 8.8, 7);
     ctx.fillStyle = '#8e9590'; ctx.fillRect(-4, -3.4, 8, 6.6);
     ctx.fillStyle = '#5b625e'; ctx.fillRect(-3.2, -2.6, 6.4, 5);
@@ -232,7 +232,7 @@ export function drawLootArt(ctx, q, now, px) {
     ctx.beginPath(); ctx.moveTo(-1.5, -0.1); ctx.lineTo(1.5, -0.1); ctx.moveTo(0, -1.6); ctx.lineTo(0, 1.4); ctx.stroke();
     ctx.fillStyle = `rgba(255,220,90,${0.3 + 0.6 * blink})`; ctx.fillRect(2.3, -2.3, 0.7, 0.7);
   } else {
-    // a SEAF supply cache: green crates stacked under a tarp, white crosses, a stake with a pennant
+    // an Infantry supply cache: green crates stacked under a tarp, white crosses, a stake with a pennant
     for (const [x, y, w, h] of [[-3, -2, 3, 2.4], [0.4, -2.4, 2.8, 2.2], [-2.2, 0.8, 3.4, 2.2], [1.6, 0.4, 2.2, 2]]) {
       ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(x + 0.3, y + 0.3, w, h);
       ctx.fillStyle = '#4f6a46'; ctx.fillRect(x, y, w, h);
@@ -334,8 +334,8 @@ export function drawDomeHit(ctx, d, nowSim, px) {
   ctx.strokeStyle = `rgba(220,245,255,${0.8 * (1 - k)})`; ctx.lineWidth = px(4 * (1 - k) + 1); circ(ctx, d.x, d.y, d.r); ctx.stroke();
   ctx.fillStyle = `rgba(200,235,255,${0.12 * (1 - k)})`; circ(ctx, d.x, d.y, d.r); ctx.fill();
 }
-// The Hellbomb from above: a fat yellow-and-black cylinder with its arming panel; an arming ring, then a pulsing blast ring.
-export function drawHellbomb(ctx, hb, K, now, px, t) {
+// The Demolition Charge from above: a fat yellow-and-black cylinder with its arming panel; an arming ring, then a pulsing blast ring.
+export function drawDemoCharge(ctx, hb, K, now, px, t) {
   if (!hb || !['inbound', 'landed', 'armed'].includes(hb.state)) return;
   const f = Math.max(1, px(2));
   if (hb.state === 'inbound') {

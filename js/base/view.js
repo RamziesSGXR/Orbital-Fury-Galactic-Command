@@ -3,8 +3,8 @@ import * as THREE from './vendor/three.js';
 import { B, ZONES, ZKEYS, UTIL, LAND } from './config.js';
 import { dims, wingOf, PLAZA } from './sim.js';
 import { BIOMES } from './site.js';
-import { SCRUB_COL, makeMats, mergeStatic, buildModel, makePerson, makeForklift, makeTruck, makeFRV, makeTank, makeCrate, makePelican, wrap } from './models.js';
-const VMAKE = { lift: makeForklift, truck: makeTruck, frv: makeFRV, tank: makeTank };
+import { SCRUB_COL, makeMats, mergeStatic, buildModel, makePerson, makeForklift, makeTruck, makeLRV, makeTank, makeCrate, makeDropship, wrap } from './models.js';
+const VMAKE = { lift: makeForklift, truck: makeTruck, frv: makeLRV, tank: makeTank };
 import { Noise } from './noise.js';
 import { WL } from './site.js';
 
@@ -142,7 +142,7 @@ export class View {
     im.material.opacity = ghost ? 0.2 : 0.5;   // a tint over the real building, not a block in its place
   }
   setElev(on) { (this.uElev ||= { value: 0 }).value = on ? 1 : 0; }
-  // the RESOURCES view: E-710 seeps (violet), ore (rust), water and rock marked on the ground, crystals showing
+  // the RESOURCES view: Biofuel seeps (violet), ore (rust), water and rock marked on the ground, crystals showing
   showResources(on) {
     if (on && !this.resG) {
       const N = this.N, T = this.sim.terr, c = document.createElement('canvas'); c.width = c.height = N; const g = c.getContext('2d'), im = g.createImageData(N, N);
@@ -291,7 +291,7 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
   col *= 0.92 + 0.16 * mix(tpH(w * 5.0), 0.5, smoothstep(0.07, 0.18, px));
   col *= 0.95 + clamp(vTpW.y * 0.006, -0.1, 0.18);                                             // drier and paler higher up
   col = mix(col, uHue * vec3(0.52, 0.5, 0.42), A.b * 0.45);                                       // mud by the water
-  col = mix(col, col * vec3(0.86, 0.8, 0.94), smoothstep(0.6, 0.85, A.a) * 0.6);                              // E-710 seeps stain it
+  col = mix(col, col * vec3(0.86, 0.8, 0.94), smoothstep(0.6, 0.85, A.a) * 0.6);                              // Biofuel seeps stain it
   col = mix(col, col * vec3(0.98, 0.84, 0.74), smoothstep(0.2, 0.4, A.a) * (1.0 - smoothstep(0.6, 0.85, A.a)) * 0.6);   // ore rusts it
   col = mix(col, vec3(0.83, 0.74, 0.55) * (0.85 + n1 * 0.3), P.r * 0.85);                          // sand
   col = mix(col, vec3(0.66, 0.57, 0.42) * (0.85 + n1 * 0.3), P.g * 0.85);                          // dry ground
@@ -407,9 +407,9 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
     }
     this.roadG.add(g);
   }
-  // the flag plaza: open ground round the Super Earth flag with a trail round its edge. It is dressed by the charter:
+  // the flag plaza: open ground round the Head Office flag with a trail round its edge. It is dressed by the charter:
   // trodden dirt at an outpost, gravel and a footpath at a FOB, pavers and lamps at a fort, pale stone and gold at a major base
-  // crates the first pelican set down on the landing zone
+  // crates the first dropship set down on the landing zone
   syncLz() {
     const list = this.life?.lzCrates || null, key = list ? list.length + ':' + list[0] : '';
     if (key === this.lzKey) return; this.lzKey = key;
@@ -1255,7 +1255,7 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
     for (const f of L.flights) {
       if (!f.mid) f.mid = Math.random();
       live.add(f.mid);
-      let g = this.fm.get(f.mid); if (!g) { g = makePelican(this.m); this.world.add(g); this.fm.set(f.mid, g); }
+      let g = this.fm.get(f.mid); if (!g) { g = makeDropship(this.m); this.world.add(g); this.fm.set(f.mid, g); }
       g.position.set(this.wx(f.x), f.y, this.wx(f.z)); g.rotation.y = f.yaw;
       g.rotation.z = f.ph === 'in' || f.ph === 'up' ? Math.sin(t * 2) * 0.03 : 0;
       for (const e of g.userData.engines) e.rotation.x = Math.PI / 2 + (f.ph === 'land' ? 0 : f.ph === 'down' ? 0.2 : 0.5);

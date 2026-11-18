@@ -2,7 +2,7 @@
 //
 // castLines: a chapter's briefing or debrief for the cinematic, a line per speaker (the cast is in data/story.js).
 // CastRadio: during a chapter's mission the cast comes on the radio now and then: KTL with the orders, Rudolph the Red from the
-//   ground, Neonboot with the Ministry of Science's read on the enemy, Mota for the Ministry of Defense, the General at the big
+//   ground, Neonboot with the Research Office's read on the enemy, Mota for the Operations Office, the General at the big
 //   moments. Each kind of moment speaks once a mission (a few, like a big hit from orbit, twice), and never two lines on top of
 //   each other: a line waits for the one before to be read.
 // aarMission / aarSession / aarStand: the after action report on each ending screen, plain text with a little Discord markdown
@@ -198,8 +198,8 @@ const foot = () => `Orbital Fury v${C.share.version}`;
 function gunner(cs) { return cs && cs !== 'ANON' ? `Gunner ${String(cs).toUpperCase()}` : 'Gunner'; }
 
 // After a mission. s: the session (the mission is already recorded), info: the mission's info, res: mission.result().
-// (0.53.12) the Super Destroyers the groups flew from: "A SES Fist of Peace (2 lost) · B …"
-const shipsLine = (teams) => { const l = (teams || []).filter((tm) => tm && tm.ship); return l.length ? `**Super Destroyers:** ${l.map((tm) => `${tm.letter} ${tm.ship}${tm.deaths ? ` (${tm.deaths} lost)` : ''}`).join(' · ')}` : ''; };
+// (0.53.12) the Fire-Support Ships the groups flew from: "A FS Fist of Peace (2 lost) · B …"
+const shipsLine = (teams) => { const l = (teams || []).filter((tm) => tm && tm.ship); return l.length ? `**Fire-Support Ships:** ${l.map((tm) => `${tm.letter} ${tm.ship}${tm.deaths ? ` (${tm.deaths} lost)` : ''}`).join(' · ')}` : ''; };
 export function aarMission(s, info, res) {
   const n = s.missions.length, total = s.missions.reduce((a, x) => a + (x.score || 0), 0);
   const ch = info.chapter && s.story ? STORY.chapters.find((c) => c.n === info.chapter) : null;
@@ -214,10 +214,10 @@ export function aarMission(s, info, res) {
     `**Result:** ${out}`,
     `**Objective:** ${objs || '-'}` + (res.sideTotal ? ` · Side ${res.sides}/${res.sideTotal}` : '') + (res.baseTotal ? ` · Bases ${res.bases}/${res.baseTotal}` : ''),
     `**Kills:** ${fmtNum(res.kills)} (gunner ${fmtNum(st.killsPlayer)} · allies ${fmtNum(st.killsAlly)})${boss}`,
-    `**Helldivers:** ${fmtNum(st.lostH)} lost · ${res.livesLeft}/${res.livesMax ?? '?'} lives left`,
+    `**Vanguards:** ${fmtNum(st.lostH)} lost · ${res.livesLeft}/${res.livesMax ?? '?'} lives left`,
     shipsLine(res.teams),
-    `**SEAF:** ${fmtNum(st.lostS)} lost` + (res.civSaved ? ` · ${fmtNum(res.civSaved)} civilians saved` : ''),
-    res.share && res.share.player + res.share.squad + res.share.strat > 0 ? `**Damage:** gunner ${pct(res.share.player)} · Helldivers ${pct(res.share.squad)} · stratagems ${pct(res.share.strat)}` : '',
+    `**Infantry:** ${fmtNum(st.lostS)} lost` + (res.civSaved ? ` · ${fmtNum(res.civSaved)} civilians saved` : ''),
+    res.share && res.share.player + res.share.squad + res.share.strat > 0 ? `**Damage:** gunner ${pct(res.share.player)} · Vanguards ${pct(res.share.squad)} · call-ins ${pct(res.share.strat)}` : '',
     `**Score:** ${fmtNum(res.score)} · operation ${fmtNum(total)} after ${n} mission${n === 1 ? '' : 's'}`,
   ];
   if (ch) { const last = castLines(ch, carriesOn(res.outcome) ? 'win' : 'lose', res, true).pop(); if (last) L.push(`> ${CAST[last.who].tag}: "${last.text}"`); }
@@ -226,13 +226,13 @@ export function aarMission(s, info, res) {
 }
 
 // At the end of a session: the totals, then every mission on a line.
-// (0.53.12) every Super Destroyer that flew in the operation, the most-flown first (named ships fly every mission), at most six
+// (0.53.12) every Fire-Support Ship that flew in the operation, the most-flown first (named ships fly every mission), at most six
 function fleetLine(ms) {
   const n = new Map();
   for (const m of ms) for (const sh of m.ships || []) n.set(sh, (n.get(sh) || 0) + 1);
   if (!n.size) return '';
   const l = [...n].sort((a, b) => b[1] - a[1]), more = l.length - 6;
-  return `**Super Destroyers:** ${l.slice(0, 6).map(([sh, k]) => sh + (k > 1 ? ` (${k} missions)` : '')).join(' · ')}${more > 0 ? ` · ${more} more` : ''}`;
+  return `**Fire-Support Ships:** ${l.slice(0, 6).map(([sh, k]) => sh + (k > 1 ? ` (${k} missions)` : '')).join(' · ')}${more > 0 ? ` · ${more} more` : ''}`;
 }
 export function aarSession(s, fin) {
   const ms = s.missions, n = ms.length, wins = fin ? fin.wins : ms.filter((m) => carriesOn(m.outcome)).length;
@@ -243,7 +243,7 @@ export function aarSession(s, fin) {
     `${n} mission${n === 1 ? '' : 's'}, ${wins} won · ${fmtTime(s.seconds)} · ${lvl(s.difficulty || LEVELS)}`,
     n ? '**Missions**' : '',
     ...ms.map((m, i) => `${i + 1}. ${m.op && m.op !== s.op && /:/.test(m.op) ? opShort(m.op.split(':').pop().trim()) : 'Mission ' + (i + 1)} · ${tEn('fac.' + m.faction)} · ${tEn('out.' + m.outcome)} · ${fmtNum(m.score)} · ${fmtNum(m.kills)} kills` + (m.boss ? ` · ${m.boss.name || tEn('boss.' + m.boss.fac)} ${m.boss.killed ? 'KILLED' : 'ESCAPED'}` : '')),
-    `**Totals:** ${fmtNum(sum('kills'))} kills · ${fmtNum(sum('lostH'))} Helldivers lost · ${fmtNum(sum('lostS'))} SEAF lost` + (bosses ? ` · ${bosses} super heav${bosses === 1 ? 'y' : 'ies'} killed` : ''),
+    `**Totals:** ${fmtNum(sum('kills'))} kills · ${fmtNum(sum('lostH'))} Vanguards lost · ${fmtNum(sum('lostS'))} Infantry lost` + (bosses ? ` · ${bosses} super heav${bosses === 1 ? 'y' : 'ies'} killed` : ''),
     fleetLine(ms),
     s.story ? `Campaign: ${tEn(`cp.${STORY.id}.t`)}` : '',
     foot(),

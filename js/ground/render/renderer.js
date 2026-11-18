@@ -4,7 +4,7 @@ import { SUBTYPES } from '../data/data.js';
 import { scorch, makeDecals, mark } from './terrain.js';
 import { drawSceneryGround, drawSceneryHigh, stirScenery, updatePresence, drawPresence } from './scenery.js';
 import { setShowBlasts, drawZones, drawMarkers, drawObjectives, drawAssets, drawEnemyExtras, drawPois, drawUavs, drawPings, drawGunSky } from './world.js';
-import { drawSquadOrders, drawSeafMark, drawStroke, drawPelicans, drawMiniSeaf, seafTargets, squadsInUse, squadColor } from './squads.js';
+import { drawSquadOrders, drawSeafMark, drawStroke, drawDropships, drawMiniSeaf, seafTargets, squadsInUse, squadColor } from './squads.js';
 
 import { slotStats } from '../sim/player.js';
 import { drawAllyBody, drawEnemyBody, enemyR, drawBossBody, bossR, drawTurretArt, setRelief } from './units.js';
@@ -16,7 +16,7 @@ import { OPS } from '../data/data.js';
 import { t as tr } from '../i18n.js';
 import { beaconAt } from '../sim/sides.js';
 import { drawBossArrival, arriving } from './bossin.js';
-import { drawFlares, drawHoles, drawDrops, drawEvac, drawAcidPools, drawMotherGround, drawMotherSky, drawExtraction, drawExtractionPelican, critText, drawSupply } from './reinf.js';
+import { drawFlares, drawHoles, drawDrops, drawEvac, drawAcidPools, drawMotherGround, drawMotherSky, drawExtraction, drawExtractionDropship, critText, drawSupply } from './reinf.js';
 import { drawBaseArt, drawBaseRuin, drawCover, drawCitadelWalls, drawCannonArt, drawNodeArt } from './sites.js';
 import { drawPosts, postArt, lzArt, cone } from './posts.js';
 const lzArtGhost = (ctx, x, y, R, now, px, ok) => lzArt(ctx, x, y, R, now, px, ok);
@@ -177,7 +177,7 @@ export class Renderer {
         // (0.58) a crater. (0.62.10) It stays for the mission, as damage to the ground (the oldest go when there are more than craters.max); never in water
         if (ev.r >= ((C.elev && C.elev.craters.minR) || 4) && !ev.acid && !(m && m.terrain && m.terrain.blocked(ev.x, ev.y))) { const cr = this.craters, mx = (C.elev && C.elev.craters.max) || 220; cr.push({ x: ev.x, y: ev.y, r: Math.min(14, ev.r * 0.5), t0: now }); if (cr.length > mx) cr.splice(0, cr.length - mx); }
         if (ev.r >= 10) this.shake = Math.min(12, this.shake + ev.r * 0.35);
-        if (ev.sid || ev.mine) this._strikeFx(ev, now, flash);     // (0.23) each stratagem looks like what it is
+        if (ev.sid || ev.mine) this._strikeFx(ev, now, flash);     // (0.23) each call-in looks like what it is
         break;
       }
       case 'tracer': this._tracer(ev, now, m); break;
@@ -297,7 +297,7 @@ export class Renderer {
       else if (ev.melee) { kind = 'slash'; flight = 0.001; w = ev.k === 'H' ? 2.6 : 1.4; }
       else if (ev.f === 'bugs') { kind = 'glob'; w = 2; flight = cl(d / 40, 0.12, 0.6); }
       else if (ev.f === 'bots') { w = ev.k === 'H' ? 3 : ev.k === 'M' ? 1.5 : 1; flight = cl(d / 120, 0.08, 0.45); len = ev.k === 'H' ? 11 : 6; if (ev.k === 'H') kind = 'shell'; }
-      else if (ev.k === 'M') { w = 1.3; flight = cl(d / 130, 0.07, 0.4); len = 6; }     // (0.40) a squid overseer's rifle: gunfire, not a bolt
+      else if (ev.k === 'M') { w = 1.3; flight = cl(d / 130, 0.07, 0.4); len = 6; }     // (0.40) a lizard overseer's rifle: gunfire, not a bolt
       else { kind = 'bolt'; w = 1.3; flight = cl(d / 90, 0.1, 0.5); }
     } else {
       col = ev.s === 't' ? '#a8f0ff' : '#cfe9ff';
@@ -383,7 +383,7 @@ export class Renderer {
     drawAcidPools(ctx, m, now, px);     // (0.55) the brood titan's spray
     drawUavs(ctx, m, now, px, labels, scale);
 
-    // The extraction pad and its pelican
+    // The extraction pad and its dropship
     drawExtraction(ctx, m, now, px, labels, scale);
 
     // Cover at the sites the squad holds, and the citadel's walls
@@ -558,7 +558,7 @@ export class Renderer {
     drawRevealed(ctx, m, now, px, pal.enemy);
     drawFlares(ctx, m, now, px, labels, scale, pal);
 
-    // Allies: blue infrared strobes. Helldivers wear a ring in their group's color; SEAF wear their squad's color and a role mark.
+    // Allies: blue infrared strobes. Vanguards wear a ring in their group's color; Infantry wear their squad's color and a role mark.
     const seafMulti = squadsInUse(m) > 1 || m.seaf.sel >= 0;
     for (const a of m.alive) {
       if (a.dead || a.inside) continue;               // (inside a building: hidden; selecting it shows them)
@@ -592,27 +592,27 @@ export class Renderer {
     drawAssets(ctx, m, now, px, labels, scale, pal);
     drawPings(ctx, m, now, px, labels, scale);
 
-    // Drop pods on their way down: Helldivers in yellow, SEAF in blue.
+    // Drop pods on their way down: Vanguards in yellow, Infantry in blue.
     for (const p of m.pods) {
       const left = Math.max(0, p.landAt - t);
       const total = p.start ? C.helldivers.initialDropSec : p.type === 'H' ? C.helldivers.dropDelaySec : C.seaf.dropDelaySec;
       const f = Math.min(1, left / total), col = p.type === 'H' ? '#ffe600' : pal.ally;
       ctx.strokeStyle = col;
-      if (p.type === 'H') {     // (0.61.5) a Helldiver's pod: a beacon where it will land, no zones (it is theirs, not the player's)
+      if (p.type === 'H') {     // (0.61.5) a Vanguard's pod: a beacon where it will land, no zones (it is theirs, not the player's)
         const bl = 0.5 + 0.5 * Math.sin(now * 8 + p.x);
         ctx.fillStyle = col; ctx.globalAlpha = 0.35 + 0.5 * bl; ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(px(3), 0.7), 0, TAU); ctx.fill();
         ctx.globalAlpha = 0.25 * (1 - bl); ctx.lineWidth = px(1.2); ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(px(3), 0.7) * (1.5 + 2 * bl), 0, TAU); ctx.stroke(); ctx.globalAlpha = 1;
-      } else if (!VIEW.quiet) {     // the player's own SEAF drop: one small ring
+      } else if (!VIEW.quiet) {     // the player's own Infantry drop: one small ring
         ctx.lineWidth = px(1.6); ctx.setLineDash([px(5), px(5)]); ctx.globalAlpha = 0.7;
         ctx.beginPath(); ctx.arc(p.x, p.y, 8, 0, TAU); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
       }
       ctx.lineWidth = px(2.5); ctx.beginPath(); ctx.moveTo(p.x, p.y - 160 * f); ctx.lineTo(p.x, p.y - 8); ctx.stroke();
       const tm = p.type === 'H' ? m.teams[p.team] : null;
-      labels.push({ x: p.x, y: p.y, dy: 42, text: `${p.type === 'H' ? (tm ? m.slotTag(tm) : tr('lab.helldiver')) : `SEAF x${p.n}`} ${Math.ceil(left)}S`, col: tm ? tm.color : col , pri: 1 });
+      labels.push({ x: p.x, y: p.y, dy: 42, text: `${p.type === 'H' ? (tm ? m.slotTag(tm) : tr('lab.helldiver')) : `Infantry x${p.n}`} ${Math.ceil(left)}S`, col: tm ? tm.color : col , pri: 1 });
     }
 
-    drawPelicans(ctx, m, now, px, labels, scale, pal);
-    drawExtractionPelican(ctx, m, now, px);     // (0.53.5: over the pad's walls)
+    drawDropships(ctx, m, now, px, labels, scale, pal);
+    drawExtractionDropship(ctx, m, now, px);     // (0.53.5: over the pad's walls)
     drawMotherGround(ctx, m, now, labels, scale);
     drawDrops(ctx, m, now, px, labels, scale, pal);
     drawSupply(ctx, m, now, px, labels, scale, (team) => (m.teams[team] ? m.teams[team].color : '#9dffb8'));
@@ -620,7 +620,7 @@ export class Renderer {
 
     // (0.22) The plan made in the pause: each order, build, drop and call where it will go, numbered in the order they go out
     if (ui.plan && ui.plan.length) this._plan(ctx, m, ui.plan, now, px, labels, scale, pal);
-    // Placement ghost (0.22: what will be there, before it is placed): a building drawn see-through, a light bridge's span, a SEAF
+    // Placement ghost (0.22: what will be there, before it is placed): a building drawn see-through, a light bridge's span, an Infantry
     // drop's size and the squad it joins, who will build it; red where it cannot go. ui.ghost: where it is (the cursor, or on a
     // touch screen where it was put); the aim otherwise.
     const gp = ui.placing ? ui.ghost || ui.aim : null;
@@ -638,7 +638,7 @@ export class Renderer {
     // ---- screen space ----
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     this._drawLabels(ctx, w2sx, w2sy);
-    // a selection box being dragged round SEAF troopers
+    // a selection box being dragged round Infantry troopers
     if (ui.box) {
       const b = ui.box, d = this.dpr, x = Math.min(b.x0, b.x1) * d, y = Math.min(b.y0, b.y1) * d, w = Math.abs(b.x1 - b.x0) * d, h = Math.abs(b.y1 - b.y0) * d;
       ctx.fillStyle = 'rgba(255,230,0,0.08)'; ctx.fillRect(x, y, w, h);
@@ -727,11 +727,11 @@ export class Renderer {
       ctx.save(); ctx.globalAlpha = ok ? 0.6 + 0.3 * pulse : 0.35; lzArtGhost(ctx, ax, ay, R, now, px, ok); ctx.restore();
       text = !ok ? (why || tr('ret.noCover')) : tr(n ? 'lab.ghost.lzIn' : 'lab.ghost.lz', { n });
     } else if (k === 'seaf') {
-      // a SEAF drop: where the pelican puts them down, how many, and the squad they join
+      // an Infantry drop: where the dropship puts them down, how many, and the squad they join
       ok = !!bc || m.inZone(ax, ay, -5) || m.earlyLz(ax, ay);
       const st = seafStats(m.kit), room = Math.max(0, st.max - m.countAlly('S') - m.pendingPods('S')), n = Math.min(st.drop, room);
       if (ok && !n) { ok = false; why = tr('deny.full'); }
-      // (0.53.6) before the Helldivers are down: the ring round the landing zone a drop can go in (nobody on the ground yet)
+      // (0.53.6) before the Vanguards are down: the ring round the landing zone a drop can go in (nobody on the ground yet)
       if (m.earlyDrop()) {
         if (!ok && !m.alive.length) why = tr('deny.nearlz');
         ctx.save(); ctx.strokeStyle = 'rgba(95,168,255,0.5)'; ctx.lineWidth = px(1.5); ctx.setLineDash([px(8), px(7)]);
@@ -910,7 +910,7 @@ export class Renderer {
     }
   }
 
-  // Name tags under every ally and speech bubbles over them. Helldivers first, so SEAF tags are the ones skipped when crowded.
+  // Name tags under every ally and speech bubbles over them. Vanguards first, so Infantry tags are the ones skipped when crowded.
   _tags(ctx, m, w2sx, w2sy, scale, now) {
     const d = this.dpr * this._ui(), W = this.W, H = this.H, t = m.t, placed = (this._lblR || []).slice();     // (name tags keep off the map labels)
     const hit = (r) => { for (const q of placed) if (r.l < q.r && r.r > q.l && r.t < q.b && r.b > q.t) return true; return false; };
@@ -934,7 +934,7 @@ export class Renderer {
       ctx.fillStyle = 'rgba(0,0,0,0.62)'; ctx.fillRect(r.l, r.t, w, r.b - r.t);
       ctx.fillStyle = tm ? tm.color : '#ffe600'; ctx.fillText(text, x, ty + off);
     }
-    if (scale / d >= 1.35 && !document.body.classList.contains('touch')) {   // phones: squad labels stand in for the individual SEAF name tags
+    if (scale / d >= 1.35 && !document.body.classList.contains('touch')) {   // phones: squad labels stand in for the individual Infantry name tags
       ctx.font = mono(8.5);
       for (const a of m.seafAlive) {
         if (a.inside) continue;
@@ -957,7 +957,7 @@ export class Renderer {
       const small = document.body.classList.contains('touch');   // phones: fewer, smaller bubbles so the action stays visible
       for (const a of list) {
         const H_ = a.type === 'H';
-        // at most two Helldivers and two SEAF talking at once (phones: one Helldiver), so the fighting stays in view
+        // at most two Vanguards and two Infantry talking at once (phones: one Vanguard), so the fighting stays in view
         if (small) { if (!H_ || ++shown > 1) continue; } else if (H_ ? ++shown > 2 : ++seafShown > 2) continue;
         const { x, y } = spot(a);
         if (x < -80 || y < -40 || x > W + 80 || y > H + 40) continue;
@@ -1089,7 +1089,7 @@ export class Renderer {
       default: return false;
     }
   }
-  // (0.23) An explosion drawn after the stratagem that made it: napalm burns, gas billows green, EMS crackles blue, the 500 kg and
+  // (0.23) An explosion drawn after the call-in that made it: napalm burns, gas billows green, EMS crackles blue, the 500 kg and
   // the 380 mm throw up a fireball and a column of smoke, the railcannon and the precision strike come down as a streak from the sky,
   // the airburst bursts above the ground, strafing kicks up dirt.
   _strikeFx(ev, now, flash) {
@@ -1121,7 +1121,7 @@ export class Renderer {
   }
   // (0.58) What is left on the ground: a crater where each big blast landed (a dark bowl, its rim lit on one side), fading over
   // its life; and footprints where anyone in sight walks, a print every stride, fading in FP_LIFE seconds. Bugs leave rows of
-  // little claw dots, bots square treads, squids three-toed prints, ours boot prints.
+  // little claw dots, bots square treads, lizards three-toed prints, ours boot prints.
   _prints(ctx, m, now, px, onScr) {
     // (0.62.10) Craters are lit the way the ground is: by the hour's sun, in the biome's own light and dark. A bowl: its wall
     // on the sun's side is in shade and the far wall catches the light; the lip thrown up round it is the other way about,
@@ -1281,7 +1281,7 @@ export class Renderer {
         g.addColorStop(0, `rgba(255,250,230,${0.95 * on})`); g.addColorStop(0.4, `rgba(255,170,70,${0.75 * (1 - p)})`); g.addColorStop(1, 'rgba(255,90,20,0)');
         ctx.fillStyle = g; ctx.beginPath(); ctx.arc(f.x, f.y, R, 0, TAU); ctx.fill();
       } else if (f.k === 'fly') {
-        // (0.25.1) an Eagle passing over: a swept-wing jet with its shadow on the ground below and a hot exhaust (it was a plain
+        // (0.25.1) a Striker passing over: a swept-wing jet with its shadow on the ground below and a hot exhaust (it was a plain
         // white triangle that looked like a glitch, and a big one close in)
         const x = f.x + (f.x2 - f.x) * p, y = f.y + (f.y2 - f.y) * p, ang = Math.atan2(f.y2 - f.y, f.x2 - f.x), s = Math.max(5, px(13));
         const jet = (fill, line) => {
@@ -1398,7 +1398,7 @@ export class Renderer {
       ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(ang);
       ctx.fillStyle = '#eef0f2'; ctx.strokeStyle = 'rgba(30,34,40,0.9)'; ctx.lineWidth = px(1);
       ctx.beginPath(); ctx.moveTo(L * 0.55, 0); ctx.lineTo(L * 0.25, -L * 0.13); ctx.lineTo(-L * 0.5, -L * 0.13); ctx.lineTo(-L * 0.62, -L * 0.24); ctx.lineTo(-L * 0.62, L * 0.24); ctx.lineTo(-L * 0.5, L * 0.13); ctx.lineTo(L * 0.25, L * 0.13); ctx.closePath(); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = '#ffe600'; ctx.fillRect(-L * 0.1, -L * 0.13, L * 0.12, L * 0.26);     // a Super Earth band
+      ctx.fillStyle = '#ffe600'; ctx.fillRect(-L * 0.1, -L * 0.13, L * 0.12, L * 0.26);     // a Head Office band
       ctx.restore();
       ctx.lineCap = 'butt';
     }
@@ -1452,7 +1452,7 @@ export class Renderer {
       if (f.kind === 'zap') { /* the strike itself is shown by the line */ }
       else if (f.hit) {
         this.fx.push({ k: 'spark', x: f.x2, y: f.y2, r: f.big ? 3 : 1.4, t0: now, life: 0.16, col: f.side === 'e' ? f.col : '#ffffff' });
-        // (0.58) what a hit throws off: ichor from a bug, sparks and bits from a bot, glowing goo from a squid; blood and armour
+        // (0.58) what a hit throws off: ichor from a bug, sparks and bits from a bot, glowing goo from a lizard; blood and armour
         // sparks from one of ours
         if (this.fx.length < 340 && f.kind !== 'shell') {
           const P = f.side === 'e' ? ['#c8322a', '#ffd0a0'] : BURST[f.fac] || BURST.bots;
@@ -1527,8 +1527,8 @@ export class Renderer {
     if (document.body.classList.contains('hide-ui')) return;     // (0.54) Hide UI: the arrows to off-screen objectives and their names too
     const W = this.W, H = this.H, pad = 34 * this.dpr, d = this.dpr;
     const items = [];
-    // every team: each Helldiver in its group colour, and each SEAF squad in its squad colour
-    // (Helldivers standing together share one arrow, with a dot in each one's colour, so the edge does not fill up)
+    // every team: each Vanguard in its group colour, and each Infantry squad in its squad colour
+    // (Vanguards standing together share one arrow, with a dot in each one's colour, so the edge does not fill up)
     const hg = [];
     for (const a of m.hdAlive) {
       const tm = m.teams[a.team], col = tm ? tm.color : this.allyColor();
@@ -1539,7 +1539,7 @@ export class Renderer {
     const sq = new Map();
     for (const a of m.seafAlive) { const q = sq.get(a.sq) || { x: 0, y: 0, n: 0 }; q.x += a.x; q.y += a.y; q.n++; sq.set(a.sq, q); }
     const many = sq.size > 1 || m.seaf.sel >= 0;
-    for (const [i, q] of sq) items.push({ x: q.x / q.n, y: q.y / q.n, col: many ? squadColor(i) : this.allyColor(), label: many ? `S${i + 1}` : 'SEAF', team: true });
+    for (const [i, q] of sq) items.push({ x: q.x / q.n, y: q.y / q.n, col: many ? squadColor(i) : this.allyColor(), label: many ? `S${i + 1}` : 'Infantry', team: true });
     const ao = m.objectives.find((o) => !o.done), task = m.plan && m.plan.task;
     if (task && task.kind !== 'main') items.push({ x: task.x, y: task.y, col: task.kind === 'base' ? '#c8d2cc' : '#7fd8ff', label: tr(TASK_LABEL[task.kind] || 'lab.base') });
     if (m.phase === 'objective' && ao) {
@@ -1588,7 +1588,7 @@ export class Renderer {
       ctx.beginPath(); ctx.moveTo(10 * d * z, 0); ctx.lineTo(-6 * d * z, -7 * d * z); ctx.lineTo(-6 * d * z, 7 * d * z); ctx.closePath(); ctx.fill();
       if (it.team) { ctx.strokeStyle = 'rgba(0,0,0,0.75)'; ctx.lineWidth = 1.5 * d; ctx.stroke(); }
       ctx.restore();
-      if (it.cols && it.cols.length > 1) {          // one dot per Helldiver sharing the arrow
+      if (it.cols && it.cols.length > 1) {          // one dot per Vanguard sharing the arrow
         it.cols.forEach((c, i) => { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(ax - Math.cos(ang) * 14 * d + (i - (it.cols.length - 1) / 2) * 6 * d * Math.sin(ang), ay - Math.sin(ang) * 14 * d - (i - (it.cols.length - 1) / 2) * 6 * d * Math.cos(ang), 2.4 * d, 0, TAU); ctx.fill(); });
       }
       const dist = Math.round(Math.hypot(it.x - ui.cam.x, it.y - ui.cam.y));
@@ -1880,7 +1880,7 @@ export class Renderer {
     for (const s of m.assets) if (!s.dead && (s.kind === 'turret' || s.kind === 'vehicle')) c.fillRect(s.x * k - 1.5, s.y * k - 1.5, 3, 3);
     // (0.52) the work site: a gold square (dim while idle, red when it has fallen)
     if (m.workSite && !m.workSite.dead) { const w = m.workSite, x = w.x * k, y = w.y * k; c.strokeStyle = w.fallen ? '#ff6a4a' : w.workers ? '#ffd24a' : 'rgba(255,210,74,0.6)'; c.lineWidth = 1.6; c.strokeRect(x - 4, y - 3, 8, 6); if (w.workers && !w.fallen) { c.fillStyle = '#ffd24a'; c.fillRect(x - 2, y - 1, 4, 2); } }
-    // Side missions: radio towers (a mast), SEAF under fire (a ring); and the SEAF drop beacons (blue while lit)
+    // Side missions: radio towers (a mast), Infantry under fire (a ring); and the Infantry drop beacons (blue while lit)
     for (const q of m.sides || []) {
       if (q.kind === 'propaganda' || q.failed) continue;
       if (q.kind === 'spore') { if (!q.done) { const x = q.x * k, y = q.y * k; c.strokeStyle = 'rgba(190,230,110,0.8)'; c.lineWidth = 1.2; c.setLineDash([2, 3]); c.beginPath(); c.arc(x, y, q.R * k, 0, TAU); c.stroke(); c.setLineDash([]); } continue; }     // (0.40: its cloud)
@@ -1890,7 +1890,7 @@ export class Renderer {
       else if (q.kind === 'jammer') { if (!q.done) { c.strokeStyle = '#ff6a4a'; c.lineWidth = 1.5; c.setLineDash([3, 3]); c.beginPath(); c.arc(x, y, q.R * k, 0, TAU); c.stroke(); c.setLineDash([]); c.fillStyle = '#ff6a4a'; c.beginPath(); c.moveTo(x, y - 5); c.lineTo(x + 4.5, y + 4); c.lineTo(x - 4.5, y + 4); c.closePath(); c.fill(); } }
       else if (!q.done) { c.strokeStyle = q.state === 'siege' ? '#ff8a6a' : '#9dd0ff'; c.lineWidth = 2; c.beginPath(); c.arc(x, y, 5, 0, TAU); c.stroke(); c.beginPath(); c.arc(x, y, 1.6, 0, TAU); c.stroke(); }
     }
-    for (const g of m.posts || []) { if (g.dead) continue; c.fillStyle = g.what === 'arty' ? '#6fc0ff' : '#3da9ff'; const s = g.what === 'arty' ? 3 : 2; c.fillRect(g.x * k - s, g.y * k - s, s * 2, s * 2); }     // what SEAF built
+    for (const g of m.posts || []) { if (g.dead) continue; c.fillStyle = g.what === 'arty' ? '#6fc0ff' : '#3da9ff'; const s = g.what === 'arty' ? 3 : 2; c.fillRect(g.x * k - s, g.y * k - s, s * 2, s * 2); }     // what Infantry built
     for (const bc of m.beacons || []) {
       const lit = bc.relit || t < C.beacons.darkSec;
       c.strokeStyle = lit ? '#3da9ff' : 'rgba(140,150,150,0.5)'; c.lineWidth = 1.5;
@@ -1916,10 +1916,10 @@ export class Renderer {
       c.globalAlpha = 0.5 + 0.5 * Math.sin(t * 5); c.beginPath(); c.arc(bx, by, s + 5, 0, TAU); c.stroke(); c.globalAlpha = 1;
       if (big) { c.fillStyle = '#ff8a6a'; c.font = 'bold 13px ui-monospace, Menlo, Consolas, monospace'; c.textAlign = 'center'; c.fillText(B.name, bx, by - s - 9); }
     }
-    // Helldiver pods, SEAF squads with their orders, and pelicans
+    // Vanguard pods, Infantry squads with their orders, and dropships
     for (const p of m.pods) { c.strokeStyle = p.type === 'H' ? '#ffe600' : ac; c.lineWidth = 1.5; c.beginPath(); c.arc(p.x * k, p.y * k, 4, 0, TAU); c.stroke(); }
     drawMiniSeaf(c, m, k, ac);
-    // Helldivers, with each one's ping in its group color
+    // Vanguards, with each one's ping in its group color
     c.fillStyle = ac;
     // (big and outlined so they stand out on the minimap; the tactical map adds each one's letter)
     for (const a of m.hdAlive) {

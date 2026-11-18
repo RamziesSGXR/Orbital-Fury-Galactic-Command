@@ -1,7 +1,7 @@
 // Synthesised sound: no audio files. Everything is built from noise and oscillators.
 // Every weapon has its own voice, including the enemy ones, so a firefight can be read by ear:
 //   squad rifles crack, SMGs tick, grenades thunk, rockets whoosh, sentries chug, tesla zaps,
-//   bugs skitter and spit, bots blast and boom, squids hum and pulse.
+//   bugs skitter and spit, bots blast and boom, lizards hum and pulse.
 // Every enemy type also has a voice of its own when it is on screen (a bug's chitter, a bot's servos, a squid's whisper), and
 // each faction's reinforcements arrive with their own sound. Sounds are placed where they happen: panned left or right by where
 // they are on screen and quieter the farther they are from the middle of the view (main.js works out pan and loudness).
@@ -182,7 +182,7 @@ export class Audio {
   sideLost() { if (!this.ctx) return; this._tone(440, 300, 0.35, 0.1, 'sawtooth'); this._tone(330, 220, 0.4, 0.08, 'sawtooth', 0.25); }
   beacons() { if (!this.ctx) return; [1568, 1760, 2093].forEach((f, i) => this._tone(f, f, 0.07, 0.06, 'square', i * 0.12)); }
 
-  // A troop pelican arriving: rotor wash.
+  // A troop dropship arriving: rotor wash.
   rotor() { if (!this._ok('rotor', 0.5)) return; this._noise(1.4, 500, 140, 0.22, 'bandpass', 0.8); this._tone(70, 50, 1.0, 0.16, 'sawtooth'); }
 
   // Low ship hum while a mission runs.
@@ -307,12 +307,12 @@ const KINDS = {
   // a column of bots: servos and engines, clanks, and a flat machine voice giving orders
   bots:   { loop: (A, v) => { A._osc(v, 'sawtooth', 46, 0.05, 170); A._hiss(v, 150, 0.05, 0.7, 'lowpass'); },
     tick: (A, o, t) => { if (Math.random() < 0.55) { A._t1(o, t, 240 + Math.random() * 260, 200, 0.22, 0.04, 'square'); A._n1(o, t, 0.05, 0.16, 1900, 3); } if (Math.random() < 0.3) A.babble(o, t + 0.25, 3 + (Math.random() * 4 | 0), 78, 0.07, 'square'); if (Math.random() < 0.3) A._t1(o, t + 0.1, 300, 900, 0.3, 0.02, 'sawtooth'); } },
-  // squids: a slow beating hum, whispers, a glassy note
+  // lizards: a slow beating hum, whispers, a glassy note
   squids: { loop: (A, v) => { A._osc(v, 'sine', 96, 0.05); A._osc(v, 'sine', 97.3, 0.05); A._hiss(v, 5200, 0.012, 0.6, 'highpass'); },
     tick: (A, o, t) => { if (Math.random() < 0.6) A._n1(o, t, 0.7, 0.07, 2400 + Math.random() * 1800, 7); if (Math.random() < 0.35) A._t1(o, t + 0.2, 1300 + Math.random() * 500, 1250, 0.9, 0.03); } },
-  // the Helldivers: boots when they move, a handset now and then
+  // the Vanguards: boots when they move, a handset now and then
   squad:  { every: 0.5, tick: (A, o, t, s) => { if (s.moving) steps(A, o, t, 3, 0.12); if (Math.random() < 0.05) { A._n1(o, t, 0.05, 0.05, 3000, 2); A.babble(o, t + 0.06, 3 + (Math.random() * 4 | 0), 120 + Math.random() * 60, 0.05); } } },
-  // a SEAF squad: more boots, kit, and talk when they stand about
+  // an Infantry squad: more boots, kit, and talk when they stand about
   seaf:   { every: 0.5, tick: (A, o, t, s) => { if (s.moving) { steps(A, o, t, Math.min(6, 2 + (s.n >> 1)), 0.1); if (Math.random() < 0.3) A._n1(o, t + 0.2, 0.04, 0.05, 2600, 6); } else if (Math.random() < 0.09) A.babble(o, t, 4 + (Math.random() * 5 | 0), 105 + Math.random() * 110, 0.05); } },
   // a fight: the crackle and thump of fire traded, busier with more of it. Heard a long way off
   fight:  { vol: 1.6, every: 0.22, loop: (A, v) => { A._hiss(v, 260, 0.05, 0.6, 'lowpass'); },
@@ -320,19 +320,19 @@ const KINDS = {
   // a bug nest: wet, breathing
   nest:   { loop: (A, v) => { const g = A._hiss(v, 210, 0.07, 0.8, 'lowpass'); A._lfo(v, g.gain, 0.4, 0.04); },
     tick: (A, o, t) => { if (Math.random() < 0.6) A._t1(o, t, 140 + Math.random() * 80, 60, 0.25, 0.09); if (Math.random() < 0.3) A._n1(o, t + 0.2, 0.25, 0.06, 900, 3); } },
-  // a bot fabricator: heavy plant, a press, steam
+  // a bot assembler: heavy plant, a press, steam
   fab:    { loop: (A, v) => { A._osc(v, 'sawtooth', 38, 0.06, 130); A._hiss(v, 110, 0.08, 0.7, 'lowpass'); },
     every: 1.3, tick: (A, o, t) => { A._t1(o, t, 110, 55, 0.2, 0.14, 'square'); A._n1(o, t, 0.06, 0.14, 1500, 2); if (Math.random() < 0.3) A._n1(o, t + 0.5, 0.6, 0.05, 4200, 0.8, 'highpass'); } },
-  // a squid ship on the ground: a deep chord that swells, a chime
+  // a lizard ship on the ground: a deep chord that swells, a chime
   ship:   { loop: (A, v) => { const a = A._osc(v, 'sine', 62, 0.08), g = A._hiss(v, 1400, 0.012, 3); A._osc(v, 'sine', 93.4, 0.05); A._lfo(v, a.frequency, 0.25, 1.5); A._lfo(v, g.gain, 0.3, 0.008); },
     tick: (A, o, t) => { if (Math.random() < 0.4) A._t1(o, t, 1568, 1560, 1.2, 0.025); } },
-  // a SEAF post: a generator, a set left on
+  // an Infantry post: a generator, a set left on
   post:   { loop: (A, v) => { A._osc(v, 'sawtooth', 52, 0.025, 150); },
     tick: (A, o, t) => { if (Math.random() < 0.25) { A._n1(o, t, 0.3, 0.02, 2400, 1.4); A.babble(o, t + 0.05, 3 + (Math.random() * 3 | 0), 150, 0.025); } } },
   // a mast: static, Morse, a voice in the static
   radio:  { loop: (A, v) => { A._hiss(v, 2600, 0.016, 1.2); },
     tick: (A, o, t) => { if (Math.random() < 0.3) A.babble(o, t, 4 + (Math.random() * 5 | 0), 160, 0.045); else if (Math.random() < 0.5) for (let i = 0; i < 6; i++) A._t1(o, t + i * 0.11, 820, 820, Math.random() < 0.5 ? 0.05 : 0.1, 0.035); } },
-  // a Pelican: turbines over a heavy thrum, higher as it moves off
+  // a Dropship: turbines over a heavy thrum, higher as it moves off
   pelican:{ vol: 1.3, every: 0.12, loop: (A, v) => { v.eng = A._osc(v, 'sawtooth', 55, 0.07, 300); v.eng0 = 55; A._osc(v, 'triangle', 1900, 0.005); A._hiss(v, 420, 0.09, 0.5, 'lowpass'); },
     tick: (A, o, t) => { A._n1(o, t, 0.08, 0.05, 160, 1); } },
 };
@@ -340,7 +340,7 @@ export const SCAPE_KINDS = Object.keys(KINDS);
 
 // The voice of every weapon. gap = minimum seconds between two of them, vol = base loudness, f = how it sounds.
 const VOICES = {
-  // ---- Helldivers, SEAF and stratagem weapons
+  // ---- Vanguards, Infantry and call-in weapons
   rifle:   { gap: 0.07, vol: 1, f: (a, v) => { a._noise(0.07, 3200, 1100, 0.11 * v, 'bandpass', 1.3); a._tone(900, 300, 0.05, 0.03 * v, 'square'); } },
   smg:     { gap: 0.05, vol: 1, f: (a, v) => a._noise(0.035, 4200, 2200, 0.07 * v, 'bandpass', 1.6) },
   grenade: { gap: 0.2,  vol: 1, f: (a, v) => { a._tone(210, 70, 0.14, 0.14 * v, 'triangle'); a._noise(0.1, 700, 200, 0.12 * v); } },
@@ -364,11 +364,11 @@ const VOICES = {
   frvgun:  { gap: 0.07, vol: 1, f: (a, v) => { a._noise(0.08, 1300, 300, 0.16 * v); a._tone(95, 70, 0.07, 0.1 * v, 'square'); } },
   mechgat: { gap: 0.05, vol: 1, f: (a, v) => { a._tone(105, 85, 0.05, 0.08 * v, 'sawtooth'); a._noise(0.05, 1800, 600, 0.1 * v, 'bandpass', 0.9); } },
   mechrkt: { gap: 0.25, vol: 1, f: (a, v) => { a._noise(0.5, 400, 2000, 0.22 * v, 'bandpass', 0.8); a._tone(90, 40, 0.3, 0.26 * v); } },
-  // ---- Terminids: skitter, spit, stomp
+  // ---- Swarm: skitter, spit, stomp
   bugsL:   { gap: 0.09, vol: 0.8, f: (a, v) => { a._noise(0.025, 5200, 3600, 0.05 * v, 'bandpass', 3); a._noise(0.025, 4600, 3000, 0.04 * v, 'bandpass', 3, 0.04); } },
   bugsM:   { gap: 0.15, vol: 1, f: (a, v) => { a._noise(0.12, 1500, 500, 0.1 * v, 'bandpass', 1.4); a._tone(320, 140, 0.1, 0.06 * v, 'sine'); } },
   bugsH:   { gap: 0.25, vol: 1, f: (a, v) => { a._tone(75, 38, 0.3, 0.26 * v, 'sawtooth'); a._noise(0.25, 500, 70, 0.2 * v); } },
-  // ---- Automatons: blaster, cannon, tank gun
+  // ---- Foundry: blaster, cannon, tank gun
   botsL:   { gap: 0.07, vol: 1, f: (a, v) => { a._tone(1200, 520, 0.06, 0.06 * v, 'square'); a._noise(0.04, 3000, 1500, 0.04 * v, 'bandpass', 1.2); } },
   botsM:   { gap: 0.12, vol: 1, f: (a, v) => { a._tone(620, 190, 0.1, 0.1 * v, 'square'); a._noise(0.09, 1800, 400, 0.12 * v); } },
   botsH:   { gap: 0.3,  vol: 1, f: (a, v) => { a._noise(0.4, 900, 50, 0.3 * v); a._tone(80, 30, 0.35, 0.32 * v); a._tone(700, 200, 0.12, 0.05 * v, 'square'); } },
@@ -383,7 +383,7 @@ const VOICES = {
   idle_squidsM: { gap: 1.4, vol: 0.8, f: (a, v) => { a._tone(880, 880, 0.18, 0.04 * v, 'triangle'); a._tone(1320, 1320, 0.25, 0.03 * v, 'triangle', 0.12); } },
   idle_squidsH: { gap: 2.4, vol: 1, f: (a, v) => { a._tone(70, 46, 1.2, 0.12 * v, 'sine'); a._tone(140, 92, 1.2, 0.05 * v, 'triangle'); a._noise(0.9, 800, 300, 0.04 * v, 'bandpass', 1.5); } },
   civ:          { gap: 0.8, vol: 0.6, f: (a, v) => a._tone(520, 640, 0.15, 0.03 * v, 'sine') },
-  // ---- Illuminate: cold hum, warble, deep pulse
+  // ---- Talon: cold hum, warble, deep pulse
   squidsL: { gap: 0.1,  vol: 1, f: (a, v) => a._tone(1700, 950, 0.09, 0.05 * v, 'triangle') },
   // (0.40) an overseer's rifle: a sharp crack with a cold ring after it
   squidsM: { gap: 0.1, vol: 1, f: (a, v) => { a._noise(0.06, 3200, 900, 0.09 * v, 'bandpass', 1.1); a._tone(980, 430, 0.06, 0.05 * v, 'square'); a._tone(1500, 1500, 0.07, 0.018 * v, 'triangle', 0.03); } },

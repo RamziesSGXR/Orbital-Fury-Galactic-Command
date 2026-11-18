@@ -1,6 +1,6 @@
-// Resupply. The Helldivers no longer carry a Resupply stratagem: when they run low they ask the gunner for supplies. If the player
+// Resupply. The Vanguards no longer carry a Resupply call-in: when they run low they ask the gunner for supplies. If the player
 // accepts, time slows while the player loads a supply pod by tapping its compartments (stims, grenades, ammo); then the pod is fired
-// down to where the squad asked for it. What is loaded is what arrives, and a fast load gives the Helldivers a short boost. After
+// down to where the squad asked for it. What is loaded is what arrives, and a fast load gives the Vanguards a short boost. After
 // a drop (or a request the player turns down) there is a cooldown before they can ask again.
 //
 // States: idle -> ask (waiting for the player) -> fill (the loading game, in slow motion) -> inbound (the pod is falling) -> idle.
@@ -17,7 +17,7 @@ export function initSupply(m) {
   m.supply = { state: 'idle', cdUntil: K().firstSec, ask: null, fill: null, drop: null, boostUntil: -1, n: 0 };
 }
 
-// Does anyone need supplies? Returns the Helldiver who needs them most, or null.
+// Does anyone need supplies? Returns the Vanguard who needs them most, or null.
 function needy(m) {
   let best = null, bs = 0;
   for (const a of m.hdAlive) {
@@ -33,7 +33,7 @@ function needy(m) {
   return bs >= K().need ? best : null;
 }
 
-// Where the pod should land: beside the squad, on dry ground, clear of the Helldivers themselves.
+// Where the pod should land: beside the squad, on dry ground, clear of the Vanguards themselves.
 function dropSpot(m, a) {
   const tr = m.terrain;
   const bx = m.hdAlive.length ? m.hx : a.x, by = m.hdAlive.length ? m.hy : a.y;
@@ -87,7 +87,7 @@ function ask(m, a) {
   bark(m, a, 'supask', '', true);
   m.emit('supply_ask', { x: a.x, y: a.y, team: a.team });
 }
-// (0.37) The tutorial's resupply lesson: a Helldiver asks now (the one who needs it most, or the first), whatever the cooldown.
+// (0.37) The tutorial's resupply lesson: a Vanguard asks now (the one who needs it most, or the first), whatever the cooldown.
 export function askSupply(m) {
   const S = m.supply;
   if (!S || S.state !== 'idle' || !m.hdAlive.length || boardingNow(m)) return false;

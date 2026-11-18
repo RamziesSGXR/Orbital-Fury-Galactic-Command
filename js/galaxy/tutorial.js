@@ -1,7 +1,7 @@
 // The guided first war. Each step says one thing, points at one part of the screen, and waits for the player to do it.
 // A step has:
 //   text(g, ui)   what the coach says
-//   tab           the ministry to open when the step begins;  shut: close any open sheet
+//   tab           the head office to open when the step begins;  shut: close any open sheet
 //   hi            CSS selector of the thing to outline
 //   hint(g, ui)   a star system to ring on the map
 //   done(g, ui)   true once the player has done it (the coach moves on by itself)
@@ -40,7 +40,7 @@ export const STEPS = [
   { next: true, shut: true,
     text: g => (g.battle ? 'This is a <b>battle</b>. ' : 'When fleets meet there is a <b>battle</b>. ') + 'Each side has <b>hit points</b>: 3 for every ship, plus the system\'s own. You draw three cards at random from your deck. Each round you <b>tap one card</b>, then every ship fires. The first side with no hit points loses and falls back with half its ships.' },
   { next: true, shut: true, hi: '#mins',
-    text: () => 'The <b>ministries</b> are this row. <b>Intel</b> tells you what needs doing on the front in play. <b>Defence</b> shows your fleets and your battle deck. <b>Expand</b> builds special sites, which add cards nobody else has. <b>Prosper</b> swaps one resource for another.' },
+    text: () => 'The <b>offices</b> are this row. <b>Intel</b> tells you what needs doing on the front in play. <b>Defence</b> shows your fleets and your battle deck. <b>Expand</b> builds special sites, which add cards nobody else has. <b>Prosper</b> swaps one resource for another.' },
   { next: true, last: true, shut: true,
     text: () => `Each round, front by front: the enemy acts, then you decide. Your deck grows with the worlds you hold. <b>Win</b> by taking all three enemy homes. <b>Lose</b> if ${N.capital} falls, or if two enemies strike it in the same round.` },
 ];

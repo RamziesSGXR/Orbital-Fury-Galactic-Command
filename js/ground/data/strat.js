@@ -1,14 +1,14 @@
-// Stratagems. Names follow the Helldivers 2 stratagem list; every number, line of text and piece of art here is original
-// to this fan project. Eagle, defense, support, vehicle and gear stratagems are called by the Helldivers: the squad draws 16
-// distinct ones before each drop and deals them into four groups of four, one group per Helldiver (CONFIG.strat).
-// Orbital stratagems belong to the player: they are bought and upgraded in the armory (see data/kit.js).
+// Call-ins. Names follow the Vanguards 2 call-in list; every number, line of text and piece of art here is original
+// to this fan project. Striker, defense, support, vehicle and gear call-ins are called by the Vanguards: the squad draws 16
+// distinct ones before each drop and deals them into four groups of four, one group per Vanguard (CONFIG.strat).
+// Orbital call-ins belong to the player: they are bought and upgraded in the armory (see data/kit.js).
 //
-// k      what kind of thing it is: strike | zone | turret | mines | shield | weapon | frv | mech | jump | dog | resupply
+// k      what kind of thing it is: strike | zone | turret | mines | shield | weapon | LRV | mech | jump | dog | resupply
 // use    when the squad calls it: cluster | heavy | smoke | defense | fight | travel | resupply
-// cd     seconds before it can be called again. A stratagem that is on the list twice recharges in half the time.
-// anti   true when it can take down a heavy. Every Helldiver's group of four holds at least one of these (see dealGroups), and
+// cd     seconds before it can be called again. A call-in that is on the list twice recharges in half the time.
+// anti   true when it can take down a heavy. Every Vanguard's group of four holds at least one of these (see dealGroups), and
 //        (Resupply is no longer drawn: the squad asks the gunner for a supply drop instead, see sim/supply.js.)
-// dmg    raw damage. CONFIG.strat.dmgMul scales every stratagem so the player's guns stay stronger.
+// dmg    raw damage. CONFIG.strat.dmgMul scales every call-in so the player's guns stay stronger.
 import { RNG } from '../util/rng.js';
 import { CONFIG as C } from '../config.js';
 import { t } from '../i18n.js';
@@ -16,21 +16,21 @@ import { t } from '../i18n.js';
 const M = (L, Mm, H, B) => ({ L, M: Mm, H, B });
 
 export const STRATS = {
-  // ---------- Eagle: fixed-wing strikes ----------
-  eagle_strafe:  { cat: 'EAGLE', g: 'STR', cd: 55, k: 'strike', use: 'cluster', min: 4,
+  // ---------- Striker: fixed-wing strikes ----------
+  eagle_strafe:  { cat: 'STRIKER', g: 'STR', cd: 55, k: 'strike', use: 'cluster', min: 4,
                    pat: 'line', n: 14, len: 46, span: 0.9, delay: 3.5, dmg: 70, splash: 3.4, mult: M(1, 0.9, 0.25, 0.05), fly: true },
-  eagle_air:     { cat: 'EAGLE', g: 'AIR', cd: 70, k: 'strike', use: 'cluster', min: 5, base: true,
+  eagle_air:     { cat: 'STRIKER', g: 'AIR', cd: 70, k: 'strike', use: 'cluster', min: 5, base: true,
                    pat: 'line', n: 5, len: 32, span: 0.8, delay: 4, dmg: 300, splash: 9, mult: M(1, 1, 0.6, 0.3), fly: true },
-  eagle_cluster: { cat: 'EAGLE', g: 'CLU', cd: 65, k: 'strike', use: 'cluster', min: 4,
+  eagle_cluster: { cat: 'STRIKER', g: 'CLU', cd: 65, k: 'strike', use: 'cluster', min: 4,
                    pat: 'scatter', n: 16, len: 20, span: 1.2, delay: 4, dmg: 95, splash: 5, mult: M(1, 0.8, 0.2, 0.1), fly: true },
-  eagle_napalm:  { cat: 'EAGLE', g: 'NPL', cd: 75, k: 'strike', use: 'cluster', min: 5,
+  eagle_napalm:  { cat: 'STRIKER', g: 'NPL', cd: 75, k: 'strike', use: 'cluster', min: 5,
                    pat: 'line', n: 4, len: 28, span: 0.7, delay: 4, dmg: 90, splash: 8, mult: M(1, 0.9, 0.4, 0.1), fly: true,
                    zone: { kind: 'fire', r: 8, sec: 10, dps: 30 } },
-  eagle_rockets: { cat: 'EAGLE', g: 'RKT', cd: 60, k: 'strike', use: 'cluster', min: 3, heavy: true, anti: true,
+  eagle_rockets: { cat: 'STRIKER', g: 'RKT', cd: 60, k: 'strike', use: 'cluster', min: 3, heavy: true, anti: true,
                    pat: 'scatter', n: 6, len: 8, span: 1.2, delay: 3.5, dmg: 240, splash: 5.5, mult: M(1, 1, 0.7, 0.15), fly: true, base: true },
-  eagle_500:     { cat: 'EAGLE', g: '500', cd: 110, k: 'strike', use: 'heavy', base: true,
+  eagle_500:     { cat: 'STRIKER', g: '500', cd: 110, k: 'strike', use: 'heavy', base: true,
                    pat: 'point', n: 1, len: 0, span: 0, delay: 5, dmg: 2400, splash: 22, mult: M(1, 1, 1, 0.6), fly: true, safe: 34, anti: true },
-  eagle_smoke:   { cat: 'EAGLE', g: 'SMK', cd: 60, k: 'zone', use: 'smoke',
+  eagle_smoke:   { cat: 'STRIKER', g: 'SMK', cd: 60, k: 'zone', use: 'smoke',
                    delay: 3, zone: { kind: 'smoke', r: 15, sec: 22 }, fly: true },
 
   // ---------- Orbital: strikes from the destroyer ----------
@@ -59,11 +59,11 @@ export const STRATS = {
                    beam: { dps: 260, width: 6, dur: 16, follow: 15, leash: 60 } },
 
   // ---------- Ship utilities: help for the squad rather than firepower (the player's, bought and equipped like orbitals) ----------
-  // ---------- (0.25) Classified: four over-the-top stratagems for the last ranks (15, 20, 25 and 30 missions done) ----------
+  // ---------- (0.25) Classified: four over-the-top call-ins for the last ranks (15, 20, 25 and 30 missions done) ----------
   // The gunner's alone (player), one level each (secret: the rank that opens it), and they hurt allies like any strike.
   orb_storm:     { cat: 'ORBITAL', g: 'STM', cd: 160, k: 'strike', use: 'cluster', player: true, secret: 6,
                    pat: 'scatter', n: 36, len: 64, span: 16, delay: 5, dmg: 520, splash: 11, mult: M(1, 1, 0.6, 0.25) },
-  eagle_squad:   { cat: 'EAGLE', g: 'SQD', cd: 150, k: 'strike', use: 'cluster', player: true, secret: 7,
+  eagle_squad:   { cat: 'STRIKER', g: 'SQD', cd: 150, k: 'strike', use: 'cluster', player: true, secret: 7,
                    pat: 'line', n: 22, len: 110, span: 2.2, delay: 4, dmg: 650, splash: 11, mult: M(1, 1, 0.7, 0.3), fly: true },
   orb_lance:     { cat: 'ORBITAL', g: 'LNC', cd: 190, k: 'beam', use: 'heavy', player: true, secret: 8, delay: 3,
                    beam: { dps: 1100, width: 13, dur: 22, follow: 26, leash: 110 } },
@@ -93,7 +93,7 @@ export const STRATS = {
   shield_relay:  { cat: 'DEFENSE', g: 'SHD', cd: 110, k: 'shield', use: 'fight', threat: 6,
                    shield: 700, r: 22, life: 80 },
 
-  // ---------- Support weapons: one Helldiver picks one up ----------
+  // ---------- Support weapons: one Vanguard picks one up ----------
   recoilless:    { cat: 'SUPPORT', g: 'REC', cd: 110, k: 'weapon', use: 'heavy', anti: true,
                    sw: { ammo: 8, every: 2.4, dmg: 340, splash: 4.5, range: 75, acc: 0.9, mult: M(1, 1, 0.9, 0.25), prefer: 'HM' } },
   autocannon:    { cat: 'SUPPORT', g: 'ATC', cd: 100, k: 'weapon', use: 'fight', threat: 5, anti: true,
@@ -110,7 +110,7 @@ export const STRATS = {
                    sw: { ammo: 1, every: 1, dmg: 1500, splash: 4, range: 90, acc: 0.95, mult: M(1, 1, 1, 0.4), only: 'H', lock: 0.9, vary: 0.08 } },
 
   // ---------- Vehicles and gear ----------
-  frv:           { cat: 'VEHICLE', g: 'FRV', cd: 150, k: 'frv', use: 'travel', shared: true },
+  frv:           { cat: 'VEHICLE', g: 'LRV', cd: 150, k: 'frv', use: 'travel', shared: true },
   mech:          { cat: 'VEHICLE', g: 'EXO', cd: 170, k: 'mech', use: 'fight', threat: 8, anti: true },
   jump:          { cat: 'GEAR', g: 'JMP', cd: 120, k: 'jump', use: 'travel', shared: true },
   dog:           { cat: 'GEAR', g: 'DOG', cd: 100, k: 'dog', use: 'fight', threat: 4 },
@@ -128,19 +128,19 @@ for (const [id, d] of Object.entries(STRATS)) {
 }
 
 const ALL_IDS = Object.keys(STRATS);
-// Stratagems the Helldivers can draw, and the ones the player can buy.
+// Call-ins the Vanguards can draw, and the ones the player can buy.
 // Resupply is not one of them any more: the squad asks the gunner for supplies instead (sim/supply.js).
-// (0.23) The Helldivers draw orbital strikes too (with their own cooldowns; the gunner's are not touched), but not the ship's
+// (0.23) The Vanguards draw orbital strikes too (with their own cooldowns; the gunner's are not touched), but not the ship's
 // utilities, the laser (a beam the gunner steers) or the gunner's own minefields.
 export const STRAT_IDS = ALL_IDS.filter((id) => { const d = STRATS[id]; return id !== 'resupply' && !d.player && (d.cat !== 'ORBITAL' || (!d.util && (d.k === 'strike' || d.k === 'zone'))); });
 export const HD_ORB_IDS = STRAT_IDS.filter((id) => STRATS[id].cat === 'ORBITAL');
-// What the gunner can buy and put in the loadout's slots: orbitals and ship utilities, (0.23) Eagles (once the Hangar is bought)
+// What the gunner can buy and put in the loadout's slots: orbitals and ship utilities, (0.23) Strikers (once the Hangar is bought)
 // and minefields.
 export const ORB_IDS = ALL_IDS.filter((id) => STRATS[id].cat === 'ORBITAL');
-export const EAGLE_IDS = ALL_IDS.filter((id) => STRATS[id].cat === 'EAGLE');
+export const STRIKER_IDS = ALL_IDS.filter((id) => STRATS[id].cat === 'STRIKER');
 export const MINE_IDS = ALL_IDS.filter((id) => STRATS[id].player && STRATS[id].k === 'mines');
-export const PLAYER_IDS = [...ORB_IDS, ...EAGLE_IDS, ...MINE_IDS];
-export const CAT_COLOR = { EAGLE: '#ffe600', ORBITAL: '#ff7a3d', DEFENSE: '#7dff9b', SUPPORT: '#ffb020', VEHICLE: '#7fd8ff', GEAR: '#c9b8ff' };
+export const PLAYER_IDS = [...ORB_IDS, ...STRIKER_IDS, ...MINE_IDS];
+export const CAT_COLOR = { STRIKER: '#ffe600', ORBITAL: '#ff7a3d', DEFENSE: '#7dff9b', SUPPORT: '#ffb020', VEHICLE: '#7fd8ff', GEAR: '#c9b8ff' };
 
 export const ANTI_IDS = STRAT_IDS.filter((id) => STRATS[id].anti && !STRATS[id].shared);
 export const isAnti = (id) => !!(STRATS[id] && STRATS[id].anti);
@@ -148,13 +148,13 @@ export const isAnti = (id) => !!(STRATS[id] && STRATS[id].anti);
 export const HEAVY_W_IDS = STRAT_IDS.filter((id) => STRATS[id].k === 'weapon' && STRATS[id].anti && !STRATS[id].shared);
 export const isHeavyW = (id) => HEAVY_W_IDS.includes(id);
 
-// Sixteen distinct picks for the Helldivers. At least one pick per group can take down a
+// Sixteen distinct picks for the Vanguards. At least one pick per group can take down a
 // heavy (four in all). A list that is too short or has repeats is topped up from the same seed; a full forced list is used as given.
 export function rollLoadout(seed, forced = []) {
   const rng = new RNG((seed ^ 0x5bd1e995) >>> 0), out = [], N = C.strat.slots;
   for (const id of forced) if (STRAT_IDS.includes(id) && !out.includes(id) && out.length < N) out.push(id);
   if (out.length >= N) return out;
-  // (0.26) a heavy weapon for each Helldiver, most of the time (C.strat.heavyW of the time each), and the rest of the draw leans
+  // (0.26) a heavy weapon for each Vanguard, most of the time (C.strat.heavyW of the time each), and the rest of the draw leans
   // toward them too: on average a little over one each
   const HW = C.strat.heavyW;
   let hw = out.filter(isHeavyW).length, want = 0;
@@ -182,15 +182,15 @@ export function rollLoadout(seed, forced = []) {
   return out;
 }
 
-// Deal a 16 stratagem loadout into four groups of four. The squad-wide items (recon vehicle, jump packs, resupply) are spread
-// out so no one Helldiver owns all of them, and every group gets something that can take down a heavy. A forced list keeps its
+// Deal a 16 call-in loadout into four groups of four. The squad-wide items (recon vehicle, jump packs, resupply) are spread
+// out so no one Vanguard owns all of them, and every group gets something that can take down a heavy. A forced list keeps its
 // order, so tests can pin each group.
 export function dealGroups(loadout, seed, keepOrder = false) {
   const per = C.strat.perGroup, n = C.strat.groups;
   const split = (list) => Array.from({ length: n }, (_, i) => list.slice(i * per, i * per + per));
   if (keepOrder) return split(loadout);
   const rng = new RNG((seed ^ 0x2545f491) >>> 0), enough = loadout.filter(isAnti).length >= n;
-  // (0.26) the heavy weapons go one to a Helldiver before anyone gets a second
+  // (0.26) the heavy weapons go one to a Vanguard before anyone gets a second
   const hwN = loadout.filter(isHeavyW).length, hwOk = (t) => { const c = t.filter(isHeavyW).length; return c >= Math.floor(hwN / n) && c <= Math.ceil(hwN / n); };
   for (let attempt = 0; attempt < 120; attempt++) {
     const teams = split(rng.shuffle(loadout.slice()));

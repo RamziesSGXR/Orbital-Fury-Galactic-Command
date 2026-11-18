@@ -1,6 +1,6 @@
 # Orbital Fury: Galactic Command
 
-**Prototype 0.5.0.** One war, run from four posts, in one game.
+**Prototype 0.5.1.** One war, run from four posts, in one game.
 
 You found a command (a name, a crest, colours) and hold the centre of the galaxy against three enemies. Everything in
 the war is yours to run, and each part changes the others:
@@ -40,7 +40,7 @@ This is one application with one save, one faction and one interface, not four g
 ## The war chest and the armoury
 
 - **One currency.** Credits (CR) sit in the war chest. Ground battles pay into it, and so does every station and base that is running in profit, every round.
-- **Deposits.** About three systems in ten hold their front's material: oil in the east, metals in the west, technology parts in the south. A base on a deposit lifts it every round.
+- **Deposits.** About three systems in ten hold their front's material: biomass in the east, metals in the west, bio-tech in the south. A base on a deposit lifts it every round.
 - **Armoury rank.** One for every station tier and base charter that is linked to the capital and in profit. Rank opens the shelves.
 - **Four shelves.** Ground (the ship's weapons), stations, bases and fleet. The last three cost credits and a material. The armoury opens from the top of the war room.
 
@@ -63,9 +63,9 @@ come back to them.
 - Fleet mechanics beyond the three fleet upgrades; supply lines that change what a system pays.
 - Most of the station's and the base's deeper panels (rooms inside parts, the ledger, research, patrols, landscaping).
 - The tutorial for the theatres, music, French and Spanish.
-- The setting: names and wording still come from the four prototypes and have not been made into one original setting yet.
+- The setting's look: the wording is now the game's own (a private fleet that is its own brand, against the Swarm, the Foundry and the Talon), but the lizard riders are still drawn and fought as the old third enemy, and code names inside the files are unchanged.
 
 ## Credits
 
 Design and direction: Ramzies. Built with Claude (Anthropic) as a coding assistant. 3D is drawn with three.js (MIT,
-`js/vendor/THREE-LICENSE`). An unofficial fan project, not affiliated with or endorsed by any game studio or publisher.
+`js/vendor/THREE-LICENSE`). Thanks to the SESF community for testing, ideas and feedback. An original setting, not affiliated with or endorsed by any game studio or publisher.

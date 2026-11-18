@@ -4,14 +4,14 @@
 //             does the fight dying down (it fades once the squad has been out of contact for a while). It never goes past
 //             spikeMax.
 //   baseline  a ratchet: every base destroyed, every main objective done, the extraction call and every bit of time bought from
-//             the Helldivers raise it a notch for the rest of the mission, so every calm is hotter than the last.
+//             the Vanguards raise it a notch for the rest of the mission, so every calm is hotter than the last.
 // The stars are the two together. Higher alert brings more and new kinds of response:
 //   every star       off-map patrols come more often and reinforcement flares get through more (alertMul)
 //   hunt stars       off-map patrols come straight for the squad instead of passing by (patrols.js)
 //   heavy stars      each of them brings a heavy (patrols.js)
 //   drop stars       reinforcements are dropped on the squad every so often, more often the higher it goes
 //   boss stars       the super heavy comes (once a mission, if there is not one already)
-// The gunner's own actions never move it: the job is to support the Helldivers. Side objectives don't touch it either.
+// The gunner's own actions never move it: the job is to support the Vanguards. Side objectives don't touch it either.
 // The music follows it too (main.js musicHeat). Tuning: CONFIG.alert.
 import { CONFIG as C } from '../config.js';
 import { t as tr } from '../i18n.js';

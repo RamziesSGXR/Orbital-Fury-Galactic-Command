@@ -7,10 +7,8 @@
 // Some things are never translated: operation names, callsigns, ship names, and the community score block (always English,
 // so posts in the channel read the same whoever wrote them).
 import EN from './lang/en.js';
-import FR from './lang/fr.js';
-import ES from './lang/es.js';
 
-export const LANGS = { en: { name: 'English', t: EN }, fr: { name: 'Français', t: FR }, es: { name: 'Español', t: ES } };
+export const LANGS = { en: { name: 'English', t: EN } };     // Galactic Command is English only for now
 let cur = 'en', T = EN;
 
 export function setLang(l) {

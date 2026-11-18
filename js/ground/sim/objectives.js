@@ -1,4 +1,4 @@
-// Mission objectives. The Helldivers do these first: launch the nuke, rescue the VIP, or take down the citadel.
+// Mission objectives. The Vanguards do these first: launch the nuke, rescue the VIP, or take down the citadel.
 // Everything else on the map (the ordinary bases) is bonus points once the objective is done.
 import { addSpawners } from './spawners.js';
 import { alertRaise } from './alert.js';
@@ -141,7 +141,7 @@ export function nextPart(m, o) {
   let best = null, bd = Infinity;
   const outerUp = (o.parts || []).some((q) => !q.destroyed && !q.fortress);
   for (const b of o.parts || [o.base]) {
-    if (b.destroyed || (b.bombOnly && outerUp)) continue;      // (the keep only falls to a Hellbomb: the outer bases first)
+    if (b.destroyed || (b.bombOnly && outerUp)) continue;      // (the keep only falls to a Demolition Charge: the outer bases first)
     const d = Math.hypot(b.x - from.x, b.y - from.y) + (b.fortress ? 40 : 0);
     if (d < bd) { bd = d; best = b; }
   }
@@ -172,7 +172,7 @@ function wave(m, cx, cy, rmin, rmax, extra = 0, D = null, held = 0) {
 const waveSize = (m) => (m.pressure >= 1.7 ? 1 : 0);
 
 // The enemy closes in on an objective while it is being worked: its backup calls come faster and bigger the longer the squad
-// stays at it (CONFIG.siege). Four Helldivers alone are ground down by it; fire support from the gunner is what holds a site.
+// stays at it (CONFIG.siege). Four Vanguards alone are ground down by it; fire support from the gunner is what holds a site.
 // (0.40) A site the squad holds (DEFEND) is what the enemy wants them off most: it comes harder there (CONFIG.siege.defend).
 const DEFEND = new Set(['nuke', 'evac', 'oil', 'gun']);
 export const defended = (o) => DEFEND.has(o.type) || (o.type === 'vip' && o.state === 'deliver');

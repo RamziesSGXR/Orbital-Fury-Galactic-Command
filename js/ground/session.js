@@ -11,7 +11,7 @@ import { clampLevel, levelAt, levelName, LEVELS } from './difficulty.js';
 const K = { settings: 'ofs.settings', session: 'ofs.session', history: 'ofs.history', callsign: 'ofs.callsign', notice: 'ofs.notice', names: 'ofs.names',
   campaign: 'ofs.campaign', campRun: 'ofs.campRun',     // (0.37) the campaign's progress on this browser, and its run under way
   slots: 'ofs.slots',      // (0.41) the three save slots
-  coins: 'ofs.coins',     // (0.44) SESF coins
+  coins: 'ofs.coins',     // (0.44) challenge coins
   tutSeen: 'ofs.tutSeen', tutDone: 'ofs.tutDone', saveVer: 'ofs.saveVer' };     // (0.53: these two were saved under no name of their own)
 
 export function load(key, fallback) {
@@ -24,7 +24,7 @@ export function drop(key) { try { localStorage.removeItem(K[key]); } catch { /* 
 
 // (0.53) A one-time reset with the new campaign: operations saved before it (the run under way, the save slots, the campaign's
 // progress and runs, and the score list, whose scores were points, not credits) are cleared. Settings, squad names, the callsign,
-// SESF coins and keys stay. Returns true when there was something to clear (the title says so, once).
+// challenge coins and keys stay. Returns true when there was something to clear (the title says so, once).
 export const SAVE_VER = 2;
 export function resetOldSaves() {
   if (load('saveVer', 1) >= SAVE_VER) return false;
@@ -35,7 +35,7 @@ export function resetOldSaves() {
   return had;
 }
 
-// (0.44) SESF coins, kept on this browser: one for every operation ended by choice (END OPERATION after a mission that carried
+// (0.44) challenge coins, kept on this browser: one for every operation ended by choice (END OPERATION after a mission that carried
 // on), at most COIN_MAX held. Each is one free unlock or upgrade in a later operation's armory (anything open at your rank but the
 // Classified ones: kit.js coinOk). An operation pays once: the runs that paid are remembered by when they started, so ending the
 // same run again (from a save slot or a campaign checkpoint) pays nothing.
@@ -132,12 +132,12 @@ export const DEFAULT_SETTINGS = {
   mini: 2,           // the minimap's size (x its old size)
   layout: 'auto',   // (0.21) the HUD's layout: 'auto' (by the screen), 'phone', 'tab' or 'desk'
   difficulty: C.difficulty.start,     // the level the next new session starts at (a session keeps its own)
-  feed: true,         // (0.43) the SESF feed: a post to the SESF Discord when an operation starts and ends (feed.js)
+  feed: true,         // (0.43) the community feed: a post to the community Discord when an operation starts and ends (feed.js)
   lighting: true,     // (0.38) the hour's light: night on the ground, flashlights and lamps, muzzle flashes, the day's wash (render/light.js)
 };
 export const getSettings = () => ({ ...DEFAULT_SETTINGS, ...load('settings', {}) });
 
-// Names typed in by the player. A blank ship name means a random one each mission; a blank Helldiver name means the code (B4).
+// Names typed in by the player. A blank ship name means a random one each mission; a blank Vanguard name means the code (B4).
 export const MAX_NAME = 18;
 export function getNames() {
   const n = load('names', null) || {};
@@ -186,7 +186,7 @@ export function rollOffers(s, rng = Math.random, enemy = 'random', story = false
     const left = (ids, key) => ids.filter((x) => !out.some((o) => o[key] === x));
     if (out.some((o) => o.biome === m.biome)) { const b = left(Object.keys(BIOMES).filter((q) => BIOMES[q].pool !== false && (!prev || q !== prev.biome)), 'biome'); if (b.length) m.biome = b[Math.floor(rng() * b.length)]; }
     if (!Object.keys(FACTIONS).includes(enemy) && out.some((o) => o.faction === m.faction)) { const f = left(Object.keys(FACTIONS), 'faction'); if (f.length) m.faction = f[Math.floor(rng() * f.length)]; }
-    // (0.53) against squids, the defence gun can be offered too: half the time in the capital's outskirts
+    // (0.53) against lizards, the defence gun can be offered too: half the time in the capital's outskirts
     const pool = [...OBJ_TYPES, OP_OF[m.faction], ...(m.faction === 'squids' ? ['gun'] : [])].filter(Boolean);
     const obj = pool[Math.floor(rng() * pool.length)];
     out.push({ ...m, obj, bump, ...(obj === 'gun' && rng() < 0.5 && !out.some((o) => o.biome === 'city') ? { biome: 'city' } : {}) });
@@ -246,7 +246,7 @@ export function recordMission(s, info, result) {
     op: info.op, faction: info.faction, biome: info.biome,
     // (0.51) the score is what the mission earned in credits (pts: its old points, kept for the record); bump: the levels it was
     // flown above the operation's climb (the offer picked)
-    ships: (result.teams || []).map((tm) => tm.ship).filter(Boolean),     // (0.53.12) the groups' Super Destroyers
+    ships: (result.teams || []).map((tm) => tm.ship).filter(Boolean),     // (0.53.12) the groups' Fire-Support Ships
     outcome: result.outcome, score: c.total, pts: result.score, bump: info.bump || 0, seconds: Math.round(result.t),
     bases: result.bases, baseTotal: result.baseTotal, pois: result.pois, kills: result.kills,
     lostH: result.stats.lostH, lostS: result.stats.lostS, earned: c.total, spent: c.spent,
@@ -298,7 +298,7 @@ export function missionReport(s, i = s.missions.length - 1) {
   return [
     head(s.callsign, `MISSION ${n}`, lvl(levelAt(s.difficulty ?? LEVELS, n))),
     [opShort(m.op), tEn('fac.' + m.faction), tEn('out.' + m.outcome)].join(' | '),
-    [`SCORE ${fmtNum(m.score)}`, `${fmtNum(m.kills || 0)} KILLS`, m.lostH ? `HELLDIVERS LOST ${m.lostH}` : '', bossLine(m)].filter(Boolean).join(' | '),
+    [`SCORE ${fmtNum(m.score)}`, `${fmtNum(m.kills || 0)} KILLS`, m.lostH ? `VANGUARDS LOST ${m.lostH}` : '', bossLine(m)].filter(Boolean).join(' | '),
     `TOTAL ${fmtNum(score)} AFTER ${n} MISSION${n === 1 ? '' : 'S'}`,
   ].join('\n');
 }

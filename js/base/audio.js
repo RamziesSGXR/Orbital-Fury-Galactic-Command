@@ -173,7 +173,7 @@ const KINDS = {
   frv:    { loop: o => { o.eng = osc(o, 'sawtooth', 60, 0.05, 420); hiss(o, 200, 0.04, 0.7, 'lowpass'); }, every: 0.3, tick: (o, t, s) => { if (s.moving && !o.was) tone(110, t, 0.5, { type: 'sawtooth', vol: 0.06, glide: 90, dest: o }); o.was = s.moving; } },
   // a squad in step: left, right, on gravel
   march:  { loop: () => {}, every: 0.52, tick: (o, t) => { for (let i = 0; i < 2; i++) noise(t + i * 0.26, 0.07, { vol: 0.16, freq: 900 + i * 150, q: 1.2, attack: 0.008, dest: o }); } },
-  // the pelican as it flies: a turbine whine over a heavy thrum, loudest low over the pad
+  // the dropship as it flies: a turbine whine over a heavy thrum, loudest low over the pad
   pelican:{ loop: o => { o.eng = osc(o, 'sawtooth', 55, 0.07, 300); osc(o, 'triangle', 1900, 0.006); hiss(o, 420, 0.09, 0.5, 'lowpass'); }, every: 0.12, tick: (o, t) => { noise(t, 0.08, { vol: 0.05, freq: 160, q: 1, attack: 0.03, dest: o }); } },
   tank:   { loop: o => { o.eng = osc(o, 'sawtooth', 30, 0.09, 160); hiss(o, 90, 0.12, 0.7, 'lowpass'); }, tick: (o, t, s) => { if (s.moving) for (let i = 0; i < 4; i++) noise(t + i * 0.1, 0.03, { vol: 0.12, freq: 1300, q: 3, attack: 0.05, dest: o }); }, every: 0.4 },
 };

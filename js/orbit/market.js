@@ -3,7 +3,7 @@
 // Freighters do not come because there are berths. They come because the sector has trade to move through the station: the
 // DEMAND, in crates a minute. Demand grows with the station's standing (its tier), with its REPUTATION (ships served on time
 // raise it; ships kept waiting, turned away or left half unloaded lower it), with a Spire or Operations Centre, and when the
-// station is short of supplies the Ministry sends supply runs on top. Traffic Control's rate order asks the sector for more
+// station is short of supplies the Head Office sends supply runs on top. Traffic Control's rate order asks the sector for more
 // or fewer ships than that.
 //
 // Berths are capacity, not demand. Enough berths serve every ship that comes and keep the reputation up; more than that stand

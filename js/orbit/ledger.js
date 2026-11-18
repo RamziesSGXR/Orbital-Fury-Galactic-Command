@@ -6,7 +6,7 @@ import { C } from './config.js';
 const sum = (xs) => xs.reduce((s, x) => s + x.v, 0);
 const MORALE = { base: 'A quiet station', tax: 'Colonist tax', leisure: 'Bars, markets and parks', power: 'Short of power', unrest: 'Unrest and contraband', faults: 'Faults in living quarters',
   medical: 'Medical care', broadcast: 'Broadcasts', shifts: 'Double shifts', broke: 'The station is in debt', rations: 'No rations', magazines: 'Magazines beside the beds',
-  rationing: 'The rations order', festival: 'Liberty Day' };
+  rationing: 'The rations order', festival: 'Victory Day' };
 
 export function installLedger(Station) {
   Object.assign(Station.prototype, {
@@ -98,7 +98,7 @@ export function installLedger(Station) {
       if (this.tax > M.taxFree) add(`Lower the colonist tax to ${M.taxFree}% (now ${this.tax}%)`, (this.tax - M.taxFree) * M.taxPenalty, `−${Math.round(res * (this.tax - M.taxFree) * C.econ.taxPerPct)} CR a minute`, 'tax');
       else if (this.tax > 0) add(`Lower the colonist tax (now ${this.tax}%)`, this.tax * M.taxBonus, `each point is +${M.taxBonus} morale and −${(res * C.econ.taxPerPct).toFixed(0)} CR a minute`);
       const F = M.festival, fc = this.canCelebrate();
-      add(`Hold a Liberty Day${fc.ok ? '' : ` (${fc.why.toLowerCase()})`}`, F.gain, `${F.cost} CR, wears off over ${F.days} days, one a week`, fc.ok ? 'festival' : null);
+      add(`Hold a Victory Day${fc.ok ? '' : ` (${fc.why.toLowerCase()})`}`, F.gain, `${F.cost} CR, wears off over ${F.days} days, one a week`, fc.ok ? 'festival' : null);
       const rat = o.supply.order.rations || 'normal';
       if (rat === 'short') add('Go back to standard rations', -M.ration.short[0], 'rations go twice as fast as now', 'rations1');
       else if (rat === 'normal' && !mp.rations) add('Issue double rations', M.ration.double[0], 'rations go twice as fast', 'rations2');
@@ -108,7 +108,7 @@ export function installLedger(Station) {
       if (o.truth.order.broadcast !== 'patriotic') add('Broadcast the Patriotic Hour', Math.min(8, 2 + 2 * this.broadcast), o.truth.order.broadcast === 'recruitment' ? 'shuttles come at their usual rate' : 'no cost', 'patriotic');
       else if (this.broadcast < 3) add('Open another Truth Office', 2, 'each adds 2 to the Patriotic Hour, up to +8');
       const room = M.leisureMax - Math.max(-10, this.leisure);
-      if (room > 0) add('Build somewhere to spend an evening', Math.min(room, 3), `Liberty Lounge +3, Mess Hall, Observation Lounge and Recreation Deck +2 each (now ${Math.round(this.leisure)} of ${M.leisureMax})`);
+      if (room > 0) add('Build somewhere to spend an evening', Math.min(room, 3), `Victory Lounge +3, Mess Hall, Observation Lounge and Recreation Deck +2 each (now ${Math.round(this.leisure)} of ${M.leisureMax})`);
       const bunks = this.roomCount('bunks'); if (bunks) add(`Turn ${bunks > 1 ? `${bunks} Bunk Rooms` : 'the Bunk Room'} into Quarters`, bunks, 'half the beds');
       if (mp.faults) add('Mend the faults in living quarters', -mp.faults, this.staff.engineer ? 'engineers are on it: more of them is faster' : 'no engineers on duty: raise Maintenance\'s spare parts');
       if (mp.unrest < -0.5) {
@@ -116,7 +116,7 @@ export function installLedger(Station) {
         add(`Declare a contraband amnesty${am.ok ? '' : ` (${am.why.toLowerCase()})`}`, -mp.unrest / 2, `${C.morale.amnesty.cost} CR, halves the unrest at once`, am.ok ? 'amnesty' : null);
         if (!this.roomCount('customs')) add('Fit a Customs Scanner near the berths', -mp.unrest * 0.3, `${C.rooms.customs.cost} CR: stops 6 smuggled loads in 10 from then on, with no staff`);
         if (this.staff.officer && !every) add('Inspect every ship', -mp.unrest * 0.3, 'officers catch every smuggler at bays near them; unloading waits a little', 'checks');
-        else if (!this.staff.officer && this.partOpen && C.rooms.secoffice.tier <= this.tier) add('Put Democracy Officers on duty', -mp.unrest * 0.3, 'a Security Office near the berths: they catch smugglers and calm the habs faster');
+        else if (!this.staff.officer && this.partOpen && C.rooms.secoffice.tier <= this.tier) add('Put Brand Officers on duty', -mp.unrest * 0.3, 'a Security Office near the berths: they catch smugglers and calm the habs faster');
       }
       if (mp.magazines) add('Move the magazines away from the beds', -mp.magazines, 'or the beds away from the magazines');
       return out.filter((w) => w.gain > 0.4).sort((a, b) => (!!b.do - !!a.do) || b.gain - a.gain);

@@ -34,7 +34,7 @@ export function makeMats(f) {
     pelican: std('#4c5550', { metalness: 0.35, roughness: 0.6 }), olive: std('#4d5638', { metalness: 0.3, roughness: 0.7 }), oliveDark: std('#33392a', { metalness: 0.3, roughness: 0.7 }), lift: std('#e0b21c'), crate: std('#5d6a3e'), scaffold: new THREE.LineBasicMaterial({ color: '#ffd21f', transparent: true, opacity: 0.8 }),
   };
   m.seflag = seFlagMat(); m.hdbanner = hdBannerMat();
-  m.signBurger = signMat('BIG LIBERTY BURGER', '#c0392b', '#ffe600'); m.signChicken = signMat('PATRIOT CLUCKS', '#1d3f8a', '#ffffff'); m.signCola = signMat('BUREAU COLA & FRIES', '#5a2a7a', '#ffd21f'); m.flag = flagMat(f, logo); m.banner = bannerMat(f); m.bill = billMat(f); m.tex = [logo, m.flag.map, m.banner.map, m.bill.map];
+  m.signBurger = signMat('BIG VICTORY BURGER', '#c0392b', '#ffe600'); m.signChicken = signMat('PATRIOT CLUCKS', '#1d3f8a', '#ffffff'); m.signCola = signMat('BUREAU COLA & FRIES', '#5a2a7a', '#ffd21f'); m.flag = flagMat(f, logo); m.banner = bannerMat(f); m.bill = billMat(f); m.tex = [logo, m.flag.map, m.banner.map, m.bill.map];
   m.potty = std('#3d7fb0'); m.pottyRoof = std('#e8ecef'); m.grime = new THREE.MeshBasicMaterial({ color: '#3a2a12', transparent: true, opacity: 0, depthWrite: false });
   // construction standards and engineers (0.13)
   m.canvas = std('#7d7556', { roughness: 0.95 }); m.canvasDark = std('#5a5440', { roughness: 0.95 }); m.gravel = std('#857c6a', { roughness: 1 });
@@ -43,14 +43,14 @@ export function makeMats(f) {
   m.engSuit = std('#5d6046'); m.hardhat = std('#e8b81a', { roughness: 0.5 }); m.vest = std('#ff7a1a', { emissive: '#ff5a00', emissiveIntensity: 0.15 }); m.cross = std('#c8241e');
   return m;
 }
-// The Helldivers banner: an original design for this fan game, a yellow helmet on black over hazard stripes.
+// The Vanguards banner: an original design for this fan game, a yellow helmet on black over hazard stripes.
 function hdBannerMat() {
   const c = document.createElement('canvas'); c.width = 192; c.height = 384; const g = c.getContext('2d');
   g.fillStyle = '#141414'; g.fillRect(0, 0, 192, 384);
   for (let i = -4; i < 12; i++) { g.fillStyle = i % 2 ? '#141414' : '#ffd21f'; g.beginPath(); g.moveTo(i * 24, 384); g.lineTo(i * 24 + 24, 384); g.lineTo(i * 24 + 64, 330); g.lineTo(i * 24 + 40, 330); g.fill(); }
   g.fillStyle = '#ffd21f'; g.beginPath(); g.arc(96, 150, 52, Math.PI, 0); g.lineTo(148, 175); g.lineTo(44, 175); g.closePath(); g.fill();
   g.fillStyle = '#141414'; g.beginPath(); g.roundRect(56, 128, 80, 18, 6); g.fill();
-  g.fillStyle = '#ffd21f'; g.font = 'bold 22px ui-monospace, Menlo, Consolas, monospace'; g.textAlign = 'center'; g.fillText('HELLDIVERS', 96, 240);
+  g.fillStyle = '#ffd21f'; g.font = 'bold 22px ui-monospace, Menlo, Consolas, monospace'; g.textAlign = 'center'; g.fillText('VANGUARDS', 96, 240);
   g.fillRect(30, 256, 132, 4); g.fillRect(30, 30, 132, 4);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   return new THREE.MeshStandardMaterial({ map: t, side: THREE.DoubleSide, roughness: 0.9 });
@@ -62,7 +62,7 @@ function signMat(text, bg, fg) {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   return new THREE.MeshStandardMaterial({ map: t, emissiveMap: t, emissive: '#ffffff', emissiveIntensity: 0.45, roughness: 0.6 });
 }
-// The Super Earth flag: an original design for this fan game, a golden globe with wings on deep blue.
+// The Head Office flag: an original design for this fan game, a golden globe with wings on deep blue.
 function seFlagMat() {
   const c = document.createElement('canvas'); c.width = 384; c.height = 256; const g = c.getContext('2d');
   g.fillStyle = '#16244f'; g.fillRect(0, 0, 384, 256);
@@ -138,7 +138,7 @@ function flagCloth(g, mat, w, h, x, y, z) {
   const m = add(g, geo, mat, x, y, z); m.userData.wave = { w, base: geo.attributes.position.array.slice() };
   return m;
 }
-// A storey in the Super Earth city style: pale concrete panels on a dark plinth, a recessed band of windows, a trim band in
+// A storey in the Head Office city style: pale concrete panels on a dark plinth, a recessed band of windows, a trim band in
 // colour round the top and a dark roof lip. y0: the height of its floor. bays: window panes across the front
 function block(g, m, w, h, d, x, y0, z, trim = m.prim, bays = 4) {
   box(g, w + 0.06, 0.1, d + 0.06, m.trim, x, y0 + 0.05, z);
@@ -378,7 +378,7 @@ const MAKE = {
     cyl(g, 0.02, 0.025, 1.5, m.steel, 0.6, 1.6, -0.6); for (const y of [1.9, 2.1, 2.3]) box(g, 0.3, 0.015, 0.015, m.steel, 0.6, y, -0.6); ball(g, 0.04, m.glowR, 0.6, 2.36, -0.6);
     sandbags(g, m, 0, 0.75, 1.4);
   },
-  comms(g, m) {   // a lattice mast with red warning lights, like the ones over every Super Earth city
+  comms(g, m) {   // a lattice mast with red warning lights, like the ones over every Head Office city
     slab(g, m, 2, 2);
     box(g, 0.8, 0.5, 0.6, m.wall, -0.45, 0.28, 0.45); box(g, 0.84, 0.05, 0.64, m.prim, -0.45, 0.55, 0.45); box(g, 0.5, 0.1, 0.02, m.window, -0.45, 0.35, 0.76);
     const H = 3.6;
@@ -481,7 +481,7 @@ const MAKE = {
     for (const x of [-0.9, 0.9]) box(g, 0.45, 0.06, 0.15, m.stone, x, 0.15, 0.87);
   },
   // ---------------------------------------------------------------- Fort Sanctuary
-  plaque(g, m) {   // a dark stone slab holding a lens of Illuminate glass, the poem lit inside it
+  plaque(g, m) {   // a dark stone slab holding a lens of Talon glass, the poem lit inside it
     slab(g, m, 2, 1);
     box(g, 1.5, 0.12, 0.5, m.stone, 0, 0.14, 0); box(g, 1.3, 0.85, 0.16, m.stone, 0, 0.62, -0.05);
     box(g, 1.08, 0.62, 0.04, m.glowB, 0, 0.64, 0.04); box(g, 1.14, 0.03, 0.06, m.gold, 0, 0.97, 0.03); box(g, 1.14, 0.03, 0.06, m.gold, 0, 0.31, 0.03);
@@ -628,7 +628,7 @@ const MAKE = {
     box(g, 0.9, 0.16, 0.04, m.dark, 0, 1.0, 0.47); box(g, 0.8, 0.09, 0.02, m.glowY, 0, 1.0, 0.5);
     for (const x of [-0.35, 0.35]) box(g, 0.25, 0.25, 0.25, m.sand, x, 0.15, 0.75);
   },
-  monument(g, m) {   // the Helldiver salute: a fist at chin height on a vertical forearm, in bronze, on a stepped plinth
+  monument(g, m) {   // the Vanguard salute: a fist at chin height on a vertical forearm, in bronze, on a stepped plinth
     slab(g, m, 2, 2, m.stone);
     box(g, 1.5, 0.25, 1.5, m.stone, 0, 0.15, 0); box(g, 1.1, 0.5, 1.1, m.concrete, 0, 0.52, 0); box(g, 1.15, 0.05, 1.15, m.gold, 0, 0.8, 0);
     box(g, 0.34, 1.7, 0.34, m.bronze, 0, 1.68, 0);
@@ -987,12 +987,12 @@ export function mergeStatic(root) {
 
 // ---------------------------------------------------------------- people and vehicles
 export function makePerson(m, kind = 'troop') {
-  const hd = kind === 'hd', civ = kind.startsWith('civ'), eng = kind === 'eng';   // engineers: coveralls, a hard hat and a hi-vis vest   // Helldivers: black and gold with a cape. Citizens: pressed, approved work clothes
+  const hd = kind === 'hd', civ = kind.startsWith('civ'), eng = kind === 'eng';   // engineers: coveralls, a hard hat and a hi-vis vest   // Vanguards: black and gold with a cape. Citizens: pressed, approved work clothes
   const g = new THREE.Group(), body = kind === 'inspector' ? m.coat : hd ? m.hdArmour : civ ? m[kind] : eng ? m.engSuit : m.uniform;
   const helmet = hd ? m.hdArmour : eng ? m.hardhat : m.helmet;
   const leg = (x) => { const p = new THREE.Group(); p.position.set(x, 0.2, 0); g.add(p); box(p, 0.05, 0.2, 0.06, m.boots, 0, -0.1, 0); return p; };
   // an arm is a shoulder joint with the upper arm, and an elbow joint with the forearm and a clenched fist,
-  // so poses like the Helldiver salute (fist at the chin, forearm upright) are possible
+  // so poses like the Vanguard salute (fist at the chin, forearm upright) are possible
   const arm = (x) => {
     const p = new THREE.Group(); p.position.set(x, 0.38, 0); g.add(p);
     box(p, 0.045, 0.09, 0.05, body, 0, -0.045, 0);
@@ -1047,7 +1047,7 @@ export function makeTruck(m) {
   for (const [x, z] of [[-0.18, 0.28], [0.18, 0.28], [-0.18, -0.1], [0.18, -0.1], [-0.18, -0.28], [0.18, -0.28]]) cyl(g, 0.07, 0.07, 0.06, m.rubber, x, 0.07, z, { rz: Math.PI / 2, seg: 10 });
   return g;
 }
-export function makeFRV(m) {   // fast recon vehicle: open frame, roll cage, a mounted gun
+export function makeLRV(m) {   // fast recon vehicle: open frame, roll cage, a mounted gun
   const g = new THREE.Group();
   box(g, 0.36, 0.1, 0.7, m.olive, 0, 0.16, 0); box(g, 0.34, 0.08, 0.2, m.oliveDark, 0, 0.24, 0.24);
   for (const x of [-0.15, 0.15]) { box(g, 0.025, 0.24, 0.025, m.steel, x, 0.33, 0.05); box(g, 0.025, 0.2, 0.025, m.steel, x, 0.31, -0.25); box(g, 0.025, 0.025, 0.32, m.steel, x, 0.45, -0.1); }
@@ -1070,7 +1070,7 @@ export function makeTank(m) {
 export function makeCrate(m) {
   const g = new THREE.Group(); box(g, 0.3, 0.26, 0.3, m.crate, 0, 0.13, 0); box(g, 0.31, 0.05, 0.31, m.hazard, 0, 0.19, 0); return g;
 }
-export function makePelican(m) {
+export function makeDropship(m) {
   const g = new THREE.Group();
   box(g, 0.8, 0.65, 2.3, m.pelican, 0, 0.75, 0); box(g, 0.7, 0.45, 0.5, m.glass, 0, 0.85, 1.25, { rx: 0.3 });
   box(g, 0.35, 0.3, 1.4, m.pelican, 0, 0.95, -1.7); box(g, 0.06, 0.6, 0.6, m.pelican, 0, 1.3, -2.25);

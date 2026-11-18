@@ -19,7 +19,7 @@ const TW = 512, TH = 256;
 let MARS = null;
 const texture = (kind) => (kind === 'fronteria' || kind === 'desert' ? fronteriaTexture() : TINTS[kind] ? tintedTexture(kind) : marsTexture());
 // (0.53) The campaign's other worlds, from the dune world's picture recoloured by brightness (dark, mid, bright): the glacier
-// world, the jungle world, and Super Earth (seas, green land and grey cities).
+// world, the jungle world, and Head Office (seas, green land and grey cities).
 const TINTS = { ice: [[40, 70, 110], [150, 185, 215], [240, 248, 255]], jungle: [[10, 50, 40], [40, 120, 60], [150, 200, 110]], city: [[20, 60, 130], [80, 130, 80], [180, 180, 175]] };
 const TINTED = {};
 function tintedTexture(kind) {
@@ -174,7 +174,7 @@ function drawPlanet(cv, D, spin, burn, now, kind = 'mars', night = false) {
   ctx.putImageData(img, 0, 0);
 }
 
-// ---------------------------------------------------------------- the Great Host's ships: (0.53.5) the Illuminate's jellyfish,
+// ---------------------------------------------------------------- the Great Host's ships: (0.53.5) the Talon's jellyfish,
 // side-on as in the project lead's sketch (render/jelly.js). s: the old ships' scale (they were 2.4 s long): the cap is 1.6 s across.
 function drawShip(ctx, x, y, s, ang, glow, now, dark = false) {
   ctx.save(); ctx.translate(x, y); ctx.rotate(ang * 0.5);
@@ -186,7 +186,7 @@ const shipTipY = (y, s) => y - s * 0.5 + s * 1.6 * 0.98;      // where its tendr
 // ---------------------------------------------------------------- (0.27.1) the squad's destroyer, drawn from the project lead's
 // side-view sketch: a black armoured drive block with two inset panels and a bright blue light line down its face, twin blue
 // exhausts on a stern stub, a long black upper hull with blue light lines along it riding on a grey lower hull, a mast, a spinal gun
-// out past the bow, and gun mounts underneath. Seen side-on, nose to +x; one unit is the scale s. accent: its Helldiver's colour
+// out past the bow, and gun mounts underneath. Seen side-on, nose to +x; one unit is the scale s. accent: its Vanguard's colour
 // (the mast's beacon).
 const BLUE = '#35d4ff';
 function drawDestroyer(ctx, x, y, s, ang, now, glow = 1, accent = null) {
@@ -248,7 +248,7 @@ function drawDestroyer(ctx, x, y, s, ang, now, glow = 1, accent = null) {
     for (let vy = py0 + 0.03; vy < py0 + ph - 0.01; vy += 0.03) { ctx.beginPath(); ctx.moveTo(-1.1, vy); ctx.lineTo(-0.57, vy); ctx.stroke(); }
   }
   lit(-0.52, -0.257, 0.037, 0.526);
-  // its Helldiver's colour, on the mast
+  // its Vanguard's colour, on the mast
   if (accent) {
     ctx.save(); ctx.shadowColor = accent; ctx.shadowBlur = Math.max(4, 0.05 * s);
     ctx.fillStyle = accent; ctx.globalAlpha = 0.55 + 0.45 * (0.5 + 0.5 * Math.sin(now * 3 + x * 0.01));
@@ -260,7 +260,7 @@ function drawDestroyer(ctx, x, y, s, ang, now, glow = 1, accent = null) {
   ctx.fillStyle = !blink ? 'rgba(120,255,160,1)' : 'rgba(40,110,60,0.6)'; ctx.fillRect(-1.17, -0.285, 0.02, 0.02);
   ctx.restore();
 }
-function drawPelican(ctx, x, y, s, ang) {
+function drawDropship(ctx, x, y, s, ang) {
   ctx.save(); ctx.translate(x, y); ctx.rotate(ang); ctx.scale(s, s);
   const g = ctx.createRadialGradient(-0.9, 0, 0, -0.9, 0, 0.8);
   g.addColorStop(0, 'rgba(210,255,230,0.9)'); g.addColorStop(1, 'rgba(80,255,170,0)');
@@ -405,8 +405,8 @@ export class Cinema {
       ctx.strokeStyle = `rgba(170,120,255,${a * 0.35})`; ctx.lineWidth = this.dpr; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 26 * this.dpr, y); ctx.stroke();
     }
   }
-  // (0.27) A campaign chapter: Fronteria turning below, the squad's destroyers over it. Briefing: hellpods streak down from its
-  // belly. A win: pelicans climb back up to it, and the colony's signal fires (the Ember Line) still burn. A loss: the fires
+  // (0.27) A campaign chapter: Fronteria turning below, the squad's destroyers over it. Briefing: drop pods streak down from its
+  // belly. A win: dropships climb back up to it, and the colony's signal fires (the Ember Line) still burn. A loss: the fires
   // spread and the destroyer pulls away.
   _camp(ctx, t, now, W, H, M) {
     const o = this.opts || {}, mood = o.mood || 'brief', night = !!o.night, short = H / this.dpr < 520, dt = 1 / 60;
@@ -419,12 +419,12 @@ export class Cinema {
     if (mood === 'brief') { dx = W * (0.12 + 0.2 * ease(clamp01(t / 6))); dy = H * 0.26; }
     else if (mood === 'win') { dx = W * 0.3; dy = H * 0.22 + Math.sin(t * 0.5) * 4 * this.dpr; }
     else { dx = W * (0.4 - 0.3 * k); dy = H * (0.26 - 0.12 * k); ds = sc * (1 - 0.45 * k); da = Math.PI - 0.1 - 0.2 * k; }      // (turned for home)
-    // (0.27.1) four destroyers in orbit, one for each Helldiver, in their colours: the lead (A) nearest, the others behind it
+    // (0.27.1) four destroyers in orbit, one for each Vanguard, in their colours: the lead (A) nearest, the others behind it
     const fleet = FLEET.map((f, i) => {
       const k2 = mood === 'lose' ? -1 : 1;      // (turned for home: the formation mirrored)
       return { i, x: dx + f.ox * ds * k2, y: dy + f.oy * ds, s: ds * f.s, a: da, col: TEAM_COLOR[i] };
     });
-    // hellpods (briefing): from one of the destroyers' bellies to the lit face of the planet, a flash where each lands
+    // drop pods (briefing): from one of the destroyers' bellies to the lit face of the planet, a flash where each lands
     if (mood === 'brief') {
       this.podT -= dt;
       if (this.podT <= 0 && t > 2 && t < this.dur - 3) {
@@ -447,7 +447,7 @@ export class Cinema {
         ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x2, p.y2, fr, 0, TAU); ctx.fill();
       }
     }
-    // pelicans (a win): up from the surface to the destroyer
+    // dropships (a win): up from the surface to the destroyer
     if (mood === 'win') {
       this.pelT -= dt;
       if (this.pelT <= 0 && t < this.dur - 2.5) {
@@ -458,7 +458,7 @@ export class Cinema {
       this.pels = this.pels.filter((p) => now - p.t0 < p.dur);
       for (const p of this.pels) {
         const sh = fleet[p.to || 0], f = ease(clamp01((now - p.t0) / p.dur)), x = p.x1 + (sh.x - p.x1) * f, y = p.y1 + (sh.y + sh.s * 0.1 - p.y1) * f;
-        drawPelican(ctx, x, y, M * 0.028 * (1.1 - 0.5 * f), Math.atan2(sh.y - p.y1, sh.x - p.x1));      // (smaller as it climbs away)
+        drawDropship(ctx, x, y, M * 0.028 * (1.1 - 0.5 * f), Math.atan2(sh.y - p.y1, sh.x - p.x1));      // (smaller as it climbs away)
       }
     }
     for (let i = fleet.length - 1; i >= 0; i--) { const sh = fleet[i]; drawDestroyer(ctx, sh.x, sh.y, sh.s, sh.a, now, mood === 'lose' ? 1 : 0.9, sh.col); }

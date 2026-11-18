@@ -1,6 +1,6 @@
 // One mission = one game loop on one map. DOM-free and deterministic for a given seed.
-// The player runs the destroyer: a UAV scan, orbital stratagems from the armory, and SEAF pods and orders.
-// The four Helldivers (one per stratagem group) fight on their own and are reinforced automatically from a pool of lives.
+// The player runs the destroyer: a UAV scan, orbital call-ins from the armory, and Infantry pods and orders.
+// The four Vanguards (one per call-in group) fight on their own and are reinforced automatically from a pool of lives.
 import { buildCostMul } from '../data/perks.js';
 import { solids, keepOut } from './solids.js';
 import { setupSite, updateSite, costSiteMul } from './sites.js';
@@ -16,7 +16,7 @@ import { newKit, newWallet, seafStats, maxLives, zoneExtra, buy, equip, loadoutI
 import { seafName } from '../data/names.js';
 import { updateSquad } from './squad.js';
 import { setupDefenders } from './defenders.js';
-import { initSeaf, busyWith, targetSquads, setSquadOrder, drawOrder, callPelican, pendingTroops, dropSquad, callCargo, boxSelect, setForm, pickTroops, toSquad, disband, PICKED, LOOSE, takePelican, backCut, seafHeld, makeLz, lzCount, selectSquads as seafSelectSquads, mergeSquads as seafMergeSquads } from './seaf.js';
+import { initSeaf, busyWith, targetSquads, setSquadOrder, drawOrder, callDropship, pendingTroops, dropSquad, callCargo, boxSelect, setForm, pickTroops, toSquad, disband, PICKED, LOOSE, takeDropship, backCut, seafHeld, makeLz, lzCount, selectSquads as seafSelectSquads, mergeSquads as seafMergeSquads } from './seaf.js';
 import { updatePosts, updateSam, garrisonPost, releaseGarrison, POSTS, makePost, INSIDE, foxSize, GARRISON, demolish, chains, chainPlan, wallShape, removePost, onEnemy, buildFoot, inCone } from './posts.js';
 import { updateEnemies, updateAllies } from './enemies.js';
 import { updateDirector, alertBase, detectR } from './director.js';
@@ -33,7 +33,7 @@ import { setupPois, updatePois, damagePoi, damageBreach } from './pois.js';
 import { setupCover } from './cover.js';
 import { setupScenery, placeMarks } from './scenery.js';
 import { updateChatter } from './chatter.js';
-import { initKit, updateHelldivers } from './helldiver.js';
+import { initKit, updateVanguards } from './helldiver.js';
 import { buildDanger, updateEvade, inDanger } from './safety.js';
 import { getTerrain } from './terrain.js';
 import { domeBlocks } from './ops.js';
@@ -89,7 +89,7 @@ const STAGES = [
   ['bridges', (m) => { if (m.bridgeQ.length) m._bridges(); }],
   ['plan', updatePlan],
   ['squad', updateSquad],
-  ['helldivers', updateHelldivers],
+  ['helldivers', updateVanguards],
   ['evade', updateEvade],
   ['allies', updateAllies],
   ['enemies', updateEnemies],
@@ -117,9 +117,9 @@ export class Mission {
   constructor(opts) {
     // The session's difficulty (difficulty.js): applied before anything reads the numbers it scales. 10 when not given.
     this.difficulty = clampAny(opts.difficulty ?? LEVELS);
-    this.noDefenders = opts.defenders === false;      // (0.18: tests turn the SEAF already at the site off)
+    this.noDefenders = opts.defenders === false;      // (0.18: tests turn the Infantry already at the site off)
     this.forceJam = opts.jammer === true;              // (0.38) a campaign chapter wants a jammer site on the map
-    this.noHbSides = opts.hellbombSides === false;     // (0.38) ...or none of the Hellbomb's side jobs yet (no jammer; towers fall to guns)
+    this.noHbSides = opts.hellbombSides === false;     // (0.38) ...or none of the Demolition Charge's side jobs yet (no jammer; towers fall to guns)
     applyDifficulty(this.difficulty);
     this.reward = reward(this.difficulty);     // credits and score multiplier
     this.opDone = Math.max(0, opts.opDone || 0);                                // (0.40) missions already done in this operation
@@ -170,12 +170,12 @@ export class Mission {
     // Credits earned this mission. They go straight into the wallet so the armory can spend them mid-mission.
     this.cr = { kills: 0, bases: 0, pois: 0, breaches: 0, objective: 0, extraction: 0, drops: 0, civ: 0, boss: 0, sides: 0, total: 0, start: this.wallet.bal, spent0: this.wallet.spent };
     this.combo = { mult: 1, last: -99 };
-    this.deaths = [];     // the death report: every Helldiver and SEAF who fell, in order
+    this.deaths = [];     // the death report: every Vanguard and Infantry who fell, in order
 
     this.enemies = []; this.groups = []; this.allies = []; this.alive = []; this.hdAlive = []; this.seafAlive = [];
     this.shells = []; this.beams = []; this.bridgeQ = []; this.markers = []; this.pods = []; this.pelicans = []; this.incoming = []; this.uavs = []; this.relays = []; this.spotters = []; this.bubbles = []; this.evading = false; this.hellbomb = null;
     this.assets = []; this.zones = []; this.civs = [];
-    this.crates = []; this.arty = []; this.posts = []; this.trenches = [];   // supply crates SEAF deploy into defences; artillery cannons; everything SEAF built (posts.js)
+    this.crates = []; this.arty = []; this.posts = []; this.trenches = [];   // supply crates Infantry deploy into defences; artillery cannons; everything Infantry built (posts.js)
     this.pois = []; this.breaches = [];
     this.locked = [];                      // enemies that have given themselves away long enough to be hit from orbit
     this.radar = { nextAt: 3, at: -99, blips: [], n: 0 };   // the UAV's radar sweeps
@@ -184,7 +184,7 @@ export class Mission {
     initBoss(this, opts);
     initAlert(this, opts);
     this.eGrid = new Grid(SIZE, 40); this.aGrid = new Grid(SIZE, 40); this.tGrid = new Grid(SIZE, 40);
-    this.cx = 0; this.cy = 0; // centroid of the Helldivers (or of everyone if none are alive)
+    this.cx = 0; this.cy = 0; // centroid of the Vanguards (or of everyone if none are alive)
     this.hx = 0; this.hy = 0;
     this.dirtyE = false; this.dirtyA = false;
     this.pressure = Math.max(C.pressure.floor, C.pressure.start + C.pressure.perSessionMin * this.W);
@@ -297,35 +297,35 @@ export class Mission {
     setupCover(this);
     setupScenery(this);     // (0.59) rocks, trees, grass and the enemy's marks
 
-    // Points of interest SEAF can take out for credits.
+    // Points of interest Infantry can take out for credits.
     setupPois(this);
 
-    // Squad anchor (Helldivers only).
+    // Squad anchor (Vanguards only).
     this.squad = { ax: this.lz.x, ay: this.lz.y, base: null, state: 'advance', engaged: false, holdT: 0, hpAt: 0, pushed: false,
       setupT: 0, setupCool: 4, free: true, spotG: null, attackT: 0, formed: false, dir: 0, goalDist: 999 };
 
-    // Four groups of three stratagems and a ship for each. Typed ship names win over the random ones.
+    // Four groups of three call-ins and a ship for each. Typed ship names win over the random ones.
     initStrat(this, opts.loadout || rollLoadout(this.seed), !!opts.keepOrder);
     this.teams.forEach((tm, i) => { if (this.names.ships[i]) tm.ship = this.names.ships[i]; });
 
     // The player's kit: UAV, orbital slots and the nuke.
     initPlayer(this);
 
-    // One Helldiver per group drops in from the destroyer.
+    // One Vanguard per group drops in from the destroyer.
     this.teams.forEach((tm, i) => {
       const ang = (i / this.teams.length) * Math.PI * 2 + Math.PI / 4;
       tm.pod = true;
       this.pods.push({ type: 'H', team: i, n: 1, landAt: (opts.countdown || 0) + C.helldivers.initialDropSec + 0.5 * i, x: this.lz.x + Math.cos(ang) * 11, y: this.lz.y + Math.sin(ang) * 11, start: true });
     });
 
-    // Side missions and SEAF drop beacons.
+    // Side missions and Infantry drop beacons.
     setupSides(this);
     setupSite(this);     // (0.52) the work site
 
     // Every base's patrols are already out on their routes.
     initPatrols(this);
     initPlan(this);
-    // (0.18) now and then SEAF are already holding the site the Helldivers are heading for
+    // (0.18) now and then Infantry are already holding the site the Vanguards are heading for
     setupDefenders(this);
     this.countdown = opts.countdown || 0; this.dropAt = this.countdown + C.helldivers.initialDropSec;    // (0.18) the drop countdown
     if (opts.lastStand) setupLastStand(this);
@@ -337,7 +337,7 @@ export class Mission {
   setAim(x, y) { this.player.aimX = aoX(this, x); this.player.aimY = aoY(this, y); }
   setFiring(b) { this.player.firing = !!b; }
   fire() { this.player.firePress = true; }   // one press, even if the button is released again before the next tick
-  // (0.53.2) EAGLE REARM: the Eagle flies back to rearm now, every Eagle stratagem coming back full ({ ok } or { ok: false, reason })
+  // (0.53.2) STRIKER REARM: the Striker flies back to rearm now, every Striker call-in coming back full ({ ok } or { ok: false, reason })
   eagleRearm() {
     if (this.over) return { ok: false, reason: 'over' };
     const r = eagleRearm(this);
@@ -361,13 +361,13 @@ export class Mission {
   }
   pendingPods(type) { if (type === 'S') return pendingTroops(this); let n = 0; for (const p of this.pods) if (p.type === type) n += p.n; return n; }
 
-  // Call a SEAF drop. A troop pelican flies it in; it has to land inside the strike zone. The troops join the selected squad.
+  // Call an Infantry drop. A troop dropship flies it in; it has to land inside the strike zone. The troops join the selected squad.
   // (0.27.3) opts.hold: a squad of its own waits for orders where it lands (see dropHold); false keeps the old way (it goes
   // straight off to clear the nearest objective: the test bot plays like that)
   callSeaf(x, y, opts = {}) {
     const sf = this.seaf, st = seafStats(this.kit);
     if (this.over) return { ok: false, reason: 'over' };
-    // (0.18) before the Helldivers are down (the start, on the tactical screen) the landing zone takes a drop
+    // (0.18) before the Vanguards are down (the start, on the tactical screen) the landing zone takes a drop
     const atLz = this.earlyLz(x, y);
     if (!this.alive.length && !atLz) return this._deny(this.earlyDrop() ? 'nearlz' : 'noallies');     // (0.53.6: early, say where)
     const bc = beaconAt(this, x, y);
@@ -379,20 +379,20 @@ export class Mission {
     const room = Math.max(0, st.max - seafHeld(this)) + sf.reserve.length;
     if (room <= 0) return this._deny('full');
     const n = Math.min(st.drop, room), back = Math.min(n, sf.reserve.length);
-    // (0.39: one of the hangar's pelicans, shared with pickups; 0.40: troopers coming back down make its turnaround shorter, and
+    // (0.39: one of the hangar's dropships, shared with pickups; 0.40: troopers coming back down make its turnaround shorter, and
     // those it cannot carry stay aboard for the next one)
-    if (takePelican(this, backCut(this, back)) < 0) return this._deny('cooldown');
+    if (takeDropship(this, backCut(this, back)) < 0) return this._deny('cooldown');
     const squad = dropSquad(this, x, y);
     const fresh = !this.seafAlive.some((a) => a.sq === squad) && !this.pelicans.some((p) => p.squad === squad);
-    callPelican(this, x, y, n, squad, fresh && opts.hold !== false);
+    callDropship(this, x, y, n, squad, fresh && opts.hold !== false);
     this.stats.seafCalls++;
     this.radio(COMMS.seafDrop, 'seafDrop', 0);
     this.emit('pod_call', { type: 'S', x, y, n, back });
     return { ok: true, n, squad, back };
   }
 
-  // (0.39) PICKUP: a pickup point at (x, y), anywhere in the strike zone (or at a lit drop beacon). If SEAF are already standing
-  // there a pelican comes for them as soon as one is ready; if not, it waits like a building for troops to be sent to it
+  // (0.39) PICKUP: a pickup point at (x, y), anywhere in the strike zone (or at a lit drop beacon). If Infantry are already standing
+  // there a dropship comes for them as soon as one is ready; if not, it waits like a building for troops to be sent to it
   // (seafMan). One already close by is used instead of a second.
   callPickup(x, y) {
     if (this.over) return { ok: false, reason: 'over' };
@@ -411,7 +411,7 @@ export class Mission {
     this.emit('lz_call', { x: lz.x, y: lz.y, n });
     return { ok: true, lz, n };
   }
-  // (0.39) The squads picked (every one of them) go to a pickup point and wait in it for the pelican.
+  // (0.39) The squads picked (every one of them) go to a pickup point and wait in it for the dropship.
   seafToLz(lz) {
     if (this.over || !lz || lz.dead) return { ok: false, reason: 'over' };
     const sq = targetSquads(this).filter((q) => q.n > 0);
@@ -437,8 +437,8 @@ export class Mission {
   }
   // Send the selected squad (one squad: the selected one, or the nearest to the spot when all are selected) to build at (x, y)
   // (posts.js lists what can be built). Paid for when it is ordered; there is no limit on how many. The foxhole is free and dug
-  // on the spot (0.39.2: and so is concertina wire); everything else comes down as a crate from a cargo pelican.
-  // (0.39) opts: { face (which way it faces: turned before it was put down; default away from the Helldivers' landing), shape
+  // on the spot (0.39.2: and so is concertina wire); everything else comes down as a crate from a cargo dropship.
+  // (0.39) opts: { face (which way it faces: turned before it was put down; default away from the Vanguards' landing), shape
   // ('line' for a line of bastions) }. Concertina wire carries on from a free end of wire near the spot (posts.js wirePlan).
   // (0.62.13) What a build costs now: its level's price (less the Engineering Corps commendation and a worked salvage yard), and
   // C.build.moreEach (10%) more for every one of its kind already standing or paid for and on its way (a crate, a bridge coming
@@ -496,7 +496,7 @@ export class Mission {
     if (!crate && what === 'wire') { crate = { id: this.nextId++, what, x, y, landed: true, used: false, lay: true, prog: 0, born: this.t, face }; this.crates.push(crate); }
     if (!crate) {
       if (this.wallet.bal < st.cost) return this._deny('funds');
-      this.wallet.bal -= st.cost; this.wallet.spent += st.cost;     // paid now: a cargo pelican brings the crate
+      this.wallet.bal -= st.cost; this.wallet.spent += st.cost;     // paid now: a cargo dropship brings the crate
       crate = { id: this.nextId++, what, x, y, landed: false, used: false, prog: 0, born: this.t, span, face, shape, paid: st.cost };
       this.crates.push(crate);
       callCargo(this, x, y, crate);
@@ -624,7 +624,7 @@ export class Mission {
     if (now) this.notice(tr('n.garrison', { n: now, what: p.name.toUpperCase() }), 'info');
     return { ok: true, squad: q.i, now };
   }
-  // The SEAF crew on a post leave their squad and stay with it (they still count toward the troops in the field).
+  // The Infantry crew on a post leave their squad and stay with it (they still count toward the troops in the field).
   garrison(p) {
     if (this.over || !p || p.dead) return { ok: false, reason: 'over' };
     const n = garrisonPost(this, p);
@@ -694,7 +694,7 @@ export class Mission {
     return r;
   }
   get seafPicked() { return this.seaf.sel === PICKED; }
-  // (0.18) DEPLOY NOW: the Helldivers drop at once instead of when the countdown runs out
+  // (0.18) DEPLOY NOW: the Vanguards drop at once instead of when the countdown runs out
   deployNow() {
     if (this.over || !(this.t < this.dropAt - C.helldivers.initialDropSec)) return { ok: false, reason: 'dropping' };
     let k = 0;
@@ -706,7 +706,7 @@ export class Mission {
   // (0.19) the last stand (laststand.js): the evacuation opens; a lesson's group comes at the base
   lsBegin() { return lsBegin(this); }
   lsSpawn(kind, ang) { return lsSpawn(this, kind, ang); }
-  lsJammer() { return lsJammer(this); }     // (0.37) the tutorial's Hellbomb and resupply lessons
+  lsJammer() { return lsJammer(this); }     // (0.37) the tutorial's Demolition Charge and resupply lessons
   lsSupply() { return lsSupply(this); }
   get dropIn() { return Math.max(0, this.dropAt - C.helldivers.initialDropSec - this.t); }
   seafTargets() { return targetSquads(this).filter((q) => q.n > 0); }
@@ -717,7 +717,7 @@ export class Mission {
     const before = this.player ? this.player.slots.map((s, i) => (s.readyAt !== undefined ? slotStats(this, i)?.cd || 0 : 0)) : [];
     const r = buy(this.kit, this.wallet, id, !this.ls, tier);       // (0.26: the tutorial has no between-missions: anything open goes)
     if (!r.ok) { this.emit('deny', { reason: r.reason }); return r; }
-    // (and a new stratagem goes straight into a slot: a free one; with none free, the bar grows a slot, up to five; with five
+    // (and a new call-in goes straight into a slot: a free one; with none free, the bar grows a slot, up to five; with five
     // full, it takes the last one)
     if (this.ls && (id.startsWith('own:') || r.gift)) Object.assign(r, this.slotIn(r.gift || id.slice(4)));
     syncSlots(this);
@@ -732,7 +732,7 @@ export class Mission {
     }
     this.emit('bought', { id });
     this.notice(tr('n.bought', { name: r.item.name.toUpperCase() }), 'good');
-    if (r.gift) this.notice(tr('n.gift', { name: String(r.giftName).toUpperCase() }), 'good');     // (0.31: the Hangar's free Eagle)
+    if (r.gift) this.notice(tr('n.gift', { name: String(r.giftName).toUpperCase() }), 'good');     // (0.31: the Hangar's free Striker)
     return r;
   }
 
@@ -750,8 +750,8 @@ export class Mission {
     return payToward(this.kit, this.wallet, id, amount, !this.ls, tier);
   }
 
-  // (0.47) The tutorial puts a stratagem in a slot: a free one; with none free, the bar grows a slot, up to five; with five full, it
-  // takes the last one. A stratagem it took a slot from can be put back (the tutorial's armory lists it to EQUIP), the same way.
+  // (0.47) The tutorial puts a call-in in a slot: a free one; with none free, the bar grows a slot, up to five; with five full, it
+  // takes the last one. A call-in it took a slot from can be put back (the tutorial's armory lists it to EQUIP), the same way.
   slotIn(sid) {
     const K = this.kit, r = {};
     if (!K.owned[sid]) return { ok: false };
@@ -770,7 +770,7 @@ export class Mission {
     return { ok: true, ...r };
   }
 
-  // Names typed in the menus: a blank ship keeps the random one, a blank Helldiver name goes back to the code (B4).
+  // Names typed in the menus: a blank ship keeps the random one, a blank Vanguard name goes back to the code (B4).
   setNames(names) {
     this.names = { ships: [], hd: [], ...(names || {}) };
     this.teams.forEach((tm, i) => {
@@ -820,7 +820,7 @@ export class Mission {
   }
   // A line on the notice feed: tone is 'good', 'warn', 'bad' or 'info'.
   notice(text, tone = 'info') { this.emit('notice', { text, tone }); }
-  // What an ally is called on screen: a typed Helldiver name, the deployment code (B4), or a SEAF rank and surname.
+  // What an ally is called on screen: a typed Vanguard name, the deployment code (B4), or an Infantry rank and surname.
   tag(a) { return a ? (a.name || a.code || '?') : '?'; }
   shipOf(i) { const t = this.teams[i]; return t ? t.ship : ''; }
   slotTag(team) { return this.names.hd[team.i] || `${team.letter}${team.n + 1}`; }
@@ -847,7 +847,7 @@ export class Mission {
   demolishPost(p) {
     if (this.over) return { ok: false, reason: 'over' };
     if (p && p.what === 'site') return { ok: false, reason: 'nodemo' };     // (0.52) the work site is not ours to blow up
-    if (p && p.what === 'lz') {     // (0.39) a pickup point is called off, not blown up (a pelican on its way still comes)
+    if (p && p.what === 'lz') {     // (0.39) a pickup point is called off, not blown up (a dropship on its way still comes)
       if (p.dead) return { ok: false, reason: 'nodemo' };
       removePost(this, p); this.notice(tr('n.lzOff'), 'info'); this.emit('lz_off', { x: p.x, y: p.y }); return { ok: true, cancelled: true };
     }
@@ -927,7 +927,7 @@ export class Mission {
     const tr = this.terrain;
     const spores = this.sides && this.sides.some((s) => s.kind === 'spore' && !s.done && !s.failed);
     for (const a of this.allies) {
-      if (a.dead || a.hidden) continue;           // hidden SEAF (sides.js) are nobody's until they are found
+      if (a.dead || a.hidden) continue;           // hidden Infantry (sides.js) are nobody's until they are found
       const sm = tr.sightMul(a.x, a.y), spm = spores ? sporeMul(this, a.x, a.y) : 1;     // (0.40: less sight in a spore tower's cloud)
       if (a.down) {     // (0.31) a downed trooper lies low: he sees only what is right round him, and gives the strike zone nothing
         a.sight = a.sight0 * C.medic.downSight; a.vision = a.sight; a.zone = 0;
@@ -936,7 +936,7 @@ export class Mission {
         a.zone = Math.min(a.vision, (a.zone0 ?? a.sight0) * sm + C.sight.playerBonus + zx);     // (0.47) the strike zone sits inside the view
       }
       this.alive.push(a); sx += a.x; sy += a.y;
-      if (a.type === 'H') { this.hdAlive.push(a); hx += a.x; hy += a.y; } else if (!a.pinned) this.seafAlive.push(a);   // pinned SEAF are not the player's (yet)
+      if (a.type === 'H') { this.hdAlive.push(a); hx += a.x; hy += a.y; } else if (!a.pinned) this.seafAlive.push(a);   // pinned Infantry are not the player's (yet)
     }
     if (this.hdAlive.length) { this.hx = hx / this.hdAlive.length; this.hy = hy / this.hdAlive.length; this.cx = this.hx; this.cy = this.hy; }
     else if (this.alive.length) { this.cx = sx / this.alive.length; this.cy = sy / this.alive.length; }
@@ -978,7 +978,7 @@ export class Mission {
   }
   // The strike zone: where the player can call strikes and drops, and where the squad can call its own. It is
   // wider than what anyone can see. UAV circles count as well. extra shrinks (negative) or grows the zone.
-  // (0.18; 0.53.6 one place for it, the drop ghost and the button use it too) until startSec after the Helldivers' drop, a SEAF
+  // (0.18; 0.53.6 one place for it, the drop ghost and the button use it too) until startSec after the Vanguards' drop, an Infantry
   // drop can go anywhere within startR of the landing zone, with nobody on the ground yet
   earlyDrop() { return this.t < (this.dropAt || 0) + C.seaf.startSec; }
   earlyLz(x, y) { return this.earlyDrop() && Math.hypot(x - this.lz.x, y - this.lz.y) <= C.seaf.startR; }
@@ -991,7 +991,7 @@ export class Mission {
     for (const u of this.relays) { const r = u.r + extra, dx = u.x - x, dy = u.y - y; if (dx * dx + dy * dy <= r * r) return true; }
     return false;
   }
-  // The same, but only around living Helldivers (and UAV circles): the squad's own stratagems need this.
+  // The same, but only around living Vanguards (and UAV circles): the squad's own call-ins need this.
   inHdZone(x, y, extra = 0) {
     for (const a of this.hdAlive) {
       const r = a.zone + extra, dx = a.x - x, dy = a.y - y;
@@ -1087,7 +1087,7 @@ export class Mission {
     this.deaths.push({ t, type: a.type, team: a.team, code: a.code, name: a.name, tag: this.tag(a), ship: tm ? tm.ship : '', by, cause, x: a.x, y: a.y });
     if (by === 'player') {
       this.stats.ff++;
-      this.sc.ff += isH ? C.score.ffHelldiver : C.score.ffSeaf;
+      this.sc.ff += isH ? C.score.ffVanguard : C.score.ffSeaf;
       this.radio(COMMS.friendly, 'ff', 3);
     } else if (isH) {
       this.radio(COMMS.hdDown, 'downH', 1);
@@ -1108,7 +1108,7 @@ export class Mission {
     if (b.destroyed || dmg <= 0) return;
     if (b.dome && domeBlocks(this, b, fx, fy)) return;          // a shield dome stops anything from outside it (ops.js)
     if (!b.alert) alertBase(this, b, 'hit');      // a hit on the structure wakes the base
-    if (b.bombOnly) { b.lastHit = this.t; return; }             // the citadel's keep: only a Hellbomb brings it down
+    if (b.bombOnly) { b.lastHit = this.t; return; }             // the citadel's keep: only a Demolition Charge brings it down
     // (0.49) a cluster: the spawners the blast reaches, or the one nearest the shot, take it
     if (b.spawners) {
       const hp0 = b.hp;
@@ -1145,7 +1145,7 @@ export class Mission {
     }
   }
 
-  // The four Helldivers come back by themselves, one pod per missing group, each costing one life.
+  // The four Vanguards come back by themselves, one pod per missing group, each costing one life.
   _podSpot() {
     const rng = this.rng;
     if (this.hdAlive.length) {
@@ -1154,10 +1154,10 @@ export class Mission {
       return { x: aoX(this, h.x + Math.cos(ang) * d, 20), y: aoY(this, h.y + Math.sin(ang) * d, 20) };
     }
     // (0.40) the whole squad is down: they come in together, a good way off from where they fell (C.wipe.d), on the quietest side
-    // (fewest enemies round the spot, farthest from those round where they fell), well inside the map, so the fresh Helldivers
+    // (fewest enemies round the spot, farthest from those round where they fell), well inside the map, so the fresh Vanguards
     // are not dropped straight back into what killed them. The spot is picked once for the whole squad; the pods land round it.
-    // (0.53.7) Once the pelican has been called, they come down by the pad instead (padD out, on its quietest side): a squad wiped
-    // there used to land 110-170 m off and die walking back through the waves, the pelican gone without them.
+    // (0.53.7) Once the dropship has been called, they come down by the pad instead (padD out, on its quietest side): a squad wiped
+    // there used to land 110-170 m off and die walking back through the waves, the dropship gone without them.
     const W = C.wipe, t = this.t, pad = this.extraction, atPad = this.phase === 'extract' && ['called', 'landing', 'boarding'].includes(pad.state), E = atPad ? 20 : W.edge;
     if (!this._wipeAt || this._wipeAt.t !== t) {
       const L = this.teams.map((q) => q.lastDeath).filter(Boolean), s = atPad ? { x: pad.x, y: pad.y } : L.length ? { x: L.reduce((a, q) => a + q.x, 0) / L.length, y: L.reduce((a, q) => a + q.y, 0) / L.length } : this.lz;
@@ -1184,7 +1184,7 @@ export class Mission {
   _reinforce() {
     if (this.over) return;
     const t = this.t, hd = this.hd, H = C.helldivers;
-    if (boardingNow(this)) return;    // nobody drops in while the pelican is loading
+    if (boardingNow(this)) return;    // nobody drops in while the dropship is loading
     if (!this.hdAlive.length) {
       if (!this.wiped && !this.pods.some((p) => p.type === 'H' && p.start)) {
         this.wiped = true;
@@ -1192,7 +1192,7 @@ export class Mission {
         noteWipe(this);       // (0.40) a side task they were wiped at is left alone for a while
       }
     } else this.wiped = false;
-    // (0.26) a reinforcement brings every dead Helldiver down together: once one is due, the others who are down come with him
+    // (0.26) a reinforcement brings every dead Vanguard down together: once one is due, the others who are down come with him
     const dead = (tm) => !(tm.hd && !tm.hd.dead) && !tm.pod;
     const due = this.teams.some((tm) => dead(tm) && t >= tm.respawnAt);
     for (const tm of this.teams) {
@@ -1216,7 +1216,7 @@ export class Mission {
       if (this.extracted) { this.sc.extraction = s.extraction; this.earn('extraction', C.credits.extraction); }
       this.earn('extraction', C.credits.perMission);
     }
-    // (0.39) the destroyer leaves orbit (the Helldivers away, or the time up): SEAF still on the ground are left behind, lost like
+    // (0.39) the destroyer leaves orbit (the Vanguards away, or the time up): Infantry still on the ground are left behind, lost like
     // any other (and replaced at a cost); those taken up by a pickup are safe aboard
     const aboardS = this.seaf.reserve.length;
     if (!this.ls && (outcome === 'victory' || outcome === 'timeout')) {
@@ -1225,9 +1225,9 @@ export class Mission {
     }
     if (outcome === 'victory' || outcome === 'timeout' || outcome === 'complete') {
       const ex = this.extraction, groundS = !this.ls && (outcome === 'victory' || outcome === 'timeout') ? 0 : this.countAlly('S');
-      this.sc.survivor = (this.countAlly('H') + (ex.boardedH || 0)) * s.survivorHelldiver + (groundS + aboardS + (ex.boardedS || 0)) * s.survivorSeaf;
+      this.sc.survivor = (this.countAlly('H') + (ex.boardedH || 0)) * s.survivorVanguard + (groundS + aboardS + (ex.boardedS || 0)) * s.survivorSeaf;
     }
-    // every SEAF trooper lost is replaced for the next mission, each one dearer than the last
+    // every Infantry trooper lost is replaced for the next mission, each one dearer than the last
     const lost = this.stats.lostS || 0, L = C.seaf;
     const rep = Math.round(lost * L.lifeCost + (L.lifeStep * lost * (lost - 1)) / 2), paid = Math.min(rep, Math.max(0, this.wallet.bal));
     this.wallet.bal -= paid; this.cr.seafLives = paid;
@@ -1271,7 +1271,7 @@ export class Mission {
   }
 
   // ----- ground: speed and deep water -----
-  // Every mover (units, the squad's anchor, enemy group centres, SEAF route anchors) is stepped by the AI as if the ground were flat.
+  // Every mover (units, the squad's anchor, enemy group centres, Infantry route anchors) is stepped by the AI as if the ground were flat.
   // _snap() remembers where each one stood at the start of the tick; _walk() then scales the step by the going (shallows, mud, snow,
   // sand and dust slow everyone) and keeps everything out of deep water, sliding along the shore where it can.
   _snap() {
@@ -1295,7 +1295,7 @@ export class Mission {
   }
   // (0.62.2) Bodies keep their distance: two enemies whose bodies have walked into each other are eased apart, half the overlap
   // each, before the step is taken (so the water and the solids still have their say). A pack then stands as a crowd of bodies
-  // instead of one blob, and a squid school keeps its shape. Bosses, super heavies and whatever is in the air are left out.
+  // instead of one blob, and a lizard school keeps its shape. Bosses, super heavies and whatever is in the air are left out.
   _spread(dt) {
     const S = C.enemies.spread;
     if (!S || !S.on) return;
@@ -1333,7 +1333,7 @@ export class Mission {
       // exactly). The crowd behind was pushing a snagged light out of the wire in a third of the time it should hold it.
       if (this.noSpread || (e.wireIn && this.t < (e.wireUntil || 0))) continue;
       let l = Math.hypot(px, py) || 1, w = Math.min(cap, l) * k / l;
-      // (0.62.4) a squid on its way to its place in the arrow is let through the crowd: pushed back at full strength by everyone
+      // (0.62.4) a lizard on its way to its place in the arrow is let through the crowd: pushed back at full strength by everyone
       // it passed, a school took most of a minute to form and its members shook on the spot meanwhile
       if (school && !e.tgt && e.g && e.ox !== undefined && (e.x - e.g.cx - e.ox) ** 2 + (e.y - e.g.cy - e.oy) ** 2 > S.transit * S.transit) w *= S.transitMul;
       e.x += px * w; e.y += py * w;
@@ -1382,7 +1382,7 @@ export class Mission {
     const solid = C.solids.on && solids(this);
     for (const e of this.enemies) if (!e.dead) { go(e.px, e.py, e.x, e.y, 1); if (solid && !e.boss && !e.air) { if (keepOut(this, e, e.px, e.py, R, null, e.kind === 'H') && tr.blocked(R.x, R.y)) { R.x = e.px; R.y = e.py; } } e.x = inX(R.x); e.y = inY(R.y); }
     // (allies keep to the square: a way round water can cut through a corner of it, outside the round area; 0.40: holding them to
-    // the circle there left squads stuck against its edge, so a Helldiver pulling back is kept off the edge instead: helldiver.js)
+    // the circle there left squads stuck against its edge, so a Vanguard pulling back is kept off the edge instead: helldiver.js)
     for (const a of this.alive) if (!a.mounted) {
       go(a.px, a.py, a.x, a.y, a.type === 'H' && jump ? 0 : 1);
       if (solid && !(a.type === 'H' && jump) && !a.inside && !inDanger(this, a.px, a.py)) {     // (0.62.8: nobody is held at a wall with a blast coming: he runs straight out)
@@ -1419,7 +1419,7 @@ export class Mission {
 
     // (0.62.3) The step runs as a list of parts (STAGES, below). With `guard` on (the game sets it; the tests do not, so a
     // fault still fails a test) a part that throws is reported through onFault and the rest of the step goes on: one broken
-    // part used to stop everything after it, so the Helldivers kept walking while every enemy stood still.
+    // part used to stop everything after it, so the Vanguards kept walking while every enemy stood still.
     if (!this.guard) for (let i = 0; i < STAGES.length; i++) STAGES[i][1](this, dt);
     else for (let i = 0; i < STAGES.length; i++) {
       try { STAGES[i][1](this, dt); } catch (err) { this.faults = (this.faults || 0) + 1; if (this.onFault) this.onFault(STAGES[i][0], err); }
@@ -1434,8 +1434,8 @@ export class Mission {
     }
     if (this.dirtyA) { compact(this.allies, deadE); this.dirtyA = false; this._refreshAlive(); }     // (0.31: and who is alive, so the dead see nothing between ticks)
 
-    // A mission is won outright by extracting (extract.js). If the squad is gone for good (the last Helldiver down with no lives
-    // left; SEAF cannot finish the job for them) or the clock runs out, what counts is the primary objective: done, and the
+    // A mission is won outright by extracting (extract.js). If the squad is gone for good (the last Vanguard down with no lives
+    // left; Infantry cannot finish the job for them) or the clock runs out, what counts is the primary objective: done, and the
     // mission is complete without extraction and the session goes on; not done, and the mission has failed.
     if (!this.over) {
       const hdAlive = this.allies.some((a) => !a.dead && a.type === 'H');

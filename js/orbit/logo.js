@@ -59,7 +59,7 @@ function symbol(g, sym) {
       for (let i = 0; i < 16; i++) { const a = i * Math.PI / 8, r = i % 2 ? 22 : 28; g.lineTo(50 + Math.cos(a) * r, 50 + Math.sin(a) * r); }
       g.closePath(); g.fill(); g.globalCompositeOperation = 'destination-out'; g.beginPath(); g.arc(50, 50, 9, 0, 7); g.fill();
       g.globalCompositeOperation = 'source-over'; return;
-    case 'fist':   // the Helldiver salute: a clenched fist on an upright forearm
+    case 'fist':   // the Vanguard salute: a clenched fist on an upright forearm
       g.roundRect(35, 22, 30, 28, 7); g.rect(41, 48, 18, 36); g.fill();
       g.globalCompositeOperation = 'destination-out'; g.beginPath();
       for (const x of [42.5, 50, 57.5]) g.rect(x - 1, 22, 2, 12);
@@ -142,7 +142,7 @@ export function drawTrooper(g, f, x, y, s) {
 // The look of a faction's troopers; older saves have none, so it is worked out from the faction colours.
 export function lookOf(f) {
   const mix = (a, b, k) => '#' + [0, 2, 4].map(i => Math.round(parseInt(a.substr(1 + i, 2), 16) * (1 - k) + parseInt(b.substr(1 + i, 2), 16) * k).toString(16).padStart(2, '0')).join('');
-  void mix;   // SEAF issue by default: light-blue armour, a blue helmet; the faction's colour goes on the armband
+  void mix;   // Infantry issue by default: light-blue armour, a blue helmet; the faction's colour goes on the armband
   return { uniform: '#8fb0cc', helmet: '#2c5a94', armband: f.secondary, crest: true, ...(f.look || {}) };
 }
 

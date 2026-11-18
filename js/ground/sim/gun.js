@@ -1,8 +1,8 @@
-// (0.53) The planetary defence gun (Sweet Liberty): the campaign's finale, and an operation squids can be offered on their own
-// ground. The gun stands in a plaza; an Illuminate mothership is overhead. Once the squad reaches the gun and has set up, it charges
+// (0.53) The planetary defence gun (Sweet Victory): the campaign's finale, and an operation lizards can be offered on their own
+// ground. The gun stands in a plaza; a Talon mothership is overhead. Once the squad reaches the gun and has set up, it charges
 // and fires on its own, shot after shot, while the enemy comes down on it harder and harder (the siege of a held site, and drops
 // straight at it). Each shot takes a part of the mothership; the last brings it down and the objective is done. The gun is an
-// ally the enemy shoots at (in m.assets): it can be patched up (SEAF at it, nothing shooting, as any post), and if it falls the
+// ally the enemy shoots at (in m.assets): it can be patched up (Infantry at it, nothing shooting, as any post), and if it falls the
 // mission is lost. Until the squad reaches it, it is shut down under its armour: the enemy leaves it alone and nothing hurts it.
 import { CONFIG as C } from '../config.js';
 import { t as tr } from '../i18n.js';
@@ -31,7 +31,7 @@ export function updateGun(m, o, dt, fns) {
     if (o.setupT <= 0) { o.state = 'fire'; m.radio(tr('c.gun.start'), 'gunstart', 0); m.emit('obj_state', { type: 'gun', state: 'fire' }); }
     return;
   }
-  // SEAF at the gun patch it up while nothing is shooting at it (as any post)
+  // Infantry at the gun patch it up while nothing is shooting at it (as any post)
   if (g.hp < g.maxHp && t - g.hurtAt > 4 && !m.eGrid.nearest(g.x, g.y, 30)) {
     let n = 0; for (const a of m.seafAlive) if (!a.down && (a.x - g.x) ** 2 + (a.y - g.y) ** 2 <= (g.r + 8) ** 2) n++;
     if (n) g.hp = Math.min(g.maxHp, g.hp + G.repair * Math.min(4, n) * dt);

@@ -1,7 +1,7 @@
 // Cover at the places the squad has to hold: the launch site, the evacuation site (round the shelter and the hangar), the VIP's
 // pickup point and the extraction pad each get a ring of low walls (sandbags, crates, barricades). Walls do not block anyone's way;
-// a Helldiver or trooper standing at one takes less from enemy fire (CONFIG.cover.mul), and when the squad holds a site its
-// Helldivers and troopers spread out to the walls instead of bunching up in the middle.
+// a Vanguard or trooper standing at one takes less from enemy fire (CONFIG.cover.mul), and when the squad holds a site its
+// Vanguards and troopers spread out to the walls instead of bunching up in the middle.
 import { CONFIG as C } from '../config.js';
 import { rockAt } from './scenery.js';
 
@@ -44,7 +44,7 @@ export function coverSlot(s, i, n, side = 0) {
   const tx = -p.ny, ty = p.nx;      // along the wall
   return { x: p.x - p.nx * 1.6 + tx * side, y: p.y - p.ny * 1.6 + ty * side };
 }
-// Is (x, y) in cover? The share of enemy fire that still gets through (1 = none stopped). Walls SEAF build can be better than the
+// Is (x, y) in cover? The share of enemy fire that still gets through (1 = none stopped). Walls Infantry build can be better than the
 // sites' own (an upgraded wall stops more).
 export function coverMul(m, x, y) {
   const r2 = C.cover.r * C.cover.r;
@@ -71,10 +71,10 @@ export function threatDir(m, s) {
   s.threat = { t: m.t, v };
   return v;
 }
-// Where Helldiver i of n stands at a site: the walls facing the threat first, one each; spread round the ring when it is
-// not known yet. (SEAF take coverSlot: round the whole ring.)
+// Where Vanguard i of n stands at a site: the walls facing the threat first, one each; spread round the ring when it is
+// not known yet. (Infantry take coverSlot: round the whole ring.)
 // (0.26) The walled site(s) a squad holding (x, y) takes: the one it is in, or, at an evacuation (the squad holds between the
-// shelter and the hangar), both rings, the shelter's and the hangar's, so the Helldivers split to the walls rather than standing
+// shelter and the hangar), both rings, the shelter's and the hangar's, so the Vanguards split to the walls rather than standing
 // in the open middle.
 export function holdSites(m, x, y) {
   const s = siteAt(m, x, y);

@@ -1,7 +1,7 @@
-// Stratagems: the squad's 16 stratagems dealt into four groups (one per Helldiver), the AI that calls them, and everything
+// Call-ins: the squad's 16 call-ins dealt into four groups (one per Vanguard), the AI that calls them, and everything
 // they put on the map (strikes, zones, sentries, mines, shields, support weapons, the recon vehicle, the exosuit, a guard dog).
-// A Helldiver only calls the stratagems in its own group, from where it stands. Squad-wide items (the recon vehicle, jump
-// packs, resupply) can be called by whichever Helldiver is alive. The player's orbital strikes reuse strikeAt() below.
+// A Vanguard only calls the call-ins in its own group, from where it stands. Squad-wide items (the recon vehicle, jump
+// packs, resupply) can be called by whichever Vanguard is alive. The player's orbital strikes reuse strikeAt() below.
 import { siteFalls } from './sites.js';
 import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
@@ -23,8 +23,8 @@ const MINE_MULT = M(1, 1, 0.7, 0.1), AT_MULT = M(1, 1, 1.25, 0.5);     // (0.23:
 const MECH_GAT = M(1, 0.7, 0.25, 0.05);
 const MECH_RKT = M(1, 1, 0.7, 0.2);
 const DOG_MULT = M(1, 0.7, 0.2, 0.02);
-const FRV_MULT = M(1, 1, 0.95, 0.1);   // the manned gun is heavy-penetration
-// Which sound each stratagem weapon makes (see audio.js).
+const LRV_MULT = M(1, 1, 0.95, 0.1);   // the manned gun is heavy-penetration
+// Which sound each call-in weapon makes (see audio.js).
 const SND = { mg_sentry: 'mg', gat_sentry: 'gat', ac_sentry: 'ac', rk_sentry: 'rocket', mortar: 'mortar', tesla: 'zap',
   recoilless: 'rocket', autocannon: 'ac', flamethrower: 'flame', railgun: 'rail', mg43: 'mg', spear: 'missile', eat: 'rocket' };
 const FOCUS_R = 30;
@@ -48,7 +48,7 @@ export function initStrat(m, loadout, keepOrder = false) {
   m.frv = null;
 }
 
-// Who calls this stratagem: the Helldiver who owns its group, or nobody if that Helldiver is down.
+// Who calls this call-in: the Vanguard who owns its group, or nobody if that Vanguard is down.
 export function stratOwner(m, g) { const t = m.teams[g.team]; return t && t.hd && !t.hd.dead ? t.hd : null; }
 export function stratOnline(m, id) {
   const g = m.strat.groups[id];
@@ -70,14 +70,14 @@ function safeSpot(m, x, y, r) {
   for (const c of m.civs) if (!c.dead && !c.safe && (c.x - x) ** 2 + (c.y - y) ** 2 < r * r) return false;
   return true;
 }
-// A call lands only inside the caller's own strike zone (not another Helldiver's, not a UAV circle).
+// A call lands only inside the caller's own strike zone (not another Vanguard's, not a UAV circle).
 const inOwn = (ctx, x, y) => (x - ctx.cx) ** 2 + (y - ctx.cy) ** 2 <= ctx.zone * ctx.zone;
-// (0.47) An attack stratagem's beacon is thrown: it lands no farther than C.sight.throw from the Helldiver (less than his rifle
+// (0.47) An attack stratagem's beacon is thrown: it lands no farther than C.sight.throw from the Vanguard (less than his rifle
 // reaches, the vision ladder), and inside his own strike zone. Support weapons are not thrown (their pod lands by him).
-// (0.47.1) the throw is 20-40 m from the Helldiver who throws it (throwMin..throw); the space kept from everyone else is clearance's
+// (0.47.1) the throw is 20-40 m from the Vanguard who throws it (throwMin..throw); the space kept from everyone else is clearance's
 const inThrow = (ctx, x, y) => { const d2 = (x - ctx.cx) ** 2 + (y - ctx.cy) ** 2; return inOwn(ctx, x, y) && d2 <= C.sight.throw * C.sight.throw && d2 >= C.sight.throwMin * C.sight.throwMin; };
 
-// What one caller can see and needs. owner is a Helldiver; null means the whole squad (for squad-wide items).
+// What one caller can see and needs. owner is a Vanguard; null means the whole squad (for squad-wide items).
 function buildCtx(m, owner) {
   const cx = owner ? owner.x : m.hx, cy = owner ? owner.y : m.hy, sq = m.squad;
   const zone = owner ? owner.zone - 5 : (m.hdAlive.length ? Math.min(...m.hdAlive.map((a) => a.zone)) - 5 : 120);
@@ -87,12 +87,12 @@ function buildCtx(m, owner) {
   const reach = Math.min(190, zone, (owner ? owner.vision : C.sight.helldiver + C.sight.playerBonus) + 55, C.sight.throw + 12);
   const c = { owner, cx, cy, dir: sq.dir || 0, vis: [], heavies: [], hunt: 0, near: 0, centroid: null, reach, zone,
     engaged: owner ? !!m.eGrid.nearest(cx, cy, C.squad.engageRange) : !!sq.engaged, goalDist: sq.goalDist ?? 0, cl: null,
-    panic: !!(owner && owner.retreat) };   // a Helldiver who is running for it calls whatever might save him
+    panic: !!(owner && owner.retreat) };   // a Vanguard who is running for it calls whatever might save him
   let sx = 0, sy = 0;
   for (const e of m.enemies) {
     if (e.dead) continue;
     const d = Math.hypot(e.x - cx, e.y - cy);
-    // only what is seen and inside this Helldiver's own zone
+    // only what is seen and inside this Vanguard's own zone
     if (e.vis >= 1 && d <= zone) { c.vis.push(e); if (e.kind === 'H') c.heavies.push(e); }
     if (e.g.state === 'hunt' && d <= reach) { c.hunt++; sx += e.x; sy += e.y; }
     if (d <= 70) c.near++;
@@ -117,15 +117,15 @@ function clusters(m, ctx) {
   return (ctx.cl = out);
 }
 
-// Stratagems never hurt the squad, but a bomb dropped right on top of them looks wrong, so keep space. (0.46) It was 9 m for
-// everything, so a 380 barrage could land almost on the thrower. An attack stratagem now keeps its whole footprint clear: its
+// Call-ins never hurt the squad, but a bomb dropped right on top of them looks wrong, so keep space. (0.46) It was 9 m for
+// everything, so a 380 barrage could land almost on the thrower. An attack call-in now keeps its whole footprint clear: its
 // spread plus half a shell's splash (or its own `safe`, if bigger), 9 to 45 m. Placed things (turrets, mines, shields, supply)
 // still go close.
-// (0.47) a throw is 20-40 m: never under C.sight.throwMin, and capped 4 m short of the throw so every attack stratagem has somewhere
+// (0.47) a throw is 20-40 m: never under C.sight.throwMin, and capped 4 m short of the throw so every attack call-in has somewhere
 // to land (the walking barrage was 45 m).
 const clearance = (d) => Math.max(9, Math.min(C.sight.throw - 4, Math.max(d.safe || 0, blastOf(d) + (d.splash || 0) * 0.5)));     // (0.47.1: 9 m at least from any ally, as in 0.46; the 20 m is the thrower's)
-// (0.46) Another attack stratagem already on its way to (or burning on) this ground: a second one there is a waste, so the
-// Helldivers spread their calls out. Defensive things don't count.
+// (0.46) Another attack call-in already on its way to (or burning on) this ground: a second one there is a waste, so the
+// Vanguards spread their calls out. Defensive things don't count.
 function crowded(m, x, y, r) {
   for (const k of m.markers) if (k.type === 'strat' && !k.smoke && m.t < k.end && (k.x - x) ** 2 + (k.y - y) ** 2 < r * r) return true;
   for (const z of m.zones) if (z.kind !== 'smoke' && (z.x - x) ** 2 + (z.y - y) ** 2 < r * r) return true;
@@ -143,13 +143,13 @@ function ahead(x, y, vx, vy, lead) {
 }
 const leadOf = (d) => (d.delay || 0) + C.strat.callSec;
 
-// A strike that would reach the structure of a base that has not seen the squad would wake it: the Helldivers don't call those.
+// A strike that would reach the structure of a base that has not seen the squad would wake it: the Vanguards don't call those.
 export function wakesBase(m, x, y, reach) {
   for (const b of m.bases) if (!b.destroyed && !b.alert && Math.hypot(b.x - x, b.y - y) < b.r + reach + 6) return true;
   return false;
 }
 const blastOf = (d) => (d.zone ? d.zone.r : d.splash || 8) + (d.len || 0) / 2;
-// While the squad is staging on a base, only what is already hunting it gets a stratagem.
+// While the squad is staging on a base, only what is already hunting it gets a call-in.
 const quiet = (m, ctx) => m.squad.staging && !ctx.hunt;
 
 function pickCluster(m, d, ctx) {
@@ -298,7 +298,7 @@ export function queueZone(m, z, x, y, at, delay, d, by = 'strat', team = -1) {
   if (delay > 0) m.markers.push({ type: 'strat', x, y, r: z.r, start: m.t, end: at, impact: at, id: d.name, cat: d.cat, by, team, smoke: z.kind === 'smoke' });
 }
 
-// A strike on a point. d is the stratagem entry (already scaled for the player when the player fires it).
+// A strike on a point. d is the call-in entry (already scaled for the player when the player fires it).
 // o: { ox, oy } where the caller stands (sets the direction of a line), by: who gets the credit, friendly: hurts allies,
 // dmgMul: extra multiplier on top of the entry's damage.
 export function strikeAt(m, d, tgt, o) {
@@ -315,7 +315,7 @@ export function strikeAt(m, d, tgt, o) {
     if (d.zone) m.queue.push({ at, type: 'zone', kind: d.zone.kind, x, y, r: d.zone.r, sec: d.zone.sec, dps: d.zone.dps || 0, sid: d.name, by: o.by });
   }
   const rr = d.pat === 'point' ? Math.max(d.splash, 6) : d.len || d.splash;
-  // The marker also says which way the strike runs, so the ground shows where an Eagle comes from and which strip it will hit.
+  // The marker also says which way the strike runs, so the ground shows where a Striker comes from and which strip it will hit.
   m.markers.push({ type: 'strat', x: tgt.x, y: tgt.y, r: rr, start: t, end: at0 + d.span, impact: at0, id: d.name, cat: d.cat, lock: d.lock && tgt.e ? tgt.e : null, by: o.by,
     pat: d.pat, len: d.len || 0, rad: splash, ux, uy, fly: !!d.fly, span: d.span || 0, team: o.team ?? -1 });
   if (d.fly) {
@@ -539,7 +539,7 @@ function minesStep(m, s, dt) {
 function dogStep(m, s, dt) {
   const D = C.strat.dog, t = m.t;
   if (t >= s.until) { destroyAsset(m, s, 'spent'); return; }
-  // Follow the nearest Helldiver at a short distance.
+  // Follow the nearest Vanguard at a short distance.
   let best = null, bd = Infinity;
   for (const a of m.hdAlive) { const dd = (a.x - s.x) ** 2 + (a.y - s.y) ** 2; if (dd < bd) { bd = dd; best = a; } }
   if (best) {
@@ -583,7 +583,7 @@ function vehicleStep(m, s, dt) {
   if (s.cool <= 0) {
     let best = dropNear(m, s.x, s.y, F.gunRange), bs = best ? Infinity : -Infinity;
     m.eGrid.near(s.x, s.y, F.gunRange, (e, d2) => { const sc = (e.kind === 'H' ? 60 : e.kind === 'M' ? 20 : 0) - Math.sqrt(d2); if (sc > bs) { bs = sc; best = e; } });
-    if (best) { s.cool = F.gunEvery; fireShot(m, s, best, { dmg: F.gunDmg * mul(), acc: 0.85, splash: 0, mult: FRV_MULT }, 'strat', 't', 'frvgun'); } else s.cool = 0.2;
+    if (best) { s.cool = F.gunEvery; fireShot(m, s, best, { dmg: F.gunDmg * mul(), acc: 0.85, splash: 0, mult: LRV_MULT }, 'strat', 't', 'frvgun'); } else s.cool = 0.2;
   }
 }
 
@@ -728,7 +728,7 @@ export function updateStrat(m, dt) {
   S.scanT -= dt;
   if (S.scanT > 0) return;
   S.scanT = 0.4;
-  // (0.26) every Helldiver keeps his own clock: each can call one of his own stratagems in the same moment as the others (no
+  // (0.26) every Vanguard keeps his own clock: each can call one of his own call-ins in the same moment as the others (no
   // squad-wide turn to wait for); the squad-wide items still go one at a time. (S.callAt holds every call: scripted moments, tests)
   if (t < S.callAt) return;
   const ctxs = {}, n = S.order.length, called = new Set();

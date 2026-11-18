@@ -1,4 +1,4 @@
-// (0.54.1) The squid MOTHERSHIP. Massed SAM sites make warp ships easy, so when the squad has shot down enough of them
+// (0.54.1) The lizard MOTHERSHIP. Massed SAM sites make warp ships easy, so when the squad has shot down enough of them
 // (CONFIG.mother.after) a mothership comes in and hangs over the map, popping out waves of troops for as long as it lives.
 // It lives in m.drops (so SAM sites, strikes and the ship gun all find it) with `mom: true`. Shield and health are huge and it heals;
 // a SAM's hit is cut to samMul, so it takes about 20 sites hitting it all the time to bring it down, while the ship gun and the

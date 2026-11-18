@@ -7,10 +7,10 @@
 // lights (collect), shades the ground with the night carved out round them, the fog of the unseen laid in with it (shade, just
 // after the ground is drawn), and adds their colour on top of everything (glow, after the effects).
 //
-// The lights: a flashlight and a little light of their own for every Helldiver and SEAF trooper (the beam goes where they aim, or
+// The lights: a flashlight and a little light of their own for every Vanguard and Infantry trooper (the beam goes where they aim, or
 // where they face); lamps, flares and glows on buildings by what they are (a foxhole's lantern, a turret nest's work light, the
 // lookout's searchlight, the propaganda tower's floodlights, a SAM site's red beacons...), on the objectives, the extraction pad,
-// enemy bases (by faction), jammers, beacons, supply pods, drop pods coming in, fires, beams and Hellbombs; and the weapons: a
+// enemy bases (by faction), jammers, beacons, supply pods, drop pods coming in, fires, beams and Demolition Charges; and the weapons: a
 // muzzle flash for every shot, allies' and enemies' (in the enemy's colour), the glow of a bolt, a glob or a shell in flight,
 // and every explosion.
 import { sunAt } from './sky.js';
@@ -98,7 +98,7 @@ export class Lighting {
       else if (z.kind === 'gas') this.add(z.x, z.y, z.r * 1.1, [170, 255, 120], a * 0.35, 0.2);
       else if (z.kind === 'ems') this.add(z.x, z.y, z.r * 1.1, [150, 200, 255], a * 0.45, 0.25);
     }
-    // the squad and SEAF: a flashlight where they aim (or face), and a little light round each
+    // the squad and Infantry: a flashlight where they aim (or face), and a little light round each
     for (const u of m.alive) {
       if (!night) break;
       if (u.dead || u.inside) continue;
@@ -149,7 +149,7 @@ export class Lighting {
     for (const p of m.pelicans || []) this.add(p.x, p.y, 18, WHITE, 0.6, 0.15);
     const hb = m.hellbomb;
     if (hb && (hb.state === 'landed' || hb.state === 'armed')) this.add(hb.x, hb.y, hb.state === 'armed' ? 12 : 7, hb.state === 'armed' ? [255, 60, 40] : [255, 230, 90], Math.floor(now * (hb.state === 'armed' ? 4 : 1.5)) % 2 ? 0.95 : 0.3, 0.6);
-    // the enemy: a flare overhead lights up the ground; Illuminate and Automatons carry lights of their own
+    // the enemy: a flare overhead lights up the ground; Talon and Foundry carry lights of their own
     for (const g of m.groups) { const f = g.flare; if (f && f.caller && !f.caller.dead && f.caller.vis > 0) this.add(f.caller.x + 3, f.caller.y - 8, 34, [255, 80, 50], 0.8 * fl(f.caller.id, 19), 0.35); }
     if (m.faction.id !== 'bugs') for (const e of m.enemies) if (!e.dead && e.vis > 0) this.add(e.x, e.y, e.boss ? 20 : e.kind === 'H' ? 7 : 4, fc, 0.5, 0.35);
   }

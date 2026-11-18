@@ -101,7 +101,7 @@ export class Input {
         // An armed weapon: the click calls it (the ship gun fires while the button is held)
         if (e.button === 0 && this.h.armed()) { this.h.fire(true); return; }
         // Nothing armed, the cursor selects: a click picks what is under it; a drag pans the map, or on the tactical build screen
-        // draws a box round SEAF troopers.
+        // draws a box round Infantry troopers.
         if (e.button === 0) { this.lp = { id: e.pointerId, x: e.clientX, y: e.clientY, drag: false, box: this.h.tac() }; return; }
         if (e.button === 2) this.panning = e.pointerId;
       } else if (this.h.boxing && this.h.boxing() && this.ptrs.size === 1) {
@@ -153,7 +153,7 @@ export class Input {
       if (this.box === e.pointerId) { this.box = null; this.h.boxEnd(); if (this.ptrs.size < 2) this.pinch = null; return; }
       // a left click (no drag) with nothing armed: select what is under it
       if (lp && p.type === 'mouse' && !lp.drag && e.type === 'pointerup') this.h.click(e.clientX, e.clientY);
-      // a right click (no drag): put down an armed weapon or a placement; otherwise an order for the selected SEAF squad
+      // a right click (no drag): put down an armed weapon or a placement; otherwise an order for the selected Infantry squad
       if (p.type === 'mouse' && p.btn === 2 && e.type === 'pointerup' && Math.hypot(e.clientX - p.sx, e.clientY - p.sy) < 5) {
         if (this.h.armed()) this.h.disarm(); else if (this.h.placing()) this.h.cancelPlace(); else this.h.command(e.clientX, e.clientY);
       }
@@ -222,7 +222,7 @@ export class Input {
       else if (act === 'disband') this.h.squadAct('disband');
       else if (act === 'cyclePrev') this.h.cycle(-1);
       else if (act === 'cycleNext') this.h.cycle(1);
-      else if (act === 'eagleRearm' && this.h.eagleRearm) this.h.eagleRearm();     // (0.53.2) the Eagle back to rearm, early
+      else if (act === 'eagleRearm' && this.h.eagleRearm) this.h.eagleRearm();     // (0.53.2) the Striker back to rearm, early
       else if (act === 'seaf') this.h.order(e.shiftKey ? 'pickup' : 'seaf', true);     // (0.39) Shift+G: a pickup point
       else if (act === 'auto' || act === 'move' || act === 'protect' || act === 'attack' || act === 'escort') this.h.order(act, true);
       else if (act === 'build') this.h.ctx('build');

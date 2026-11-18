@@ -1,6 +1,6 @@
-// The player's destroyer kit: a UAV scan, up to five orbital stratagems from the armory, and the nuclear strike once the
-// launch site is armed. Strikes land inside the strike zone: the ring around the Helldivers and SEAF, plus any UAV circle.
-// The player never steers the Helldivers. Friendly fire from the player's own strikes is real.
+// The player's destroyer kit: a UAV scan, up to five orbital call-ins from the armory, and the nuclear strike once the
+// launch site is armed. Strikes land inside the strike zone: the ring around the Vanguards and Infantry, plus any UAV circle.
+// The player never steers the Vanguards. Friendly fire from the player's own strikes is real.
 import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
 import { orbCdMul } from '../data/perks.js';
@@ -24,8 +24,8 @@ export function initPlayer(m) {
     gun: { ammo: gunStats(m.kit).ammo, max: gunStats(m.kit).ammo, bloom: 0, idle: 9, acc: 0, dry: false, firing: false },
     aim: { ok: true, inZone: true, danger: false, dangerR: 0, ready: false, splash: 0, spread: 0, delay: 0, name: '' },
   };
-  // (0.23) the Eagle (the Hangar): every Eagle in the loadout calls on it, and it flies back to rearm. (0.53.2) Each Eagle stratagem
-  // has its own runs (its slot's eu, max each); the Eagle rearms once every one is out, or when the gunner calls it back early.
+  // (0.23) the Striker (the Hangar): every Striker in the loadout calls on it, and it flies back to rearm. (0.53.2) Each Striker call-in
+  // has its own runs (its slot's eu, max each); the Striker rearms once every one is out, or when the gunner calls it back early.
   const H = hangarStats(m.kit);
   p.eagle = { max: H.uses, rearmAt: 0 };
   m.player = p;
@@ -47,12 +47,12 @@ export function syncSlots(m, start = false) {
     const level = kit.owned[id] || 1;
     if (cur.type === 'orb' && cur.id === id) { cur.level = level; continue; }
     p.slots[i] = { type: 'orb', id, level, readyAt: m.t + (start ? startCd(orbStats(id, level).cd) : C.weapons.warmupSec), uses: id === 'orb_laser' ? C.orbital.laserUses : Infinity };
-    if (orbStats(id, level).cat === 'EAGLE') p.slots[i].eu = hangarStats(kit).uses;     // (0.53.2) its own runs, full
+    if (orbStats(id, level).cat === 'STRIKER') p.slots[i].eu = hangarStats(kit).uses;     // (0.53.2) its own runs, full
   }
   // gun upgrades bought mid-mission: a bigger magazine arrives full of the extra rounds
   const gs = gunStats(kit);
   if (p.gun && gs.ammo !== p.gun.max) { p.gun.ammo = Math.min(gs.ammo, p.gun.ammo + Math.max(0, gs.ammo - p.gun.max)); p.gun.max = gs.ammo; }
-  // the howitzer: weapon 9, once one stands (built by SEAF or captured on the map). (0.62.13) Its rounds are the cannons' own (artyTick).
+  // the howitzer: weapon 9, once one stands (built by Infantry or captured on the map). (0.62.13) Its rounds are the cannons' own (artyTick).
   const hasArty = (m.arty || []).length > 0;
   if (hasArty && p.slots[SLOT_ARTY].type !== 'arty') { p.slots[SLOT_ARTY] = { type: 'arty', readyAt: m.t, gapAt: 0, ammo: 0, max: 0, fill: 0 }; artyTick(m, 0); }
   else if (!hasArty) p.slots[SLOT_ARTY] = { type: 'empty' };
@@ -186,13 +186,13 @@ function fireOrbital(m, idx) {
   const p = m.player, s = p.slots[idx], t = m.t;
   const st = orbStats(s.id, s.level);
   if (t < s.readyAt || s.uses <= 0) return deny(m, 'cooldown');
-  if (st.cat === 'EAGLE' && !eagleReady(m, s)) return deny(m, m.t < m.player.eagle.rearmAt ? 'rearm' : 'eagleempty');
+  if (st.cat === 'STRIKER' && !eagleReady(m, s)) return deny(m, m.t < m.player.eagle.rearmAt ? 'rearm' : 'eagleempty');
   if (!m.inZone(p.aimX, p.aimY) && !(st.k !== 'util' && m.nearLock(p.aimX, p.aimY))) return deny(m, 'nocoverage', COMMS.noCoverage);   // a locked enemy can be hit anywhere
   if (st.k === 'util') return callUtil(m, s, st);
   if (st.k === 'mines') return callMines(m, s, st);
-  // into a free-fire zone the Helldivers asked for: the destroyer recharges faster, so the gunner can saturate it
+  // into a free-fire zone the Vanguards asked for: the destroyer recharges faster, so the gunner can saturate it
   s.readyAt = t + st.cd * orbCdMul(m.kit) * orbSiteMul(m);     // (0.51: the Orbital Efficiency commendation; 0.52: a worked refinery)
-  if (st.cat === 'EAGLE') eagleUse(m, s);
+  if (st.cat === 'STRIKER') eagleUse(m, s);
   if (s.uses !== Infinity) s.uses--;
   let tgt = { x: p.aimX, y: p.aimY };
   if (st.lock) {      // the railcannon picks the biggest enemy near the aim point
@@ -215,10 +215,10 @@ function fireOrbital(m, idx) {
   return true;
 }
 
-// ---------------------------------------------------------------- (0.23) the Eagle and the minefields
-// The Eagle: an Eagle stratagem is ready while it has runs left (0.53.2: its own, s.eu) and the Eagle is not away rearming. Each call
-// takes one of its runs; once every Eagle in the loadout is out, the Eagle flies back to rearm. The gunner can call it back to rearm
-// early (eagleRearm) once any run is spent. While it is away no Eagle can be called; it comes back with every one full.
+// ---------------------------------------------------------------- (0.23) the Striker and the minefields
+// The Striker: a Striker call-in is ready while it has runs left (0.53.2: its own, s.eu) and the Striker is not away rearming. Each call
+// takes one of its runs; once every Striker in the loadout is out, the Striker flies back to rearm. The gunner can call it back to rearm
+// early (eagleRearm) once any run is spent. While it is away no Striker can be called; it comes back with every one full.
 export const eagleSlots = (m) => m.player.slots.filter((s) => s.type === 'orb' && s.eu !== undefined);
 export const eagleAway = (m) => m.t < m.player.eagle.rearmAt;
 export function eagleReady(m, s) {
@@ -237,7 +237,7 @@ function eagleUse(m, s) {
   s.eu = Math.max(0, s.eu - 1);
   if (eagleSlots(m).every((q) => q.eu <= 0)) eagleBack(m, false);
 }
-// (0.53.2) EAGLE REARM: the Eagle flies back now, with runs still on it. Refused while it is away, or when no run has been spent.
+// (0.53.2) STRIKER REARM: the Striker flies back now, with runs still on it. Refused while it is away, or when no run has been spent.
 export function eagleRearm(m) {
   const e = m.player.eagle, list = eagleSlots(m);
   if (!list.length) return { ok: false, reason: 'noeagle' };
@@ -293,7 +293,7 @@ function landUtil(m, u) {
     let n = 0;
     for (const a of m.alive) {
       if (a.dead || (a.x - u.x) ** 2 + (a.y - u.y) ** 2 > st.r * st.r) continue;
-      if (a.type === 'H') a.heal = (a.heal || 0) + a.maxHp * st.heal;       // Helldivers heal over a few seconds, like a stim
+      if (a.type === 'H') a.heal = (a.heal || 0) + a.maxHp * st.heal;       // Vanguards heal over a few seconds, like a stim
       else a.hp = Math.min(a.maxHp, a.hp + a.maxHp * st.heal);
       n++;
       m.emit('heal', { x: u.x, y: u.y, tx: a.x, ty: a.y, id: a.id });
@@ -348,7 +348,7 @@ export function refreshAim(m) {
     info.lock = st.k !== 'util' && !m.inZone(p.aimX, p.aimY) ? !!m.nearLock(p.aimX, p.aimY) : false;
     info.inZone = m.inZone(p.aimX, p.aimY) || info.lock;
     info.splash = g.splash; info.spread = g.spread + (m.evading && st.k !== 'util' ? C.objective.cannon.scatter : 0);     // (the ship dodging a cannon: wider)
-    info.ready = info.inZone && t >= s.readyAt && s.uses > 0 && (st.cat !== 'EAGLE' || eagleReady(m, s));
+    info.ready = info.inZone && t >= s.readyAt && s.uses > 0 && (st.cat !== 'STRIKER' || eagleReady(m, s));
   } else if (s.type === 'uav') {
     info.inZone = m.inAllyZone(p.aimX, p.aimY, UAV_REACH);
     info.splash = st.r; info.ready = info.inZone && t >= s.readyAt;

@@ -1,4 +1,4 @@
-// (0.24) The title screen's view: the planet below the Super Destroyer, from orbit. Stars, the planet's limb and its thin
+// (0.24) The title screen's view: the planet below the Fire-Support Ship, from orbit. Stars, the planet's limb and its thin
 // atmosphere across the bottom of the screen, cloud drifting over a dark surface with the lights of its cities on the night side,
 // and the ship's fire control at work: a reticle walks the surface, and every few seconds a strike comes down where it settles.
 // One canvas, behind the title and campaign screens; it only draws while one of them is showing, and holds still for anyone who

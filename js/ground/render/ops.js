@@ -1,12 +1,12 @@
 // World-space drawing for the operation around the squad: the edge of the area of operations, the side missions (radio towers,
-// SEAF under fire), the SEAF drop beacons, enemies that have given themselves away by firing, and the UAV radar's blips.
+// Infantry under fire), the Infantry drop beacons, enemies that have given themselves away by firing, and the UAV radar's blips.
 // Labels are plain text from data/data.js (OPS); every function draws in metres, px(n) converts screen pixels to metres.
 import { CONFIG as C } from '../config.js';
 import { OPS } from '../data/data.js';
 import { postArt, trenchArt, wireArt } from './posts.js';
 import { crateSec, foxholeSlots, wireEnds } from '../sim/posts.js';
 import { t as tr } from '../i18n.js';
-import { drawHellbomb } from './sites.js';
+import { drawDemoCharge } from './sites.js';
 import { raise } from './relief.js';
 import { jammerBody, radioBody, redoubtBody, howitzerBody } from './sideart.js';
 const RAISE_S = { wall: 0.56, live: true };     // (0.62.8) the side objectives stand up like every other building
@@ -40,7 +40,7 @@ function radioArt(ctx, s, now, px, col) {
   void col;
 }
 
-// (0.37) A jammer site, by the enemy: a spore spewer (a swollen pod with spore vents), a stratagem jammer (a mast with a dish) or
+// (0.37) A jammer site, by the enemy: a spore spewer (a swollen pod with spore vents), a call-in jammer (a mast with a dish) or
 // a cognitive disruptor (a tall pylon with a ring); the ground it jams has a pulsing dashed edge.
 const JAM_COL = { bugs: '#ffb020', bots: '#ff4a3a', squids: '#c08cff' };
 function jammerArt(ctx, s, now, px) {
@@ -50,7 +50,7 @@ function jammerArt(ctx, s, now, px) {
   ctx.strokeStyle = rgba(col, 0.22 + 0.25 * p); ctx.lineWidth = px(2); ctx.setLineDash([px(10), px(7)]);
   ctx.lineDashOffset = -now * px(6); ring(ctx, s.x, s.y, s.R); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
   ctx.fillStyle = rgba(col, 0.05 + 0.04 * p); ring(ctx, s.x, s.y, s.R); ctx.fill();
-  // (0.62.8) the thing itself: a shrieker nest, a stratagem jammer or a cognitive disruptor (sideart.js), raised
+  // (0.62.8) the thing itself: a shrieker nest, a call-in jammer or a cognitive disruptor (sideart.js), raised
   raise(ctx, s, s.x, s.y, r * 1.9, 2.6, (c) => { c.save(); c.translate(s.x, s.y); jammerBody(c, s.fac, col, r, s.id || 1, s.face || 0, now, px); c.restore(); }, RAISE_S);
   void p;
 }
@@ -70,10 +70,10 @@ function sporeCloud(ctx, s, now, px) {
 }
 export function drawSides(ctx, m, now, px, labels, scale) {
   const S = C.sides, task = m.plan && m.plan.task ? m.plan.task.ref : null;
-  // (0.37) a Hellbomb for a side task (the citadel's own is drawn with the citadel)
+  // (0.37) a Demolition Charge for a side task (the citadel's own is drawn with the citadel)
   const hb = m.hellbomb;
   if (hb && hb.o && hb.o.side) {
-    drawHellbomb(ctx, hb, C.objective.hellbomb, now, px, m.t);
+    drawDemoCharge(ctx, hb, C.objective.hellbomb, now, px, m.t);
     if (hb.state === 'landed') labels.push({ x: hb.x, y: hb.y, dy: -14, text: tr('lab.hbArm'), col: '#7dff9b', pri: 3 });
     if (hb.state === 'armed') labels.push({ x: hb.x, y: hb.y, dy: -14, text: tr('lab.hbRun', { n: Math.max(0, Math.ceil(hb.fuseAt - m.t)) }), col: '#ff6a4a', pri: 3 });
   }
@@ -107,9 +107,9 @@ export function drawSides(ctx, m, now, px, labels, scale) {
       labels.push({ x: s.x, y: s.y, dy: -Math.max(s.r * scale, 10) - 8, text, col: s.done ? 'rgba(127,216,255,0.7)' : col, pri: s === task ? 2 : 1 });
       continue;
     }
-    // SEAF under fire: a dug-in ring of sandbags; pulsing red while they are under siege
+    // Infantry under fire: a dug-in ring of sandbags; pulsing red while they are under siege
     const alive = s.troops.filter((a) => !a.dead).length;
-    if (s.hidden) continue;           // hidden SEAF: nothing shows until they are found
+    if (s.hidden) continue;           // hidden Infantry: nothing shows until they are found
     if (s.done || s.failed) { if (s.failed) labels.push({ x: s.x, y: s.y, dy: -14, text: OPS.rescueLost, col: 'rgba(255,120,100,0.6)', pri: 0 }); continue; }
     const R = Math.max(s.r, px(10)), hot = s.state === 'siege';
     // (0.62.8) a sandbag redoubt with their flag in it (sideart.js), raised: it was a dashed ring
@@ -126,7 +126,7 @@ function howitzerArt(ctx, x, y, face, now, px, live, who) {
   if (who) raise(ctx, who, x, y, r * 1.6, 1.1, draw, { ...RAISE_S, sig: Math.round((face || 0) * 12) + (live ? 100 : 0) }); else draw(ctx);
 }
 
-// Howitzers the gunner can fire (built by SEAF or taken on the map), and the abandoned ones still waiting for the squad.
+// Howitzers the gunner can fire (built by Infantry or taken on the map), and the abandoned ones still waiting for the squad.
 // (the cannons in service are posts: render/posts.js draws them)
 export function drawArty(ctx, m, now, px, labels, scale) {
   for (const s of m.sides || []) {
@@ -148,7 +148,7 @@ export function crateStage(m, c) {
   const f = Math.min(1, (c.prog || 0) / crateSec(m, c));
   return { f, stage: f <= 0 ? 0 : f < 0.35 ? 1 : f < 0.75 ? 2 : 3 };
 }
-// Crates on the ground (and foxholes being dug), drawn at their stage, with a progress bar while SEAF work on them.
+// Crates on the ground (and foxholes being dug), drawn at their stage, with a progress bar while Infantry work on them.
 export function drawCrates(ctx, m, now, px, labels) {
   for (const c of m.crates || []) {
     if (!c.landed || c.used) continue;
@@ -205,7 +205,7 @@ export function drawCrates(ctx, m, now, px, labels) {
   }
 }
 
-// A base the Helldivers have marked and are about to go in on: a red ring that tightens, and the countdown.
+// A base the Vanguards have marked and are about to go in on: a red ring that tightens, and the countdown.
 export function drawMarks(ctx, m, now, px, labels, scale) {
   const t = m.t;
   for (const b of m.bases) {
@@ -222,7 +222,7 @@ export function drawMarks(ctx, m, now, px, labels, scale) {
   }
 }
 
-// SEAF drop beacons: an antenna and a ring the drop can land in; the time until they go dark, then dark.
+// Infantry drop beacons: an antenna and a ring the drop can land in; the time until they go dark, then dark.
 export function drawBeacons(ctx, m, now, px, labels, scale, placingSeaf) {
   const B = C.beacons, t = m.t;
   for (const b of m.beacons || []) {

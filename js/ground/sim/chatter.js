@@ -1,5 +1,5 @@
-// Speech bubbles and map pings. Helldivers and SEAF say what they are about to do, on cooldowns, and
-// each Helldiver keeps one ping on the map: where it is going, or what it is fighting.
+// Speech bubbles and map pings. Vanguards and Infantry say what they are about to do, on cooldowns, and
+// each Vanguard keeps one ping on the map: where it is going, or what it is fighting.
 import { CONFIG as C } from '../config.js';
 import { pickLine, fill } from '../data/names.js';
 import { t as tr, tl } from '../i18n.js';
@@ -49,7 +49,7 @@ export function updateChatter(m, dt) {
   if (ch.t > 0) return;
   ch.t = 1;
 
-  // ---- Helldiver pings: fighting beats the breach beats the goal ----
+  // ---- Vanguard pings: fighting beats the breach beats the goal ----
   const goal = goalName(m);
   const eg = m.eGrid;
   for (const a of m.hdAlive) {
@@ -64,7 +64,7 @@ export function updateChatter(m, dt) {
   }
   for (const a of m.hdAlive) if (a.ping && a.ping.until < t) a.ping = null;
 
-  // ---- Helldiver speech: what they are about to do ----
+  // ---- Vanguard speech: what they are about to do ----
   const hds = m.hdAlive;
   if (!hds.length) return;
   const pick = hds[Math.floor(m.crng.next() * hds.length)];
@@ -89,7 +89,7 @@ export function updateChatter(m, dt) {
     }
   }
 
-  // ---- SEAF speech ----
+  // ---- Infantry speech ----
   const sf = m.seafAlive;
   if (sf.length) {
     const s = sf[Math.floor(m.crng.next() * sf.length)];

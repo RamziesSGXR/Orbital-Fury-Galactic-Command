@@ -1,5 +1,5 @@
 // Every tuning number for Super Orbital Simulator lives here. Change them here, never in game logic.
-// THE MINISTRY STANDARD PATTERN. One station unit is 9 m (C.scale.m) and a person is 1.8 m (C.scale.person). Rooms are furnished
+// THE HEAD OFFICE STANDARD PATTERN. One station unit is 9 m (C.scale.m) and a person is 1.8 m (C.scale.person). Rooms are furnished
 // in metres from real things at real sizes (rooms.js): a bed is 2 m, a door 1.2 m by 2.1 m, a wall 2.5 m, a worktop 0.9 m.
 // Decks are about 9 m apart: the space between is tanks, ducts and the gravity plates. Gravity is made by the deck plates, and it
 // points the same way everywhere: toward the keel (−Y), where the planet is. So every deck is level, however a part is attached.
@@ -57,16 +57,16 @@ export const C = {
       about: 'Launches the UAV that scans the ground for the gunner.', ports: [[0, 0, 0, -1, 0, 0, 'L'], [1.5, 0.8, 0.35, 0, 1, 0, 'L']] },
     relay:    { name: 'Target Relay', group: 'platform', tier: 1, cost: 150, up: 2, pw: 2, build: 4, sys: 'uav', keel: true, center: [1, -0.6, 0], r: 1.8,
       about: 'A dish aimed at the ground. Widens the strike zone: the UAV system counts as better equipped.', ports: [[0, 0, 0, -1, 0, 0, 'L']] },
-    barracks: { name: 'SEAF Barracks', group: 'platform', tier: 1, cost: 320, up: 4, pw: 2, build: 7, sys: 'seaf', center: [2.6, 0, 0], r: 2.8, rooms: ['barrack', 'barrack', 'armoury'],
-      about: 'Bunks and an armoury for the SEAF troopers who drop to the surface.', ports: [...arm(5.2), [1.85, 0, 1.1, 0, 0, 1, 'L'], [1.85, 0, -1.1, 0, 0, -1, 'L']] },
-    eaglehangar: { name: 'Eagle Hangar', group: 'platform', tier: 2, cost: 440, up: 6, pw: 3, build: 9, sys: 'eagle', bay: true, center: [3.5, 0, 0], r: 4.2, rooms: ['eaglepad', 'eaglepad', 'ordnance'],
-      about: 'Two rearming pads for Eagles, and the ordnance store that feeds them.', ports: [[0, -0.98, 0, -1, 0, 0, 'L'], [3.5, 1.5, 1.73, 0, 1, 0, 'L'], [2.65, -0.98, 2.4, 0, 0, 1, 'L'], [2.65, -0.98, -2.4, 0, 0, -1, 'L']] },
-    pelicanbay: { name: 'Pelican Bay', group: 'platform', tier: 2, cost: 400, up: 5, pw: 3, build: 9, sys: 'seaf', bay: true, center: [4, 0, 0], r: 4.6, rooms: ['pelicanpad', 'armoury', 'barrack'],
-      about: 'A launch bay for the Pelicans that carry SEAF down and bring them home.', ports: [[0, -1.18, 0, -1, 0, 0, 'L'], [4, 1.7, 1.88, 0, 1, 0, 'L'], [2.85, -1.18, 2.7, 0, 0, 1, 'L'], [2.85, -1.18, -2.7, 0, 0, -1, 'L']] },
+    barracks: { name: 'Infantry Barracks', group: 'platform', tier: 1, cost: 320, up: 4, pw: 2, build: 7, sys: 'seaf', center: [2.6, 0, 0], r: 2.8, rooms: ['barrack', 'barrack', 'armoury'],
+      about: 'Bunks and an armoury for the Infantry troopers who drop to the surface.', ports: [...arm(5.2), [1.85, 0, 1.1, 0, 0, 1, 'L'], [1.85, 0, -1.1, 0, 0, -1, 'L']] },
+    eaglehangar: { name: 'Striker Hangar', group: 'platform', tier: 2, cost: 440, up: 6, pw: 3, build: 9, sys: 'eagle', bay: true, center: [3.5, 0, 0], r: 4.2, rooms: ['eaglepad', 'eaglepad', 'ordnance'],
+      about: 'Two rearming pads for Strikers, and the ordnance store that feeds them.', ports: [[0, -0.98, 0, -1, 0, 0, 'L'], [3.5, 1.5, 1.73, 0, 1, 0, 'L'], [2.65, -0.98, 2.4, 0, 0, 1, 'L'], [2.65, -0.98, -2.4, 0, 0, -1, 'L']] },
+    pelicanbay: { name: 'Dropship Bay', group: 'platform', tier: 2, cost: 400, up: 5, pw: 3, build: 9, sys: 'seaf', bay: true, center: [4, 0, 0], r: 4.6, rooms: ['pelicanpad', 'armoury', 'barrack'],
+      about: 'A launch bay for the Dropships that carry Infantry down and bring them home.', ports: [[0, -1.18, 0, -1, 0, 0, 'L'], [4, 1.7, 1.88, 0, 1, 0, 'L'], [2.85, -1.18, 2.7, 0, 0, 1, 'L'], [2.85, -1.18, -2.7, 0, 0, -1, 'L']] },
     fabshop:  { name: 'Fabrication Shop', group: 'platform', tier: 2, cost: 300, up: 4, pw: 4, build: 7, sys: 'fab', center: [2.2, 0, 0], r: 2.6, rooms: ['fab', 'cargostore'],
       about: 'Packs the crates of wire, bastions and turrets that drop to the troops.', ports: [...arm(4.4), [2.2, 0.9, 0.45, 0, 1, 0, 'L']] },
-    lance:    { name: 'Democracy Lance', group: 'platform', tier: 3, cost: 1500, up: 12, pw: 12, build: 16, sys: 'classified', keel: true, center: [3, -1.5, 0], r: 5, rooms: ['guncrew', 'magazine', 'magazine'],
-      about: 'CLASSIFIED. One great weapon, by permission of the Ministry.', ports: [[0, 0, 0, -1, 0, 0, 'L'], [2, 0.9, 0.53, 0, 1, 0, 'L']] },
+    lance:    { name: 'Brand Lance', group: 'platform', tier: 3, cost: 1500, up: 12, pw: 12, build: 16, sys: 'classified', keel: true, center: [3, -1.5, 0], r: 5, rooms: ['guncrew', 'magazine', 'magazine'],
+      about: 'CLASSIFIED. One great weapon, by permission of the Head Office.', ports: [[0, 0, 0, -1, 0, 0, 'L'], [2, 0.9, 0.53, 0, 1, 0, 'L']] },
     // ---- habitation
     hab:      { name: 'Hab Module', group: 'habitation', tier: 0, cost: 90, up: 2, pw: 1, build: 4, center: [2.4, 0, 0], r: 2.6, rooms: fill(3, 'quarters'),
       about: 'A pressurised module with three rooms, quarters to start.', ports: [...arm(4.8), [1.8, 0, 1, 0, 0, 1, 'L'], [1.8, 0, -1, 0, 0, -1, 'L']] },
@@ -123,7 +123,7 @@ export const C = {
     dish:     { loose: true, name: 'Dish Antenna', group: 'comms', tier: 1, cost: 110, up: 2, pw: 1, build: 4, traffic: 0.15, center: [1, 0, 0], r: 2,
       about: 'A long-range dish. Ships come 15% more often (up to 2).', ports: [[0, 0, 0, -1, 0, 0, 'L']] },
     billboard:{ loose: true, name: 'Propaganda Screen', group: 'comms', tier: 1, cost: 90, up: 1, pw: 1, build: 3, leisure: 3, center: [0.8, 0, 0], r: 2.4,
-      about: 'A giant screen of Super Earth slogans, for passing ships and residents. Morale +3.', ports: [[0, 0, 0, -1, 0, 0, 'L']] },
+      about: 'A giant screen of Head Office slogans, for passing ships and residents. Morale +3.', ports: [[0, 0, 0, -1, 0, 0, 'L']] },
   },
 
   // WAYS: how people move through each part (parts.js calls this table WALK).
@@ -158,35 +158,35 @@ export const C = {
     cargostore: { name: 'Cargo Store', short: 'CRGO', tier: 0, cost: 30, up: 1, cargo: true, homes: { hauler: 1 }, col: '#a06a2a', about: 'Haulers bring crates here. Places for 1 hauler.' },
     ops:        { name: 'Ops Center', short: 'OPS', tier: 0, cost: 60, up: 1, traffic: 0.1, col: '#2a6a9a', about: 'Traffic control consoles: ships 10% more often (up to 3).' },
     market:     { name: 'Market', short: 'MKT', tier: 1, cost: 60, up: 1, income: 6, leisure: 1, col: '#9a5a7a', about: '+6 CR a minute while anyone lives aboard. Morale +1.' },
-    bar:        { name: 'Liberty Lounge', short: 'BAR', tier: 1, cost: 60, up: 1, income: 4, leisure: 3, col: '#8a4a9a', about: '+4 CR a minute. Morale +3.' },
+    bar:        { name: 'Victory Lounge', short: 'BAR', tier: 1, cost: 60, up: 1, income: 4, leisure: 3, col: '#8a4a9a', about: '+4 CR a minute. Morale +3.' },
     medbay:     { name: 'Medbay', short: 'MED', tier: 1, cost: 60, up: 1, homes: { medic: 2 }, leisure: 1, col: '#3a9a8a', about: 'Places for 2 medics. Morale +1.' },
     customs:    { name: 'Customs Scanner', short: 'SCAN', tier: 0, cost: 50, up: 1, col: '#7a5a3a', about: 'Scans the cargo of every freighter docking within reach and stops 6 smuggled loads in 10. No staff needed.' },
-    secoffice:  { name: 'Security Office', short: 'SEC', tier: 1, cost: 60, up: 1, homes: { officer: 2 }, col: '#9a3a3a', about: 'Places for 2 Democracy Officers, who inspect ships nearby.' },
-    truth:      { name: 'Truth Office', short: 'TRUTH', tier: 1, cost: 50, up: 1, leisure: 1, broadcast: 1, col: '#9a8a1a', about: 'Morale +1, and the Ministry of Truth\'s broadcasts carry further.' },
+    secoffice:  { name: 'Security Office', short: 'SEC', tier: 1, cost: 60, up: 1, homes: { officer: 2 }, col: '#9a3a3a', about: 'Places for 2 Brand Officers, who inspect ships nearby.' },
+    truth:      { name: 'Truth Office', short: 'TRUTH', tier: 1, cost: 50, up: 1, leisure: 1, broadcast: 1, col: '#9a8a1a', about: 'Morale +1, and the Publicity Office\'s broadcasts carry further.' },
     shuttlebay: { name: 'Shuttle Bay', short: 'BAY', tier: 2, cost: 80, up: 2, bay: true, col: '#5a6a8a', about: 'Shuttles land inside the hangar.' },
     brass:      { name: 'Brass Suite', short: 'BRASS', tier: 1, cost: 90, up: 2, homes: { aide: 1 }, col: '#b89a3a', about: 'A suite for visiting top brass, kept spotless. Places for 1 aide.' },
     lab:        { name: 'Laboratory', short: 'LAB', tier: 1, cost: 80, up: 1, homes: { scientist: 2 }, col: '#3a6a9a', about: 'Places for 2 scientists, whose research adds to capability.' },
     guncrew:    { name: 'Gun Crew Room', short: 'GUN', tier: 0, cost: 50, up: 1, homes: { gunner: 2 }, col: '#6a4a3a', about: 'Fire control consoles. Places for 2 gunners.' },
     magazine:   { name: 'Magazine', short: 'MAG', tier: 0, cost: 40, up: 1, mag: 6, col: '#5a4a2a', about: 'Shells in racks behind blast doors. Holds a reserve of 6 shells. Nobody likes to sleep next to one.' },
-    barrack:    { name: 'Barrack Room', short: 'SEAF', tier: 1, cost: 40, up: 1, homes: { gunner: 3 }, col: '#4a5a3a', about: 'Bunks and lockers for 3 SEAF troopers.' },
-    armoury:    { name: 'Armoury', short: 'ARMS', tier: 1, cost: 50, up: 1, col: '#5a5a4a', about: 'Rifles in racks, for the SEAF.' },
+    barrack:    { name: 'Barrack Room', short: 'Infantry', tier: 1, cost: 40, up: 1, homes: { gunner: 3 }, col: '#4a5a3a', about: 'Bunks and lockers for 3 Infantry troopers.' },
+    armoury:    { name: 'Armoury', short: 'ARMS', tier: 1, cost: 50, up: 1, col: '#5a5a4a', about: 'Rifles in racks, for the Infantry.' },
     dronerack:  { name: 'Drone Rack', short: 'UAV', tier: 1, cost: 60, up: 1, homes: { gunner: 1 }, col: '#3a5a6a', about: 'UAVs on their launch rails. A place for 1 operator.' },
-    eaglepad:   { name: 'Eagle Pad', short: 'EAGLE', tier: 2, cost: 120, up: 2, bay: true, homes: { gunner: 2 }, col: '#4a5a6a', about: 'One Eagle and its deck crew: a pilot and a loader.' },
-    ordnance:   { name: 'Ordnance Store', short: 'ORD', tier: 2, cost: 60, up: 1, mag: 6, col: '#6a5a2a', about: 'Bombs on trolleys for the Eagles. Holds a reserve of 6 shells.' },
-    pelicanpad: { name: 'Pelican Pad', short: 'PELI', tier: 2, cost: 100, up: 2, bay: true, homes: { gunner: 2 }, col: '#4a6a5a', about: 'One Pelican on its pad, with its two pilots.' },
-    fab:        { name: 'Fabricator', short: 'FAB', tier: 2, cost: 90, up: 2, homes: { gunner: 1 }, col: '#6a6a3a', about: 'Prints and packs drop crates. A place for 1 packer.' },
+    eaglepad:   { name: 'Striker Pad', short: 'STRIKER', tier: 2, cost: 120, up: 2, bay: true, homes: { gunner: 2 }, col: '#4a5a6a', about: 'One Striker and its deck crew: a pilot and a loader.' },
+    ordnance:   { name: 'Ordnance Store', short: 'ORD', tier: 2, cost: 60, up: 1, mag: 6, col: '#6a5a2a', about: 'Bombs on trolleys for the Strikers. Holds a reserve of 6 shells.' },
+    pelicanpad: { name: 'Dropship Pad', short: 'PELI', tier: 2, cost: 100, up: 2, bay: true, homes: { gunner: 2 }, col: '#4a6a5a', about: 'One Dropship on its pad, with its two pilots.' },
+    fab:        { name: 'Assembler', short: 'FAB', tier: 2, cost: 90, up: 2, homes: { gunner: 1 }, col: '#6a6a3a', about: 'Prints and packs drop crates. A place for 1 packer.' },
     fighterbay: { name: 'Fighter Bay', short: 'FTR', tier: 2, cost: 120, up: 3, bay: true, defence: 5, col: '#6a4a4a', about: 'A flight of patrol fighters. Defence +5.' },
   },
   roomOrder: ['quarters', 'bunks', 'mess', 'lounge', 'gym', 'hydro', 'workshop', 'cargostore', 'ops', 'market', 'bar', 'medbay', 'customs', 'secoffice', 'truth', 'brass', 'lab', 'guncrew', 'magazine', 'barrack', 'armoury', 'dronerack', 'eaglepad', 'ordnance', 'pelicanpad', 'fab', 'shuttlebay', 'fighterbay', 'empty'],
 
   // The divisions you fund and give standing orders to, from the Commander's comms panel.
   div: {
-    supply:      { name: 'Ministry of Supply', short: 'SUPPLY', staff: 'hauler', uses: 'coffee', per: 2, allot: 10, col: '#4db8ff',
+    supply:      { name: 'Logistics Office', short: 'SUPPLY', staff: 'hauler', uses: 'coffee', per: 2, allot: 10, col: '#4db8ff',
       orders: { shift: [['normal', 'Normal shifts'], ['double', 'Double shifts: haulers 40% faster, morale −5']],
         rations: [['normal', 'Standard rations'], ['double', 'Double rations: morale +6, rations go twice as fast'], ['short', 'Short rations: half the rations, morale −8']] } },
     maintenance: { name: 'Department of Patriotic Maintenance', short: 'MAINT', staff: 'engineer', uses: 'parts', per: 3, allot: 6, col: '#ffc340',
       orders: { plan: [['reactive', 'Fix what breaks'], ['preventive', 'Preventive: half the faults, upkeep +20%']] } },
-    security:    { name: 'Democracy Officers', short: 'SECURITY', staff: 'officer', uses: 'ammo', per: 3, allot: 6, col: '#ff5a4a',
+    security:    { name: 'Brand Officers', short: 'SECURITY', staff: 'officer', uses: 'ammo', per: 3, allot: 6, col: '#ff5a4a',
       orders: { checks: [['spot', 'Spot checks: catch half the smugglers'], ['every', 'Inspect every ship: catch them all, unloading waits 4 s']] } },
     medical:     { name: 'Medical Corps', short: 'MEDICAL', staff: 'medic', uses: 'medkits', per: 3, allot: 6, col: '#9dffb8',
       orders: { care: [['free', 'Free care: morale +4, costs 10 CR/min'], ['fees', 'Fees: +2 CR/min per medic, morale −2']] } },
@@ -195,7 +195,7 @@ export const C = {
     gunnery:     { name: 'Fire Support Command', short: 'GUNNERY', staff: 'gunner', uses: 'shells', per: 2, allot: 6, col: '#ff9a3a', orders: {} },
     traffic:     { name: 'Traffic Control', short: 'TRAFFIC', col: '#e6e6e6',
       orders: { mix: [['all', 'All traffic'], ['freight', 'Freighters only'], ['colonists', 'Colonists only']], rate: [['low', 'Light'], ['normal', 'Normal'], ['high', 'Heavy']] } },
-    truth:       { name: 'Ministry of Truth', short: 'TRUTH', col: '#ffe600',
+    truth:       { name: 'Publicity Office', short: 'TRUTH', col: '#ffe600',
       orders: { broadcast: [['patriotic', 'Patriotic hour: morale up to +8, more with Truth Offices'], ['recruitment', 'Recruitment drive: shuttles 50% more often'], ['silence', 'Silence: no broadcast']] } },
   },
   divOrder: ['supply', 'maintenance', 'security', 'medical', 'command', 'science', 'gunnery', 'traffic', 'truth'],
@@ -234,20 +234,20 @@ export const C = {
       gun:        { name: 'Ship gun', w: 2, max: 1, call: 'gun fire', shells: 1, weight: 3 },
       orbital:    { name: 'Orbital strikes', w: 3, max: 5, call: 'an orbital strike', shells: 1, weight: 4 },
       uav:        { name: 'UAV scan', w: 1, max: 2, call: 'a UAV scan', shells: 0, weight: 2 },
-      eagle:      { name: 'Eagles', w: 2, max: 2, call: 'an Eagle run', shells: 1, weight: 2 },
-      seaf:       { name: 'SEAF drops', w: 2, max: 3, call: 'a SEAF drop', shells: 0, weight: 2 },
+      eagle:      { name: 'Strikers', w: 2, max: 2, call: 'a Striker run', shells: 1, weight: 2 },
+      seaf:       { name: 'Infantry drops', w: 2, max: 3, call: 'an Infantry drop', shells: 0, weight: 2 },
       fab:        { name: 'Buildables', w: 1, max: 1, call: 'a crate of defences', shells: 0, weight: 1 },
-      classified: { name: 'Classified', w: 3, max: 1, call: 'the Democracy Lance', shells: 2, weight: 1 },
+      classified: { name: 'Classified', w: 3, max: 1, call: 'the Brand Lance', shells: 2, weight: 1 },
     },
     order: ['gun', 'orbital', 'uav', 'eagle', 'seaf', 'fab', 'classified'],
     callSec: [24, 44], firstSec: 50, missSayGap: 90, shortReady: 0.35, bedsNear: 7,
-    squads: ['Tibit Tigers', 'Liberty Hounds', 'Ballot Boxers', 'Midnight Knights', 'Phantom Nine', 'Sweet Liberty Four', 'Iron Voters', 'Quiet Resolve'],
+    squads: ['Tibit Tigers', 'Victory Hounds', 'Ballot Boxers', 'Midnight Knights', 'Phantom Nine', 'Sweet Victory Four', 'Iron Voters', 'Quiet Resolve'],
   },
   // Capability is what the station adds to the war effort. It is the score, and it opens the upgrade path.
   capability: { crate: 0.5, ship: 1.5, resident: 2, defence: 3, repair: 12, staff: 1, research: 1, raid: 15, call: 2, platform: 12 },
   researchPerMin: 1.5,
 
-  // Ship sizes against the standard (a Pelican is about 25 m, an Eagle 15 m, a freighter 45 m, a destroyer 115 m), and how far off the berth each sits.
+  // Ship sizes against the standard (a Dropship is about 25 m, a Striker 15 m, a freighter 45 m, a destroyer 115 m), and how far off the berth each sits.
   shipScale: { shuttle: 1.1, freighter: 1.2, warship: 1.6, eagle: 0.68 }, shipOff: { shuttle: 1.7, freighter: 3.1, warship: 3 },
   // THE SCALE. One station unit is `m` metres and a person is `person` metres tall. Rooms are furnished in metres (rooms.js), so
   // changing these two numbers rescales the people and every fitting against the station; the hull itself does not change.
@@ -255,25 +255,25 @@ export const C = {
   // Propaganda Screens: what each one shows. Picked per screen on its card. `own` shows the commander's own lines (st.screenLines).
   screens: {
     programs: [['slogans', 'SLOGANS'], ['news', 'WAR NEWS'], ['recruit', 'RECRUITMENT'], ['station', 'THIS STATION'], ['own', 'YOUR OWN']],
-    slogans: ['LIBERTY', 'SUPER EARTH', 'REPORT FOR GRATITUDE', 'A HAPPY STATION IS A COMPLIANT STATION', 'DEMOCRACY NEVER SLEEPS', 'HAVE YOU PAID YOUR LIBERTY CONTRIBUTION?', 'FREEDOM IS EARNED IN ORBIT', 'EVERY CRATE A BULLET FOR LIBERTY'],
-    recruit: ['THE HELLDIVERS NEED YOU', 'ENLIST TODAY', 'SERVE WITH THE SEAF', 'BE A HERO OF SUPER EARTH', 'YOUR DEMOCRACY NEEDS DEFENDING', 'ASK A DEMOCRACY OFFICER HOW TO ENLIST'],
-    news: ['ENEMY OFFENSIVE REPELLED ON THE SOUTHERN FRONT', 'NEW ORBITAL BATTERIES COME ONLINE', 'HELLDIVERS LIBERATE ANOTHER COLONY', 'GROUND FORCES REPORT RECORD MORALE', 'MINISTRY: VICTORY IS IMMINENT', 'SUPPLY LINES SECURE ACROSS THE SECTOR'],
-    own: ['WELCOME ABOARD', 'KEEP THE STATION CLEAN', 'GLORY TO SUPER EARTH'],
+    slogans: ['VICTORY', 'HEAD OFFICE', 'REPORT FOR GRATITUDE', 'A HAPPY STATION IS A COMPLIANT STATION', 'BRAND NEVER SLEEPS', 'HAVE YOU PAID YOUR VICTORY CONTRIBUTION?', 'FREEDOM IS EARNED IN ORBIT', 'EVERY CRATE A BULLET FOR VICTORY'],
+    recruit: ['THE VANGUARDS NEED YOU', 'ENLIST TODAY', 'SERVE WITH THE INFANTRY', 'BE A HERO OF HEAD OFFICE', 'YOUR BRAND NEEDS DEFENDING', 'ASK A BRAND OFFICER HOW TO ENLIST'],
+    news: ['ENEMY OFFENSIVE REPELLED ON THE SOUTHERN FRONT', 'NEW ORBITAL BATTERIES COME ONLINE', 'VANGUARDS LIBERATE ANOTHER COLONY', 'GROUND FORCES REPORT RECORD MORALE', 'HEAD OFFICE: VICTORY IS IMMINENT', 'SUPPLY LINES SECURE ACROSS THE SECTOR'],
+    own: ['WELCOME ABOARD', 'KEEP THE STATION CLEAN', 'GLORY TO HEAD OFFICE'],
     maxLines: 8, maxChars: 110,
   },
 
   // Station livery: the colours, hull plating, interior fit-out and emblem the commander picks.
   livery: {
     schemes: {
-      ministry: { name: 'Ministry Grey', hull: '#8c9690', trim: '#f5d547', accent: '#22262a' },
-      sesf:     { name: 'SESF Black', hull: '#2b2e33', trim: '#f5d547', accent: '#8a8f96' },
+      ministry: { name: 'Head Office Grey', hull: '#8c9690', trim: '#f5d547', accent: '#22262a' },
+      sesf:     { name: 'Fleet Black', hull: '#2b2e33', trim: '#f5d547', accent: '#8a8f96' },
       arctic:   { name: 'Arctic White', hull: '#dfe5e6', trim: '#3d7fc4', accent: '#8a959c' },
       fleet:    { name: 'Fleet Blue', hull: '#3a4f6a', trim: '#7fe9e0', accent: '#1c2636' },
       rust:     { name: 'Frontier Rust', hull: '#8a5a44', trim: '#e8d9b0', accent: '#3a2a24' },
-      olive:    { name: 'SEAF Olive', hull: '#5d6a4a', trim: '#e0a83a', accent: '#2a3024' },
+      olive:    { name: 'Infantry Olive', hull: '#5d6a4a', trim: '#e0a83a', accent: '#2a3024' },
     },
     plating: { panels: 'Panelled', plates: 'Armour plate', smooth: 'Smooth', worn: 'Weathered', hazard: 'Hazard stripes' },
-    interior: { ministry: { name: 'Ministry', wall: '#b9ab8e', floor: '#8a7a62', lane: '#ffe9a0' }, naval: { name: 'Naval', wall: '#8f9aa6', floor: '#5c6670', lane: '#9fe8ff' }, civic: { name: 'Civic', wall: '#e6e8e2', floor: '#9aa79a', lane: '#b8ffd0' }, brass: { name: 'Brass', wall: '#6a4a3a', floor: '#3c2e28', lane: '#ffc66a' } },
+    interior: { ministry: { name: 'Head Office', wall: '#b9ab8e', floor: '#8a7a62', lane: '#ffe9a0' }, naval: { name: 'Naval', wall: '#8f9aa6', floor: '#5c6670', lane: '#9fe8ff' }, civic: { name: 'Civic', wall: '#e6e8e2', floor: '#9aa79a', lane: '#b8ffd0' }, brass: { name: 'Brass', wall: '#6a4a3a', floor: '#3c2e28', lane: '#ffc66a' } },
     lights: { warm: '#fff1b0', cool: '#cfeaff', amber: '#ffb648', green: '#b8ffca' },
     emblems: { crest: 'Your crest', wings: 'Wings', star: 'Star', shield: 'Shield', laurel: 'Laurel', none: 'None' },
     def: { name: '', scheme: 'ministry', hull: '#8c9690', trim: '#f5d547', accent: '#22262a', plating: 'panels', interior: 'ministry', lights: 'warm', emblem: 'crest' },
@@ -284,11 +284,11 @@ export const C = {
   // (C.faction is the factions aboard.)
   founding: {
     def: {
-      name: 'Super Earth Special Forces', station: 'Orbital Station', motto: 'Liberty, delivered.', primary: '#22262a', secondary: '#ffe600',
-      logo: { shape: 'shield', symbol: 'eagle', bg: '#1b2a1a', fg: '#ffe600', rim: '#ffe600', text: 'SESF', pattern: 'none', pc: '#ffe600' },
+      name: 'Head Office Special Forces', station: 'Orbital Station', motto: 'Victory, delivered.', primary: '#22262a', secondary: '#ffe600',
+      logo: { shape: 'shield', symbol: 'eagle', bg: '#1b2a1a', fg: '#ffe600', rim: '#ffe600', text: '', pattern: 'none', pc: '#ffe600' },
       look: { uniform: '#5d6a4a', helmet: '#4c5a3c', armband: '#ffe600', crest: true },
     },
-    stations: ['Liberty', 'Vigil', 'Resolve', 'Anvil', 'Dawn', 'Mercy', 'Ballot', 'Granite', 'Providence', 'Steadfast', 'Meridian', 'Equity'],
+    stations: ['Victory', 'Vigil', 'Resolve', 'Anvil', 'Dawn', 'Mercy', 'Ballot', 'Granite', 'Providence', 'Steadfast', 'Meridian', 'Equity'],
     kinds: ['Station', 'Outpost', 'Platform', 'Bastion', 'Spire', 'Haven'],
   },
 
@@ -307,11 +307,11 @@ export const C = {
   econ: { crateFee: 8, dockFee: 6, fine: 80, taxPerPct: 0.6 },
   // The market (market.js). base: crates a minute the sector wants moved through a station of each tier, at middling reputation.
   // rep: reputation 0 to 1 (rep0 at the start); it scales demand from repLo to repHi. served/lost/turned: what each ship does to it.
-  // runs: supply runs the Ministry adds, per kind of supply the station is short of. elastic: how hard the price answers supply
+  // runs: supply runs the Head Office adds, per kind of supply the station is short of. elastic: how hard the price answers supply
   // against demand, between priceLo and priceHi. occSec: how long the average of busy berths runs over.
   market: { base: [9, 16, 26, 38], rep0: 0.5, repLo: 0.6, repHi: 1.4, served: 0.006, lost: -0.06, turned: -0.04, runPer: 3, runsMax: 9,
     cratesPerShip: 6.5, windowSec: 240, elastic: 0.6, priceLo: 0.55, priceHi: 1.6, occSec: 240 },
-  // ration: what the rations order does to morale and to how fast rations go. festival: a Liberty Day, a one-off lift that fades.
+  // ration: what the rations order does to morale and to how fast rations go. festival: a Victory Day, a one-off lift that fades.
   morale: { ration: { normal: [0, 1], double: [6, 2], short: [-8, 0.5] }, festival: { cost: 150, gain: 12, days: 3, every: 7 }, magazine: 4, base: 70, taxFree: 10, taxPenalty: 2.5, taxBonus: 1, power: 25, leaveBelow: 30, leaveSec: 10, leisureMax: 25, contraband: 10, unrestDecaySec: 60, unrestMax: 30, amnesty: { cost: 80, every: 3 }, scanner: 0.6, faulty: 3 },
   faults: { meanSec: 480 },
   securityReach: 16,
@@ -320,10 +320,10 @@ export const C = {
   tiers: [
     { id: 'outpost', name: 'OUTPOST', radius: 16, about: 'A command module, a ship gun and a permit to grow. Trade, house colonists and keep the gun ready.' },
     { id: 'garrison', name: 'GARRISON', radius: 40, needs: { residents: 12, cap: 80, power: 20, ready: 30 },
-      about: 'Recognised by the Ministry. Rings, drums, pylons and the promenade; drone bays and SEAF barracks; with markets, bars, medbays and security offices inside.' },
+      about: 'Recognised by the Head Office. Rings, drums, pylons and the promenade; drone bays and Infantry barracks; with markets, bars, medbays and security offices inside.' },
     { id: 'fortress', name: 'FORTRESS', radius: 70, needs: { residents: 60, cap: 300, power: 60, ready: 50, rooms: ['secoffice', 'medbay'] },
-      about: 'A fortified waypoint for the fleet. Eagle hangars, Pelican bays and fabrication shops; hangars and shuttle bays, drydocks for warships, refineries, flak and shields.' },
+      about: 'A fortified waypoint for the fleet. Striker hangars, Dropship bays and fabrication shops; hangars and shuttle bays, drydocks for warships, refineries, flak and shields.' },
     { id: 'citadel', name: 'CITADEL', radius: 120, needs: { residents: 150, cap: 1000, morale: 70, ready: 65 },
-      about: 'A beacon of managed democracy, with the largest build zone the Ministry grants and its Classified weapons.' },
+      about: 'A beacon of brand standards, with the largest build zone the Head Office grants and its Classified weapons.' },
   ],
 };

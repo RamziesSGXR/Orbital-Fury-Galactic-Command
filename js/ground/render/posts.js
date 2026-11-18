@@ -1,6 +1,6 @@
-// What SEAF built (sim/posts.js), from above: each post has its own silhouette, a crew count under its name (orange when it needs
+// What Infantry built (sim/posts.js), from above: each post has its own silhouette, a crew count under its name (orange when it needs
 // a crew and has none), its health when hurt, a wrench while it is being patched up, and, when selected, its reach and brackets.
-// Turrets the Helldivers called (sentries) show their reach only when selected too.
+// Turrets the Vanguards called (sentries) show their reach only when selected too.
 import { t as tr } from '../i18n.js';
 import { VIEW } from './view.js';
 import { raise, isFlat, LIGHT, baking } from './relief.js';
@@ -188,7 +188,7 @@ function art(ctx, p, now, px, t) {
     return;
   }
   if (p.what === 'tower') {
-    // the propaganda tower: a lattice mast from above, loudspeaker horns facing out, a Super Earth banner, and broadcast rings
+    // the propaganda tower: a lattice mast from above, loudspeaker horns facing out, a Head Office banner, and broadcast rings
     // while someone mans it
     ctx.restore();
     const s = 2.3 * f;
@@ -248,7 +248,7 @@ function art(ctx, p, now, px, t) {
 // (0.61.3) The two towers in the 3D look, drawn standing: their feet on the ground, their tops up the screen, their shadows down
 // and to the right in the land's light (relief.js LIGHT), as long as they are tall.
 //   Lookout Tower     four stilts with cross braces, a plank platform with a rail on top, the searchlight on its front rail
-//   Propaganda Tower  a lattice mast narrowing to the top, four yellow loudspeaker horns facing out, a Super Earth banner hanging
+//   Propaganda Tower  a lattice mast narrowing to the top, four yellow loudspeaker horns facing out, a Head Office banner hanging
 //                     from an arm, a red light on the tip, and broadcast rings off the horns while someone mans it
 function tall(ctx, p, now, px, f, hit) {
   const x = p.x, y = p.y, lookout = p.what === 'lookout', H = (lookout ? 5 : 9) * f, up = H * LIGHT.up, sx = H * LIGHT.x, sy = H * LIGHT.y;
@@ -303,7 +303,7 @@ function tall(ctx, p, now, px, f, hit) {
     ctx.lineCap = 'butt';
     return;
   }
-  // the banner: an arm out to the left two thirds of the way up, Super Earth yellow hanging from it, a black disc on it
+  // the banner: an arm out to the left two thirds of the way up, Head Office yellow hanging from it, a black disc on it
   const by = y - up * 0.72, bx = x - 0.7 * f, bw = 2.5 * f, bh = 3.6 * f, wave = Math.sin(now * 1.6 + (p.id || 0)) * 0.18 * f;
   ctx.strokeStyle = steel; ctx.lineWidth = lw(1.2); ctx.beginPath(); ctx.moveTo(x, by); ctx.lineTo(bx - bw, by); ctx.stroke();
   ctx.fillStyle = hit ? '#fff' : '#ffe600'; ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(bx - bw, by); ctx.lineTo(bx - bw + wave, by + bh); ctx.lineTo(bx - bw / 2 + wave, by + bh - 0.7 * f); ctx.lineTo(bx + wave, by + bh); ctx.closePath(); ctx.fill();
@@ -349,7 +349,7 @@ function bridgeArt(ctx, p, now, px) {
   ctx.restore();
 }
 
-// A Helldiver sentry (the turret stratagems), from above: a tripod, the turret head and the gun of its kind; ammo as a thin
+// A Vanguard sentry (the turret call-ins), from above: a tripod, the turret head and the gun of its kind; ammo as a thin
 // arc round it. Small and detailed, the size of a trooper or two.
 export function sentryArt(ctx, s, now, px, hit, col) {
   const r = Math.max(1.3, px(2.4)), id = s.sid || '', a = s.face || 0;

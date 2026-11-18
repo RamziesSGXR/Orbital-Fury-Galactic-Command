@@ -1,4 +1,4 @@
-// Squad AI. Helldivers head for the objective and never take orders. SEAF (see seaf.js) are stepped from here.
+// Squad AI. Vanguards head for the objective and never take orders. Infantry (see seaf.js) are stepped from here.
 import { CONFIG as C } from '../config.js';
 import { COMMS } from '../data/data.js';
 import { compass } from './enemies.js';
@@ -60,7 +60,7 @@ function ringAvoid(m, sq, x, y, wx, wy, gx, gy, target) {
 export function updateSquad(m, dt) {
   const sq = m.squad, t = m.t;
   const bm = m.biome.speed;
-  // Stratagems and loads change how fast the squad moves: the recon vehicle is quick, jump packs help, a carried VIP slows them.
+  // Call-ins and loads change how fast the squad moves: the recon vehicle is quick, jump packs help, a carried VIP slows them.
   let mod = 1, mounted = false;
   if (m.frv && !m.frv.dead && m.frv.seats.length) { mounted = true; mod = C.strat.frv.speed / C.squad.speed; }
   else if (t < m.buff.jumpUntil) mod = C.strat.jump.speedMul;
@@ -70,7 +70,7 @@ export function updateSquad(m, dt) {
   const hds = m.hdAlive;
   const eg = m.eGrid;
 
-  // ---------------- Helldivers ----------------
+  // ---------------- Vanguards ----------------
   if (!hds.length) sq.formed = false;
   else {
     if (!sq.formed) { // a fresh landing: the squad forms around whoever is on the ground
@@ -126,7 +126,7 @@ export function updateSquad(m, dt) {
       } else sq.base = null;
     } else if (m.phase === 'extract') {
       sq.fallback = false;
-      // To the extraction point, then hold it until the pelican is down (the anchor stays on the pad).
+      // To the extraction point, then hold it until the dropship is down (the anchor stays on the pad).
       const ex = m.extraction;
       sq.dir = Math.atan2(ex.y - sq.ay, ex.x - sq.ax);
       sq.goalDist = Math.hypot(ex.x - sq.ax, ex.y - sq.ay);
@@ -166,7 +166,7 @@ export function updateSquad(m, dt) {
           else if (d > 10) { gx = P.x; gy = P.y; goal = 'stage'; }     // pushed off the spot by a fight: back to it
         }
       } else if (sq.stage !== 'go') {
-        // seen before the squad was ready (SEAF walked in, or the structure was hit): straight in
+        // seen before the squad was ready (Infantry walked in, or the structure was hit): straight in
         if (sq.stage === 'mark') m.radio(COMMS.baseSpotted, 'basego', 0);
         sq.stage = 'go'; sq.assault = true;
         const mk = b.fortress || b.part ? ringOf(m, b).keep : b;
@@ -225,7 +225,7 @@ export function updateSquad(m, dt) {
     const fightOn = engaged && (pointGoal || goal === 'base') && (goal === 'point' || goal === 'extract' || goal === 'base' || goal === 'bridge') && sq.engT >= C.squad.fightOnSec;
     if (fightOn && !sq.fightOn) m.radio(COMMS.fightOn, 'fighton', 40);
     sq.fightOn = fightOn;
-    const hbRun = !!(m.hellbomb && m.hellbomb.state === 'armed');     // (0.38.1) an armed Hellbomb: the squad moves off, fighting or not
+    const hbRun = !!(m.hellbomb && m.hellbomb.state === 'armed');     // (0.38.1) an armed Demolition Charge: the squad moves off, fighting or not
     const hold = !hbRun && !sq.fallback && ((engaged && !fightOn) || sq.state === 'setup');     // (0.40: pulling back, it keeps moving too)
     if (!hold && goal !== 'none') {
       const w = steer(m.terrain, sq, sq.ax, sq.ay, gx, gy, t);     // round the water, if there is any in the way
@@ -237,7 +237,7 @@ export function updateSquad(m, dt) {
     }
   }
 
-  // The pelican is down: every Helldiver runs straight for the ramp, whatever is shooting at him.
+  // The dropship is down: every Vanguard runs straight for the ramp, whatever is shooting at him.
   if (boardingNow(m)) {
     const ex = m.extraction, run = C.squad.chaseSpeed * bm * 1.15 * dt;
     for (const a of hds) {
@@ -248,27 +248,27 @@ export function updateSquad(m, dt) {
     updateSeaf(m, dt, speed, bm);
     return;
   }
-  // (0.38.1) A Hellbomb armed: every Helldiver inside its blast (with a margin) runs straight out of it, whatever is shooting at
+  // (0.38.1) A Demolition Charge armed: every Vanguard inside its blast (with a margin) runs straight out of it, whatever is shooting at
   // him; the rest of the squad goes on as usual
   const hb = m.hellbomb && m.hellbomb.state === 'armed' ? m.hellbomb : null;
   const clearR = hb ? C.objective.hellbomb.blastR + C.objective.hellbomb.runPad : 0;
-  // (0.53.7) the pelican is about to come down: every Helldiver closes on the pad, fighting on the move, so the whole squad is at the
+  // (0.53.7) the dropship is about to come down: every Vanguard closes on the pad, fighting on the move, so the whole squad is at the
   // ramp when it opens (they used to stand and fight wherever the last wave had drawn them, 50 m out, and die running for it)
   const exg = m.phase === 'extract' ? m.extraction : null;
   const gather = !!exg && (exg.state === 'landing' || (exg.state === 'called' && t >= exg.landAt - C.extract.gatherSec));
-  // Helldivers drift to their slots around the anchor; they stand and fight while engaged.
+  // Vanguards drift to their slots around the anchor; they stand and fight while engaged.
   if (hds.length) {
     const chase = C.squad.chaseSpeed * bm * dt * Math.max(1, mod);
     const sites = m.phase !== 'clear' ? holdSites(m, sq.ax, sq.ay) : null;     // (0.26: an evacuation's two rings, split between them)
     for (const a of hds) {
       if (hb && !a.mounted && runClear(m, a, hb, clearR, C.squad.chaseSpeed * bm * C.objective.hellbomb.runMul * dt)) continue;
-      if (a.mounted || (a.retreat && !gather)) continue;   // a Helldiver who is falling back is not drifting to his slot (0.53.7: unless the pelican is coming)
+      if (a.mounted || (a.retreat && !gather)) continue;   // a Vanguard who is falling back is not drifting to his slot (0.53.7: unless the dropship is coming)
       const selfEngaged = eg.nearest(a.x, a.y, C.squad.engageRange);
       let tx = sq.ax + a.ox, ty = sq.ay + a.oy;
       const hi = hds.indexOf(a), hn = hds.length;
       const site = sites ? sites[hi % sites.length] : null, si = sites ? Math.floor(hi / sites.length) : hi, sn = sites ? Math.ceil(hn / sites.length) : hn;
       const job = m.hellbomb && m.hellbomb.state === 'landed' && m.hellbomb.armer === a ? m.hellbomb : null;
-      if (job) { tx = job.x; ty = job.y; }                                      // the one arming the Hellbomb goes right to it
+      if (job) { tx = job.x; ty = job.y; }                                      // the one arming the Demolition Charge goes right to it
       else if (gather) { tx = exg.x + a.ox * 0.35; ty = exg.y + a.oy * 0.35; }   // (0.53.7) round the pad, ready for the ramp
       else if (site) { const p = threatSlot(m, site, si, sn); tx = p.x; ty = p.y; }     // holding a site: the walls that face the threat
       else if (sq.base && !sq.base.destroyed) {
@@ -280,7 +280,7 @@ export function updateSquad(m, dt) {
         }
       }
       // (0.53.2) a slot over the water (beside a light bridge, off a bank) is pulled in toward the anchor until it is on ground the
-      // anchor can walk to straight: a Helldiver whose place lay off the side of a deck stood at its edge for good
+      // anchor can walk to straight: a Vanguard whose place lay off the side of a deck stood at its edge for good
       if (!job && !site && m.terrain && !m.terrain.lineClear(sq.ax, sq.ay, tx, ty, 2)) { const p = pullIn(m.terrain, sq.ax, sq.ay, tx, ty); tx = p.x; ty = p.y; }
       const sw = steer(m.terrain, a, a.x, a.y, tx, ty, t);
       const dx = sw.x - a.x, dy = sw.y - a.y, d = Math.hypot(dx, dy);
@@ -292,7 +292,7 @@ export function updateSquad(m, dt) {
     }
   }
 
-  // ---------------- SEAF ----------------
+  // ---------------- Infantry ----------------
   updateSeaf(m, dt, speed, bm);
 }
 
