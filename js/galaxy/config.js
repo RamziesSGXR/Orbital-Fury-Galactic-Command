@@ -1,5 +1,5 @@
 // Every number and every name in the game lives here, so the prototype can be retuned or renamed in one place.
-export const VERSION = '0.2.0';
+export const VERSION = '0.3.0';
 
 export const C = {
   names: {
@@ -38,7 +38,16 @@ export const C = {
 
   // The map: rings of systems round the capital, more on each ring going out. `ring[i]` is systems per front on ring i+1.
   // Lanes are left out on purpose, so there are dead ends; where two fronts meet most rings are joined.
-  map: { ring: [2, 3, 4, 5, 7], radius: [0.17, 0.33, 0.5, 0.68, 0.88], second: 0.12, around: 0.32, across: 0.6 },
+  // 253 systems: eleven rings, 84 a front. Each front is cut into sectors: bands of rings (`band`: the last ring of each
+  // band), each split round the front into `slice` sectors. The systems round the capital are the Core.
+  map: { ring: [2, 3, 4, 5, 6, 7, 8, 9, 11, 14, 15], radius: [0.1, 0.178, 0.256, 0.334, 0.412, 0.49, 0.568, 0.646, 0.724, 0.802, 0.88], second: 0.12, around: 0.32, across: 0.6,
+    cross: [1, 3, 6, 9], band: [2, 4, 6, 8, 9, 10, 11], slice: [1, 2, 2, 3, 2, 3, 3] },
+  // Holding every system of a sector, all linked to the capital: its systems pay more and each has more hit points.
+  // An enemy that holds a whole sector gets the hit points too.
+  sector: { yield: 0.25, fort: 1 },
+  // A fleet travels this many lanes a round through systems its side holds. An enemy arrives already holding the outer
+  // rings of its front (`arriveRing` and beyond), and its home is harder for every `homePer` systems it holds.
+  fleetRange: 4, arriveRing: 9, homePer: 4,
 
   start: { res: { fuel: 9, drop: 6, army: 9 }, fleets: [3, 2, 2, 2] },   // ships: at the capital, then one fleet on each front
   resMax: 30,
@@ -54,7 +63,7 @@ export const C = {
     barren:   { name: 'BARREN WORLD',   col: '#6f6a62' },
   },
   capitalYield: { fuel: 1.5, army: 1.2, drop: 0.5 },
-  fort: { capital: 10, sys: 2 },      // hit points a system of yours has by itself, with no fleet there
+  fort: { capital: 16, sys: 3 },      // hit points a system of yours has by itself, with no fleet there
   garr: { sys: 2, home: 9, fortress: 2 },   // the same for an enemy system
 
   // ---------- fleets ----------
@@ -70,9 +79,9 @@ export const C = {
   // Its one action a turn is to attack with a fleet, or to bring a fleet up to the line. `aggr` is how much more
   // than the defence it wants before it attacks; after `patience` turns of waiting it attacks anyway.
   enemy: {
-    swarm:   { init: [3, 2], build: 0.75, per: 0.055, ramp: 0.03, send: 2, aggr: 0.9,  text: 'Attacks often, with small fleets.' },
-    foundry: { init: [5],    build: 0.75, per: 0.055, ramp: 0.03, send: 4, aggr: 1.3,  text: 'Gathers a heavy fleet before it strikes.' },
-    veil:    { init: [3, 2], build: 0.75, per: 0.055, ramp: 0.03, send: 3, aggr: 1.05, text: 'Its cards slip past your defences.' },
+    swarm:   { init: [3, 2], build: 0.7, per: 0.014, ramp: 0.005, send: 2, aggr: 0.9,  text: 'Attacks often, with small fleets.' },
+    foundry: { init: [5],    build: 0.7, per: 0.014, ramp: 0.005, send: 4, aggr: 1.3,  text: 'Gathers a heavy fleet before it strikes.' },
+    veil:    { init: [3, 2], build: 0.7, per: 0.014, ramp: 0.005, send: 3, aggr: 1.05, text: 'Its cards slip past your defences.' },
   },
   patience: 2,
   loot: { attack: 2, defend: 1, home: 4 },   // front resource won with each victory

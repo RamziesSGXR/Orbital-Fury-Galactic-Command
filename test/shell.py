@@ -21,7 +21,7 @@ with sync_playwright() as pw:
         assert pg.evaluate('gc.state') == 'war', 'not in the war room'
         pg.screenshot(path=f'{out}/{name}-4-war.png')
         # hold until the first enemy arrives and a battle starts
-        for i in range(40):
+        for i in range(90):
             if pg.evaluate('!!sgs.g.battle'): break
             pg.wait_for_function('!sgs.ui.show && !sgs.ui.anims.length', timeout=30000)
             if pg.is_visible('#commit'): pg.click('#commit')

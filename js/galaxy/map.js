@@ -14,13 +14,18 @@ export function rng32(a) {
 }
 
 const ROMAN = ['I', 'II', 'III', 'IV', 'V'];
+// Names made up from parts, for the systems past the written list and for the sectors.
+const A = ['Ar', 'Bel', 'Cor', 'Dra', 'El', 'Fen', 'Gal', 'Hal', 'Is', 'Jor', 'Kal', 'Lor', 'Mar', 'Nor', 'Or', 'Per', 'Quen', 'Ros', 'Sal', 'Tor', 'Ul', 'Ves', 'Wyn', 'Yar', 'Zan', 'Ash', 'Bren', 'Cal', 'Dun', 'Eth'];
+const B = ['a', 'an', 'ar', 'en', 'eth', 'ia', 'is', 'on', 'or', 'us', 'yn', 'ax', 'el', 'ir', 'os', 'und', 'ara', 'ine', 'oth', 'ium'];
+const SECT = ['Reach', 'Marches', 'Expanse', 'Deep', 'Verge', 'Gate', 'Drift', 'Crown', 'Shoals', 'Veil', 'Span', 'Hollow'];
 const THEME = { swarm: 'refinery', foundry: 'forge', veil: 'colony' };   // what is common on each front
 
 export function makeMap(seed = 1) {
   const rnd = rng32(seed * 2654435761 + 7), M = C.map;
   const names = [...C.names.planets];
   for (let i = names.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [names[i], names[j]] = [names[j], names[i]]; }
-  const planets = [], home = [];
+  const planets = [], home = [], used = new Set(names.map(n => n.toLowerCase()));
+  const made = () => { for (let i = 0; i < 99; i++) { const n = A[Math.floor(rnd() * A.length)] + B[Math.floor(rnd() * B.length)] + (rnd() < 0.25 ? B[Math.floor(rnd() * B.length)] : ''); if (!used.has(n.toLowerCase())) { used.add(n.toLowerCase()); return n; } } return 'Outpost ' + planets.length; };
   const worldsFor = (kind, front, name) => {
     const n = kind === 'home' ? 4 : kind === 'capital' ? 3 : 2 + (rnd() < 0.4 ? 1 : 0);
     const w = { refinery: 2, forge: 2, colony: 2, fortress: 1, barren: 2 };
@@ -36,7 +41,7 @@ export function makeMap(seed = 1) {
     return out;
   };
   const add = (kind, front, ring, r, deg, name) => {
-    const a = deg * Math.PI / 180; name = name || names.pop();
+    const a = deg * Math.PI / 180; name = name || names.pop() || made();
     const p = { id: planets.length, name, kind, front, ring, deg, x: Math.cos(a) * r, y: Math.sin(a) * r, adj: [], owner: 'fed',
       dev: 0, site: null, worlds: worldsFor(kind, front, name) };
     // The key world: the one shown when a battle is fought for the system, and whose kind helps shipbuilding there.
@@ -71,7 +76,7 @@ export function makeMap(seed = 1) {
     for (let i = 0; i < rings[k].length; i++) {
       const a = rings[k][i], b = rings[k][(i + 1) % rings[k].length], same = planets[a].front === planets[b].front;
       const must = same && (planets[a].kind === 'home' || planets[b].kind === 'home');   // a home is never a dead end
-      const cross = !same && (k === 1 || k === 3);   // rings 2 and 4 always join where two fronts meet, so every pair of fronts is linked twice at least
+      const cross = !same && M.cross.includes(k);   // rings 2 and 4 always join where two fronts meet, so every pair of fronts is linked twice at least
       if (must || cross || rnd() < (same ? M.around : M.across)) link(a, b);
     }
   }
@@ -79,5 +84,21 @@ export function makeMap(seed = 1) {
   const dist = planets.map(() => 99); dist[0] = 0; const q = [0];
   while (q.length) { const a = q.shift(); for (const b of planets[a].adj) if (dist[b] > dist[a] + 1) { dist[b] = dist[a] + 1; q.push(b); } }
   planets.forEach((p, i) => { p.dist = dist[i]; });
-  return { planets, home, capital: 0 };
+  // Sectors: the Core round the capital, then on each front bands of rings, each cut into slices going round.
+  const sectors = [{ id: 0, name: 'The Core', front: -1, sys: [0] }]; planets[0].sector = 0;
+  for (let fi = 0; fi < 3; fi++) {
+    let r0 = 1;
+    M.band.forEach((r1, bi) => {
+      const n = M.slice[bi], base = sectors.length, c = C.fronts[fi].deg;
+      for (let j = 0; j < n; j++) sectors.push({ id: base + j, name: `${made()} ${SECT[Math.floor(rnd() * SECT.length)]}`, front: fi, band: bi, sys: [] });
+      for (const p of planets) if (p.front === fi && p.ring >= r0 && p.ring <= r1) {
+        let d = (((p.deg - (c - 60)) % 360) + 360) % 360; if (d > 240) d = 0;
+        const j = Math.max(0, Math.min(n - 1, Math.floor(d / 120 * n)));
+        p.sector = base + j; sectors[base + j].sys.push(p.id);
+      }
+      r0 = r1 + 1;
+    });
+  }
+  for (const sc of sectors) { let x = 0, y = 0; for (const id of sc.sys) { x += planets[id].x; y += planets[id].y; } sc.x = x / Math.max(1, sc.sys.length); sc.y = y / Math.max(1, sc.sys.length); }
+  return { planets, home, capital: 0, sectors: sectors.filter(sc => sc.sys.length) };
 }

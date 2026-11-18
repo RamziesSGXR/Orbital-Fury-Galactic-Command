@@ -171,11 +171,18 @@ export class View {
     }
     // the system a battle is being fought for
     if (g.battle) { const p = g.P[g.battle.pid], [x, y] = this.xy(p), r = rad(p) + 6; hot.add(p.id); c.strokeStyle = C.color.amber; c.lineWidth = 2; c.setLineDash([4, 3]); c.beginPath(); c.arc(x, y, r + 2 * Math.sin(t * 6), 0, 7); c.stroke(); c.setLineDash([]); }
+    // sectors: each one's name over its middle once the map is close enough to read; a sector held whole is lit in its holder's colour
+    if (this.R > 300 && g.map.sectors) {
+      const own = g.sectorOwners(); c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = '600 9px ' + HEAD;
+      for (const sc of g.map.sectors) { if (!sc.id) continue; const [x, y] = this.xy(sc), o = own.get(sc.id); if (x < -40 || y < -20 || x > this.w + 40 || y > this.h + 20) continue;
+        c.globalAlpha = o ? 0.85 : 0.32; c.fillStyle = o ? col(o) : TEXT; c.fillText(sc.name.toUpperCase(), x, y - 16 * k); }
+      c.globalAlpha = 1;
+    }
     // names
     c.textAlign = 'center'; c.textBaseline = 'top';
     for (const p of g.P) {
       const big = p.kind === 'capital' || p.kind === 'home';
-      if (!(big || hot.has(p.id) || this.R > 380)) continue;
+      if (!(big || hot.has(p.id) || this.R > 700)) continue;
       const [x, y] = this.xy(p), r = rad(p);
       c.font = big ? '600 11px ' + HEAD : '10px ' + MONO;
       c.fillStyle = big || ui.sel === p.id ? TEXT : DIM;

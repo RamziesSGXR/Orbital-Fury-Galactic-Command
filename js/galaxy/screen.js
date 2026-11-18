@@ -99,6 +99,8 @@ function tabSys() {
   let h = `<section class="plate"><div class="row"><span class="big grow">${esc(p.name)}</span><span class="sm2 dim">${p.kind === 'capital' ? 'THE CAPITAL' : p.kind === 'home' ? 'ENEMY HOME' : fr.name}</span></div>`;
   h += `<div class="sm2" style="color:${C.color[p.owner]}">${(fed ? N.fed : N.factions[p.owner]).toUpperCase()} · ${g.strength(p.id)} HIT POINTS (system ${g.fort(p)} + ${ships(n)})${fed && !fl.has(p.id) ? ' · <span class="rd2">CUT OFF</span>' : ''}${p.dev ? ` · DEVELOPED ${p.dev}` : ''}</div>`;
   if (p.site) h += `<div class="sm2 am">${C.sites[p.site].name}: ${C.sites[p.site].text}</div>`;
+  { const sc = g.sectorOf(p), own = g.sectorOwners().get(sc.id), mine = sc.sys.filter(id => g.P[id].owner === 'fed').length;
+    h += `<div class="sm2 ${own === 'fed' ? 'cy' : 'dim'}">SECTOR: ${esc(sc.name.toUpperCase())} · ${mine} / ${sc.sys.length} HELD${own === 'fed' ? ` · WHOLE: +${Math.round(C.sector.yield * 100)}% OUTPUT, +${C.sector.fort} HP` : own ? ` · HELD WHOLE BY ${N.factions[own].toUpperCase()}` : ` · hold it all for +${Math.round(C.sector.yield * 100)}% output`}</div>`; }
   if (th) h += threatLine(p, th);
   h += '<canvas id="sys"></canvas>';
   if (fed && p.id !== 0) {

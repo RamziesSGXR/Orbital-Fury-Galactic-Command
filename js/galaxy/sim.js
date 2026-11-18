@@ -56,17 +56,17 @@ export class Game {
   // ---------- saving (only while you are deciding) ----------
   save() {
     const k = ['seed', 'rs', 'round', 'fi', 'res', 'loot', 'truth', 'F', 'fleets', 'fid', 'policy', 'priority', 'capHit', 'stats', 'over', 'last'];
-    const d = { v: 8, log: this.log.slice(-80), P: this.P.map(p => [p.owner, p.dev, p.site, p.built ? 1 : 0, p.station || 0, p.base || 0, p.dmg || 0]) };
+    const d = { v: 9, log: this.log.slice(-80), P: this.P.map(p => [p.owner, p.dev, p.site, p.built ? 1 : 0, p.station || 0, p.base || 0, p.dmg || 0]) };
     for (const x of k) d[x] = this[x];
     return d;
   }
   _restore(d) {
     for (const k in d) if (k !== 'v' && k !== 'P') this[k] = d[k];
     d.P.forEach(([o, dv, st, bu, sn, bs, dm], i) => Object.assign(this.P[i], { owner: o, dev: dv, site: st, built: !!bu, station: sn || 0, base: bs || 0, dmg: dm || 0 }));
-    this.phase = this.over ? 'over' : 'plan';
+    this.phase = this.over ? 'over' : 'plan'; this._sec = null;
     return this;
   }
-  static load(d) { return d && d.v === 8 ? new Game(d.seed, d) : null; }
+  static load(d) { return d && d.v === 9 ? new Game(d.seed, d) : null; }
 
   // ---------- the board ----------
   linked(owner, root) {
@@ -77,6 +77,17 @@ export class Game {
     return seen;
   }
   fedLinked() { return this.linked('fed', 0); }
+  // Who holds each sector whole (every system of it; for you, all linked to the capital too). Worked out once and kept
+  // until a system changes hands.
+  sectorOwners() {
+    if (this._sec) return this._sec;
+    const fl = this.fedLinked(), out = new Map();
+    for (const sc of this.map.sectors) { const o = this.P[sc.sys[0]].owner; if (sc.sys.every(id => this.P[id].owner === o && (o !== 'fed' || fl.has(id)))) out.set(sc.id, o); }
+    this._cnt = {}; for (const p of this.P) this._cnt[p.owner] = (this._cnt[p.owner] || 0) + 1;
+    return (this._sec = out);
+  }
+  sectorOf(p) { return this.map.sectors.find(sc => sc.id === p.sector); }
+  sectorHeld(p) { return this.sectorOwners().get(p.sector) === p.owner; }
   keyWorld(p) { return p.worlds[p.key]; }
   facOf(p) { return p.front < 0 ? null : C.fronts[p.front].f; }
   atWar(fi) { return fi >= 0 && this.F[C.fronts[fi].f].state === 'active'; }
@@ -93,16 +104,21 @@ export class Game {
   _drop(f) { const i = this.fleets.indexOf(f); if (i >= 0) this.fleets.splice(i, 1); }
   // Hit points a system has by itself, with no fleet there.
   fort(p) {
-    if (p.owner !== 'fed') return Math.max(0, (p.kind === 'home' ? C.garr.home : C.garr.sys) + p.worlds.filter(w => w.type === 'fortress').length * C.garr.fortress - (p.dmg || 0));
+    if (p.owner !== 'fed') return Math.max(0, (p.kind === 'home' ? C.garr.home + Math.floor(((this.sectorOwners(), this._cnt)[p.owner] || 0) / C.homePer) : C.garr.sys) + p.worlds.filter(w => w.type === 'fortress').length * C.garr.fortress + (this.sectorHeld(p) ? C.sector.fort : 0) - (p.dmg || 0));
     let v = (p.id === 0 ? C.fort.capital : C.fort.sys) + (this.priority != null && p.front === this.priority ? C.priority.fort : 0);
     for (const w of p.worlds) v += C.worlds[w.type].fort || 0;
-    v += (p.station || 0) * C.link.stationFort;
+    v += (p.station || 0) * C.link.stationFort + (this.sectorHeld(p) ? C.sector.fort : 0);
     return Math.max(0, Math.round(v * (this.fedLinked().has(p.id) ? 1 : C.cut)) - (p.dmg || 0));
   }
   // Total hit points a system would fight with: its own, plus its owner's fleet there.
   strength(pid) { const p = this.P[pid]; return this.fort(p) + this.shipsAt(pid, p.owner) * HP; }
   // Every system a fleet can travel to this round: any system of its own side joined to where it stands by lanes.
-  reach(f) { return f.moved ? new Set([f.at]) : this.linked(f.owner, f.at); }
+  reach(f) {
+    const seen = new Set([f.at]); if (f.moved) return seen;
+    let edge = [f.at];
+    for (let d = 0; d < C.fleetRange && edge.length; d++) { const next = []; for (const a of edge) for (const n of this.P[a].adj) if (!seen.has(n) && this.P[n].owner === f.owner) { seen.add(n); next.push(n); } edge = next; }
+    return seen;
+  }
   // The enemy fleets beside one of your systems that could strike it, strongest first.
   threat(pid) {
     const p = this.P[pid]; if (p.owner !== 'fed') return null;
@@ -211,7 +227,7 @@ export class Game {
     const fl = this.fedLinked(), pol = C.policy[this.policy], r = { ...C.capitalYield };
     for (const p of this.P) {
       if (p.owner !== 'fed' || p.id === 0 || !fl.has(p.id)) continue;
-      const m = (1 + C.develop.mult * p.dev + C.link.baseYield * (p.base || 0)) * (this.priority != null && p.front === this.priority ? C.priority.yield : 1);
+      const m = (1 + C.develop.mult * p.dev + C.link.baseYield * (p.base || 0) + (this.sectorHeld(p) ? C.sector.yield : 0)) * (this.priority != null && p.front === this.priority ? C.priority.yield : 1);
       for (const w of p.worlds) {
         const t = C.worlds[w.type]; if (!t.res) continue;
         r[t.res] += t.y * m * (t.res === 'drop' ? pol.drop : t.res === 'army' ? pol.forge : 1);
@@ -280,14 +296,14 @@ export class Game {
       if (F.state === 'warn' && this.round >= F.at) {
         F.state = 'active'; F.arrived = this.round;
         // They burst in: the home and the systems beside it on its front fall at once.
-        const take = [F.home, ...this.P[F.home].adj.filter(n => this.P[n].front === F.front)];
+        const take = [F.home, ...this.P.filter(q => q.front === F.front && q.ring >= C.arriveRing && q.id !== F.home).sort((a, b) => a.ring - b.ring || a.id - b.id).map(q => q.id)];
         for (const id of take) { const p = this.P[id], mine = this.fleetAt(id, 'fed'); this._capture(p, f); if (mine) this._retreat(mine, id); }
-        c.init.forEach((n, i) => this._put(f, take[i % take.length], n));
-        this.say('bad', `${N.factions[f]} has taken ${N.homes[f]} and ${take.length - 1} systems beside it. The ${fr.name.toLowerCase()} is open.`);
+        c.init.forEach((n, i) => this._put(f, take[1 + ((i * 5) % (take.length - 1))], n));     // its first fleets stand on the inner edge of what it took
+        this.say('bad', `${N.factions[f]} has taken ${N.homes[f]} and the ${take.length - 1} systems of the outer rings. The ${fr.name.toLowerCase()} is open.`);
       }
     }
   }
-  _capture(p, owner) { p.owner = owner; p.dev = 0; p.dmg = 0; if (p.station || p.base) { if (owner !== 'fed') this.say('bad', `${p.station ? 'The station over' : 'The base on'} ${p.name} is lost.`); p.station = 0; p.base = 0; this.lostSites = (this.lostSites || []).concat(p.id); } if (p.site) { if (owner !== 'fed') this.say('bad', `The ${C.sites[p.site].name} at ${p.name} is lost.`); p.site = null; } }
+  _capture(p, owner) { this._sec = null; p.owner = owner; p.dev = 0; p.dmg = 0; if (p.station || p.base) { if (owner !== 'fed') this.say('bad', `${p.station ? 'The station over' : 'The base on'} ${p.name} is lost.`); p.station = 0; p.base = 0; this.lostSites = (this.lostSites || []).concat(p.id); } if (p.site) { if (owner !== 'fed') this.say('bad', `The ${C.sites[p.site].name} at ${p.name} is lost.`); p.site = null; } }
   // A beaten fleet falls back to a neighbouring system of its own side, or is lost if there is none.
   _retreat(f, pid) {
     const fl = f.owner === 'fed' ? this.fedLinked() : null;
