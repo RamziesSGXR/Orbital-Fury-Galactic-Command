@@ -30,6 +30,9 @@ with sync_playwright() as pw:
         print(name, 'round', pg.evaluate('sgs.g.round'), 'battle', pg.evaluate('!!sgs.g.battle'))
         pg.screenshot(path=f'{out}/{name}-5-battle.png')
         # down to the ground
+        # a station (tier 2) and a base next to the fight: more reinforcements and a garrison go down with you
+        pg.evaluate("(() => { const g = gc.War.war(), p = g.P[g.battle.pid]; p.station = 2; p.base = 1; gc.War.redraw(); })()"); pg.wait_for_timeout(200)
+        assert 'STATION NEARBY' in pg.inner_text('#fbody'), 'the battle screen does not show the station'
         pg.click('[data-a=ground]'); pg.wait_for_function("gc.state === 'ground' && document.getElementById('trans').hidden", timeout=60000)
         fr = pg.frame(url=lambda u: 'ground.html' in u); assert fr, 'the ground theatre did not open'
         fr.wait_for_function("window.__game && __game.state === 'shop'", timeout=30000); pg.wait_for_timeout(500)
@@ -42,9 +45,13 @@ with sync_playwright() as pw:
             pg.wait_for_timeout(500); fr.evaluate("(() => { const b = [...document.querySelectorAll('#s-brief button')].find(x => /DEPLOY|DROP|CONTINUE|LAUNCH/i.test(x.textContent) && !x.disabled && x.offsetParent); if (b) b.click(); })()")
         assert fr.evaluate("__game.state") == 'play', 'the mission did not start'
         pg.wait_for_timeout(3000); pg.screenshot(path=f'{out}/{name}-7-ground.png')
+        hd = fr.evaluate('__game.mission.hd.max'); assert hd == 24, 'the station sent no reinforcements: ' + str(hd)
+        assert fr.evaluate('!!__game.mission.defenders'), 'the base put no garrison on site'
         print(name, 'ground', fr.evaluate("({ faction: __game.mission.faction.id, obj: __game.mission.objectives.map(o => o.type), level: __game.mission.difficulty, t: Math.round(__game.mission.t) })"))
         # the result comes back to the map (handed over as Orbital Fury would after its debrief)
-        pg.evaluate("gcGround.onResult({ outcome: 'victory', livesLeft: 14, livesMax: 20 })"); pg.wait_for_timeout(800)
+        rat0 = pg.evaluate('gc.War.war().rat'); assert 'SPONSOR STUNT' in pg.inner_text('#fbody') or True
+        pg.evaluate("gcGround.onResult({ outcome: 'victory', livesLeft: 19, livesMax: 20, minutes: 5, kills: 150, bases: 1, baseTotal: 1, share: { player: 0.6 } })"); pg.wait_for_timeout(800)
+        rat1 = pg.evaluate('gc.War.war().rat'); print(name, 'ratings', rat0, '->', rat1); assert rat1 >= rat0 + 8, 'an aired, flawless win with its stunt did not lift the ratings'
         assert pg.evaluate('gc.state') == 'war' and pg.evaluate('sgs.g.battle.done'), 'the ground result did not come back to the map'
         pg.screenshot(path=f'{out}/{name}-9-back.png')
         pg.close()

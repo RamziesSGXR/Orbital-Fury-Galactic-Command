@@ -268,6 +268,8 @@ function fight() {
   else if (b.done) h += `<div class="fres ${b.win ? 'cy' : b.win === null ? 'am' : 'rd2'}">${b.win ? 'VICTORY' : b.win === null ? 'THE FIGHT GOES ON' : 'DEFEAT'} · ${esc(b.result || '')}</div><button class="plate btn go" data-a="bclose">CONTINUE</button>`;
   else if (ui.fx && ui.fx.t < 0.9) h += '<div class="fhand wait"><span class="sm2 dim">…</span></div>';
   else if (b.round === 0 && !ui.cards && ui.tut == null) h += `<div class="sm2 dim" style="margin-bottom:6px">${N.factions[b.f].toUpperCase()} COMMITS ${ships(foe.ships)}${b.kind === 'atk' ? ` AND THE SYSTEM'S ${b.fort} DEFENCES` : ''} · GROUND THREAT L${g.groundLevel()} · ONE ENGAGEMENT IS ${C.battle.engage} ROUNDS</div>
+    ${(() => { const st = g.stunt(); return st ? `<div class="sm2 am" style="margin:6px 0">SPONSOR STUNT · <b>${st.name}</b> · ${st.text} <span class="cy">+${C.ratings.stunt} RATINGS</span></div>` : '<div class="sm2 dim" style="margin:6px 0">NOT AIRED · one fight a round is on camera</div>'; })()}
+    ${(() => { const s = g.groundSupport(b.pid), t = []; if (s.base) t.push(`<span class="cy">BASE NEARBY · GARRISON +${s.garrison}</span>`); if (s.station) t.push(`<span class="cy">STATION NEARBY · +${s.station * C.support.stationLives} REINFORCEMENTS</span>`); if (s.ratings) t.push(`<span class="${s.ratings > 0 ? 'cy' : 'rd2'}">RATINGS · ${s.ratings > 0 ? '+' : ''}${s.ratings} REINFORCEMENTS</span>`); return t.length ? `<div class="sm2" style="margin:6px 0">ON THE GROUND: ${t.join(' · ')}</div>` : ''; })()}
     <div class="fchoice"><button class="plate btn go" data-a="ground">${b.kind === 'atk' ? 'LAND THE ASSAULT' : 'DEFEND ON THE GROUND'}<small>${b.kind === 'atk' ? 'ASSAULT MISSION' : 'DEFENCE MISSION'} · ARMOURY, BRIEFING, THEN THE DROP</small></button>
       <button class="plate btn" data-a="cards">FIGHT IT IN SPACE<small>FLEET ACTION · CARDS</small></button></div>`;
   else if (you.hand.length) h += `<div class="fhand">${you.hand.map((id, i) => cardHtml(id, `data-a="bplay" data-i="${i}"`)).join('')}</div><button class="plate btn sm" style="width:100%;margin-top:6px" data-a="bplay">PASS</button>`;
@@ -375,7 +377,7 @@ document.addEventListener('click', e => {
     case 'show': g.show(+d.p, d.k); break;
     case 'totitle': $('modal').hidden = true; return app.endCampaign();
     case 'cards': ui.cards = true; break;
-    case 'ground': { const a = { battle: g.battle, system: g.P[g.battle.pid], level: g.groundLevel(), round: g.round }; return app.theatre('ground', a); }
+    case 'ground': { const a = { battle: g.battle, system: g.P[g.battle.pid], level: g.groundLevel(), round: g.round, support: g.groundSupport(g.battle.pid) }; return app.theatre('ground', a); }
     case 'press': g.press(); ui.fx = null; ui.auto = 0; break;
     case 'orbit': if (!g.P[+d.p].station && !g.found(+d.p, 'station')) break; return app.theatre('orbit', { system: g.P[+d.p] });
     case 'base': if (!g.P[+d.p].base && !g.found(+d.p, 'base')) break; return app.theatre('base', { system: g.P[+d.p] });
@@ -477,7 +479,7 @@ export function open(a, { saved = null, seed = 0, tutorial = false } = {}) {
 }
 export function show(on) { active = on; if (on) { view.resize(); if (view.front != null) view.focus(view.front); refresh(); } }
 // A battle settled on the ground comes back here: the result goes on the map and the battle screen shows it.
-export function groundResult(win, left) { if (g && g.battle && !g.battle.done) { g.battleResolve(win, left); ui.fx = null; ui.cards = false; } }
+export function groundResult(win, left, res) { if (g && g.battle && !g.battle.done) { g.battleResolve(win, left, res); ui.fx = null; ui.cards = false; } }
 // A station or a base has changed: its tier or rank goes on the system.
 export function setSite(pid, kind, level, profit) { if (g && g.P[pid]) { g.P[pid][kind] = level; g.P[pid][kind === 'station' ? 'sp' : 'bp'] = profit ? 1 : 0; g._sec = null; } }
 export function redraw() { if (g && active) refresh(); }

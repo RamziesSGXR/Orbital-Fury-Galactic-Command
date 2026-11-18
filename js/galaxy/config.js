@@ -1,5 +1,5 @@
 // Every number and every name in the game lives here, so the prototype can be retuned or renamed in one place.
-export const VERSION = '0.11.0';
+export const VERSION = '0.12.0';
 
 export const C = {
   names: {
@@ -106,6 +106,12 @@ export const C = {
   // system, at its lowest level and not in profit. `level` is the campaign's difficulty: it scales what they build.
   foe: { home: 0.8, yard: 0.3, supply: { base: 0.7, per: 0.016, perBase: 0.3 }, foundEvery: 5, firstAfter: 3, perSystems: 5, stationFort: 2,
          level: { easy: 0.75, normal: 1, hard: 1.25, brutal: 1.5 } },
+  // ---------------------------------------------------------------- YOUR POSTS IN THE FIGHT (0.12)
+  // A post helps a fight at its own system and at the systems one link away. In a card battle: a base adds baseFort
+  // hit points per charter to its own system, and each station next door adds coverFort (coverMax at most). On the
+  // ground: the nearest base puts a garrison on site (garrisonPer more troops per charter), the nearest station sends
+  // stationLives more reinforcements per tier, and ratings add or take ratLives (high or low).
+  support: { baseFort: 1, coverFort: 1, coverMax: 2, garrisonPer: 2, stationLives: 2, ratLives: 3 },
   // ---------------------------------------------------------------- WHAT EACH POST IS FOR (0.10)
   // The base trains the troops: every base charter on a linked system adds `train` to Army and Vanguard each round, and
   // worlds by themselves give only `worldTroops` of what they used to. The station builds the ships: a ship can only be
@@ -138,7 +144,16 @@ export const C = {
   // first you fight; the rest are not aired. Losses lower it, and above `settle` it slips back by `drift` of the
   // distance every round as the audience moves on. Effects: at `high` and above, output and the posts' pay rise; under `low` they fall;
   // under `sack` they fall hard, and sackRounds rounds in a row down there and the board replaces you.
-  ratings: { start: 50, settle: 40, drift: 0.12, take: 1, takeHome: 15, hold: 1, repelled: -1, fall: -1, postLost: -3, found: 1,
+  // SPONSOR STUNTS: the one aired ground fight of a round comes with a stunt from the sponsors. Win AND pull it off for
+  // `stunt` more ratings. Each is judged from the mission's own result.
+  stunts: [
+    { id: 'speed',  name: 'SPEED RUN',        text: 'Win in under 8 minutes.',            test: (r) => r.minutes < 8 },
+    { id: 'count',  name: 'BODY COUNT',       text: 'Win with 120 kills or more.',        test: (r) => r.kills >= 120 },
+    { id: 'sweep',  name: 'CLEAN SWEEP',      text: 'Win and destroy every enemy base.',  test: (r) => r.baseTotal > 0 && r.bases >= r.baseTotal },
+    { id: 'clean',  name: 'NOT A SCRATCH',    text: 'Win and lose no more than 2 lives.', test: (r) => r.livesMax - r.livesLeft <= 2 },
+    { id: 'star',   name: 'STAR OF THE SHOW', text: 'Win with your ship doing half the damage.', test: (r) => r.share && r.share.player >= 0.5 },
+  ],
+  ratings: { start: 50, stunt: 3, settle: 40, drift: 0.12, take: 1, takeHome: 15, hold: 1, repelled: -1, fall: -1, postLost: -3, found: 1,
              ground: { win: 3, flawless: 3, flawlessAt: 0.8, loss: -2 },
              show: { gain: 4, every: 8, cost: { base: { army: 3 }, station: { fuel: 3 } } },
              high: 75, low: 25, sack: 10, sackRounds: 5, yield: { high: 1.1, low: 0.8, sack: 0.6 }, pay: { min: 0.5, max: 1.5 } },

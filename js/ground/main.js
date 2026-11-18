@@ -46,6 +46,8 @@ if (GCX) document.documentElement.classList.add('gc');
 let gcOver = false;
 function gcDone() { if (gcOver) return; gcOver = true; audio.humStop(); if (lastRes) GCX.onResult(lastRes); else GCX.onAbort(); }
 function gcStart() {
+  // what the war sends down with you: reinforcements from a station and the ratings, a garrison from a base
+  if (GCX.support) { C.vanguards.lives = Math.max(8, C.vanguards.lives + (GCX.support.lives | 0)); if (GCX.support.garrison > 0) { C.infantry.defendChance = 1; C.infantry.defendN += GCX.support.garrison | 0; } }
   session = S.newSession(GCX.callsign, GCX.level, GCX.op);
   session.kit = GCX.kit; session.wallet = GCX.wallet; session.noSave = true; session.feed = 3; session.difficulty = clampLevel(GCX.level);
   session.next = { op: GCX.op, faction: GCX.faction, biome: GCX.biome, seed: GCX.seed, obj: GCX.obj, bump: 0 };

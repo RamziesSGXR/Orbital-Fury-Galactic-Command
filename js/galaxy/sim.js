@@ -133,6 +133,7 @@ export class Game {
     if (p.owner !== 'fed') return Math.max(0, (p.kind === 'home' ? C.garr.home + Math.floor(((this.sectorOwners(), this._cnt)[p.owner] || 0) / C.homePer) : C.garr.sys) + (p.station || 0) * C.foe.stationFort + p.worlds.filter(w => w.type === 'fortress').length * C.garr.fortress + (this.sectorHeld(p) ? C.sector.fort : 0) - (p.dmg || 0));
     let v = (p.id === 0 ? C.fort.capital : C.fort.sys) + (this.priority != null && p.front === this.priority ? C.priority.fort : 0);
     for (const w of p.worlds) v += C.worlds[w.type].fort || 0;
+    v += (p.base || 0) * C.support.baseFort + Math.min(C.support.coverMax, p.adj.filter(i => this.P[i].owner === 'fed' && this.P[i].station).length) * C.support.coverFort;
     v += (p.station || 0) * (C.link.stationFort + this.lv('s_guns')) + (this.sectorHeld(p) ? C.sector.fort : 0) + (this.sectorStation(p) >= C.link.sectorFortAt ? 1 : 0);
     return Math.max(0, Math.round(v * (this.fedLinked().has(p.id) ? 1 : C.cut)) - (p.dmg || 0));
   }
@@ -469,6 +470,14 @@ export class Game {
     raw -= st >= L.threatAt[1] ? 2 : st >= L.threatAt[0] ? 1 : 0;                              // a station overhead
     return clamp(Math.round(raw), L.level.min, L.level.max);
   }
+  // What your posts and your ratings bring to a fight on the ground at this system: from the system itself and from
+  // yours one link away.
+  groundSupport(pid) {
+    const p = this.P[pid], fl = this.fedLinked(), S = C.support, R = C.ratings; let base = 0, station = 0;
+    for (const q of [p, ...p.adj.map(i => this.P[i])]) if (q.owner === 'fed' && fl.has(q.id)) { base = Math.max(base, q.base || 0); station = Math.max(station, q.station || 0); }
+    const ratings = this.rat >= R.high ? S.ratLives : this.rat < R.low ? -S.ratLives : 0;
+    return { base, station, ratings, garrison: base * S.garrisonPer, lives: station * S.stationLives + ratings };
+  }
   // ---------- ratings ----------
   rate(n) { this.rat = clamp(this.rat + n, 0, 100); }
   ratBand() { const R = C.ratings; return this.rat >= R.high ? 'high' : this.rat < R.sack ? 'sack' : this.rat < R.low ? 'low' : 'mid'; }
@@ -522,10 +531,13 @@ export class Game {
   found(pid, kind) { if (!this.canFound(pid, kind)) return false; this._pay(C.link.found[kind]); this.P[pid][kind] = 1; this._sec = null; this.rate(C.ratings.found); this.say('good', `A ${kind} is founded at ${this.P[pid].name}.`); return true; }
   // A battle fought on the ground instead of with cards. `win` is whether you won it; `left` (0 to 1) is how much of
   // the winner's strength is still standing. The map is settled exactly as after a card battle.
-  battleResolve(win, left = 0.5) {
+  // The sponsors' stunt for the fight in front of you, if it is the one that will be aired this round.
+  stunt() { const b = this.battle; if (!b || this.aired === this.round) return null; return C.stunts[(this.seed + this.round * 7 + b.pid * 3) % C.stunts.length]; }
+  battleResolve(win, left = 0.5, res = null) {
     const b = this.battle; if (!b || b.done) return false;
     left = clamp(left, 0, 1);
     if (win) this.loot[b.f] += Math.round(left * C.post.groundLoot);
+    const st = this.stunt(); if (st && win && res) { let ok = false; try { ok = !!st.test(res); } catch { ok = false; } if (ok) { this.rate(C.ratings.stunt); this.say('good', `Publicity Office: ${st.name}, live. The sponsors are delighted.`); } }
     if (this.aired !== this.round) { this.aired = this.round; const G = C.ratings.ground; this.rate(win ? G.win + (left >= G.flawlessAt ? G.flawless : 0) : G.loss); if (win && left >= G.flawlessAt) this.say('good', 'Publicity Office: a flawless action, live. The footage is everywhere.'); }
     // one hard engagement: each side's fire over a full engagement, scaled by how the ground went
     const K = win ? C.groundWin : C.groundLoss, n = C.battle.engage;

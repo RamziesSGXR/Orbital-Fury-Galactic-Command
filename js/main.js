@@ -245,7 +245,7 @@ function leaveTheatre(out = {}) {
   const kind = state, args = frameUi.args; if (!mode) return;
   try { mode.leave(); } catch (err) { console.error(err); }
   mode = null;
-  if (kind === 'ground') { camp.stats.ground++; if (out.win) camp.stats.groundWon++; if (!out.abandon) War.groundResult(!!out.win, out.left ?? 0.5); }
+  if (kind === 'ground') { camp.stats.ground++; if (out.win) camp.stats.groundWon++; if (!out.abandon) War.groundResult(!!out.win, out.left ?? 0.5, out.res || null); }
   else if (out.level != null) {
     const key = kind === 'orbit' ? 'station' : 'base', g = War.war(), p = args.system, rec = (camp.sites[p.id] ||= {}), cur = p[key] || 1;
     let level = Math.min(out.level, cur);
