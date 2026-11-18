@@ -240,7 +240,7 @@ function actbar() {
     else if (p) row = `<b class="${p.owner === 'fed' ? 'cy' : 'rd2'} grow">${esc(p.name.toUpperCase())} · ${g.strength(p.id)} HP${p.station ? ' · STN ' + p.station : ''}${p.base ? ' · BASE ' + p.base : ''}</b>`;
     let build = '';
     if (p && p.owner === 'fed' && g.onFront(p.id)) {
-      build += `<button class="plate amber btn sm" data-a="build" data-p="${p.id}" ${g.canBuild(p.id) ? '' : 'disabled'}>${p.built ? 'BUILT' : '+1 SHIP · ' + costTxt(g.shipCost(p))}</button>`;
+      build += `<button class="plate amber btn sm" data-a="build" data-p="${p.id}" ${g.canBuild(p.id) ? '' : 'disabled'}>${p.built ? 'BUILT' : !g.hasYard(p) ? '+1 SHIP · NEEDS A STATION' : '+1 SHIP · ' + costTxt(g.shipCost(p))}</button>`;
       for (const k in C.sites) if (g.canSite(p.id, k)) build += `<button class="plate amber btn sm" data-a="site" data-k="${k}">${C.sites[k].name} · ${C.sites[k].cost}</button>`;
     }
     h = (p ? `<div class="arow">${row}<button class="plate btn sm" data-a="info">INFO</button><button class="plate btn sm" data-a="unsel">×</button></div>` : '') +

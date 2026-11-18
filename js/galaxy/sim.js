@@ -222,7 +222,8 @@ export class Game {
     if (p.station) c.fuel = Math.max(0, c.fuel - C.link.stationFuel);
     return c;
   }
-  canBuild(pid) { const p = this.P[pid]; return this.ready() && !!p && p.owner === 'fed' && !p.built && this.onFront(pid) && this.fedLinked().has(pid) && this.canPay(this.shipCost(p)); }
+  hasYard(p) { return !C.post.yardNeedsStation || p.id === 0 || !!p.station; }
+  canBuild(pid) { const p = this.P[pid]; return this.ready() && !!p && p.owner === 'fed' && !p.built && this.hasYard(p) && this.onFront(pid) && this.fedLinked().has(pid) && this.canPay(this.shipCost(p)); }
   // BUILD: one ship at a system of yours on this front, one per system each round. It can move from next round.
   // Building does not use up your decision.
   build(pid) {
@@ -254,10 +255,11 @@ export class Game {
     for (const p of this.P) {
       if (p.owner !== 'fed' || p.id === 0 || !fl.has(p.id)) continue;
       const m = (1 + C.develop.mult * p.dev + (C.link.baseYield + 0.1 * this.lv('b_yard')) * (p.base || 0) + (this.sectorHeld(p) ? C.sector.yield : 0)) * (this.priority != null && p.front === this.priority ? C.priority.yield : 1);
+      if (p.base) { r.army += C.post.train.army * p.base * pol.forge; r.drop += C.post.train.drop * p.base * pol.drop; }
       for (const w of p.worlds) {
         const t = C.worlds[w.type]; if (!t.res) continue;
-        r[t.res] += t.y * m * (t.res === 'drop' ? pol.drop : t.res === 'army' ? pol.forge : 1);
-        if (w.type === 'colony') r.army += pol.army * m;
+        r[t.res] += t.y * m * (t.res === 'drop' ? pol.drop : t.res === 'army' ? pol.forge : 1) * (t.res === 'fuel' ? 1 : C.post.worldTroops);
+        if (w.type === 'colony') r.army += pol.army * m * C.post.worldTroops;
       }
     }
     const ym = this.ratYield(); if (ym !== 1) for (const k in r) r[k] *= ym;
@@ -510,6 +512,7 @@ export class Game {
   battleResolve(win, left = 0.5) {
     const b = this.battle; if (!b || b.done) return false;
     left = clamp(left, 0, 1);
+    if (win) this.loot[b.f] += Math.round(left * C.post.groundLoot);
     if (this.aired !== this.round) { this.aired = this.round; const G = C.ratings.ground; this.rate(win ? G.win + (left >= G.flawlessAt ? G.flawless : 0) : G.loss); if (win && left >= G.flawlessAt) this.say('good', 'Publicity Office: a flawless action, live. The footage is everywhere.'); }
     // one hard engagement: each side's fire over a full engagement, scaled by how the ground went
     const K = win ? C.groundWin : C.groundLoss, n = C.battle.engage;

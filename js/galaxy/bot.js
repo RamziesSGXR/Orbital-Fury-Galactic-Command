@@ -12,7 +12,7 @@ export function botDecide(g) {
   for (const k in C.sites) { const p = g.P.filter(q => g.canSite(q.id, k) && !g.threat(q.id)).sort((a, b) => a.ring - b.ring)[0]; if (p) g.site(p.id, k); }
   const want = g.P.filter(p => g.canBuild(p.id)).map(p => ({ p, t: g.threat(p.id) }))
     .sort((a, b) => (b.t ? 10 - a.p.ring : 0) - (a.t ? 10 - b.p.ring : 0) || (b.p.adj.some(n => g.P[n].owner !== 'fed') - a.p.adj.some(n => g.P[n].owner !== 'fed')) || g.shipsAt(b.p.id, 'fed') - g.shipsAt(a.p.id, 'fed'));
-  for (const w of want.slice(0, 2)) if (w.t || w.p.adj.some(n => g.P[n].owner !== 'fed') || g.res.fuel > 12) g.build(w.p.id);
+  for (const w of want.slice(0, 4)) g.build(w.p.id);     // yards are few (the capital and the stations): every one that can build, does
   const hot = g.P.filter(p => p.owner === 'fed' && g.onFront(p.id)).map(p => ({ p, t: g.threat(p.id) })).filter(h => h.t && g.strength(h.p.id) < h.t.hp * 1.15).sort((a, b) => a.p.ring - b.p.ring);
   const needed = f => { const t = g.threat(f.at); return t && g.strength(f.at) - f.ships * HP < t.hp * 1.1 && (g.P[f.at].ring <= 2 || f.at === 0); };
   // 1. the capital and the inner rings come first: reinforce what will fall

@@ -12,28 +12,40 @@ const games = +process.argv[2] || 40, maxR = +process.argv[3] || 120;
 // - GROUND BATTLES: when the odds are good enough it takes the fight to the ground. Whether it wins comes from Orbital
 //   Fury's own bot results by threat level (the project's balance notes: the sharp bot won 5, 5, 4, 3 of 5 at levels
 //   1, 3, 5 and 7), with 60% of its lives left on a win.
+// - EVERY bot but the idle one founds stations and bases (ships can only be built over a station; bases train the
+//   troops). Only the full bot runs them: levels, profit, shows.
 // - THE WAR CHEST: a post is in profit PROFIT rounds after it is founded; a ground win pays GROUND_CR; every round the
 //   bot buys the cheapest armoury upgrade it can (it buys nothing from the ground's shelf).
 const ONLY = process.argv[5] || '';     // 'sites' or 'ground': only that half of 'full', to see what each is worth
 const FOUND = 3, LEVEL = 12, PROFIT = 4, GROUND_CR = 500, GROUND_P = [1, 1, 1, 1, 0.9, 0.8, 0.7, 0.6, 0.5];
 const rng = (a) => () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
-function sites(g, age) {
-  for (const [k, a] of age) { const [pid, kind] = k.split(':'), p = g.P[+pid]; if (!p[kind]) { age.delete(k); continue; } a.n++; if (a.n >= PROFIT) p[kind === 'station' ? 'sp' : 'bp'] = 1; if (a.n % LEVEL === 0 && p[kind] < 4) { p[kind]++; g._sec = null; } }
-  if (g.rat < 70) for (const p of g.P) { if (g.rat >= 70) break; for (const k of ['base', 'station']) if (p[k] && g.canShow(p.id, k)) g.show(p.id, k); }
-  if (g.round % FOUND) return;
+function sites(g, age, run = true) {
+  if (run) for (const [k, a] of age) { const [pid, kind] = k.split(':'), p = g.P[+pid]; if (!p[kind]) { age.delete(k); continue; } a.n++; if (a.n >= PROFIT) p[kind === 'station' ? 'sp' : 'bp'] = 1; if (a.n % LEVEL === 0 && p[kind] < 4) { p[kind]++; g._sec = null; } }
+  if (run && g.rat < 70) for (const p of g.P) { if (g.rat >= 70) break; for (const k of ['base', 'station']) if (p[k] && g.canShow(p.id, k)) g.show(p.id, k); }
+  if (!g.ready() || g.round - (g.x.foundAt ?? -9) < FOUND) return;
   const fl = g.fedLinked();
-  const free = g.P.filter(p => p.owner === 'fed' && p.id && fl.has(p.id) && !g.threat(p.id) && (!p.station || !p.base)).sort((a, b) => a.ring - b.ring || a.id - b.id)[0];
-  if (!free) return;
-  const kind = !free.station ? 'station' : 'base'; if (g.found(free.id, kind)) age.set(`${free.id}:${kind}`, { n: 0 });
+  // a base goes on the innermost free system; a station goes up near the fighting (two jumps behind the line), since
+  // ships are only built over stations and have to reach the front
+  const ok = (p) => p.owner === 'fed' && p.id && fl.has(p.id) && !g.threat(p.id);
+  const stations = g.P.filter(p => p.owner === 'fed' && p.station).length, bases = g.P.filter(p => p.owner === 'fed' && p.base).length;
+  const kind = stations <= bases ? 'station' : 'base';
+  let pick;
+  if (kind === 'base') pick = g.P.filter(p => ok(p) && !p.base).sort((a, b) => a.ring - b.ring || a.id - b.id)[0];
+  else {
+    const near = (p) => { let d = 9; for (const n of p.adj) { if (g.P[n].owner !== 'fed') d = Math.min(d, 1); else for (const m of g.P[n].adj) if (g.P[m].owner !== 'fed') d = Math.min(d, 2); } return d; };
+    pick = g.P.filter(p => ok(p) && !p.station).map(p => ({ p, d: near(p) })).sort((a, b) => (a.d === 2 ? 0 : a.d === 9 ? 1 : 2) - (b.d === 2 ? 0 : b.d === 9 ? 1 : 2) || Math.abs(a.p.ring - 6) - Math.abs(b.p.ring - 6) || a.p.id - b.p.id)[0]?.p;
+  }
+  if (pick && g.found(pick.id, kind)) { g.x.foundAt = g.round; age.set(`${pick.id}:${kind}`, { n: 0 }); }
 }
 export function play(seed, mode, rounds = maxR) {
   const g = new Game(seed), full = mode === 'full', R = rng(seed * 977 + 5), age = new Map();
   g.x = { ground: 0, groundWon: 0, wal: { bal: 1200 }, maxRank: 0, ratMin: 100, ratSum: 0, ratN: 0 };
   let guard = 0, last = 0;
   while (!g.over && g.round <= rounds && guard++ < 400000) {
-    if (g.round !== last) { g.x.ratMin = Math.min(g.x.ratMin, g.rat); g.x.ratSum += g.rat; g.x.ratN++; if (!full) last = g.round; }
+    if (g.round !== last) { g.x.ratMin = Math.min(g.x.ratMin, g.rat); g.x.ratSum += g.rat; g.x.ratN++; }
     if (full && g.round !== last) { g.x.wal.bal += g.takeDue(); g.x.maxRank = Math.max(g.x.maxRank, g.rank()); const opts = Object.values(C.shelf).flat().filter(it => g.canBuy(it.id, g.x.wal.bal)).sort((a, b) => g.nextLevel(a.id).cr - g.nextLevel(b.id).cr); if (opts[0]) g.buy(opts[0].id, g.x.wal); }
-    if (full && ONLY !== 'ground' && g.round !== last) { last = g.round; sites(g, age); }
+    if (mode !== 'idle' && ONLY !== 'ground' && !g.battle) sites(g, age, full && g.round !== last);
+    last = g.round;
     if (g.battle) {
       const b = g.battle;
       if (b.done) { if (mode !== 'idle' && b.pending && b.foe.hp <= b.you.fire * 2 + 2) g.press(); else g.battleClose(); }

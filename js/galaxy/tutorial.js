@@ -14,7 +14,7 @@ const N = C.names;
 // your fleet on the first front to open, and a system of yours further out for it to move to
 const scout = g => g.fleets.find(f => f.owner === 'fed' && g.P[f.at].front === 0);
 const outward = g => { const f = scout(g); return f ? g.posts(f).filter(n => g.P[n].front === 0 && g.P[n].ring === 3)[0] : null; };
-const yard = g => (g.P.filter(p => g.canBuild(p.id) && p.id).sort((a, b) => (g.fleetAt(b.id, 'fed') ? 1 : 0) - (g.fleetAt(a.id, 'fed') ? 1 : 0) || b.ring - a.ring)[0] || {}).id;
+const yard = g => (g.P.filter(p => g.canBuild(p.id)).sort((a, b) => (g.fleetAt(b.id, 'fed') ? 1 : 0) - (g.fleetAt(a.id, 'fed') ? 1 : 0) || b.ring - a.ring)[0] || {}).id;
 
 export const SEED = 7;
 export const STEPS = [
@@ -34,13 +34,13 @@ export const STEPS = [
     text: () => `<b>${N.factions.molt}</b> has arrived, in orange, and the map has turned to the <b>eastern front</b>. From now on each round goes front by front. On each front <b>the enemy acts first</b>: it attacks, or brings a fleet closer. Then you make <b>one decision</b>.` },
   { shut: true, hint: yard, skipIf: g => yard(g) == null, done: g => g.P.some(p => p.built),
     help: 'BUILD ONE FOR ME', do: (g, ui) => { ui.sel = yard(g); g.build(ui.sel); },
-    text: () => 'Building is <b>extra</b>: it does not use up your decision. Tap the ringed system, then <b>BUILD SHIP</b> in the bar at the bottom. The cost is at the top of the screen.' },
+    text: () => 'Ships are built at your headquarters and over your stations. Building is <b>extra</b>: it does not use up your decision. Tap the ringed system, then <b>BUILD SHIP</b> in the bar at the bottom. The cost is at the top of the screen.' },
   { shut: true, hi: '#commit', done: g => g.round >= 3 || !!g.battle,
     text: () => 'Now your decision here: <b>attack, defend, or hold</b>. To attack or defend, tap a fleet and then a ring. Nothing is in reach yet, so press <b>HOLD THE EAST</b>.' },
   { next: true, shut: true,
     text: g => (g.battle ? 'This is a <b>battle</b>. ' : 'When fleets meet there is a <b>battle</b>. ') + 'Each side has <b>hit points</b>: 3 for every ship, plus the system\'s own. You draw three cards at random from your deck. Each round you <b>tap one card</b>, then every ship fires. The first side with no hit points loses and falls back with half its ships.' },
   { next: true, shut: true, hi: '#mins',
-    text: () => 'The <b>offices</b> are this row. <b>Intel</b> tells you what needs doing on the front in play. <b>Defence</b> shows your fleets and your battle deck. <b>Expand</b> builds special sites, which add cards nobody else has. <b>Prosper</b> swaps one resource for another.' },
+    text: () => 'The <b>offices</b> are this row. <b>Intel</b> tells you what needs doing on the front in play. <b>Ops</b> shows your fleets and your battle deck. <b>Growth</b> builds special sites, which add cards nobody else has. <b>Finance</b> swaps one resource for another.' },
   { next: true, last: true, shut: true,
     text: () => `Each round, front by front: the enemy acts, then you decide. Your deck grows with the worlds you hold. <b>Win</b> by taking all three enemy homes. <b>Lose</b> if ${N.capital} falls, or if two enemies strike it in the same round.` },
 ];

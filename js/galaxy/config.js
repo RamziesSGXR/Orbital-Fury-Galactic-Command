@@ -1,5 +1,5 @@
 // Every number and every name in the game lives here, so the prototype can be retuned or renamed in one place.
-export const VERSION = '0.9.0';
+export const VERSION = '0.10.0';
 
 export const C = {
   names: {
@@ -97,6 +97,12 @@ export const C = {
   // `engage`: rounds in one engagement. If neither side is out of hit points by then, the fight for the system goes on next
   // round: the fleets stay where they are and the damage stays done. `press`: pay fuel to fight on for more rounds now.
   // `repair`: hit points a system's own defences win back each round.
+  // ---------------------------------------------------------------- WHAT EACH POST IS FOR (0.10)
+  // The base trains the troops: every base charter on a linked system adds `train` to Army and Vanguard each round, and
+  // worlds by themselves give only `worldTroops` of what they used to. The station builds the ships: a ship can only be
+  // laid down at the capital or over a station. The ground pays in the enemy's own material: a win there brings
+  // groundLoot x the share of your squad still standing, on top of what any victory brings.
+  post: { train: { army: 1.2, drop: 0.8 }, worldTroops: 0.7, yardNeedsStation: true, groundLoot: 3 },
   // ---------------------------------------------------------------- FLEETS: MAKEUP, WEAR AND UPKEEP (0.9)
   // A fleet is still a number of ships, and that number still decides its fights. On top of it, kept simple:
   // MAKEUP: every ship is one of three roles, and a fleet's makeup is its shares of them. The shares give modest buffs:
