@@ -182,14 +182,17 @@ export function drawSupply(ctx, m, now, px, labels, scale, teamColor) {
   }
   if (S.state === 'inbound' && S.drop) {
     const d = S.drop, total = C.supply.dropSec, left = Math.max(0, d.landAt - t), f = Math.min(1, left / total), col = teamColor(d.team);
+    if (VIEW.drops) { VIEW.drops.push({ x: d.x, y: d.y, f, tint: '#9dffb8', big: true }); labels.push({ x: d.x, y: d.y, dy: 26, text: tr('lab.supplyPod', { n: left.toFixed(1) }), col: '#9dffb8', pri: 3 }); }     // (GC 0.24) in 3D it comes down under a parachute
+    else {
     ctx.strokeStyle = col; ctx.lineWidth = px(2); ctx.setLineDash([px(5), px(4)]); ctx.lineDashOffset = -now * px(8);
     ring(ctx, d.x, d.y, 9); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
     ctx.globalAlpha = 0.7; ring(ctx, d.x, d.y, 4 + 24 * f); ctx.stroke(); ctx.globalAlpha = 1;
     ctx.strokeStyle = '#9dffb8'; ctx.lineWidth = px(3); ctx.beginPath(); ctx.moveTo(d.x, d.y - 150 * f - 6); ctx.lineTo(d.x, d.y - 6); ctx.stroke();
     ctx.fillStyle = '#9dffb8'; ctx.fillRect(d.x - 2.2, d.y - 150 * f - 9, 4.4, 6);
     labels.push({ x: d.x, y: d.y, dy: 26, text: tr('lab.supplyPod', { n: left.toFixed(1) }), col: '#9dffb8', pri: 3 });
+    }
   }
-  if (t < S.boostUntil) {
+  if (t < S.boostUntil && !VIEW.drops) {
     ctx.strokeStyle = 'rgba(125,255,155,0.55)'; ctx.lineWidth = px(1.6);
     for (const a of m.hdAlive) { ring(ctx, a.x, a.y, Math.max(px(13), 4) + Math.sin(now * 5 + a.id) * px(1.5)); ctx.stroke(); }
   }
@@ -317,6 +320,7 @@ export function drawExtractionDropship(ctx, m, now, px) {
   if (ex.state === 'boarding') {   // the ramp at the back
     ctx.fillStyle = 'rgba(220,235,245,0.6)'; ctx.fillRect(x - 2.5, y + s * 0.95, 5, 6);
   }
+  if (VIEW.air) { VIEW.air.push({ k: 'dship', x, y, r: 8, face: ang, up: 1.5 + alt * 60 }); return; }     // (GC 0.24) in 3D
   // (0.39) the rockets: hard down coming in to land and climbing out, idling on the pad
   const thrust = ex.state === 'boarding' ? 0.3 : 1, down = ex.state === 'away' ? Math.max(0, 1 - (t - ex.awayAt) / 1.5) : 1;
   dshipDetail(ctx, x, y, ang, s, now, thrust, down, null);

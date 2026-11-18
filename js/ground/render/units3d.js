@@ -6,8 +6,9 @@
 // One instanced mesh for each kind: any number of them is one draw. A model is baked to a single shape with its colours
 // in its corners, standing on the ground at the origin, facing +z, sized so its widest or tallest measure is two units.
 import * as THREE from '../../vendor/three.js';
-import { makeMats, makePerson, makeLRV, makeTank } from '../../base/models.js';
+import { makeMats, makePerson, makeLRV, makeTank, makeDropship, makeCrate } from '../../base/models.js';
 
+const TMP = new THREE.Color();
 const CAP = 700;     // of one kind on screen at once
 const M4 = new THREE.Matrix4(), Q = new THREE.Quaternion(), UP = new THREE.Vector3(0, 1, 0), P = new THREE.Vector3(), S = new THREE.Vector3(), COL = new THREE.Color();
 
@@ -79,6 +80,14 @@ function mech(mats) {
   return g;
 }
 
+// a Striker: a nose, swept wings, twin tails, a hot exhaust; flying toward +z
+function jet() {
+  const g = new THREE.Group(), skin = mat('#c9d2d8'), dark = mat('#39444c'), glass = mat('#46586a'), hot = mat('#ffaa3c');
+  part(g, BOX, skin, 0, 0, 0, 0.5, 0.32, 3.4); part(g, CONE, skin, 0, 0, 2.2, 0.5, 1.0, 0.32, Math.PI / 2); part(g, BOX, glass, 0, 0.2, 1.0, 0.3, 0.16, 0.8);
+  for (const sd of [-1, 1]) { const w = part(g, BOX, skin, sd * 1.0, 0, -0.5, 1.8, 0.06, 1.1); w.rotation.y = sd * 0.5; const f = part(g, BOX, dark, sd * 0.3, 0.35, -1.5, 0.05, 0.6, 0.6); f.rotation.z = sd * -0.3; part(g, BOX, skin, sd * 0.55, 0, -1.6, 0.7, 0.05, 0.5); }
+  part(g, BOX, hot, 0, 0, -1.75, 0.3, 0.2, 0.1); return g;
+}
+
 export class Units3D {
   constructor(scene, livery) {
     this.scene = scene; this.kinds = new Map(); this.used = new Map();
@@ -87,6 +96,7 @@ export class Units3D {
     const person = (k) => (mats ? makePerson(mats, k) : (() => { const g = new THREE.Group(); part(g, BOX, mat('#8fb0cc'), 0, 0.9, 0, 0.5, 1.2, 0.3); part(g, BALL, mat('#2c5a94'), 0, 1.7, 0, 0.4, 0.4, 0.4); return g; })());
     // how tall each stands for a footprint radius of one is whatever its model is; `k` scales the footprint asked for
     this.def = {
+      dship: () => bake(mats ? makeDropship(mats) : jet()), jet: () => bake(jet()), crate: () => bake(mats ? makeCrate(mats) : (() => { const g = new THREE.Group(); part(g, BOX, mat('#ffd678'), 0, 0.5, 0, 1, 1, 1); return g; })()),
       van: () => bake(person('troop')), inf: () => bake(person('troop')), lrv: () => bake(mats ? makeLRV(mats) : mech({})), mech: () => bake(mech(this.mats)),
       'bugs:L': () => bake(molt(1)), 'bugs:M': () => bake(molt(2)), 'bugs:H': () => bake(molt(3)),
       'bots:L': () => bake(foundry(1, mats)), 'bots:M': () => bake(foundry(2, mats)), 'bots:H': () => (mats ? bake(foundry(3, mats), '#7a3028') : bake(foundry(2, mats))),
@@ -132,6 +142,8 @@ export class Fx3D {
     this.cord = inst(new THREE.CylinderGeometry(0.03, 0.03, 1, 4), lit('#1a1c18'), 256);
     this.shell = inst(new THREE.BoxGeometry(1, 1, 1), glow('#fff2d0'), 128);
     this.strobe = inst(new THREE.SphereGeometry(1, 8, 6), glow('#ffffff'), 256);
+    // a blast: a ball of fire that swells and climbs, white at first, then orange, then gone (it adds its light to the picture, so as it darkens it fades)
+    this.blast = inst(new THREE.IcosahedronGeometry(1, 2), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }), 96); this.blast.renderOrder = 5;
     this.dir = new THREE.Vector3(); this.a = new THREE.Vector3(); this.b = new THREE.Vector3(); this.z = new THREE.Vector3(0, 0, 1); this.yv = new THREE.Vector3(0, 1, 0);
   }
   // drops: [{ x, y, f (1 high up, 0 landed), tint, big }]   shells: [{ x, y, q (0 fired, 1 hit), big }]   strobes: [{ x, y, h }]
@@ -160,6 +172,16 @@ export class Fx3D {
     let j = 0;
     for (const s of o.strobes || []) { if (j >= 256) break; Q.identity(); P.set(s.x, ground(s.x, s.y) + s.h, s.y); S.setScalar(s.r || 0.7); this.strobe.setMatrixAt(j++, M4.compose(P, Q, S)); }
     this.strobe.count = j; if (j) this.strobe.instanceMatrix.needsUpdate = true;
-    this.n = { drops: n, shells: k, strobes: j };
+    let w = 0;
+    for (const s of o.blasts || []) {
+      if (w >= 95) break; const p = s.p, g0 = 1 - (1 - Math.min(1, p * 2.4)) ** 2, R = s.r * (0.4 + 0.7 * g0), fade = p < 0.4 ? 1 : Math.max(0, (1 - p) / 0.6);
+      const gy = ground(s.x, s.y) + R * 0.5 + s.r * 0.9 * p;
+      // the fire: a wide dull ball, and a small white-hot heart that goes out first
+      Q.identity(); P.set(s.x, gy, s.y); S.set(R, R * (1 + 0.35 * p), R); this.blast.setMatrixAt(w, M4.compose(P, Q, S));
+      COL.setRGB(0.75 * fade, (0.36 - 0.22 * p) * fade, 0.05 * fade); if (s.col) COL.lerp(TMP.set(s.col).multiplyScalar(0.6 * fade), 0.5); this.blast.setColorAt(w++, COL);
+      const hf = Math.max(0, 1 - p * 2.2); if (hf > 0 && w < 96) { S.setScalar(R * (0.35 + 0.3 * hf)); P.y = gy - R * 0.1; this.blast.setMatrixAt(w, M4.compose(P, Q, S)); COL.setRGB(hf, 0.9 * hf, 0.6 * hf); this.blast.setColorAt(w++, COL); }
+    }
+    this.blast.count = w; if (w) { this.blast.instanceMatrix.needsUpdate = true; if (this.blast.instanceColor) this.blast.instanceColor.needsUpdate = true; }
+    this.n = { drops: n, shells: k, strobes: j, blasts: w };
   }
 }

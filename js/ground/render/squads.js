@@ -2,6 +2,7 @@
 // player is drawing. Every function draws in world space (meters).
 import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
+import { VIEW } from './view.js';
 import { SQUAD_COLOR, classifyStroke } from '../sim/infantry.js';
 
 const TAU = Math.PI * 2;
@@ -236,14 +237,19 @@ export function drawDropships(ctx, m, now, px, labels, scale, pal) {
     // where it is going to land
     if (p.state === 'in') {
       ctx.strokeStyle = col; ctx.lineWidth = px(1.6); ctx.setLineDash([px(5), px(5)]); ctx.lineDashOffset = -now * px(10);
-      ring(ctx, p.tx, p.ty, 16); ctx.stroke();
-      ctx.globalAlpha = 0.45; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.tx, p.ty); ctx.stroke(); ctx.globalAlpha = 1;
+      if (VIEW.air) { ctx.setLineDash([]); ctx.beginPath(); for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2 + Math.PI / 4, c = Math.cos(a), sn = Math.sin(a); ctx.moveTo(p.tx + c * 6, p.ty + sn * 6); ctx.lineTo(p.tx + c * 13, p.ty + sn * 13); } ctx.stroke(); }     // (GC 0.24) in 3D: four marks on the ground, not a ring
+      else { ring(ctx, p.tx, p.ty, 16); ctx.stroke(); }
+      if (!VIEW.air) { ctx.globalAlpha = 0.45; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.tx, p.ty); ctx.stroke(); ctx.globalAlpha = 1; }
       ctx.setLineDash([]); ctx.lineDashOffset = 0;
     }
     // shadow on the ground, further from the craft the higher it is
     const off = 4 + alt * 26;
     ctx.fillStyle = 'rgba(0,0,0,0.18)'; dshipBody(ctx, p.x + off * 1.05, p.y + off * 0.76, ang, s * 1.08); ctx.fill();
     ctx.fillStyle = 'rgba(0,0,0,0.42)'; dshipBody(ctx, p.x + off * 1.05, p.y + off * 0.76, ang, s * 0.92); ctx.fill();
+    if (VIEW.air) {     // (GC 0.24) in 3D it is a craft in the air over its shadow, its crate slung under it
+      VIEW.air.push({ k: 'dship', x: p.x, y: p.y, r: 8, face: ang, up: 6 + alt * 46 });
+      if (p.cargo && !p.cargo.landed) VIEW.air.push({ k: 'crate', x: p.x, y: p.y, r: 2.2, face: ang, up: 1.5 + alt * 46 });
+    } else {
     // the craft: dark halo, then a bright thermal body, its rockets burning (pushing it along on the way in and out, straight down
     // over the spot)
     const fx = Math.cos(ang), fy = Math.sin(ang);
@@ -263,8 +269,9 @@ export function drawDropships(ctx, m, now, px, labels, scale, pal) {
       ctx.fillStyle = 'rgba(255,214,120,0.95)'; ctx.fillRect(p.x - cs, p.y - cs, cs * 2, cs * 2);
       ctx.strokeStyle = 'rgba(80,50,10,0.9)'; ctx.lineWidth = px(1); ctx.strokeRect(p.x - cs, p.y - cs, cs * 2, cs * 2);
     }
+    }
     // the rockets' blast on the ground while it hovers
-    if (p.state === 'hover') {
+    if (p.state === 'hover' && !VIEW.air) {
       ctx.strokeStyle = rgba('#ffd9a0', 0.35); ctx.lineWidth = px(1.2);
       ring(ctx, p.x, p.y, s * (1.3 + 0.25 * Math.sin(now * 9))); ctx.stroke();
     }

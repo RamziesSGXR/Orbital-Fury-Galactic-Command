@@ -409,7 +409,7 @@ export class Renderer {
     if (cam.g3d && this._g3 === undefined) { try { this._g3 = new Ground3D(cam.livery); } catch (err) { console.warn('3D ground unavailable', err); this._g3 = null; } }
     const g3 = cam.g3d ? this._g3 : null; this._g3on = false; VIEW.p3 = !!(g3 && g3.props);
     const U3 = this._u3 || (this._u3 = []); U3.length = 0; const u3 = g3 && g3.units ? U3 : null;
-    const D3 = this._d3 || (this._d3 = []), S3 = this._s3l || (this._s3l = []), B3 = this._b3 || (this._b3 = []); D3.length = S3.length = B3.length = 0; this._s3 = u3 ? S3 : null;     // (GC 0.22) what falls, the ship's shells, the strobes     // (GC 0.20) who stands up in 3D this frame, and is not drawn on the sheet
+    const D3 = this._d3 || (this._d3 = []), S3 = this._s3l || (this._s3l = []), B3 = this._b3 || (this._b3 = []); D3.length = S3.length = B3.length = 0; this._s3 = u3 ? S3 : null; const X3 = this._x3l || (this._x3l = []); X3.length = 0; this._x3 = u3 && g3.fx ? X3 : null; VIEW.air = u3; VIEW.drops = u3 ? D3 : null;     // (GC 0.22) what falls, the ship's shells, the strobes     // (GC 0.20) who stands up in 3D this frame, and is not drawn on the sheet
     let real = null;
     if (cam.yaw || g3) { real = { ctx: this.ctx, W: this.W, H: this.H, focusY: this.focusY }; const S = this._sheet(real); this._real = real; this.ctx = this._wx; this.W = S; this.H = S; this.focusY = 0.5; }
     let ctx = this.ctx, W = this.W, H = this.H;
@@ -728,7 +728,7 @@ export class Renderer {
     if (real) {     // lay the turned world on the screen
       const wc = this._wc, S = this.W; this.ctx = real.ctx; this.W = real.W; this.H = real.H; this.focusY = real.focusY; this._real = null; ctx = this.ctx; W = this.W; H = this.H;
       ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
-      if (g3) { g3.frame({ sheet: wc, S, scale, camX: v.camX, camY: v.camY, yaw: cam.yaw, tilt: cam.tilt, W, H, fy: this.focusY || 0.5, sun: this._sun, height: (x, y) => m.terrain.height(x, y), blocks: this._blocks(m, v.camX, v.camY, S / scale / 2), props: VIEW.p3 ? this._props(m, v.camX, v.camY, S / scale / 2, pal) : null, lit: 1 - Math.min(0.6, (this._dark || 0) * 0.75), units: U3, drops: D3, shells: S3, strobes: B3, hot: cam.sight === 'whot' || cam.sight === 'bhot' }); ctx.filter = cam.sight === 'whot' ? 'grayscale(1) contrast(1.25) brightness(0.82)' : cam.sight === 'bhot' ? 'grayscale(1) invert(1) contrast(1.2) brightness(0.9)' : 'none'; ctx.drawImage(g3.cv, 0, 0); ctx.filter = 'none'; this._g3on = true; }     // (the sight: infrared white-hot, black-hot, or plain colour)
+      if (g3) { g3.frame({ sheet: wc, S, scale, camX: v.camX, camY: v.camY, yaw: cam.yaw, tilt: cam.tilt, W, H, fy: this.focusY || 0.5, sun: this._sun, height: (x, y) => m.terrain.height(x, y), blocks: this._blocks(m, v.camX, v.camY, S / scale / 2), props: VIEW.p3 ? this._props(m, v.camX, v.camY, S / scale / 2, pal) : null, lit: 1 - Math.min(0.6, (this._dark || 0) * 0.75), units: U3, drops: D3, shells: S3, strobes: B3, blasts: X3, hot: cam.sight === 'whot' || cam.sight === 'bhot' }); ctx.filter = cam.sight === 'whot' ? 'grayscale(1) contrast(1.25) brightness(0.82)' : cam.sight === 'bhot' ? 'grayscale(1) invert(1) contrast(1.2) brightness(0.9)' : 'none'; ctx.drawImage(g3.cv, 0, 0); ctx.filter = 'none'; this._g3on = true; }     // (the sight: infrared white-hot, black-hot, or plain colour)
       else { ctx.translate(v.px, v.py); ctx.rotate(cam.yaw); ctx.drawImage(wc, -S / 2, -S / 2); }
     }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -1343,6 +1343,7 @@ export class Renderer {
         if (p < 0.4) { ctx.fillStyle = `rgba(255,255,255,${1 - p / 0.4})`; ctx.beginPath(); ctx.arc(f.x, f.y, Math.max(px(3.2), 0.6), 0, TAU); ctx.fill(); }
         continue;
       }
+      if (this._x3 && f.r >= 2.5 && (f.k === 'fireball' || f.k === 'flash')) this._x3.push({ x: f.x, y: f.y, r: f.k === 'flash' ? f.r * 0.6 : f.r * 0.8, p, col: f.col || null });     // (GC 0.24) a blast is a ball of fire in the air, over its glow on the ground
       if (this._fx23(ctx, f, p, now, px)) continue;     // (0.23) the callins' own explosions
       if (f.k === 'flash') {
         const r = f.r * (0.6 + 0.6 * p);
@@ -1389,6 +1390,7 @@ export class Renderer {
           ctx.closePath(); ctx.fillStyle = fill; ctx.fill(); if (line) { ctx.strokeStyle = line; ctx.lineWidth = px(1); ctx.stroke(); }
         };
         ctx.save(); ctx.translate(x + s * 1.05, y + s * 0.76); ctx.rotate(ang); jet('rgba(0,0,0,0.22)'); ctx.restore();     // its shadow (0.61.3: down and to the right, as every other)
+        if (VIEW.air) { VIEW.air.push({ k: 'jet', x, y, r: 9, face: ang, up: 38 }); continue; }     // (GC 0.24) in 3D the Striker is a jet in the air over its shadow
         ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
         ctx.strokeStyle = 'rgba(255,255,255,0.28)'; ctx.lineWidth = px(1.2); ctx.beginPath(); ctx.moveTo(-s * 0.95, 0); ctx.lineTo(-s * 4.5, 0); ctx.stroke();     // the trail
         jet('rgba(214,222,228,0.95)', 'rgba(30,40,48,0.7)');
