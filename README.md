@@ -1,6 +1,6 @@
 # Orbital Fury: Galactic Command
 
-**Prototype 0.18.0.** One war, run from four posts, in one game.
+**Prototype 0.19.0.** One war, run from four posts, in one game.
 
 You found a command (a name, a crest, colours) and hold the centre of the galaxy against three enemies. Everything in
 the war is yours to run, and each part changes the others:
@@ -65,6 +65,7 @@ come back to them.
 
 ## Not in this version
 
+- 3D units on the ground: the land, rocks, trees and buildings are 3D, but the squad, the infantry and the enemy are still flat pictures lying on it.
 - One look across the posts: the ground battle still wears Orbital Fury's own style.
 - Fleet mechanics beyond the three fleet upgrades; supply lines that change what a system pays.
 - Most of the station's and the base's deeper panels (rooms inside parts, the ledger, research, patrols, landscaping).

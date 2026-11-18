@@ -357,6 +357,27 @@ export class Renderer {
     if (this._wc.width !== S) { this._wc.width = S; this._wc.height = S; }
     return S;
   }
+  // (GC 0.19) What stands up off the land, for the 3D ground: everything solid within `half` metres of the camera's point.
+  // r: how wide (to what is drawn), h: how tall, n: sides.
+  _blocks(m, cx, cy, half) {
+    const out = [], near = (o) => Math.abs(o.x - cx) < half && Math.abs(o.y - cy) < half, add = (o, r, h, n) => { if (r > 0.4 && near(o)) out.push({ x: o.x, y: o.y, r, h, n }); };
+    const sc = m.scenery;
+    if (sc) {
+      for (const q of sc.rocks || []) if (!q.broken && q.r >= 1.5) add(q, q.r * 0.8, Math.min(9, q.r * 0.75), 6);
+      for (const t of sc.trees || []) if (!t.down) add(t, Math.max(1.2, t.r * 0.7), 3.5 + Math.min(6, t.r * 0.9), 7);
+    }
+    for (const p of m.posts || []) if (!p.dead && !p.ghost && p.what !== 'wire' && p.what !== 'mine') add(p, 2.6, 2.4, 4);
+    for (const b of m.bases || []) {
+      if (b.destroyed) continue;
+      if (b.spawners && b.spawners.length) { for (const s of b.spawners) if (!s.dead) add(s, (s.r || 6) * 0.85, Math.min(8, (s.r || 6) * 0.6), 6); }
+      else add(b, (b.r || 8) * 0.7, Math.min(9, (b.r || 8) * 0.5), 6);
+      if (b.turrets) for (const t of b.turrets) if (!t.dead) add(t, Math.max(1.4, (t.r || 2) * 0.9), 3, 6);
+    }
+    for (const p of m.pois || []) if (!p.done) add(p, (p.r || 12) * 0.5, Math.min(7, (p.r || 12) * 0.35), 4);
+    for (const a of m.assets || []) if (a.kind === 'turret' && !a.dead) add(a, 1.6, 2.6, 6);
+    if (out.length > 400) { out.sort((a, b) => (a.x - cx) ** 2 + (a.y - cy) ** 2 - (b.x - cx) ** 2 - (b.y - cy) ** 2); out.length = 400; }
+    return out;
+  }
   draw(m, cam, ui) {
     if (this._real) { const r = this._real; this.ctx = r.ctx; this.W = r.W; this.H = r.H; this.focusY = r.focusY; this._real = null; }     // (a frame that threw half way: put the screen back)
     cam.yaw = cam.orbit ? (cam.yaw0 || 0) + m.t * cam.orbit : 0; this.yaw = cam.yaw;
@@ -671,7 +692,7 @@ export class Renderer {
     if (real) {     // lay the turned world on the screen
       const wc = this._wc, S = this.W; this.ctx = real.ctx; this.W = real.W; this.H = real.H; this.focusY = real.focusY; this._real = null; ctx = this.ctx; W = this.W; H = this.H;
       ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
-      if (g3) { g3.frame({ sheet: wc, S, scale, camX: v.camX, camY: v.camY, yaw: cam.yaw, W, H, fy: this.focusY || 0.5, sun: this._sun, height: (x, y) => m.terrain.height(x, y) }); ctx.drawImage(g3.cv, 0, 0); this._g3on = true; }
+      if (g3) { g3.frame({ sheet: wc, S, scale, camX: v.camX, camY: v.camY, yaw: cam.yaw, W, H, fy: this.focusY || 0.5, sun: this._sun, height: (x, y) => m.terrain.height(x, y), blocks: this._blocks(m, v.camX, v.camY, S / scale / 2) }); ctx.drawImage(g3.cv, 0, 0); this._g3on = true; }
       else { ctx.translate(v.px, v.py); ctx.rotate(cam.yaw); ctx.drawImage(wc, -S / 2, -S / 2); }
     }
     ctx.setTransform(1, 0, 0, 1, 0, 0);

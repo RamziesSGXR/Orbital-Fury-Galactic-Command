@@ -7,7 +7,7 @@
 // One camera decides everything: where the land is drawn, where a label goes, and what the pointer is over.
 import * as THREE from '../../vendor/three.js';
 
-export const V3 = { tilt: 56, fov: 30, amp: 22, grid: 112 };     // degrees above the horizon; the lens; metres of relief either way of the middle height; cells across the sheet
+export const V3 = { tilt: 56, fov: 30, amp: 22, grid: 112, blocks: 420, sides: 8 };     // degrees above the horizon; the lens; metres of relief either way of the middle height; cells across the sheet
 const RAD = Math.PI / 180;
 
 export class Ground3D {
@@ -27,6 +27,13 @@ export class Ground3D {
     g.setAttribute('position', new THREE.BufferAttribute(this.pos, 3)); g.setAttribute('uv', new THREE.BufferAttribute(this.uv, 2)); g.setIndex(new THREE.BufferAttribute(idx, 1));
     this.mat = new THREE.MeshLambertMaterial({ color: 0xffffff });
     this.mesh = new THREE.Mesh(g, this.mat); this.mesh.frustumCulled = false; this.scene.add(this.mesh);
+    // THE THINGS THAT STAND UP (GC 0.19): rocks, trees, buildings, guns. Each is a block risen out of the sheet: its roof is the
+    // very patch of the sheet it stands on (so it wears its own top-down drawing, lit and fogged like everything else) and
+    // its walls take the colours at its edge, darker. Built afresh each frame from what is in view.
+    { const nv = V3.blocks * V3.sides * 9; this.bp = new Float32Array(nv * 3); this.bu = new Float32Array(nv * 2); this.bn = new Float32Array(nv * 3); this.bc = new Float32Array(nv * 3);
+      const bg = this.bgeo = new THREE.BufferGeometry(); bg.setAttribute('position', new THREE.BufferAttribute(this.bp, 3)); bg.setAttribute('uv', new THREE.BufferAttribute(this.bu, 2)); bg.setAttribute('normal', new THREE.BufferAttribute(this.bn, 3)); bg.setAttribute('color', new THREE.BufferAttribute(this.bc, 3));
+      this.bmat = new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true });
+      this.bmesh = new THREE.Mesh(bg, this.bmat); this.bmesh.frustumCulled = false; this.scene.add(this.bmesh); }
     this.v = new THREE.Vector3(); this.pv = new THREE.Matrix4(); this.inv = new THREE.Matrix4();
     this.h = () => 0.5; this.W = this.H = 1; this.ok = true; this.amp = V3.amp;
   }
@@ -40,13 +47,28 @@ export class Ground3D {
     const { sheet, S, scale, camX, camY, yaw, W, H, fy, sun } = o; this.h = o.height;
     if (this.W !== W || this.H !== H) { this.W = W; this.H = H; this.r.setSize(W, H, false); }
     if (!this.tex || this.tex.image !== sheet) { if (this.tex) this.tex.dispose(); this.tex = new THREE.CanvasTexture(sheet); this.tex.colorSpace = THREE.SRGBColorSpace; this.tex.generateMipmaps = false; this.tex.minFilter = THREE.LinearFilter; this.tex.magFilter = THREE.LinearFilter; this.mat.map = this.tex; this.mat.needsUpdate = true; }
-    this.tex.needsUpdate = true;
+    this.tex.needsUpdate = true; if (this.bmat.map !== this.tex) { this.bmat.map = this.tex; this.bmat.needsUpdate = true; }
     // the land under the sheet: a grid whose corners stay at fixed places on the map (so the hills do not shimmer as the
     // camera slides), covering the sheet and a cell more
     const n = V3.grid, L = S / scale, c = L / (n - 1), x0 = Math.floor((camX - L / 2) / c) * c, z0 = Math.floor((camY - L / 2) / c) * c, P = this.pos, U = this.uv;
     let p = 0, q = 0;
     for (let j = 0; j <= n; j++) { const z = z0 + j * c; for (let i = 0; i <= n; i++) { const x = x0 + i * c; P[p++] = x; P[p++] = this.y(x, z); P[p++] = z; U[q++] = (x - (camX - L / 2)) / L; U[q++] = 1 - (z - (camY - L / 2)) / L; } }
     this.geo.attributes.position.needsUpdate = true; this.geo.attributes.uv.needsUpdate = true; this.geo.computeVertexNormals();
+    // the blocks: [{ x, y, r, h, n }] in metres (n: how many sides, 4 for a building, more for a rock or a tree)
+    { const B = o.blocks || [], P2 = this.bp, U2 = this.bu, N2 = this.bn, C2 = this.bc, ux0 = camX - L / 2, uz0 = camY - L / 2, max = V3.blocks * V3.sides * 9; let k = 0;
+      const put = (x, y, z, nx, ny, nz, sh) => { const a = k * 3, b = k * 2; P2[a] = x; P2[a + 1] = y; P2[a + 2] = z; U2[b] = (x - ux0) / L; U2[b + 1] = 1 - (z - uz0) / L; N2[a] = nx; N2[a + 1] = ny; N2[a + 2] = nz; C2[a] = C2[a + 1] = C2[a + 2] = sh; k++; };
+      for (const q of B) {
+        const n = Math.max(3, Math.min(V3.sides, q.n || V3.sides)); if (k + n * 9 > max) break;
+        const top = this.y(q.x, q.y) + q.h, rot = q.n === 4 ? Math.PI / 4 : 0;
+        for (let i = 0; i < n; i++) {
+          const a0 = rot + i / n * 6.2832, a1 = rot + (i + 1) / n * 6.2832, x0b = q.x + Math.cos(a0) * q.r, z0b = q.y + Math.sin(a0) * q.r, x1b = q.x + Math.cos(a1) * q.r, z1b = q.y + Math.sin(a1) * q.r;
+          put(q.x, top, q.y, 0, 1, 0, 1); put(x1b, top, z1b, 0, 1, 0, 1); put(x0b, top, z0b, 0, 1, 0, 1);     // the roof
+          const am = (a0 + a1) / 2, nx = Math.cos(am), nz = Math.sin(am), g0 = Math.min(top, this.y(x0b, z0b)) - 0.5, g1 = Math.min(top, this.y(x1b, z1b)) - 0.5;     // the wall, down to the land
+          put(x0b, top, z0b, nx, 0, nz, 0.55); put(x1b, top, z1b, nx, 0, nz, 0.55); put(x0b, g0, z0b, nx, 0, nz, 0.4);
+          put(x1b, top, z1b, nx, 0, nz, 0.55); put(x1b, g1, z1b, nx, 0, nz, 0.4); put(x0b, g0, z0b, nx, 0, nz, 0.4);
+        }
+      }
+      this.bgeo.setDrawRange(0, k); for (const a of ['position', 'uv', 'normal', 'color']) this.bgeo.attributes[a].needsUpdate = true; this.nBlocks = B.length; }
     // the lens: as far off as makes a metre at the camera's point the same size on screen as it is on the sheet
     const E = V3.tilt * RAD, d = H / 2 / Math.tan(V3.fov * RAD / 2) / scale, fx = -Math.sin(yaw), fz = -Math.cos(yaw), ly = this.y(camX, camY), C = this.cam;
     C.aspect = W / H; C.setViewOffset(W, H, 0, (0.5 - fy) * H, W, H);
