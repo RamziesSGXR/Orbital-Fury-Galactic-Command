@@ -32,6 +32,8 @@ with sync_playwright() as pw:
     err = f.evaluate("(() => { const r = __game.renderer, cv = document.querySelector('canvas'), m = __game.mission, p = { x: m.lz.x + 37, y: m.lz.y - 22 }; const s = r.worldToScreen(p.x, p.y, cv), w = r.screenToWorld(s.x, s.y, cv); return Math.hypot(w.x - p.x, w.y - p.y); })()")
     print('there-and-back error, metres', round(err, 4)); assert err < 0.05, 'the pointer does not land where the ground is drawn'
     pg.screenshot(path=f'{out}/orbit-1.png'); pg.wait_for_timeout(3000); pg.screenshot(path=f'{out}/orbit-2.png')
+    print('3D ground on:', f.evaluate('!!__game.renderer._g3on'), '| heights in view (metres):', f.evaluate("(() => { const g = __game.renderer._g3; if (!g) return null; const P = g.pos; let a = 1e9, b = -1e9; for (let i = 1; i < P.length; i += 3) { a = Math.min(a, P[i]); b = Math.max(b, P[i]); } return [Math.round(a * 10) / 10, Math.round(b * 10) / 10]; })()"))
+    f.evaluate('__game.renderer._g3 && (__game.renderer._g3.amp = 45)'); pg.wait_for_timeout(1500); pg.screenshot(path=f'{out}/orbit-3-tall.png'); f.evaluate('__game.renderer._g3 && (__game.renderer._g3.amp = 22)')
     print('frames drawn', f.evaluate('__game.frames'))
     br.close()
 print('\n'.join(errs[:6]) if errs else 'no page errors')

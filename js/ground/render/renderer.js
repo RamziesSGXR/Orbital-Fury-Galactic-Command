@@ -9,6 +9,7 @@ import { drawSquadOrders, drawInfantryMark, drawStroke, drawDropships, drawMiniI
 import { slotStats } from '../sim/player.js';
 import { drawAllyBody, drawEnemyBody, enemyR, drawBossBody, bossR, drawTurretArt, setRelief } from './units.js';
 import { VIEW } from './view.js';
+import { Ground3D } from './ground3d.js';
 import { liftUnit, dropUnit, unitShadow, shadeHex, raise, raiseUnit, setFlat, isFlat, reliefFrame, reliefClear, setElev, elevK } from './relief.js';
 import { Launch } from './launch.js';
 import { drawAoEdge, drawSides, drawBeacons, drawRevealed, drawRadar, drawArty, drawCrates, drawMarks } from './ops.js';
@@ -329,6 +330,7 @@ export class Renderer {
     const now = performance.now();   // the canvas does not move between resizes: read its box at most a few times a second
     if (!this._cr || this._crCv !== cv || now - this._crT > 400) { this._cr = cv.getBoundingClientRect(); this._crCv = cv; this._crT = now; }
     const r = this._cr, k = this.W / r.width;
+    if (this._g3on && this._g3) { const w = this._g3.toWorld((cssX - r.left) * k, (cssY - r.top) * k); if (w) return w; }
     const dx = (cssX - r.left) * k - v.px, dy = (cssY - r.top) * k - v.py, c = Math.cos(v.yaw), s = Math.sin(v.yaw);
     return { x: v.camX + (dx * c + dy * s) / v.scale, y: v.camY + (-dx * s + dy * c) / v.scale };
   }
@@ -336,6 +338,7 @@ export class Renderer {
   worldToScreen(x, y, cv) {
     const v = this.view; if (!v) return null;
     const r = cv.getBoundingClientRect(), k = this.W / r.width;
+    if (this._g3on && this._g3) { const p = this._g3.toScreen(x, y); return { x: p[0] / k + r.left, y: p[1] / k + r.top }; }
     const dx = (x - v.camX) * v.scale, dy = (y - v.camY) * v.scale, c = Math.cos(v.yaw), s = Math.sin(v.yaw);
     return { x: (v.px + dx * c - dy * s) / k + r.left, y: (v.py + dx * s + dy * c) / k + r.top };
   }
@@ -345,7 +348,7 @@ export class Renderer {
   // enough to cover the screen at any angle; the sheet is then laid on the screen turned; and everything read (labels, tags,
   // arrows, the reticle) is drawn after it, upright, at its turned place. Text drawn in the world is turned back upright.
   _sheet(real) {
-    const fy = real.focusY || 0.5, S = Math.min(4096, Math.ceil(2 * Math.hypot(real.W / 2, real.H * Math.max(fy, 1 - fy)) + 4));
+    const fy = real.focusY || 0.5, S = Math.min(this._g3 ? 3072 : 4096, Math.ceil(Math.max(2 * Math.hypot(real.W / 2, real.H * Math.max(fy, 1 - fy)) + 4, this._g3 ? real.H * 2.5 : 0, this._g3 ? real.W * 1.5 : 0)));     // (through the tilted lens the far ground is further off: the sheet reaches further)
     if (!this._wc) {
       this._wc = document.createElement('canvas'); const x = this._wc.getContext('2d', { alpha: false }), ft = x.fillText.bind(x), st = x.strokeText.bind(x);
       const up = (fn) => (text, px, py) => { const a = this.yaw || 0; if (!a) return fn(text, px, py); x.save(); x.translate(px, py); x.rotate(-a); fn(text, 0, 0); x.restore(); };
@@ -357,8 +360,11 @@ export class Renderer {
   draw(m, cam, ui) {
     if (this._real) { const r = this._real; this.ctx = r.ctx; this.W = r.W; this.H = r.H; this.focusY = r.focusY; this._real = null; }     // (a frame that threw half way: put the screen back)
     cam.yaw = cam.orbit ? (cam.yaw0 || 0) + m.t * cam.orbit : 0; this.yaw = cam.yaw;
+    // (GC 0.18) the land in 3D, when the camera asks for it and the machine can do it; without it, the turned sheet of 0.16
+    if (cam.g3d && this._g3 === undefined) { try { this._g3 = new Ground3D(); } catch (err) { console.warn('3D ground unavailable', err); this._g3 = null; } }
+    const g3 = cam.g3d ? this._g3 : null; this._g3on = false;
     let real = null;
-    if (cam.yaw) { real = { ctx: this.ctx, W: this.W, H: this.H, focusY: this.focusY }; const S = this._sheet(real); this._real = real; this.ctx = this._wx; this.W = S; this.H = S; this.focusY = 0.5; }
+    if (cam.yaw || g3) { real = { ctx: this.ctx, W: this.W, H: this.H, focusY: this.focusY }; const S = this._sheet(real); this._real = real; this.ctx = this._wx; this.W = S; this.H = S; this.focusY = 0.5; }
     let ctx = this.ctx, W = this.W, H = this.H;
     const now = ui.now, t = m.t;
     // (0.62.10) how big things are drawn by the height of their ground (relief.js elevK): elev.size either way of the middle
@@ -370,7 +376,8 @@ export class Renderer {
     this._dtx = tx; this._dty = ty;
     // where a world point is on the SCREEN (turned with the view). Both take the point's x and y.
     const yc = Math.cos(cam.yaw), ys = Math.sin(cam.yaw), ppx = v.px + ox, ppy = v.py + oy;
-    const w2sx = (x, y) => ppx + (x - v.camX) * scale * yc - (y - v.camY) * scale * ys, w2sy = (x, y) => ppy + (x - v.camX) * scale * ys + (y - v.camY) * scale * yc;
+    const g3p = (x, y) => (g3p.x === x && g3p.y === y ? g3p.s : (g3p.x = x, g3p.y = y, g3p.s = g3.toScreen(x, y)));     // (asked for x then y of the same point: worked out once)
+    const w2sx = g3 ? (x, y) => g3p(x, y)[0] : (x, y) => ppx + (x - v.camX) * scale * yc - (y - v.camY) * scale * ys, w2sy = g3 ? (x, y) => g3p(x, y)[1] : (x, y) => ppy + (x - v.camX) * scale * ys + (y - v.camY) * scale * yc;
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
@@ -664,7 +671,8 @@ export class Renderer {
     if (real) {     // lay the turned world on the screen
       const wc = this._wc, S = this.W; this.ctx = real.ctx; this.W = real.W; this.H = real.H; this.focusY = real.focusY; this._real = null; ctx = this.ctx; W = this.W; H = this.H;
       ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
-      ctx.translate(v.px, v.py); ctx.rotate(cam.yaw); ctx.drawImage(wc, -S / 2, -S / 2);
+      if (g3) { g3.frame({ sheet: wc, S, scale, camX: v.camX, camY: v.camY, yaw: cam.yaw, W, H, fy: this.focusY || 0.5, sun: this._sun, height: (x, y) => m.terrain.height(x, y) }); ctx.drawImage(g3.cv, 0, 0); this._g3on = true; }
+      else { ctx.translate(v.px, v.py); ctx.rotate(cam.yaw); ctx.drawImage(wc, -S / 2, -S / 2); }
     }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     this._drawLabels(ctx, w2sx, w2sy);
