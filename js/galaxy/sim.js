@@ -13,7 +13,7 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const N = C.names, HP = C.ship.hp;
 
 export class Game {
-  constructor(seed = 1, saved = null) {
+  constructor(seed = 1, saved = null, opt = null) {
     this.seed = seed;
     this.rs = (seed * 7919 + 13) | 0;
     this.map = makeMap(seed);
@@ -29,8 +29,10 @@ export class Game {
     });
     // fleets: the pieces. One per side per system. { id, owner, at, ships, moved }
     this.fleets = []; this.fid = 0;
-    this._put('fed', 0, C.start.fleets[0]);
-    C.fronts.forEach((fr, fi) => { const p = this.P.filter(q => q.front === fi && q.ring === 2).sort((a, b) => a.id - b.id)[1]; this._put('fed', p.id, C.start.fleets[fi + 1]); });
+    this.opt = { fleets: 'standard', posts: 'none', ...(opt || {}) }; this.yard = 'bal';
+    const fk = C.fleet.start.fleets[this.opt.fleets] ?? 1, sh = (n) => Math.max(1, Math.round(n * fk));
+    this._put('fed', 0, sh(C.start.fleets[0]));
+    C.fronts.forEach((fr, fi) => { const p = this.P.filter(q => q.front === fi && q.ring === 2).sort((a, b) => a.id - b.id)[1]; this._put('fed', p.id, sh(C.start.fleets[fi + 1])); });
     this.policy = 'balanced';        // Personnel Office
     this.priority = null;            // Casting Office: the priority front, 0 to 2
     this.capHit = [];                // enemies that have struck the capital this round
@@ -40,7 +42,8 @@ export class Game {
     this.log = [];
     this.stats = { taken: 0, fallen: 0, held: 0, repelled: 0 };
     for (const p of this.P) { p.station = 0; p.base = 0; p.dmg = 0; p.sp = 0; p.bp = 0; }
-    this.up = {}; this.due = 0; this.rat = C.ratings.start; this.sack = 0;      // armoury upgrades bought; credits owed to the war chest
+    this.up = {}; this.due = 0; this.rat = C.ratings.start; this.sack = 0;
+    { const n = C.fleet.start.posts[this.opt.posts] || 0, near = this.P.filter(q => q.id && q.ring <= 2).sort((a, b) => a.ring - b.ring || a.id - b.id); for (let i = 0; i < n; i++) { const a = near[i * 2], b = near[i * 2 + 1]; if (a) { a.station = 1; a.sp = 1; } if (b) { b.base = 1; b.bp = 1; } } }      // armoury upgrades bought; credits owed to the war chest
     if (saved) return this._restore(saved);
     this.say('info', `Every world on the map carries the ${N.fed} brand. Long may it sell.`);
     this._arrivals(); this._startRound();
@@ -56,7 +59,7 @@ export class Game {
 
   // ---------- saving (only while you are deciding) ----------
   save() {
-    const k = ['seed', 'rs', 'round', 'fi', 'res', 'loot', 'truth', 'F', 'fleets', 'fid', 'policy', 'priority', 'capHit', 'stats', 'over', 'last', 'up', 'due', 'rat', 'sack', 'aired'];
+    const k = ['seed', 'rs', 'round', 'fi', 'res', 'loot', 'truth', 'F', 'fleets', 'fid', 'policy', 'priority', 'capHit', 'stats', 'over', 'last', 'up', 'due', 'rat', 'sack', 'aired', 'opt', 'yard'];
     const d = { v: 11, log: this.log.slice(-80), P: this.P.map(p => [p.owner, p.dev, p.site, p.built ? 1 : 0, p.station || 0, p.base || 0, p.dmg || 0, p.sp || 0, p.bp || 0]) };
     for (const x of k) d[x] = this[x];
     return d;
@@ -64,7 +67,7 @@ export class Game {
   _restore(d) {
     for (const k in d) if (k !== 'v' && k !== 'P') this[k] = d[k];
     d.P.forEach(([o, dv, st, bu, sn, bs, dm, sp, bp], i) => Object.assign(this.P[i], { owner: o, dev: dv, site: st, built: !!bu, station: sn || 0, base: bs || 0, dmg: dm || 0, sp: sp || 0, bp: bp || 0 }));
-    this.up ||= {}; this.due ||= 0; this.rat ??= C.ratings.start; this.sack ||= 0;
+    this.up ||= {}; this.due ||= 0; this.rat ??= C.ratings.start; this.sack ||= 0; this.opt ||= { fleets: 'standard', posts: 'none' }; this.yard ||= 'bal';
     this.phase = this.over ? 'over' : 'plan'; this._sec = null;
     return this;
   }
@@ -101,10 +104,28 @@ export class Game {
   fleetAt(pid, owner) { return this.fleets.find(f => f.at === pid && f.owner === owner); }
   shipsAt(pid, owner) { const f = this.fleetAt(pid, owner); return f ? f.ships : 0; }
   // Put ships in a system: they join the fleet already there, or form a new one.
-  _put(owner, at, ships, moved = false) {
+  _put(owner, at, ships, moved = false, src = null) {
     const f = this.fleetAt(at, owner);
-    if (f) { f.ships += ships; f.moved = f.moved || moved; return f; }
-    const g = { id: ++this.fid, owner, at, ships, moved }; this.fleets.push(g); return g;
+    if (f) { if (owner === 'fed') this._blend(f, ships, src); f.ships += ships; f.moved = f.moved || moved; return f; }
+    const g = { id: ++this.fid, owner, at, ships, moved }; if (owner === 'fed') { g.mix = src && src.mix ? [...src.mix] : this._yardMix(); g.wear = src ? src.wear || 0 : 0; } this.fleets.push(g); return g;
+  }
+  // ---------- fleets: makeup, wear, upkeep ----------
+  _yardMix() { const i = C.fleet.roles.findIndex(r => r.id === this.yard); return i < 0 ? [1 / 3, 1 / 3, 1 / 3] : [0, 1, 2].map(k => (k === i ? 1 : 0)); }
+  // `n` ships join fleet f: its makeup and wear become the weighted mean of the two
+  _blend(f, n, src) { const m = src && src.mix ? src.mix : this._yardMix(), w = src ? src.wear || 0 : 0, t = f.ships + n; if (t <= 0) return; f.mix = (f.mix || [1 / 3, 1 / 3, 1 / 3]).map((x, i) => (x * f.ships + m[i] * n) / t); f.wear = ((f.wear || 0) * f.ships + w * n) / t; }
+  share(f, role) { const i = C.fleet.roles.findIndex(r => r.id === role); return f && f.mix ? f.mix[i] : 1 / 3; }
+  _wear(f, n) { if (f && f.owner === 'fed') f.wear = clamp((f.wear || 0) + n * (1 - C.fleet.buff.ten * this.share(f, 'ten')), 0, 100); }
+  // a fleet's fire in a fight: its ships, worn down, and sharpened by its gunships when it is the one attacking
+  fleetFire(f, attacking) { if (!f || f.owner !== 'fed') return f ? f.ships : 0; return Math.max(1, Math.round(f.ships * (1 - C.fleet.wear.fire * (f.wear || 0) / 100) * (attacking ? 1 + C.fleet.buff.gun * this.share(f, 'gun') : 1))); }
+  // the extra hit points its escorts give a fleet that is defending
+  escortHp(f) { return f && f.owner === 'fed' ? Math.round(f.ships * HP * C.fleet.buff.esc * this.share(f, 'esc')) : 0; }
+  repairAt(f) { const p = this.P[f.at], R = C.fleet.repair; let n = C.fleet.buff.tenMend * this.share(f, 'ten'); if (p.owner === 'fed') n += p.id === 0 ? R.capital : (p.station || 0) * R.station + (p.base || 0) * R.base; return n; }
+  fleetBill() { const n = this.fleets.reduce((a, f) => a + (f.owner === 'fed' ? f.ships : 0), 0); return Math.max(0, n - C.fleet.upkeep.free) * C.fleet.upkeep.per; }
+  setYard(k) { if (k === 'bal' || C.fleet.roles.some(r => r.id === k)) { this.yard = k; return true; } return false; }
+  _fleetRound() {
+    const bill = this.fleetBill(), short = Math.max(0, bill - this.res.fuel); this.res.fuel = Math.max(0, this.res.fuel - bill);
+    for (const f of this.fleets) { if (f.owner !== 'fed') continue; if (short > 0.01) this._wear(f, C.fleet.wear.unpaid); f.wear = Math.max(0, (f.wear || 0) - this.repairAt(f)); }
+    if (short > 0.01) this.say('warn', 'Logistics Office: not enough fuel for the fleets. Every fleet is worn by it.');
   }
   _drop(f) { const i = this.fleets.indexOf(f); if (i >= 0) this.fleets.splice(i, 1); }
   // Hit points a system has by itself, with no fleet there.
@@ -184,14 +205,14 @@ export class Game {
   moveTo(fid, pid, n) {
     const f = this.fleets.find(x => x.id === fid); if (!f || !this.posts(f).includes(pid)) return false;
     const g = this._detach(f, n); this.moves.push({ owner: 'fed', from: g.at, to: pid, ships: g.ships });
-    this._drop(g); this._put('fed', pid, g.ships, true);
+    this._wear(g, C.fleet.wear.move); this._drop(g); this._put('fed', pid, g.ships, true, g);
     this.say('info', `Your fleet of ${g.ships} moves to ${this.P[pid].name}.`);
     this._afterYou(); return true;
   }
   // Take `n` ships off a fleet as a fleet of their own (the whole fleet if n is not given).
   _detach(f, n) {
     if (!n || n >= f.ships) return f;
-    f.ships -= n; const g = { id: ++this.fid, owner: f.owner, at: f.at, ships: n, moved: false }; this.fleets.push(g); return g;
+    f.ships -= n; const g = { id: ++this.fid, owner: f.owner, at: f.at, ships: n, moved: false }; if (f.mix) { g.mix = [...f.mix]; g.wear = f.wear || 0; } this.fleets.push(g); return g;
   }
   // What one ship costs at this system. The key world's kind and the priority front make it cheaper.
   shipCost(p) {
@@ -207,7 +228,7 @@ export class Game {
   build(pid) {
     if (!this.canBuild(pid)) return false;
     const p = this.P[pid]; this._pay(this.shipCost(p)); p.built = true;
-    const f = this.fleetAt(pid, 'fed'); if (f) f.ships++; else this._put('fed', pid, 1, true);   // joining a fleet does not stop that fleet moving
+    const f = this.fleetAt(pid, 'fed'); if (f) { this._blend(f, 1, null); f.ships++; } else this._put('fed', pid, 1, true);   // joining a fleet does not stop that fleet moving
     this.say('info', `A ship is built at ${p.name}.`);
     return true;
   }
@@ -288,7 +309,7 @@ export class Game {
     const r = this.res, inc = this.income();
     const cap = this.resMax(); for (const k in inc) r[k] = clamp(r[k] + inc[k], 0, cap);
     if (this.round % C.link.shipEvery === 0) { const fl = this.fedLinked(); for (const p of this.P) if (p.owner === 'fed' && (p.base || 0) >= C.link.shipAt && fl.has(p.id)) this._put('fed', p.id, 1); }
-    this._posts(); this._ratRound();
+    this._posts(); this._ratRound(); this._fleetRound();
     for (const f of this.fleets) f.moved = false;
     for (const p of this.P) { p.built = false; if (p.dmg) p.dmg = Math.max(0, p.dmg - C.battle.repair); }
     this.capHit = [];
@@ -318,7 +339,7 @@ export class Game {
     const out = this.P[pid].adj.filter(n => this.P[n].owner === f.owner).sort((a, b) => (f.owner === 'fed' ? (fl.has(b) - fl.has(a)) || this.P[a].dist - this.P[b].dist : this.P[b].dist - this.P[a].dist))[0];
     this._drop(f);
     if (out == null || f.ships <= 0) return;
-    this.moves.push({ owner: f.owner, from: pid, to: out, ships: f.ships }); this._put(f.owner, out, f.ships, true);
+    this.moves.push({ owner: f.owner, from: pid, to: out, ships: f.ships }); this._put(f.owner, out, f.ships, true, f);
   }
 
   // The enemy's one action on its front: attack with a fleet if the odds are good enough, otherwise bring a fleet up.
@@ -365,7 +386,9 @@ export class Game {
   // Each side: hit points, ships (each fires 1 a round), and a hand drawn at random from its deck.
   _startBattle(kind, f, pid, from, fleet) {
     const p = this.P[pid], here = this.fleetAt(pid, p.owner), side = (hp, ships, owner) => ({ hp, max: hp, ships, fire: Math.max(1, ships), hand: this._hand(owner), owner });
-    const att = side(fleet.ships * HP, fleet.ships, fleet.owner), def = side(this.strength(pid), here ? here.ships : 0, p.owner);
+    const att = side(fleet.ships * HP, fleet.ships, fleet.owner), def = side(this.strength(pid) + this.escortHp(here), here ? here.ships : 0, p.owner);
+    if (fleet.owner === 'fed') { att.fire = this.fleetFire(fleet, true); this._wear(fleet, C.fleet.wear.attack); }
+    if (here && here.owner === 'fed') { def.fire = this.fleetFire(here, false); this._wear(here, C.fleet.wear.defend); }
     this.battle = { kind, f, pid, from, fid: fleet.id, fort: this.fort(p), limit: C.battle.engage, you: kind === 'atk' ? att : def, foe: kind === 'atk' ? def : att, round: 0, done: false, win: null, ev: null, lines: [] };
     this.phase = 'battle';
   }
@@ -522,7 +545,7 @@ export class Game {
       if (b.win) {
         if (theirs) { theirs.ships = Math.floor(theirs.ships / 2); this._retreat(theirs, b.pid); }
         this._capture(p, 'fed'); this.stats.taken++; this.rate(p.kind === 'home' ? C.ratings.takeHome : C.ratings.take);
-        mine.ships = Math.max(1, left(b.you, 0)); this.moves.push({ owner: 'fed', from: mine.at, to: b.pid, ships: mine.ships }); this._drop(mine); this._put('fed', b.pid, mine.ships, true);
+        mine.ships = Math.max(1, left(b.you, 0)); this.moves.push({ owner: 'fed', from: mine.at, to: b.pid, ships: mine.ships }); this._drop(mine); this._put('fed', b.pid, mine.ships, true, mine);
         b.result = `${p.name} is yours.`; this.say('good', `${p.name} taken from ${fn}.`);
         gain(p.kind === 'home' ? C.loot.home : C.loot.attack); this._truth('fed', 'newsreel', `${p.name} taken`);
         if (p.kind === 'home') this._kill(f);

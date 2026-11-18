@@ -142,7 +142,7 @@ let draft = rollFaction();
 const CYCLE = { shape: SHAPES, symbol: SYMBOLS, pattern: PATTERNS };
 function toFound() {
   state = 'found'; show('s-found');
-  $('f-name').value = draft.name; $('f-capital').value = draft.capital || ''; $('f-motto').value = draft.motto; $('f-text').value = draft.logo.text || '';
+  $('f-name').value = draft.name; $('f-capital').value = draft.capital || ''; openDraw(); $('f-motto').value = draft.motto; $('f-text').value = draft.logo.text || '';
   const sw = (id, get, set) => { $(id).innerHTML = PALETTE.map((c) => `<button style="background:${c}" data-c="${c}" class="${get() === c ? 'on' : ''}" aria-label="${c}"></button>`).join(''); $(id).onclick = (e) => { const b = e.target.closest('[data-c]'); if (!b) return; set(b.dataset.c); audio.click(); toFound(); }; };
   sw('f-bg', () => draft.logo.bg, (c) => { draft.logo.bg = c; });
   sw('f-fg', () => draft.logo.fg, (c) => { draft.logo.fg = c; });
@@ -152,6 +152,15 @@ function toFound() {
   sw('f-primary', () => draft.primary, (c) => { draft.primary = c; });
   sw('f-secondary', () => draft.secondary, (c) => { draft.secondary = c; draft.look.armband = c; });
   foundDraw();
+}
+// The opening: how much the command starts with. Fewer fleets and no posts is the harder war.
+const OPEN = { fleets: [['lean', 'LEAN'], ['standard', 'STANDARD'], ['strong', 'STRONG']], posts: [['none', 'NONE'], ['some', 'ONE EACH'], ['many', 'THREE EACH']] };
+function openDraw() {
+  draft.open ||= { fleets: 'standard', posts: 'none' };
+  for (const k of ['fleets', 'posts']) {
+    $('f-' + k).innerHTML = OPEN[k].map(([id, name]) => `<button class="plate btn sm grow${draft.open[k] === id ? ' on' : ''}" data-open="${k}" data-v="${id}">${name}</button>`).join('');
+    for (const b of $('f-' + k).querySelectorAll('button')) b.onclick = () => { draft.open[b.dataset.open] = b.dataset.v; audio.click(); openDraw(); };
+  }
 }
 function foundDraw() {
   for (const k in CYCLE) $('f-' + k).textContent = draft.logo[k];

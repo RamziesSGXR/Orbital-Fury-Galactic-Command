@@ -1,5 +1,5 @@
 // Every number and every name in the game lives here, so the prototype can be retuned or renamed in one place.
-export const VERSION = '0.8.0';
+export const VERSION = '0.9.0';
 
 export const C = {
   names: {
@@ -97,6 +97,25 @@ export const C = {
   // `engage`: rounds in one engagement. If neither side is out of hit points by then, the fight for the system goes on next
   // round: the fleets stay where they are and the damage stays done. `press`: pay fuel to fight on for more rounds now.
   // `repair`: hit points a system's own defences win back each round.
+  // ---------------------------------------------------------------- FLEETS: MAKEUP, WEAR AND UPKEEP (0.9)
+  // A fleet is still a number of ships, and that number still decides its fights. On top of it, kept simple:
+  // MAKEUP: every ship is one of three roles, and a fleet's makeup is its shares of them. The shares give modest buffs:
+  //   gunships  attack fire x (1 + gun x their share)       escorts  hit points when defending x (1 + esc x their share)
+  //   tenders   wear taken x (1 - ten x their share), and tenMend x their share mended every round wherever the fleet is
+  // New ships come out as the yard's standing order (the Fleet Office sets it): balanced, or all of one role.
+  // WEAR: 0 to 100. Moving, attacking and defending add to it; fire falls by `fire` of itself at full wear. It is mended
+  // at the capital, over a station (per tier) or a base (per charter), each round the fleet ends there.
+  // UPKEEP: every ship over `free` costs `per` fuel a round. Fuel that cannot be paid is taken as wear on every fleet.
+  // START: the campaign's opening. `fleets` scales the opening fleets; `posts` is how many stations and bases are
+  // already running beside the capital.
+  fleet: {
+    roles: [{ id: 'gun', name: 'GUNSHIPS', text: 'Hit harder when you attack.' }, { id: 'esc', name: 'ESCORTS', text: 'Stand longer when you defend.' }, { id: 'ten', name: 'TENDERS', text: 'Wear less, and mend on the move.' }],
+    buff: { gun: 0.3, esc: 0.3, ten: 0.6, tenMend: 6 },
+    wear: { move: 6, attack: 14, defend: 8, fire: 0.3, unpaid: 5 },
+    repair: { capital: 25, station: 15, base: 6 },
+    upkeep: { free: 10, per: 0.02 },
+    start: { fleets: { lean: 0.5, standard: 1, strong: 2 }, posts: { none: 0, some: 1, many: 3 } },
+  },
   // ---------------------------------------------------------------- RATINGS (0.8): the brand's standing, and the fleet's morale
   // 0 to 100. Hard to raise, easy to lose. What is seen raises it: systems taken and held, and above all fights won on the
   // ground, where the cameras are (a card battle is a press release). Parades at bases and galas at stations in profit

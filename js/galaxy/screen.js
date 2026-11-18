@@ -38,7 +38,7 @@ const fighting = () => !!g.battle && !busy();                   // the battle sc
 function odds(mine, theirs) { const r = mine / Math.max(1, theirs); return r >= 1.4 ? ['STRONG', 'cy'] : r >= 1.1 ? ['EDGE', 'cy'] : r >= 0.9 ? ['EVEN', 'am'] : ['WEAK', 'rd2']; }
 
 function start(seed, saved, tutorial) {
-  g = (saved && Game.load(saved)) || new Game(seed || (Date.now() % 100000));
+  g = (saved && Game.load(saved)) || new Game(seed || (Date.now() % 100000), null, app && app.faction && app.faction.open);
   Object.assign(ui, { sel: null, fleet: null, half: false, pend: null, tab: 'int', open: false, mark: Math.max(0, g.log.length - 6), tut: tutorial ? 0 : null, hint: null, dest: null, anims: [], show: null, seen: null, fx: null, auto: 0, front: -2 });
   tutStep = -1;
   if (view.R0) view.reset();
@@ -143,8 +143,9 @@ function tabDef() {
   for (const fi of [-1, 0, 1, 2]) {
     const fs = mine.filter(f => g.P[f.at].front === fi); if (!fs.length) continue;
     h += `<div class="front" style="--fc:${fi < 0 ? 'var(--cyan)' : C.color[C.fronts[fi].f]}"><div class="fh"><b>${fi < 0 ? 'AT THE CAPITAL' : C.fronts[fi].name}</b><span class="sm2 dim">${fi === g.fi ? 'IN PLAY' : ''}</span></div>` +
-      fs.map(f => `<button class="ln lk" data-a="pick" data-f="${f.id}">${ships(f.ships)} at <b>${esc(g.P[f.at].name)}</b> · ${f.moved ? '<span class="dim">has moved this round</span>' : '<span class="cy">ready</span>'}</button>`).join('') + '</div>';
+      fs.map(f => `<button class="ln lk" data-a="pick" data-f="${f.id}">${ships(f.ships)} at <b>${esc(g.P[f.at].name)}</b> · ${f.moved ? '<span class="dim">has moved this round</span>' : '<span class="cy">ready</span>'}${f.wear >= 1 ? ` · <span class="${f.wear >= 50 ? 'rd2' : 'am'}">worn ${Math.round(f.wear)}%</span>` : ''}</button>`).join('') + '</div>';
   }
+  h += `<button class="plate amber btn sm" data-a="fleets" style="margin-top:8px;width:100%">FLEET OFFICE</button>`;
   h += `</section><section><h3>Your battle deck · ${g.deck('fed').length} cards</h3>${deckList('fed')}</section>`;
   return h;
 }
@@ -310,6 +311,24 @@ function outline() {
 // ---------- overlays ----------
 function modal(html) { $('modal').innerHTML = `<div class="plate amber box">${html}</div>`; $('modal').hidden = false; }
 export { modal };
+// THE FLEET OFFICE: every fleet, what it is made of, how worn it is and where it mends; what the yards are turning out;
+// and what the fleets will cost when the round ends.
+function fleetOffice() {
+  const F = C.fleet, mine = g.fleets.filter(f => f.owner === 'fed').sort((a, b) => b.ships - a.ships), total = mine.reduce((a, f) => a + f.ships, 0), bill = g.fleetBill();
+  const cols = ['var(--amber)', 'var(--cyan)', '#c8ff6a'], pc = (x) => Math.round(x * 100);
+  let h = `<h2>Fleet Office</h2><p class="sm2">${ships(total)} in ${mine.length} fleet${mine.length === 1 ? '' : 's'} · upkeep at the end of the round: <b class="${bill > g.res.fuel ? 'rd2' : 'am'}">${bill.toFixed(1)} fuel</b> <span class="dim">(the first ${F.upkeep.free} ships are free)</span></p>
+    <h3>The yards are building</h3><div class="row" style="margin-bottom:6px">${[['bal', 'BALANCED']].concat(F.roles.map(r => [r.id, r.name])).map(([k, n]) => `<button class="plate btn sm grow${g.yard === k ? ' on' : ''}" data-a="yard" data-k="${k}">${n}</button>`).join('')}</div>
+    <div class="sm2 dim" style="margin-bottom:10px">${F.roles.map((r, i) => `<span style="color:${cols[i]}">${r.name}</span> ${r.text}`).join(' · ')}</div>
+    ${g.P.some(p => p.built && p.owner === 'fed') ? `<div class="sm2">Built this round at ${g.P.filter(p => p.built && p.owner === 'fed').map(p => esc(p.name)).join(', ')}.</div>` : ''}<h3>Your fleets</h3>`;
+  for (const f of mine) {
+    const p = g.P[f.at], mix = f.mix || [1 / 3, 1 / 3, 1 / 3], rep = g.repairAt(f), w = f.wear || 0;
+    h += `<div class="mis" style="display:block"><div class="row" style="justify-content:space-between"><b>${ships(f.ships)} at ${esc(p.name)}</b><span class="sm2 ${w >= 50 ? 'rd2' : w >= 1 ? 'am' : 'cy'}">${w >= 1 ? 'WORN ' + Math.round(w) + '%' : 'FRESH'}</span></div>
+      <div style="display:flex;height:6px;margin:5px 0;background:var(--empty)">${mix.map((x, i) => `<i style="width:${x * 100}%;background:${cols[i]}"></i>`).join('')}</div>
+      <div class="sm2 dim">${F.roles.map((r, i) => `${r.name} ${pc(mix[i])}%`).join(' · ')}</div>
+      <div class="sm2">Attack fire ${g.fleetFire(f, true)} · defends with +${g.escortHp(f)} HP · ${rep >= 1 ? `<span class="cy">mends ${Math.round(rep)}% a round here</span>` : '<span class="am">no repair here</span>'}</div></div>`;
+  }
+  modal(h + '<button class="plate btn go" data-a="close" style="margin-top:10px">DONE</button>');
+}
 function help() {
   modal(`<h2>${N.game}</h2>
     <p>You are ${N.fed} High Command at ${N.capital}. Three enemies come at you on three war fronts: east, west and south.</p>
@@ -391,6 +410,8 @@ document.addEventListener('click', e => {
     case 'zout': view.zoomAt(1 / 1.4); return;
     case 'help': return help();
     case 'log': return logModal();
+    case 'fleets': return fleetOffice();
+    case 'yard': g.setYard(d.k); return fleetOffice();
     case 'asktut': return modal('<h2>Play the tutorial?</h2><p>It starts a new guided war. The war in progress will be lost.</p><button class="plate btn go" data-a="tut">START THE TUTORIAL</button><button class="plate btn" style="width:100%;margin-top:8px" data-a="close">KEEP PLAYING</button>');
     case 'ask': return modal('<h2>New war?</h2><p>The war in progress will be lost.</p><button class="plate btn go" data-a="new">START A NEW WAR</button><button class="plate btn" style="width:100%;margin-top:8px" data-a="close">KEEP PLAYING</button>');
     case 'close': $('modal').hidden = true; return;
