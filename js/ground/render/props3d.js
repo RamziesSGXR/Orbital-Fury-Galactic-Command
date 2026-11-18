@@ -69,6 +69,8 @@ const MODELS = {
     part(g, BOX, b, 0, 0.25, 0, 1.2, 0.5, 1.2); part(g, CYL, a, 0, 1.4, 0, 0.12, 2.0, 0.12); part(g, DOME, a, 0, 2.2, 0.2, 1.0, 0.4, 1.0, -1.2); part(g, BLOB, hot, 0, 2.5, 0, 0.2, 0.2, 0.2); return g; },
   banner: () => { const g = new THREE.Group(), pole = mat('#3a3a3a'), cloth = mat('#ffffff'); part(g, CYL, pole, 0, 3.5, 0, 0.16, 7, 0.16); part(g, BOX, cloth, 0.75, 5.4, 0, 1.4, 2.8, 0.06); return g; },
   flag: () => { const g = new THREE.Group(), pole = mat('#3a3a3a'), cloth = mat('#ffffff'); part(g, CYL, pole, 0, 2.5, 0, 0.12, 5, 0.12); part(g, BOX, cloth, 0.7, 4.4, 0, 1.3, 0.9, 0.05); return g; },
+  crate: () => { const g = new THREE.Group(), a = mat('#8a7a4a'), b = mat('#3a3426'), lid = mat('#e8d27a');     // something worth picking up: a crate, banded, its lid marked
+    part(g, BOX, a, 0, 0.45, 0, 1.5, 0.9, 1.1); part(g, BOX, b, -0.45, 0.45, 0, 0.12, 0.94, 1.14); part(g, BOX, b, 0.45, 0.45, 0, 0.12, 0.94, 1.14); part(g, BOX, lid, 0, 0.92, 0, 0.5, 0.04, 0.5); return g; },
   // ---- yours: built or dropped
   'post:mg': () => { const g = new THREE.Group(), bag = mat('#8a7a56'), gun = mat('#2c302c');     // sandbags and a gun
     part(g, TOR, bag, 0, 0.18, 0, 1.7, 1.7, 1.6, Math.PI / 2); part(g, TOR, bag, 0, 0.42, 0, 1.6, 1.6, 1.4, Math.PI / 2); part(g, BOX, gun, 0, 0.7, 0.1, 0.16, 0.16, 0.5); part(g, CYL, gun, 0, 0.72, 0.75, 0.07, 0.9, 0.07, Math.PI / 2); part(g, CYL, gun, 0, 0.35, 0.1, 0.06, 0.7, 0.06); return g; },

@@ -632,7 +632,7 @@ export function drawPois(ctx, m, now, px, labels, scale, pal) {
   const t = m.t, tgs = infantryTargets(m);
   for (const q of m.loot || []) {
     if (q.done && q.kind !== 'wreck') { if (t - q.at < 2) { const k = (t - q.at) / 2; ctx.strokeStyle = `rgba(255,230,0,${1 - k})`; ctx.lineWidth = px(2); ring(ctx, q.x, q.y, q.r * (1 + k)); ctx.stroke(); } continue; }
-    raise(ctx, q, q.x, q.y, Math.max(q.r * 1.6, 8), q.kind === 'wreck' ? 1.3 : 0.8, (c) => drawLootArt(c, q, now, px), RAISE_L);
+    if (!(VIEW.p3 && q.kind !== 'wreck')) raise(ctx, q, q.x, q.y, Math.max(q.r * 1.6, 8), q.kind === 'wreck' ? 1.3 : 0.8, (c) => drawLootArt(c, q, now, px), RAISE_L);
     if (!q.done && m.visLevel(q.x, q.y) > 0) labels.push({ x: q.x, y: q.y, dy: -Math.max(q.r * 0.8, px(10)) * scale - 6, text: tr('loot.' + q.kind), col: '#d9e8b0', pri: 0 });
   }
   for (const p of m.pois) {

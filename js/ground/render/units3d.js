@@ -8,7 +8,7 @@
 import * as THREE from '../../vendor/three.js';
 import { makeMats, makePerson, makeLRV, makeTank, makeDropship, makeCrate } from '../../base/models.js';
 
-const TMP = new THREE.Color();
+const TMP = new THREE.Color(), Q2 = new THREE.Quaternion(), FWD = new THREE.Vector3(0, 0, 1);
 const CAP = 700;     // of one kind on screen at once
 const M4 = new THREE.Matrix4(), Q = new THREE.Quaternion(), UP = new THREE.Vector3(0, 1, 0), P = new THREE.Vector3(), S = new THREE.Vector3(), COL = new THREE.Color();
 
@@ -111,7 +111,7 @@ export class Units3D {
     m = new THREE.InstancedMesh(make(), this.mat, CAP); m.count = 0; m.frustumCulled = false; m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.scene.add(m); this.kinds.set(k, m); return m;
   }
-  // list: [{ k (kind), x, y (the map's), r (footprint, metres), face (radians on the map), tint (a colour or null), dim (0 to 1) }]; ground(x, y): metres up
+  // list: [{ k (kind), x, y (the map's), r (footprint, metres), face (radians on the map), tint (a colour or null), dim (0 to 1), walk (the step's phase in radians while it moves, else null) }]; ground(x, y): metres up
   // hot: through an infrared sight a body is warm and shows bright whatever it wears
   frame(list, ground, hot = false) {
     this.mat.emissive.setScalar(hot ? 0.62 : 0);
@@ -119,6 +119,7 @@ export class Units3D {
     for (const u of list) {
       const m = this._kind(u.k); if (!m) continue; const n = this.used.get(m) || 0; if (n >= CAP) continue;
       Q.setFromAxisAngle(UP, Math.PI / 2 - (u.face || 0)); P.set(u.x, ground(u.x, u.y) + (u.up || 0), u.y); S.setScalar(u.r);
+      if (u.walk != null) { const s = Math.sin(u.walk); P.y += Math.abs(s) * 0.1 * u.r; Q.multiply(Q2.setFromAxisAngle(FWD, s * 0.11)); }     // (GC 0.26) on the move: a step's rise and a sway from foot to foot, until the models are given legs that walk
       m.setMatrixAt(n, M4.compose(P, Q, S)); COL.set(u.tint || '#ffffff'); if (u.dim != null && u.dim < 1) COL.multiplyScalar(u.dim); m.setColorAt(n, COL);
       this.used.set(m, n + 1);
     }

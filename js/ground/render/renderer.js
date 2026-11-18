@@ -400,6 +400,7 @@ export class Renderer {
     }
     { const pk = { bugs: ['spire', 'hive'], bots: ['node', 'fab'], lizards: ['totem', 'camp'] }[m.faction.id] || ['node', 'fab'];     // the enemy's side sites
       for (const p of m.pois || []) if (!p.done && near(p)) out.push({ k: pk[(p.id || 0) % 2], x: p.x, y: p.y, s: Math.max(2.4, (p.r || 12) * 0.42), rot: ((p.id || 1) * 2.3) % 6.28, tint: hit(p, p.hurtAt), dim: m.visLevel(p.x, p.y) > 0 ? 1 : 0.7 }); }
+    for (const q of m.loot || []) if (!q.done && q.kind !== 'wreck' && near(q)) out.push({ k: 'crate', x: q.x, y: q.y, s: Math.max(1.3, (q.r || 3) * 0.55), rot: ((q.id || 1) * 1.9) % 6.28 });     // what can be picked up
     for (const p of m.posts || []) { const d = P3_POST[p.what]; if (d && !p.dead && !p.ghost && near(p)) out.push({ k: d[0], x: p.x, y: p.y, s: d[1], rot: face(p.face), tint: hit(p, p.hurtAt) }); }
     for (const a of m.assets || []) if (a.kind === 'turret' && !a.dead && near(a)) out.push({ k: 'aturret', x: a.x, y: a.y, s: 1.5, rot: face(a.face), tint: hit(a, a.hurtAt) });
     return out;
@@ -600,12 +601,12 @@ export class Renderer {
       else { const sr = e.r * 1.5; ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.beginPath(); ctx.ellipse(e.x + sr * 0.5, e.y + sr * 0.4, sr * 1.1, sr * 0.8, 0, 0, TAU); ctx.fill(); }
       if (e.boss) {
         const br = bossR(e, px), body = (q) => drawBossBody(ctx, q, fid, br, pal.enemy, now, px, t - e.hurtAt < 0.06, t);
-        if (u3 && !arriving(e, t)) u3.push({ k: fid + ':H', x: e.x, y: e.y, r: br * 1.15, face: e.face, tint: t - e.hurtAt < 0.06 ? '#ffffff' : null, dim: e.vis >= 2 ? 1 : 0.6 });
+        if (u3 && !arriving(e, t)) u3.push({ k: fid + ':H', x: e.x, y: e.y, r: br * 1.15, face: e.face, tint: t - e.hurtAt < 0.06 ? '#ffffff' : null, dim: e.vis >= 2 ? 1 : 0.6, walk: (e.vx || 0) ** 2 + (e.vy || 0) ** 2 > 0.1 ? t * 5 + e.id : null });
         else if (arriving(e, t)) drawBossArrival(ctx, e, fid, br, pal.enemy, now, px, t, body);     // (0.55.1) its arrival
         else if (flat) body(e);
         else raiseUnit(ctx, br * 0.34, wallE, (c) => drawBossBody(c, e, fid, br, pal.enemy, now, px, t - e.hurtAt < 0.06, t));
       }
-      else if (u3) u3.push({ k: fid + ':' + e.kind, x: e.x, y: e.y, r: enemyR(e, SUBTYPES[e.kind], px) * 1.25, face: e.face, tint: t - e.hurtAt < 0.06 ? '#ffffff' : null, dim: e.vis >= 2 ? 1 : 0.6, up: e.air ? e.air * 4 : 0 });
+      else if (u3) u3.push({ k: fid + ':' + e.kind, x: e.x, y: e.y, r: enemyR(e, SUBTYPES[e.kind], px) * 1.25, face: e.face, tint: t - e.hurtAt < 0.06 ? '#ffffff' : null, dim: e.vis >= 2 ? 1 : 0.6, up: e.air ? e.air * 4 : 0, walk: !e.air && (e.vx || 0) ** 2 + (e.vy || 0) ** 2 > 0.1 ? t * (fid === 'bugs' ? 15 : 10) + e.id : null });
       else drawEnemyBody(ctx, e, fid, enemyR(e, SUBTYPES[e.kind], px), pal.enemy, now, px, t - e.hurtAt < 0.06);
       if (up) dropUnit(ctx, up);
       ctx.globalAlpha = 1;
@@ -664,7 +665,7 @@ export class Renderer {
       }
       else if (!flat) up = liftUnit(ctx, a.x, a.y, r, r * (H_ ? 0.5 : 0.42), wallA);
       else { ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.ellipse(a.x + r * 0.45, a.y + r * 0.35, r * 0.95, r * 0.7, 0, 0, TAU); ctx.fill(); }     // (0.59) its shadow
-      if (!fine) { if (u3) u3.push({ k: H_ ? 'van' : 'inf', x: a.x, y: a.y, r: r * (H_ ? 1.25 : 1.1), face: a.aimUntil > t ? a.aimA : a.face, tint: tm ? tm.color : null }); else drawAllyBody(ctx, a, r, pal.ally, tm ? tm.color : null, on, now, px, t); }
+      if (!fine) { if (u3) u3.push({ k: H_ ? 'van' : 'inf', x: a.x, y: a.y, r: r * (H_ ? 1.25 : 1.1), face: a.aimUntil > t ? a.aimA : a.face, tint: tm ? tm.color : null, walk: (a.vx || 0) ** 2 + (a.vy || 0) ** 2 > 0.1 ? t * 11 + a.id : null }); else drawAllyBody(ctx, a, r, pal.ally, tm ? tm.color : null, on, now, px, t); }
       if (up) dropUnit(ctx, up);
       if (t - a.hurtAt < 0.1 && !hideUi) { ctx.strokeStyle = '#ff6a6a'; ctx.lineWidth = px(1.5); ctx.beginPath(); ctx.arc(a.x, a.y, r * 1.3, 0, TAU); ctx.stroke(); }
       if (H_ && !hideUi && u3) { /* in 3D he wears his team's colour himself: no ring */ }
