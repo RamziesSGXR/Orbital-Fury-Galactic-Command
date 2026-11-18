@@ -24,6 +24,7 @@ const WON = (o) => o === 'victory' || o === 'complete';
 let app, ui, audio, canvas, renderer;
 let m = null, args = null, bot = null, auto = false;
 let cam = { x: 800, y: 800, view: 400, follow: false };
+let snap = null;
 let tab = 'weapons', mini = null, miniT = 0, planQ = [], selPost = null, hbSig = '';
 let acc = 0, armed = false, placing = null, overAt = 0, shown = false, level = 1, barSig = '', credits0 = 0;
 const keys = new Set(), settings = { polarity: 'white', relief: false, quality: 'auto', reduceFlash: false, colorblind: false, showNames: false, showBlasts: false, relief3d: 'auto', bubbles: true, uiScale: 1, smooth: true };
@@ -287,7 +288,9 @@ function bind() {
 
 // ---------------------------------------------------------------- the end of the fight
 function result() {
-  const r = m.result(), win = WON(r.outcome), earned = Math.max(0, Math.floor(m.wallet.bal - credits0));
+  const r = m.result(), win = WON(r.outcome), earned = Math.max(0, Math.floor((m.wallet.bal - credits0) * GC.link.creditShare));
+  if (m.wallet.bal > credits0) m.wallet.bal = credits0 + earned;     // what was spent in the fight stays spent; what was earned is shared with the war
+  snap = null;
   const left = win ? clamp(0.35 + 0.65 * (r.livesLeft / Math.max(1, r.livesMax)), 0.1, 1) : clamp(1 - 0.5 * (r.bases / Math.max(1, r.baseTotal)), 0.3, 1);
   const sys = args.system, atk = args.battle.kind === 'atk';
   const box = document.createElement('div');
@@ -313,12 +316,12 @@ const mode = {
     args = a; mode.off = false;
     const b = a.battle, sys = a.system, g = app.camp, kw = sys.worlds[sys.key];
     const faction = GC.link.foe[b.f] || 'bugs', biome = GC.link.biome[kw.type] || 'grass';
-    const seed = hash(sys.id + 1, (g.war && g.war.seed) || 1, g.stats.ground + 1);
+    const seed = hash(sys.id + 1, (g.war && g.war.seed) || 1, (a.round || 1) * 3 + (b.kind === 'atk' ? 1 : 2));
     level = a.level || levelFor(b, sys);
     const objs = GC.groundObj[b.kind === 'atk' ? 'atk' : 'def'], obj = objs[seed % objs.length];
     $('s-theatre').classList.add('full');
     renderer.phone = Math.min(innerWidth, innerHeight) < 540; renderer.resize();
-    credits0 = g.wallet.bal;
+    credits0 = g.wallet.bal; snap = JSON.stringify({ kit: g.kit, wallet: g.wallet });
     const tod = 6 + (seed % 12);
     renderer.setTerrain(buildTerrain(biome, seed, { polarity: 'white', quality: renderer.phone ? 0.6 : 1, relief: false, sun: sunAt(tod) }));
     m = new Mission({ seed, faction, biome, sessionMinutes: 0, events: true, missionN: 1, opDone: 0, difficulty: level, objectives: [obj], kit: g.kit, wallet: g.wallet, tod, countdown: C.helldivers.countdown, defenders: true });
@@ -341,7 +344,7 @@ const mode = {
     $('modal').innerHTML = `<div class="plate amber box"><h2>Call off the landing?</h2><p>The troops are lifted off and the fleets still face each other. You can fight it in space instead.</p>
       <button class="plate btn go" id="g-yes">CALL IT OFF</button><button class="plate btn" style="width:100%;margin-top:8px" id="g-no">STAY IN THE FIGHT</button></div>`;
     $('modal').hidden = false;
-    $('g-yes').onclick = () => { $('modal').hidden = true; ui.leave({ abandon: true }); };
+    $('g-yes').onclick = () => { $('modal').hidden = true; mode.undo(); ui.leave({ abandon: true }); };
     $('g-no').onclick = () => { $('modal').hidden = true; ui.paused = was; };
   },
   frame(dt, now, real) {
@@ -372,7 +375,9 @@ const mode = {
     if (mini && (miniT -= real) <= 0) { miniT = 0.1; try { renderer.drawMinimap(mini, m, cam); } catch { /* no map this frame */ } }
     if (m.over && !shown) { overAt = overAt || now; if (now - overAt > 3.2) { shown = true; result(); } }
   },
-  report() { return { abandon: true }; },
+  report() { mode.undo(); return { abandon: true }; },
+  // a landing called off: the armoury and the credits are as they were before it
+  undo() { if (!snap) return; const o = JSON.parse(snap); snap = null; Object.assign(app.camp.kit, o.kit); Object.assign(app.camp.wallet, o.wallet); },
   // for the browser checks: run the fight on quickly with the crew firing
   fast(steps) { const b = bot || makeBot(); for (let i = 0; i < steps && m && !m.over; i++) { botStep(m, b); m.step(STEP); if (m.events.length > 400) m.events.length = 0; } return m ? { over: m.over, outcome: m.outcome, t: m.t } : null; },
   // for the browser checks

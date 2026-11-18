@@ -83,9 +83,12 @@ export class Game {
     if (this._sec) return this._sec;
     const fl = this.fedLinked(), out = new Map();
     for (const sc of this.map.sectors) { const o = this.P[sc.sys[0]].owner; if (sc.sys.every(id => this.P[id].owner === o && (o !== 'fed' || fl.has(id)))) out.set(sc.id, o); }
-    this._cnt = {}; for (const p of this.P) this._cnt[p.owner] = (this._cnt[p.owner] || 0) + 1;
+    this._cnt = {}; this._stn = {}; for (const p of this.P) { this._cnt[p.owner] = (this._cnt[p.owner] || 0) + 1; if (p.owner === 'fed' && p.station) this._stn[p.sector] = Math.max(this._stn[p.sector] || 0, p.station); }
     return (this._sec = out);
   }
+  sectorStation(p) { this.sectorOwners(); return this._stn[p.sector] || 0; }
+  // How much of each resource you can hold: more with every station tier and base charter.
+  resMax() { let n = 0; for (const p of this.P) if (p.owner === 'fed') n += (p.station || 0) + (p.base || 0); return C.resMax + n * C.link.capPer; }
   sectorOf(p) { return this.map.sectors.find(sc => sc.id === p.sector); }
   sectorHeld(p) { return this.sectorOwners().get(p.sector) === p.owner; }
   keyWorld(p) { return p.worlds[p.key]; }
@@ -107,7 +110,7 @@ export class Game {
     if (p.owner !== 'fed') return Math.max(0, (p.kind === 'home' ? C.garr.home + Math.floor(((this.sectorOwners(), this._cnt)[p.owner] || 0) / C.homePer) : C.garr.sys) + p.worlds.filter(w => w.type === 'fortress').length * C.garr.fortress + (this.sectorHeld(p) ? C.sector.fort : 0) - (p.dmg || 0));
     let v = (p.id === 0 ? C.fort.capital : C.fort.sys) + (this.priority != null && p.front === this.priority ? C.priority.fort : 0);
     for (const w of p.worlds) v += C.worlds[w.type].fort || 0;
-    v += (p.station || 0) * C.link.stationFort + (this.sectorHeld(p) ? C.sector.fort : 0);
+    v += (p.station || 0) * C.link.stationFort + (this.sectorHeld(p) ? C.sector.fort : 0) + (this.sectorStation(p) >= C.link.sectorFortAt ? 1 : 0);
     return Math.max(0, Math.round(v * (this.fedLinked().has(p.id) ? 1 : C.cut)) - (p.dmg || 0));
   }
   // Total hit points a system would fight with: its own, plus its owner's fleet there.
@@ -221,7 +224,7 @@ export class Game {
   // ---------- the ministries (free: they do not use up your decision) ----------
   trade(from, to) {
     if (!this.ready() || from === to || !this.canPay({ [from]: C.trade.give })) return false;
-    this.res[from] -= C.trade.give; this.res[to] = Math.min(C.resMax, this.res[to] + C.trade.get); return true;
+    this.res[from] -= C.trade.give; this.res[to] = Math.min(this.resMax(), this.res[to] + C.trade.get); return true;
   }
   income() {
     const fl = this.fedLinked(), pol = C.policy[this.policy], r = { ...C.capitalYield };
@@ -280,7 +283,8 @@ export class Game {
   }
   _endRound() {
     const r = this.res, inc = this.income();
-    for (const k in inc) r[k] = clamp(r[k] + inc[k], 0, C.resMax);
+    const cap = this.resMax(); for (const k in inc) r[k] = clamp(r[k] + inc[k], 0, cap);
+    if (this.round % C.link.shipEvery === 0) { const fl = this.fedLinked(); for (const p of this.P) if (p.owner === 'fed' && (p.base || 0) >= C.link.shipAt && fl.has(p.id)) this._put('fed', p.id, 1); }
     for (const f of this.fleets) f.moved = false;
     for (const p of this.P) { p.built = false; if (p.dmg) p.dmg = Math.max(0, p.dmg - C.battle.repair); }
     this.capHit = [];
@@ -416,10 +420,16 @@ export class Game {
   breakOff() { const b = this.battle; if (!b || !b.pending) return false; b.pending = false; this._settle(b); return true; }
   // How hard the ground is, from what each side has put into this fight: the enemy's hit points here against yours.
   groundLevel() {
-    const b = this.battle; if (!b) return 1; const p = this.P[b.pid];
-    const raw = 1.5 + 1.5 * Math.log2(Math.max(1, b.foe.hp) / Math.max(1, b.you.hp)) + (p.kind === 'home' ? 2 : 0) - Math.floor((p.station || 0) / 2);
-    return clamp(Math.round(raw), C.link.level.min, C.link.level.max);
+    const b = this.battle; if (!b) return 1; const p = this.P[b.pid], L = C.link, st = this.sectorStation(p);
+    let raw = 1.5 + 1.5 * Math.log2(Math.max(1, b.foe.hp) / Math.max(1, b.you.hp)) + (p.kind === 'home' ? 2 : 0);
+    if (b.kind === 'atk') raw += Math.floor((p.ring - 1) / L.depthPer);                       // deeper into its rings
+    raw += Math.floor(((this.sectorOwners(), this._cnt)[b.f] || 0) / L.holdPer);               // the more it holds, the more it brings
+    raw -= st >= L.threatAt[1] ? 2 : st >= L.threatAt[0] ? 1 : 0;                              // a station overhead
+    return clamp(Math.round(raw), L.level.min, L.level.max);
   }
+  // FOUND a station over, or a base on, a system of yours: paid for from the war's resources.
+  canFound(pid, kind) { const p = this.P[pid]; return this.ready() && !!p && p.owner === 'fed' && p.id !== 0 && !p[kind] && this.fedLinked().has(pid) && this.canPay(C.link.found[kind]); }
+  found(pid, kind) { if (!this.canFound(pid, kind)) return false; this._pay(C.link.found[kind]); this.P[pid][kind] = 1; this._sec = null; this.say('good', `A ${kind} is founded at ${this.P[pid].name}.`); return true; }
   // A battle fought on the ground instead of with cards. `win` is whether you won it; `left` (0 to 1) is how much of
   // the winner's strength is still standing. The map is settled exactly as after a card battle.
   battleResolve(win, left = 0.5) {

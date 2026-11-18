@@ -57,7 +57,7 @@ function step() {
 
 // ---------- the top strip ----------
 function top() {
-  const cell = (k, cls) => `<div class="${cls}"><b>${Math.floor(g.res[k])}</b><span>${RES[k]}</span></div>`;
+  const cap = g.resMax(), cell = (k, cls) => `<div class="${cls}"><b>${Math.floor(g.res[k])}<i style="color:var(--dim)">/${cap}</i></b><span>${RES[k]}</span></div>`;
   const loot = C.fronts.map(fr => `<div style="--lc:${C.color[fr.f]}" class="lt"><b>${g.loot[fr.f]}</b><span>${fr.lootShort}</span></div>`).join('');
   $('top').innerHTML = `<button class="crest" data-a="menu" aria-label="Menu"><canvas id="crest-war" width="64" height="64"></canvas></button><div class="ttl">${esc(N.fed.toUpperCase())}<small>HIGH COMMAND</small></div><div class="rd">ROUND ${g.round}</div>
     <div class="ro">${cell('fuel', 'a')}${cell('drop', '')}${cell('army', '')}${loot}</div><button class="plate btn sm" data-a="menu">MENU</button>`;
@@ -104,9 +104,9 @@ function tabSys() {
   if (th) h += threatLine(p, th);
   h += '<canvas id="sys"></canvas>';
   if (fed && p.id !== 0) {
-    const ok = fl.has(p.id) && g.ready() && !busy();
-    h += `<div class="thr"><button class="plate amber btn pol" data-a="orbit" data-p="${p.id}" ${ok ? '' : 'disabled'}><b>${p.station ? 'STATION · TIER ' + p.station : 'FOUND A STATION'}</b><span>+${C.link.stationFort} HP a tier · ships −${C.link.stationFuel} fuel</span></button>
-      <button class="plate amber btn pol" data-a="base" data-p="${p.id}" ${ok ? '' : 'disabled'}><b>${p.base ? 'BASE · RANK ' + p.base : 'FOUND A BASE'}</b><span>+${Math.round(C.link.baseYield * 100)}% output a rank</span></button></div>`;
+    const ok = fl.has(p.id) && g.ready() && !busy(), L = C.link;
+    const btn = (kind, key, have, what) => `<button class="plate amber btn pol" data-a="${key}" data-p="${p.id}" ${ok && (have || g.canFound(p.id, kind)) ? '' : 'disabled'}><b>${have ? what + ' ' + have : 'FOUND A ' + kind.toUpperCase() + ' · ' + costTxt(L.found[kind])}</b><span>${kind === 'station' ? `+${L.stationFort} HP a tier · eases the ground here` : `+${Math.round(L.baseYield * 100)}% output a charter · ships at ${L.shipAt}`}</span></button>`;
+    h += `<div class="thr">${btn('station', 'orbit', p.station, 'STATION · TIER')}${btn('base', 'base', p.base, 'BASE · CHARTER')}</div>`;
   }
   if (fed && T.yard) h += `<div class="sm2 am">${T.name}: ${T.yard}</div>`;
   p.worlds.forEach((w, i) => {
@@ -344,10 +344,10 @@ document.addEventListener('click', e => {
     case 'totitle': $('modal').hidden = true; return app.endCampaign();
     case 'cards': ui.cards = true; break;
     case 'armoury': return app.armoury(() => refresh());
-    case 'ground': return app.theatre('ground', { battle: g.battle, system: g.P[g.battle.pid], level: g.groundLevel() });
+    case 'ground': return app.theatre('ground', { battle: g.battle, system: g.P[g.battle.pid], level: g.groundLevel(), round: g.round });
     case 'press': g.press(); ui.fx = null; ui.auto = 0; break;
-    case 'orbit': return app.theatre('orbit', { system: g.P[+d.p] });
-    case 'base': return app.theatre('base', { system: g.P[+d.p] });
+    case 'orbit': if (!g.P[+d.p].station && !g.found(+d.p, 'station')) break; return app.theatre('orbit', { system: g.P[+d.p] });
+    case 'base': if (!g.P[+d.p].base && !g.found(+d.p, 'base')) break; return app.theatre('base', { system: g.P[+d.p] });
     case 'tab': if (ui.open && ui.tab === d.t) ui.open = false; else { ui.tab = d.t; ui.open = true; } break;
     case 'shut': ui.open = false; break;
     case 'info': ui.tab = 'sys'; ui.open = true; break;
@@ -445,5 +445,5 @@ export function show(on) { active = on; if (on) { view.resize(); if (view.front 
 // A battle settled on the ground comes back here: the result goes on the map and the battle screen shows it.
 export function groundResult(win, left) { if (g && g.battle && !g.battle.done) { g.battleResolve(win, left); ui.fx = null; ui.cards = false; } }
 // A station or a base has changed: its tier or rank goes on the system.
-export function setSite(pid, kind, level) { if (g && g.P[pid]) g.P[pid][kind] = level; }
+export function setSite(pid, kind, level) { if (g && g.P[pid]) { g.P[pid][kind] = level; g._sec = null; } }
 export function lostSites() { const l = (g && g.lostSites) || []; if (g) g.lostSites = []; return l; }

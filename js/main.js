@@ -235,7 +235,13 @@ function leaveTheatre(out = {}) {
   try { mode.leave(); } catch (err) { console.error(err); }
   mode = null;
   if (kind === 'ground') { camp.stats.ground++; if (out.win) camp.stats.groundWon++; if (!out.abandon) War.groundResult(!!out.win, out.left ?? 0.5); }
-  else if (out.level != null) { War.setSite(args.system.id, kind === 'orbit' ? 'station' : 'base', out.level); camp.sites[args.system.id] = { ...(camp.sites[args.system.id] || {}), [kind]: out }; }
+  else if (out.level != null) {
+    const key = kind === 'orbit' ? 'station' : 'base', g = War.war(), p = args.system, rec = (camp.sites[p.id] ||= {}), cur = p[key] || 1;
+    let level = Math.min(out.level, cur);
+    if (out.level > cur) { if (rec[key + 'Up'] !== g.round) { level = cur + 1; rec[key + 'Up'] = g.round; app.toast(`${p.name}: ${key} raised to ${level} on the map.`); } else app.toast(`${p.name}: the map takes one new ${key === 'station' ? 'tier' : 'charter'} a round. The rest is waiting for next round.`, 4000); }
+    else if (out.level < cur) level = out.level;
+    War.setSite(p.id, key, Math.max(1, level)); rec[kind] = out;
+  }
   state = 'war'; show('s-war'); War.show(true); app.keep();
   if (kind === 'ground' && out.abandon) app.toast('The landing is called off. The fleets still face each other.');
 }

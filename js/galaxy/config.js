@@ -1,5 +1,5 @@
 // Every number and every name in the game lives here, so the prototype can be retuned or renamed in one place.
-export const VERSION = '0.3.0';
+export const VERSION = '0.3.1';
 
 export const C = {
   names: {
@@ -99,7 +99,7 @@ export const C = {
   battle: { hand: 3, maxRounds: 12, engage: 3, press: { fuel: 3, rounds: 2 }, repair: 1 },
   // A battle fought on the ground is one hard engagement, not the whole war for the system: winning it does the damage of a
   // full engagement and half again, and spares your own side by how many lives were left.
-  groundWin: { deal: 1.5, take: 0.6 }, groundLoss: { deal: 0.4, take: 1.2 },
+  groundWin: { deal: 1.0, take: 0.8 }, groundLoss: { deal: 0.3, take: 1.2 },
   // The kinds of ground mission: what you are sent to do when you attack a system, and when you defend one.
   groundObj: { atk: ['fortress', 'nuke'], def: ['evac', 'vip'] },
   bcards: {
@@ -159,6 +159,15 @@ export const C = {
   // A station over a system adds hit points to it for each tier and makes ships cheaper to build there. A base on its key
   // world raises what the system pays for each rank. Both are lost with the system.
   link: { stationFort: 2, stationFuel: 1, baseYield: 0.35, stationMax: 4, baseMax: 4,
+    // what they cost to found, and what else they are worth as they grow
+    found: { station: { fuel: 8, army: 6 }, base: { army: 6, drop: 6 } },
+    creditShare: 0.25,    // the share of what a ground battle earns that reaches the armoury (a level 3 mission earns 3,000 to 5,000)
+    capPer: 2,            // every station tier and base charter raises how much of each resource you can hold
+    sectorFortAt: 2,      // a station of this tier or more adds a hit point to every system of yours in its sector
+    threatAt: [2, 4],     // a station of these tiers in the sector takes one, then two, off the ground threat there
+    shipAt: 3, shipEvery: 6,   // a base of this charter or more sends a ship to its system every so many rounds
+    // the ground gets harder the deeper into an enemy's rings you fight, and the more systems that enemy holds
+    depthPer: 3, holdPer: 15,
     // a battle fought on the ground: which enemy and ground it is, and how hard, from the odds on the map
     foe: { swarm: 'bugs', foundry: 'bots', veil: 'squids' },
     biome: { refinery: 'desert', forge: 'moon', colony: 'grass', fortress: 'ice', barren: 'moon', capital: 'grass' },

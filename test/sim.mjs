@@ -16,12 +16,12 @@ const ONLY = process.argv[5] || '';     // 'sites' or 'ground': only that half o
 const FOUND = 3, LEVEL = 12, GROUND_P = [1, 1, 1, 1, 0.9, 0.8, 0.7, 0.6, 0.5];
 const rng = (a) => () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
 function sites(g, age) {
-  for (const [k, a] of age) { const [pid, kind] = k.split(':'), p = g.P[+pid]; if (!p[kind]) { age.delete(k); continue; } a.n++; if (a.n % LEVEL === 0 && p[kind] < 4) p[kind]++; }
+  for (const [k, a] of age) { const [pid, kind] = k.split(':'), p = g.P[+pid]; if (!p[kind]) { age.delete(k); continue; } a.n++; if (a.n % LEVEL === 0 && p[kind] < 4) { p[kind]++; g._sec = null; } }
   if (g.round % FOUND) return;
   const fl = g.fedLinked();
   const free = g.P.filter(p => p.owner === 'fed' && p.id && fl.has(p.id) && !g.threat(p.id) && (!p.station || !p.base)).sort((a, b) => a.ring - b.ring || a.id - b.id)[0];
   if (!free) return;
-  const kind = !free.station ? 'station' : 'base'; free[kind] = 1; age.set(`${free.id}:${kind}`, { n: 0 });
+  const kind = !free.station ? 'station' : 'base'; if (g.found(free.id, kind)) age.set(`${free.id}:${kind}`, { n: 0 });
 }
 export function play(seed, mode, rounds = maxR) {
   const g = new Game(seed), full = mode === 'full', R = rng(seed * 977 + 5), age = new Map();
