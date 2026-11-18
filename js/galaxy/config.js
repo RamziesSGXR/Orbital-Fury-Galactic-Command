@@ -1,5 +1,5 @@
 // Every number and every name in the game lives here, so the prototype can be retuned or renamed in one place.
-export const VERSION = '0.7.0';
+export const VERSION = '0.8.0';
 
 export const C = {
   names: {
@@ -97,6 +97,17 @@ export const C = {
   // `engage`: rounds in one engagement. If neither side is out of hit points by then, the fight for the system goes on next
   // round: the fleets stay where they are and the damage stays done. `press`: pay fuel to fight on for more rounds now.
   // `repair`: hit points a system's own defences win back each round.
+  // ---------------------------------------------------------------- RATINGS (0.8): the brand's standing, and the fleet's morale
+  // 0 to 100. Hard to raise, easy to lose. What is seen raises it: systems taken and held, and above all fights won on the
+  // ground, where the cameras are (a card battle is a press release). Parades at bases and galas at stations in profit
+  // raise it for a price, each post once every show.every rounds. Only ONE ground fight a round is the broadcast: the
+  // first you fight; the rest are not aired. Losses lower it, and above `settle` it slips back by `drift` of the
+  // distance every round as the audience moves on. Effects: at `high` and above, output and the posts' pay rise; under `low` they fall;
+  // under `sack` they fall hard, and sackRounds rounds in a row down there and the board replaces you.
+  ratings: { start: 50, settle: 40, drift: 0.12, take: 1, takeHome: 15, hold: 1, repelled: -1, fall: -1, postLost: -3, found: 1,
+             ground: { win: 3, flawless: 3, flawlessAt: 0.8, loss: -2 },
+             show: { gain: 4, every: 8, cost: { base: { army: 3 }, station: { fuel: 3 } } },
+             high: 75, low: 25, sack: 10, sackRounds: 5, yield: { high: 1.1, low: 0.8, sack: 0.6 }, pay: { min: 0.5, max: 1.5 } },
   // ---------------------------------------------------------------- THE WAR CHEST, DEPOSITS AND THE ARMOURY (0.5)
   // One currency for the whole war: credits (CR), kept in the war chest. The ground pays into it; so does every station
   // and base that is running in profit, every round; so does every sector held whole. It buys everything in the armoury.

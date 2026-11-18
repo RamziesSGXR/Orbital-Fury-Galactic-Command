@@ -40,7 +40,7 @@ export class Game {
     this.log = [];
     this.stats = { taken: 0, fallen: 0, held: 0, repelled: 0 };
     for (const p of this.P) { p.station = 0; p.base = 0; p.dmg = 0; p.sp = 0; p.bp = 0; }
-    this.up = {}; this.due = 0;      // armoury upgrades bought; credits owed to the war chest
+    this.up = {}; this.due = 0; this.rat = C.ratings.start; this.sack = 0;      // armoury upgrades bought; credits owed to the war chest
     if (saved) return this._restore(saved);
     this.say('info', `Every world on the map carries the ${N.fed} brand. Long may it sell.`);
     this._arrivals(); this._startRound();
@@ -56,7 +56,7 @@ export class Game {
 
   // ---------- saving (only while you are deciding) ----------
   save() {
-    const k = ['seed', 'rs', 'round', 'fi', 'res', 'loot', 'truth', 'F', 'fleets', 'fid', 'policy', 'priority', 'capHit', 'stats', 'over', 'last', 'up', 'due'];
+    const k = ['seed', 'rs', 'round', 'fi', 'res', 'loot', 'truth', 'F', 'fleets', 'fid', 'policy', 'priority', 'capHit', 'stats', 'over', 'last', 'up', 'due', 'rat', 'sack', 'aired'];
     const d = { v: 11, log: this.log.slice(-80), P: this.P.map(p => [p.owner, p.dev, p.site, p.built ? 1 : 0, p.station || 0, p.base || 0, p.dmg || 0, p.sp || 0, p.bp || 0]) };
     for (const x of k) d[x] = this[x];
     return d;
@@ -64,7 +64,7 @@ export class Game {
   _restore(d) {
     for (const k in d) if (k !== 'v' && k !== 'P') this[k] = d[k];
     d.P.forEach(([o, dv, st, bu, sn, bs, dm, sp, bp], i) => Object.assign(this.P[i], { owner: o, dev: dv, site: st, built: !!bu, station: sn || 0, base: bs || 0, dmg: dm || 0, sp: sp || 0, bp: bp || 0 }));
-    this.up ||= {}; this.due ||= 0;
+    this.up ||= {}; this.due ||= 0; this.rat ??= C.ratings.start; this.sack ||= 0;
     this.phase = this.over ? 'over' : 'plan'; this._sec = null;
     return this;
   }
@@ -239,6 +239,7 @@ export class Game {
         if (w.type === 'colony') r.army += pol.army * m;
       }
     }
+    const ym = this.ratYield(); if (ym !== 1) for (const k in r) r[k] *= ym;
     return r;
   }
   developCost(p) { return { fuel: C.develop.fuel * (p.dev + 1), army: C.develop.army * (p.dev + 1) }; }
@@ -287,7 +288,7 @@ export class Game {
     const r = this.res, inc = this.income();
     const cap = this.resMax(); for (const k in inc) r[k] = clamp(r[k] + inc[k], 0, cap);
     if (this.round % C.link.shipEvery === 0) { const fl = this.fedLinked(); for (const p of this.P) if (p.owner === 'fed' && (p.base || 0) >= C.link.shipAt && fl.has(p.id)) this._put('fed', p.id, 1); }
-    this._posts();
+    this._posts(); this._ratRound();
     for (const f of this.fleets) f.moved = false;
     for (const p of this.P) { p.built = false; if (p.dmg) p.dmg = Math.max(0, p.dmg - C.battle.repair); }
     this.capHit = [];
@@ -430,6 +431,27 @@ export class Game {
     raw -= st >= L.threatAt[1] ? 2 : st >= L.threatAt[0] ? 1 : 0;                              // a station overhead
     return clamp(Math.round(raw), L.level.min, L.level.max);
   }
+  // ---------- ratings ----------
+  rate(n) { this.rat = clamp(this.rat + n, 0, 100); }
+  ratBand() { const R = C.ratings; return this.rat >= R.high ? 'high' : this.rat < R.sack ? 'sack' : this.rat < R.low ? 'low' : 'mid'; }
+  ratYield() { const b = this.ratBand(); return b === 'mid' ? 1 : C.ratings.yield[b]; }
+  // what the sponsors pay follows the ratings: half at nothing, half again at a hundred
+  ratPay() { const P = C.ratings.pay; return P.min + (P.max - P.min) * this.rat / 100; }
+  _ratRound() {
+    const R = C.ratings;
+    if (this.rat > R.settle) this.rate(-Math.max(0.5, (this.rat - R.settle) * R.drift));
+    if (this.rat < R.sack) { this.sack++; if (this.sack >= R.sackRounds) return this._end('lost', `Ratings under ${R.sack}% for ${R.sackRounds} rounds. The board has replaced you.`); this.say('bad', `Ratings Office: under ${R.sack}%. The board meets in ${R.sackRounds - this.sack} round${R.sackRounds - this.sack === 1 ? '' : 's'}.`); }
+    else this.sack = 0;
+  }
+  // A SHOW: a parade at a base, a gala at a station. The post must be linked and in profit, and not have put one on lately.
+  showCost(kind) { return C.ratings.show.cost[kind]; }
+  canShow(pid, kind) { const p = this.P[pid]; return this.ready() && !!p && p.owner === 'fed' && !!p[kind] && !! p[kind === 'station' ? 'sp' : 'bp'] && this.fedLinked().has(pid) && this.round - (p['show' + kind] ?? -99) >= C.ratings.show.every && this.canPay(this.showCost(kind)); }
+  show(pid, kind) {
+    if (!this.canShow(pid, kind)) return false; const p = this.P[pid]; this._pay(this.showCost(kind)); p['show' + kind] = this.round; this.rate(C.ratings.show.gain);
+    const L = kind === 'base' ? [`A parade at ${p.name}. Nine bands, one tune.`, `${p.name} marches past the cameras. Twice, for the second angle.`, `A parade at ${p.name}. The flypast was only slightly late.`]
+                              : [`A gala over ${p.name}. The canapés were in formation.`, `${p.name} station opens its doors to the press. Most of them.`, `A gala over ${p.name}. The sponsors' speeches ran long.`];
+    this.say('good', 'Publicity Office: ' + L[(this.round + pid) % L.length]); return true;
+  }
   // ---------- the war chest, deposits and the armoury ----------
   lv(id) { return (this.up && this.up[id]) || 0; }
   // Which front's material lies under a system, if any: fixed by the map, about three systems in ten, and every enemy home.
@@ -446,6 +468,7 @@ export class Game {
       const d = p.base ? this.deposit(p) : null; if (d) out.mat[d] += C.deposit.per + (p.bp ? C.deposit.profit : 0) + this.lv('b_rigs');
     }
     for (const [id, o] of this.sectorOwners()) if (o === 'fed' && id !== 0) out.cr += C.chest.sector;
+    out.cr = Math.round(out.cr * this.ratPay());
     return out;
   }
   _posts() { const o = this.postsPay(); this.due += o.cr; for (const k in o.mat) this.loot[k] += o.mat[k]; }
@@ -458,12 +481,13 @@ export class Game {
   buy(id, wallet) { if (!this.canBuy(id, wallet.bal)) return false; const n = this.nextLevel(id); wallet.bal -= n.cr; wallet.spent = (wallet.spent || 0) + n.cr; this.loot[n.mat] -= n.n; this.up[id] = this.lv(id) + 1; return true; }
   // FOUND a station over, or a base on, a system of yours: paid for from the war's resources.
   canFound(pid, kind) { const p = this.P[pid]; return this.ready() && !!p && p.owner === 'fed' && p.id !== 0 && !p[kind] && this.fedLinked().has(pid) && this.canPay(C.link.found[kind]); }
-  found(pid, kind) { if (!this.canFound(pid, kind)) return false; this._pay(C.link.found[kind]); this.P[pid][kind] = 1; this._sec = null; this.say('good', `A ${kind} is founded at ${this.P[pid].name}.`); return true; }
+  found(pid, kind) { if (!this.canFound(pid, kind)) return false; this._pay(C.link.found[kind]); this.P[pid][kind] = 1; this._sec = null; this.rate(C.ratings.found); this.say('good', `A ${kind} is founded at ${this.P[pid].name}.`); return true; }
   // A battle fought on the ground instead of with cards. `win` is whether you won it; `left` (0 to 1) is how much of
   // the winner's strength is still standing. The map is settled exactly as after a card battle.
   battleResolve(win, left = 0.5) {
     const b = this.battle; if (!b || b.done) return false;
     left = clamp(left, 0, 1);
+    if (this.aired !== this.round) { this.aired = this.round; const G = C.ratings.ground; this.rate(win ? G.win + (left >= G.flawlessAt ? G.flawless : 0) : G.loss); if (win && left >= G.flawlessAt) this.say('good', 'Publicity Office: a flawless action, live. The footage is everywhere.'); }
     // one hard engagement: each side's fire over a full engagement, scaled by how the ground went
     const K = win ? C.groundWin : C.groundLoss, n = C.battle.engage;
     const deal = Math.ceil((b.you.fire * n + 3) * K.deal), take = Math.ceil((b.foe.fire * n + 2) * K.take * (win ? 1 - 0.7 * left : 1));
@@ -497,7 +521,7 @@ export class Game {
     if (b.kind === 'atk') {
       if (b.win) {
         if (theirs) { theirs.ships = Math.floor(theirs.ships / 2); this._retreat(theirs, b.pid); }
-        this._capture(p, 'fed'); this.stats.taken++;
+        this._capture(p, 'fed'); this.stats.taken++; this.rate(p.kind === 'home' ? C.ratings.takeHome : C.ratings.take);
         mine.ships = Math.max(1, left(b.you, 0)); this.moves.push({ owner: 'fed', from: mine.at, to: b.pid, ships: mine.ships }); this._drop(mine); this._put('fed', b.pid, mine.ships, true);
         b.result = `${p.name} is yours.`; this.say('good', `${p.name} taken from ${fn}.`);
         gain(p.kind === 'home' ? C.loot.home : C.loot.attack); this._truth('fed', 'newsreel', `${p.name} taken`);
@@ -505,19 +529,19 @@ export class Game {
       } else {
         mine.ships = Math.floor(mine.ships / 2); if (mine.ships <= 0) this._drop(mine);
         if (theirs) theirs.ships = Math.max(1, left(b.foe, b.fort));
-        this.stats.repelled++;
+        this.stats.repelled++; this.rate(C.ratings.repelled);
         b.result = `The attack on ${p.name} is beaten off. Half the fleet is lost.`; this.say('bad', `The attack on ${p.name} failed.`);
         this._truth(f, 'triumph', 'it repelled you');
       }
     } else if (b.win) {
       if (theirs) { theirs.ships = Math.floor(theirs.ships / 2); if (theirs.ships <= 0) this._drop(theirs); }
       if (mine) { mine.ships = left(b.you, b.fort); if (mine.ships <= 0) this._drop(mine); }
-      this.stats.held++;
+      this.stats.held++; this.rate(C.ratings.hold);
       b.result = `${p.name} holds.`; this.say('good', `${p.name} held against ${fn}.`);
       gain(C.loot.defend); this._truth('fed', 'heroes', `${p.name} held`);
     } else {
       if (b.pid === 0) { b.result = `${N.capital} has fallen.`; return this._end('lost', `${N.capital} fell to ${fn}.`); }
-      this._capture(p, f); this.stats.fallen++;
+      this.rate(C.ratings.fall + (p.station || p.base ? C.ratings.postLost : 0)); this._capture(p, f); this.stats.fallen++;
       if (mine) { mine.ships = Math.floor(mine.ships / 2); this._retreat(mine, b.pid); }
       theirs.ships = Math.max(1, left(b.foe, 0)); this.moves.push({ owner: f, from: theirs.at, to: b.pid, ships: theirs.ships }); this._drop(theirs); this._put(f, b.pid, theirs.ships);
       b.result = `${p.name} has fallen.`; this.say('bad', `${p.name} fell to ${fn}.`);

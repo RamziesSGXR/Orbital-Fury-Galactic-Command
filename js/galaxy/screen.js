@@ -61,7 +61,7 @@ function top() {
   const cap = g.resMax(), cell = (k, cls) => `<div class="${cls}"><b>${Math.floor(g.res[k])}<i style="color:var(--dim)">/${cap}</i></b><span>${RES[k]}</span></div>`;
   const loot = C.fronts.map(fr => `<div style="--lc:${C.color[fr.f]}" class="lt"><b>${g.loot[fr.f]}</b><span>${fr.lootShort}</span></div>`).join('');
   $('top').innerHTML = `<button class="crest" data-a="menu" aria-label="Menu"><canvas id="crest-war" width="64" height="64"></canvas></button><div class="ttl">${esc(N.fed.toUpperCase())}<small>HIGH COMMAND</small></div><div class="rd">ROUND ${g.round}</div>
-    <div class="ro">${cell('fuel', 'a')}${cell('drop', '')}${cell('army', '')}${loot}</div><button class="plate amber btn sm" data-a="armoury">ARMOURY · ${app ? Math.floor(app.camp.wallet.bal) : 0} CR</button><button class="plate btn sm" data-a="menu">MENU</button>`;
+    <div class="ro">${cell('fuel', 'a')}${cell('drop', '')}${cell('army', '')}${loot}</div><span class="sm2 ${g.ratBand() === 'high' ? 'cy' : g.ratBand() === 'mid' ? '' : 'rd2'}" style="align-self:center;white-space:nowrap">RATINGS ${Math.round(g.rat)}%</span><button class="plate amber btn sm" data-a="armoury">ARMOURY · ${app ? Math.floor(app.camp.wallet.bal) : 0} CR</button><button class="plate btn sm" data-a="menu">MENU</button>`;
   if (app) app.crest($('crest-war'));
   const last = g.log[g.log.length - 1];
   $('bulletin').className = last.kind; $('bulletin').textContent = `R${last.r} › ${last.text}`;
@@ -109,6 +109,8 @@ function tabSys() {
     const ok = fl.has(p.id) && g.ready() && !busy(), L = C.link;
     const btn = (kind, key, have, what) => `<button class="plate amber btn pol" data-a="${key}" data-p="${p.id}" ${ok && (have || g.canFound(p.id, kind)) ? '' : 'disabled'}><b>${have ? what + ' ' + have : 'FOUND A ' + kind.toUpperCase() + ' · ' + costTxt(L.found[kind])}</b><span>${kind === 'station' ? `+${L.stationFort} HP a tier · eases the ground here` : `+${Math.round(L.baseYield * 100)}% output a charter · ships at ${L.shipAt}`}</span></button>`;
     h += `<div class="thr">${btn('station', 'orbit', p.station, 'STATION · TIER')}${btn('base', 'base', p.base, 'BASE · CHARTER')}</div>`;
+    const showBtn = (kind, what) => p[kind] ? `<button class="plate btn pol" data-a="show" data-k="${kind}" data-p="${p.id}" ${ok && g.canShow(p.id, kind) ? '' : 'disabled'}><b>${what} · ${costTxt(g.showCost(kind))}</b><span>+${C.ratings.show.gain} ratings</span></button>` : '';
+    if (p.station || p.base) h += `<div class="thr">${showBtn('station', 'HOLD A GALA')}${showBtn('base', 'HOLD A PARADE')}</div>`;
     const run = (have, on, what) => have ? `<span class="${on ? 'cy' : 'am'}">${what} ${on ? 'IN PROFIT' : 'NOT IN PROFIT'}</span>` : '';
     if (p.station || p.base) h += `<div class="sm2">${[run(p.station, p.sp, 'STATION'), run(p.base, p.bp, 'BASE')].filter(Boolean).join(' · ')}</div>`;
   }
@@ -197,7 +199,12 @@ function tabEmp() {
 }
 function tabUni() {
   const fed = g.P.filter(p => p.owner === 'fed').length, near = new Set(g.fleets.filter(f => f.owner !== 'fed' && g.P[0].adj.includes(f.at)).map(f => f.owner)).size;
-  return head('uni') + `<section><h3>The standing of the war</h3><div class="sm2">SYSTEMS HELD: ${fed} / ${g.P.length}</div>
+  const R = C.ratings, band = g.ratBand(), pct = (x) => (x > 1 ? '+' : '') + Math.round((x - 1) * 100) + '%';
+  const eff = band === 'mid' ? 'Output as normal.' : `Output ${pct(g.ratYield())}.`;
+  return head('uni') + `<section><h3>Ratings</h3><div class="bar big2"><i style="width:${g.rat}%"></i></div>
+    <div class="sm2 ${band === 'high' ? 'cy' : band === 'mid' ? '' : 'rd2'}" style="margin-top:6px">${Math.round(g.rat)}% · ${eff} Sponsors pay ${pct(g.ratPay())}.</div>
+    <div class="sm2 dim">${R.high}% and over: output ${pct(R.yield.high)}. Under ${R.low}%: ${pct(R.yield.low)}. Under ${R.sack}% for ${R.sackRounds} rounds: you are replaced.</div>
+    ${g.sack ? `<div class="sm2 rd2">THE BOARD MEETS IN ${R.sackRounds - g.sack}</div>` : ''}</section><section><h3>The standing of the war</h3><div class="sm2">SYSTEMS HELD: ${fed} / ${g.P.length}</div>
     <div class="bar big2"><i style="width:${fed / g.P.length * 100}%"></i></div>
     <div class="sm2 ${near >= 2 ? 'rd2' : near ? 'am' : 'dim'}" style="margin-top:6px">ENEMIES BESIDE ${N.capital.toUpperCase()}: ${near}</div>
     <div class="sm2 dim">ENEMIES DESTROYED: ${C.factions.filter(f => g.F[f].state === 'dead').length} / 3</div>
@@ -345,6 +352,7 @@ document.addEventListener('click', e => {
   switch (d.a) {
     case 'menu': return app.menu();
     case 'armoury': return app.armoury();
+    case 'show': g.show(+d.p, d.k); break;
     case 'totitle': $('modal').hidden = true; return app.endCampaign();
     case 'cards': ui.cards = true; break;
     case 'ground': { const a = { battle: g.battle, system: g.P[g.battle.pid], level: g.groundLevel(), round: g.round }; return app.theatre('ground', a); }
