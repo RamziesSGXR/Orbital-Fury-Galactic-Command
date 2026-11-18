@@ -278,7 +278,7 @@ $('th-leave').onclick = () => { audio.click(); if (mode && mode.askLeave) mode.a
 // next rank of it. Lose them and the shelves close again (what you own, you keep).
 const SECTIONS = { orbitals: 'ORBITALS', eagles: 'EAGLES', defense: 'DEFENCES', utilities: 'UTILITIES', hangar: 'HANGAR', gun: 'SHIP GUN', uav: 'UAV', seaf: 'TROOPS', build: 'BUILDING', support: 'SUPPORT', classified: 'CLASSIFIED' };
 app.armouryTier = () => { const g = War.war(); let n = 0; if (g) for (const p of g.P) if (p.owner === 'fed') n += (p.station || 0) + (p.base || 0); return Math.min(TIER_MAX, n); };
-app.armoury = (then) => {
+app.armoury = (then, done = 'DONE') => {
   const kit = camp.kit, wal = camp.wallet, tier = app.armouryTier();
   const draw = (note = '') => {
     const items = shopItems(kit), secs = [...new Set(items.map((i) => i.section))];
@@ -293,7 +293,7 @@ app.armoury = (then) => {
           <span class="row" style="flex-wrap:nowrap">${it.orb && it.owned && !inLoad ? `<button class="plate btn sm" data-eq="${it.orb}">EQUIP</button>` : ''}<button class="plate amber btn sm" data-buy="${it.id}" ${can ? '' : 'disabled'}>${!open ? 'LOCKED' : maxed ? 'MAX' : it.cost + ' CR'}</button></span></div>`;
       }
     }
-    War.modal(h + '<button class="plate btn go" data-x="close" style="margin-top:10px;position:sticky;bottom:0">DONE</button>');
+    War.modal(h + '<button class="plate btn go" data-x="close" style="margin-top:10px;position:sticky;bottom:0">' + done + '</button>');
     const box = $('modal');
     box.querySelector('[data-x=close]').onclick = () => { box.hidden = true; audio.click(); app.keep(); if (then) then(); };
     for (const b of box.querySelectorAll('[data-buy]')) b.onclick = () => { const r = buy(kit, wal, b.dataset.buy, false, tier); if (r.ok) { audio.coin(); draw(); } else { audio.deny(); draw('That cannot be bought yet.'); } };

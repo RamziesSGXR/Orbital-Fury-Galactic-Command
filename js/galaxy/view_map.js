@@ -178,16 +178,20 @@ export class View {
         c.globalAlpha = o ? 0.85 : 0.32; c.fillStyle = o ? col(o) : TEXT; c.fillText(sc.name.toUpperCase(), x, y - 16 * k); }
       c.globalAlpha = 1;
     }
-    // names
+    // names: the capital, the homes and what you are dealing with always; the rest only when close in, only for systems that
+    // are on the screen, and never one over another
     c.textAlign = 'center'; c.textBaseline = 'top';
-    for (const p of g.P) {
-      const big = p.kind === 'capital' || p.kind === 'home';
-      if (!(big || hot.has(p.id) || this.R > 700)) continue;
-      const [x, y] = this.xy(p), r = rad(p);
+    const placed = [], near = this.R > 620;
+    const order = g.P.filter(p => p.kind !== 'sys' || hot.has(p.id) || ui.sel === p.id).concat(near ? g.P.filter(p => p.kind === 'sys' && !hot.has(p.id) && ui.sel !== p.id) : []);
+    for (const p of order) {
+      const big = p.kind === 'capital' || p.kind === 'home', [x, y] = this.xy(p), r = rad(p);
+      if (x < 8 || x > this.w - 8 || y < 40 || y > this.h - 30) continue;       // off the screen: no name at the edge
       c.font = big ? '600 11px ' + HEAD : '10px ' + MONO;
+      const txt = p.name.toUpperCase(), tw = c.measureText(txt).width, ty = y + r + (p.kind === 'sys' ? 18 : 6), box = [x - tw / 2 - 3, ty - 2, x + tw / 2 + 3, ty + 13];
+      if (placed.some(q => box[0] < q[2] && box[2] > q[0] && box[1] < q[3] && box[3] > q[1])) continue;
+      placed.push(box);
       c.fillStyle = big || ui.sel === p.id ? TEXT : DIM;
-      const txt = p.name.toUpperCase(), tw = c.measureText(txt).width, tx = Math.max(tw / 2 + 2, Math.min(this.w - tw / 2 - 2, x));
-      c.fillText(txt, tx, y + r + (p.kind === 'sys' ? 18 : 6));
+      c.fillText(txt, x, ty);
     }
   }
 }

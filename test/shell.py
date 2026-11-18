@@ -29,12 +29,10 @@ with sync_playwright() as pw:
         pg.wait_for_function('!sgs.ui.show && !sgs.ui.anims.length', timeout=30000); pg.wait_for_timeout(300)
         print(name, 'round', pg.evaluate('sgs.g.round'), 'battle', pg.evaluate('!!sgs.g.battle'))
         pg.screenshot(path=f'{out}/{name}-5-battle.png')
-        # the armoury, from the battle's choice
-        pg.click('[data-a=armoury]'); pg.wait_for_timeout(200); pg.screenshot(path=f'{out}/{name}-5b-armoury.png')
-        assert pg.locator('#modal [data-buy]').count() > 5, 'the armoury is empty'
-        pg.click('#modal [data-x=close]'); pg.wait_for_timeout(150)
         # down to the ground
-        pg.click('[data-a=ground]'); pg.wait_for_function("gc.state === 'ground' && document.getElementById('trans').hidden", timeout=60000)
+        pg.click('[data-a=ground]'); pg.wait_for_timeout(250); pg.screenshot(path=f'{out}/{name}-5b-armoury.png')
+        assert pg.locator('#modal [data-buy]').count() > 5, 'the armoury did not open before the drop'
+        pg.click('#modal [data-x=close]'); pg.wait_for_function("gc.state === 'ground' && document.getElementById('trans').hidden", timeout=60000)
         pg.wait_for_timeout(2500)
         pg.screenshot(path=f'{out}/{name}-6-ground.png')
         t0 = pg.evaluate('gc.mode.mission.t'); pg.wait_for_timeout(1000); assert pg.evaluate('gc.mode.mission.t') > t0, 'the ground battle is not running'

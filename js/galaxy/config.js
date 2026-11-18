@@ -1,5 +1,5 @@
 // Every number and every name in the game lives here, so the prototype can be retuned or renamed in one place.
-export const VERSION = '0.3.1';
+export const VERSION = '0.3.2';
 
 export const C = {
   names: {
@@ -56,9 +56,9 @@ export const C = {
   // capital, and every few worlds of a kind put a card of that kind in your battle deck.
   worlds: {
     capital:  { name: 'CAPITAL WORLD',  col: '#7fe9e0', text: 'The seat of the Federation.' },
-    refinery: { name: 'GAS REFINERY',   col: '#d9a45b', res: 'fuel', y: 0.24, card: 'burn',    yard: 'Ships built here cost no fuel.' },
-    forge:    { name: 'FORGE WORLD',    col: '#c8643c', res: 'army', y: 0.16, card: 'armour',  yard: 'Ships built here cost no Army.' },
-    colony:   { name: 'COLONY',         col: '#5fa8d8', res: 'drop', y: 0.09, card: 'drop',    yard: 'Ships built here cost no Vanguard.' },
+    refinery: { name: 'GAS REFINERY',   col: '#d9a45b', res: 'fuel', y: 0.13, card: 'burn',    yard: 'Ships built here cost no fuel.' },
+    forge:    { name: 'FORGE WORLD',    col: '#c8643c', res: 'army', y: 0.09, card: 'armour',  yard: 'Ships built here cost no Army.' },
+    colony:   { name: 'COLONY',         col: '#5fa8d8', res: 'drop', y: 0.05, card: 'drop',    yard: 'Ships built here cost no Vanguard.' },
     fortress: { name: 'FORTRESS WORLD', col: '#9aa7a0', fort: 2,     card: 'bulwark', yard: 'Adds 2 to the system\'s defence.' },
     barren:   { name: 'BARREN WORLD',   col: '#6f6a62' },
   },

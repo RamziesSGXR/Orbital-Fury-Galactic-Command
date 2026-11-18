@@ -133,7 +133,6 @@ function bar(force) {
       else if (s.uses !== undefined && s.uses !== Infinity) sub = `${s.uses} LEFT`;
       items.push(`<button class="plate btn tool${on ? ' on' : ''}${cool ? ' cool' : ''}" data-g="arm" data-i="${i}"><kbd>${SLOT_KEYS[i] || ''}</kbd><b>${esc(st.name || s.type)}</b><span>${sub}</span>${frac ? `<i class="cd" style="width:${Math.round(frac * 100)}%"></i>` : ''}</button>`);
     });
-    items.push(`<button class="plate btn tool${auto ? ' on' : ''}" data-g="auto"><b>AUTO-GUNNER</b><span>${auto ? 'ON · THE CREW FIRES' : 'OFF · YOU FIRE'}</span></button>`);
   } else if (tab === 'troops') {
     const sf = m.seaf, sq = sf.squads || [];
     items.push(`<button class="plate btn tool${placing === 'seaf' ? ' on' : ''}" data-g="place" data-k="seaf"><kbd>T</kbd><b>TROOP DROP</b><span>${Math.floor(m.wallet.bal)} CR</span></button>`);
@@ -335,7 +334,6 @@ const mode = {
     if (!mini) { mini = document.createElement('canvas'); mini.id = 'g-mini'; $('th-stage').appendChild(mini); }
     mini.width = mini.height = 220; mini.classList.remove('hidden');
     document.body.style.setProperty('--tt', $('th-top').offsetHeight + 'px'); document.body.style.setProperty('--tb', $('th-bar').offsetHeight + 'px');
-    if (new URLSearchParams(location.search).has('auto')) { auto = true; bot = makeBot(); }
   },
   leave() { planQ = []; selPost = null; $('th-desk').innerHTML = ''; $('th-sel').classList.add('hidden'); if (mini) mini.classList.add('hidden'); $('th-tabs').innerHTML = ''; mode.off = true; audio.humStop(); if (audio.scapeStop) audio.scapeStop(); m = null; $('s-theatre').classList.remove('full'); keys.clear(); },
   askLeave() {
