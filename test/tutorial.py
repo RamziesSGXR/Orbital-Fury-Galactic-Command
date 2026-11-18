@@ -31,7 +31,7 @@ with sync_playwright() as pw:
             for sel in ['[data-a=confirm]:not([disabled])', '#commit:not([disabled])']:
                 b = pg.query_selector(sel)
                 if b and b.is_visible():
-                    try: b.click(timeout=1500); pg.wait_for_timeout(700); break
+                    try: b.click(timeout=1500, force=True); pg.wait_for_timeout(700); break     # (forced: the button pulses, which the runner reads as never still)
                     except Exception as ex: print('  could not click', sel, str(ex)[:160])
         if idle > 40:
             skipped.append(label + ' :: ' + el.query_selector('p').inner_text()[:90]); el.query_selector('[data-a=tnext]').click(); pg.wait_for_timeout(400); idle = 0
