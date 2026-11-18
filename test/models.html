@@ -11,25 +11,26 @@ const r = new THREE.WebGLRenderer({ antialias: true }); r.setSize(W, H); documen
 const scene = new THREE.Scene(); scene.add(new THREE.AmbientLight(0xffffff, 1.7)); const sun = new THREE.DirectionalLight(0xffffff, 2.2); sun.position.set(4, 8, 5); scene.add(sun);
 const floor = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshLambertMaterial({ color: q.get('floor') || '#6f6a52' })); floor.rotation.x = -Math.PI / 2; scene.add(floor);
 const mat = new THREE.MeshLambertMaterial({ vertexColors: true });
-const ROWS = [['molt_L', 'molt_M', 'molt_H'], ['foundry_L', 'foundry_M', 'foundry_H'], ['talon_L', 'talon_M', 'talon_H']], R = { L: 2.2, M: 4, H: 7 }, only = q.get('only');
+const ROWS = [['molt_L', 'molt_leaper', 'molt_M', 'molt_shellback', 'molt_H', 'molt_elder'], ['foundry_L', 'foundry_M', 'foundry_rocketeer', 'foundry_foreman', 'foundry_H', 'foundry_siege'], ['talon_L', 'talon_M', 'talon_bombardier', 'talon_herd', 'talon_H', 'talon_thunder'], ['soldier', 'vanguard', 'citizen_a', 'citizen_b', 'citizen_c']];
+const SIZE = { L: 2.2, M: 4, H: 7, leaper: 2.2, shellback: 4.8, elder: 13, rocketeer: 4, foreman: 4.3, siege: 13, bombardier: 4, herd: 5.2, thunder: 13, soldier: 2.2, vanguard: 2.6, a: 2.2, b: 2.2, c: 2.2 }, R = new Proxy({}, { get: (_, k) => SIZE[k] || 3 }), only = q.get('only'), LOD = q.get('lod');
 const ix = await (await fetch('../assets/models/index.json')).json(), shown = [], names = [];
 let z = 0;
 for (const row of ROWS) {
   if (!row.some((n) => ix.models.includes(n)) || (only && !row[0].startsWith(only))) continue;
-  let x = -14;
+  let x = -30;
   for (const n of row) {
-    const rr = R[n.slice(-1)] * 1.25; x += rr + 2;
-    if (ix.models.includes(n)) { const d = await (await fetch(`../assets/models/${n}.json`)).json(), fr = modelFrames(d).frames; const o = new THREE.Mesh(fr.stand, mat); o.scale.setScalar(rr); o.position.set(x, 0, z); o.rotation.y = +(q.get('turn') || 0.5); scene.add(o); shown.push({ o, fr, n, ph: Math.random() * 6 }); names.push(`${n}: ${d.nt} triangles, ${Object.keys(d.frames).length} frames`); }
+    const rr = R[n.split('_').pop()] * 1.25; x += rr + 2;
+    if (ix.models.includes(n)) { const d = await (await fetch(`../assets/models/${n}.json`)).json(), mf = modelFrames(d), fr = LOD && mf.lod ? mf.lod.frames : mf.frames; const o = new THREE.Mesh(fr.stand, mat); o.scale.setScalar(rr); o.position.set(x, 0, z); o.rotation.y = +(q.get('turn') || 0.5); scene.add(o); shown.push({ o, fr, n, ph: Math.random() * 6 }); names.push(`${n}: ${LOD && d.lod ? d.lod.nt + ' triangles (far model)' : d.nt + ' triangles' + (d.lod ? ', ' + d.lod.nt + ' far' : '')}, ${Object.keys(d.frames).length} frames`); }
     x += rr + 2;
   }
-  z += 22;
+  z += 34;
 }
 document.getElementById('cap').textContent = names.join('\n');
-const el = +(q.get('el') || 32) * Math.PI / 180, dist = +(q.get('d') || 70), cx = +(q.get('cx') || 4), cz = (z - 22) / 2 + +(q.get('cz') || 0);
+const el = +(q.get('el') || 32) * Math.PI / 180, dist = +(q.get('d') || 70), cx = +(q.get('cx') || 4), cz = (z - 34) / 2 + +(q.get('cz') || 0);
 const cam = new THREE.PerspectiveCamera(30, W / H, 0.5, 600); cam.position.set(cx, Math.sin(el) * dist, cz + Math.cos(el) * dist); cam.lookAt(cx, 2, cz);
 const fixed = q.get('frame');
 function tick(t) {
-  for (const s of shown) { const k = fixed || ((t / 1000 + s.ph) % 5 > 4.6 && s.fr.atk ? 'atk' : 'w' + (Math.floor((t / 1000 * (s.n.endsWith('L') ? 14 : s.n.endsWith('M') ? 9 : 5) + s.ph) % 8))); s.o.geometry = s.fr[k] || s.fr.stand; }
+  for (const s of shown) { const k = fixed || ((t / 1000 + s.ph) % 5 > 4.6 && s.fr.atk ? 'atk' : 'w' + (Math.floor((t / 1000 * (s.n.endsWith('L') ? 14 : s.n.endsWith('M') ? 9 : 5) + s.ph) % 8))); s.o.geometry = s.fr[k] || s.fr['w' + ((+k.slice(1) || 0) & 6)] || s.fr.stand; }
   r.render(scene, cam); window.__done = true; if (!fixed) requestAnimationFrame(tick);
 }
 tick(0);

@@ -1,1 +1,1 @@
-{"models":["molt_L","molt_M","molt_H","foundry_L","foundry_M","foundry_H","talon_L","talon_M","talon_H"]}
+{"models": ["foundry_H", "foundry_L", "foundry_M", "foundry_foreman", "foundry_rocketeer", "foundry_siege", "molt_H", "molt_L", "molt_M", "molt_elder", "molt_leaper", "molt_shellback", "talon_H", "talon_L", "talon_M", "talon_bombardier", "talon_herd", "talon_thunder"]}

@@ -143,39 +143,68 @@ def shot(name, **kw):
     bpy.ops.render.render(write_still=True); return p
 
 # ---- handing it to the game
-def export(name, collection, frames, extra=None):
-    """frames: {name: a function that poses the creature}. Writes export/<name>.json: triangles and colours once, every vertex's place per frame."""
-    objs = [o for o in collection.all_objects if o.type == 'MESH']
-    tris, cols, base = [], [], 0
+def _full(objs):
+    out = []
     for o in objs:
         me = o.data; me.calc_loop_triangles()
-        neg = o.matrix_world.determinant() < 0
-        for lt in me.loop_triangles:
-            a, b, c = (base + v for v in lt.vertices)
-            tris += [a, c, b] if neg else [a, b, c]
-            mm = me.materials[lt.material_index] if me.materials else None
-            h = (mm.get('hex') if mm else None) or '#888888'; rgb = [int(h[i:i + 2], 16) for i in (1, 3, 5)]
+        out.append((o, [v.co.copy() for v in me.vertices], [(tuple(lt.vertices), lt.material_index) for lt in me.loop_triangles], list(me.materials)))
+    return out
+def _light(objs, ratio, size):
+    """The same parts in far fewer triangles: the small ones left out, the rest cut down."""
+    out = []
+    for o in objs:
+        me = o.data; bb = [Vector(c) for c in o.bound_box]; diag = (bb[6] - bb[0]).length * max(abs(c) for c in o.matrix_world.to_scale())
+        if diag < 0.085 * size: continue
+        me.calc_loop_triangles()
+        if len(me.loop_triangles) <= 14:
+            out.append((o, [v.co.copy() for v in me.vertices], [(tuple(lt.vertices), lt.material_index) for lt in me.loop_triangles], list(me.materials))); continue
+        md = o.modifiers.new('gc_lod', 'DECIMATE'); md.ratio = ratio
+        ev = o.evaluated_get(bpy.context.evaluated_depsgraph_get()); m2 = ev.to_mesh(); m2.calc_loop_triangles()
+        out.append((o, [v.co.copy() for v in m2.vertices], [(tuple(lt.vertices), lt.material_index) for lt in m2.loop_triangles], list(me.materials)))
+        ev.to_mesh_clear(); o.modifiers.remove(md)
+    return out
+def _pack(parts, mats_at, pal):
+    """parts: [(object, its vertices, its triangles, its materials)]; mats_at: {frame: {object name: its place in the world}}."""
+    tris, cols, mi, base = [], [], [], 0
+    for o, vs, ts, ms in parts:
+        for (a, b, c), k in ts:
+            tris += [base + a, base + b, base + c]
+            mm = ms[k] if ms and k < len(ms) else None
+            h = (mm.get('hex') if mm else None) or '#888888'; rgb = [int(h[q:q + 2], 16) for q in (1, 3, 5)]
             if mm and mm.get('emit'): rgb = [min(255, int(v * 1.15 + 20)) for v in rgb]
-            cols += rgb
-        base += len(me.vertices)
+            cols += rgb; nm = mm.name if mm else '-'
+            if nm not in pal: pal.append(nm)
+            mi.append(pal.index(nm))
+        base += len(vs)
     nv = base; raw = {}; lo = [1e9] * 3; hi = [-1e9] * 3
-    for fn, pose in frames.items():
-        pose(); bpy.context.view_layer.update(); pts = []
-        for o in objs:
-            M = o.matrix_world
-            for v in o.data.vertices:
-                w = M @ v.co; p = (w.x, w.z, -w.y); pts.append(p)
-                for i in range(3): lo[i] = min(lo[i], p[i]); hi[i] = max(hi[i], p[i])
+    for fn, MW in mats_at.items():
+        pts = []
+        for o, vs, ts, ms in parts:
+            M = MW[o.name]
+            for co in vs:
+                w = M @ co; p = (w.x, w.z, -w.y); pts.append(p)
+                for q in range(3): lo[q] = min(lo[q], p[q]); hi[q] = max(hi[q], p[q])
         raw[fn] = pts
-    size = [max(1e-6, hi[i] - lo[i]) for i in range(3)]
-    def q(pts): return base64.b64encode(struct.pack('<%dH' % (nv * 3), *[int(round((p[i] - lo[i]) / size[i] * 65535)) for p in pts for i in range(3)])).decode()
-    out = {'v': 1, 'name': name, 'nv': nv, 'nt': len(tris) // 3, 'min': lo, 'size': size,
-           'tris': base64.b64encode(struct.pack('<%dH' % len(tris), *tris)).decode(), 'cols': base64.b64encode(bytes(cols)).decode(),
-           'frames': {fn: q(p) for fn, p in raw.items()}}
+    size = [max(1e-6, hi[q] - lo[q]) for q in range(3)]
+    def qz(pts): return base64.b64encode(struct.pack('<%dH' % (nv * 3), *[int(round((p[q] - lo[q]) / size[q] * 65535)) for p in pts for q in range(3)])).decode()
+    return {'nv': nv, 'nt': len(tris) // 3, 'min': lo, 'size': size, 'tris': base64.b64encode(struct.pack('<%dH' % len(tris), *tris)).decode(),
+            'cols': base64.b64encode(bytes(cols)).decode(), 'mi': base64.b64encode(bytes(mi)).decode(), 'frames': {fn: qz(p) for fn, p in raw.items()}}
+def export(name, collection, frames, extra=None, lod=0.34):
+    """frames: {name: a function that poses the creature}. Writes export/<name>.json: triangles and colours once, every vertex's place per
+    frame, the names of its materials (so the game can dress a part in other colours), and a lighter copy of the whole thing (lod)."""
+    objs = [o for o in collection.all_objects if o.type == 'MESH']
+    mats_at = {}
+    for fn, pose in frames.items():
+        pose(); bpy.context.view_layer.update(); mats_at[fn] = {o.name: o.matrix_world.copy() for o in objs}
+    pal = []; out = {'v': 2, 'name': name}; out.update(_pack(_full(objs), mats_at, pal))
+    if lod:
+        frames['stand'](); bpy.context.view_layer.update()
+        out['lod'] = _pack(_light(objs, lod, max(out['size'])), mats_at, pal)
+    out['pal'] = pal
     if extra: out.update(extra)
     p = os.path.join(ROOT, 'export', name + '.json')
     with open(p, 'w') as f: json.dump(out, f, separators=(',', ':'))
-    return {'path': p, 'verts': nv, 'tris': len(tris) // 3, 'frames': len(raw), 'bytes': os.path.getsize(p), 'size': [round(s, 2) for s in size]}
+    return {'path': p, 'verts': out['nv'], 'tris': out['nt'], 'lod_tris': out['lod']['nt'] if lod else 0, 'frames': len(frames), 'bytes': os.path.getsize(p), 'size': [round(v, 2) for v in out['size']]}
 
 def rest(j):
     """Remember how every joint under j stands now: that is its rest."""

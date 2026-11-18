@@ -36,4 +36,9 @@ with sync_playwright() as pw:
         if not got: print(kind, 'none on this map'); continue
         pg.wait_for_timeout(500); f.evaluate("((k) => { const m = __game.mission, c = __game.cam; let best = null, bd = 1e9; for (const e of m.enemies) { if (e.dead || e.kind !== k || e.boss) continue; const d = (e.x - c.x) ** 2 + (e.y - c.y) ** 2; if (d < bd) { bd = d; best = e; } e.vis = Math.max(e.vis || 0, d < 3600 ? 2 : 0); } if (best) { c.x = best.x; c.y = best.y; } })('%s')" % kind)
         pg.wait_for_timeout(350); pg.screenshot(path=f'{out}/enemy-{foe}-{kind}.png'); print(kind, got)
+    # every kind on this map, and what is drawn from far off: the lighter models
+    print('kinds on the map:', f.evaluate("(() => { const o = {}; for (const e of __game.mission.enemies) { if (e.dead) continue; const k = e.boss ? 'boss' : e.sub || e.v || e.kind; o[k] = (o[k] || 0) + 1; } return o; })()"))
+    f.evaluate("(() => { const m = __game.mission, c = __game.cam; let sx = 0, sy = 0, n = 0; for (const e of m.enemies) if (!e.dead) { e.vis = 2; sx += e.x; sy += e.y; n++; } const b = m.enemies.find(e => !e.dead && (e.sub || e.v)) || m.enemies.find(e => !e.dead); c.x = b.x; c.y = b.y; c.view = 60; })()"); pg.wait_for_timeout(700); pg.screenshot(path=f'{out}/enemy-{foe}-variant.png')
+    f.evaluate("(() => { const c = __game.cam; c.view = 300; })()"); pg.wait_for_timeout(700); pg.screenshot(path=f'{out}/enemy-{foe}-far.png')
+    print('drawn from far off:', f.evaluate("(() => { const u = __game.renderer._g3.units, o = {}; for (const [k, m] of u.kinds) { if (!m || !m.frames) continue; const full = Object.values(m.frames).reduce((a, x) => a + x.count, 0), far = m.lod ? Object.values(m.lod.frames).reduce((a, x) => a + x.count, 0) : 0; if (full || far) o[k] = { full, far }; } return o; })()"))
     print('\n'.join(errs) if errs else 'no page errors'); br.close()

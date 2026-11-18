@@ -1,5 +1,5 @@
 
-# THE MOLT: Skitter (light), Mauler (medium), Shellback (heavy). Run in Blender after gc_kit.py.
+# THE MOLT: Skitter (light), Mauler (medium), Rammer (heavy). Run in Blender after gc_kit.py. (molt_more.py adds the Leaper, the Shellback and the Elder Husk.)
 import math
 wipe()
 shell = mat('molt_shell', '#b4652a'); shell2 = mat('molt_shell_lit', '#d58c3a'); dark = mat('molt_dark', '#4a2810'); pale = mat('molt_bone', '#e3c48c')
@@ -77,8 +77,8 @@ F = {'stand': lambda: zero(J('root')), 'atk': ma_atk}
 for i in range(8): F['w%d' % i] = (lambda i=i: ma_walk(i / 8 * 2 * math.pi))
 OUT['molt_M'] = export('molt_M', CUR, F); zero(root); R2 = root
 
-# ---------------- Shellback: a walking fortress under a domed shell, a forked horn out front
-PRE = 'sb_'; CUR = coll('molt_H_shellback')
+# ---------------- Rammer: a charging fortress under a domed shell, a forked horn out front
+PRE = 'sb_'; CUR = coll('molt_H_rammer')
 root = joint('root'); body = joint('body', (0, 0, 0.78), root)
 loft('sb_shell', [((0, -0.98, -0.06), 0.24, 0.16), ((0, -0.7, 0.1), 0.66, 0.42), ((0, -0.2, 0.24), 0.95, 0.62), ((0, 0.4, 0.26), 1.0, 0.66), ((0, 0.9, 0.16), 0.8, 0.5), ((0, 1.2, 0.02), 0.42, 0.26), ((0, 1.36, -0.04), 0.12, 0.08)],
      sides=10, m=[shell, deep, shell2], seg_mats=[0, 2, 0, 1, 0, 1], parent=body, rough=0.07, seed=4)

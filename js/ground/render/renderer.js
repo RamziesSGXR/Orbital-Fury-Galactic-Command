@@ -578,12 +578,14 @@ export class Renderer {
     const fine = !flat && nAll <= 60 && !(this.perf.tier >= 1);
     if (fine) setRelief(2);
     const crowd = this.perf.low ? 150 : 300, dotKinds = u3 ? '' : nOn > crowd * 2 ? 'LM' : nOn > crowd ? 'L' : '', lod0 = [], lod1 = [], hot = [];
+    // (GC 0.33) in 3D: which sizes are drawn as their lighter models, by how small they are on the screen and how crowded the field is
+    const far3 = !u3 ? '' : scale < 4 || nOn > 400 ? 'LMH' : scale < 7.5 || nOn > 160 ? 'LM' : scale < 9.5 || nOn > 90 ? 'L' : '';
     for (const e of m.enemies) {
       if (e.dead || e.vis <= 0) continue;
       if (!onScr(e.x, e.y, e.boss ? e.r * 4 : 8)) continue;
       if (!e.boss && !e.sub) {
         const er = enemyR(e, SUBTYPES[e.kind], px);
-        if (dotKinds && dotKinds.includes(e.kind)) { (e.vis >= 2 ? lod1 : lod0).push(e, er); if (t - e.hurtAt < 0.06) hot.push(e, er); continue; }
+        if (!u3 && dotKinds && dotKinds.includes(e.kind)) { (e.vis >= 2 ? lod1 : lod0).push(e, er); if (t - e.hurtAt < 0.06) hot.push(e, er); continue; }
       }
       ctx.globalAlpha = e.vis >= 2 ? 1 : 0.6;
       // (0.61) a slight 3D: its shadow as long as it is tall, a dark side under it, the body drawn a little up from its feet
@@ -601,13 +603,13 @@ export class Renderer {
       else { const sr = e.r * 1.5; ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.beginPath(); ctx.ellipse(e.x + sr * 0.5, e.y + sr * 0.4, sr * 1.1, sr * 0.8, 0, 0, TAU); ctx.fill(); }
       if (e.boss) {
         const br = bossR(e, px), body = (q) => drawBossBody(ctx, q, fid, br, pal.enemy, now, px, t - e.hurtAt < 0.06, t);
-        if (u3 && !arriving(e, t)) u3.push({ k: fid + ':H', x: e.x, y: e.y, r: br * 1.15, face: e.face, tint: t - e.hurtAt < 0.06 ? '#ffffff' : null, dim: e.vis >= 2 ? 1 : 0.6, walk: (e.vx || 0) ** 2 + (e.vy || 0) ** 2 > 0.1 ? t * 5 + e.id : null });
+        if (u3 && !arriving(e, t)) u3.push({ k: fid + ':boss', alt: fid + ':H', atk: e.aimUntil > t, x: e.x, y: e.y, r: br * 1.15, face: e.face, tint: t - e.hurtAt < 0.06 ? '#ffffff' : null, dim: e.vis >= 2 ? 1 : 0.6, walk: (e.vx || 0) ** 2 + (e.vy || 0) ** 2 > 0.1 ? t * 5 + e.id : null });
         else if (arriving(e, t)) drawBossArrival(ctx, e, fid, br, pal.enemy, now, px, t, body);     // (0.55.1) its arrival
         else if (flat) body(e);
         else raiseUnit(ctx, br * 0.34, wallE, (c) => drawBossBody(c, e, fid, br, pal.enemy, now, px, t - e.hurtAt < 0.06, t));
       }
       else if (u3) { if ((e.atk || 0) > (e._pa ?? 0) + 0.15) e._at = t; e._pa = e.atk || 0;     // (GC 0.31) its attack timer has just been wound again: it has just struck
-        u3.push({ k: fid + ':' + e.kind, atk: t - (e._at ?? -9) < 0.3, x: e.x, y: e.y, r: enemyR(e, SUBTYPES[e.kind], px) * 1.25, face: e.face, tint: t - e.hurtAt < 0.06 ? '#ffffff' : null, dim: e.vis >= 2 ? 1 : 0.6, up: e.air ? e.air * 4 : 0, walk: !e.air && (e.vx || 0) ** 2 + (e.vy || 0) ** 2 > 0.1 ? t * (fid === 'bugs' ? 15 : 10) + e.id : null }); }
+        u3.push({ k: fid + ':' + (e.sub || e.v || e.kind), alt: fid + ':' + e.kind, lod: far3.includes(e.kind), jump: !!e.air, atk: t - (e._at ?? -9) < 0.3, x: e.x, y: e.y, r: enemyR(e, SUBTYPES[e.kind], px) * 1.25, face: e.face, tint: t - e.hurtAt < 0.06 ? '#ffffff' : null, dim: e.vis >= 2 ? 1 : 0.6, up: e.air ? e.air * 4 : 0, walk: !e.air && (e.vx || 0) ** 2 + (e.vy || 0) ** 2 > 0.1 ? t * (fid === 'bugs' ? 15 : 10) + e.id : null }); }
       else drawEnemyBody(ctx, e, fid, enemyR(e, SUBTYPES[e.kind], px), pal.enemy, now, px, t - e.hurtAt < 0.06);
       if (up) dropUnit(ctx, up);
       ctx.globalAlpha = 1;

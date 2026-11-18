@@ -112,22 +112,40 @@ function personFrames(make, armed) {
 // MODELS MADE IN BLENDER (GC 0.31). tools/blender builds a creature from joints and parts, poses it for each frame and writes
 // assets/models/<name>.json: its triangles and their colours once, and the place of every vertex for each frame (stand, w0..w7, atk).
 // Here that becomes one flat-shaded geometry for each frame, stood on the ground and sized like every other unit.
-const MODELS = { 'bugs:L': 'molt_L', 'bugs:M': 'molt_M', 'bugs:H': 'molt_H', 'bots:L': 'foundry_L', 'bots:M': 'foundry_M', 'bots:H': 'foundry_H', 'lizards:L': 'talon_L', 'lizards:M': 'talon_M', 'lizards:H': 'talon_H' };
+// Every kind the ground rules have: three sizes for each faction, a second kind of light or medium (the Leaper, the Rocketeer, the
+// Bombardier), a special (the Shellback, the Foreman, the Herd Beast) and a boss (the Elder Husk, the Siege Walker, the Thunder Lizard).
+const MODELS = {
+  'bugs:L': 'molt_L', 'bugs:M': 'molt_M', 'bugs:H': 'molt_H', 'bugs:leap': 'molt_leaper', 'bugs:guard': 'molt_shellback', 'bugs:boss': 'molt_elder',
+  'bots:L': 'foundry_L', 'bots:M': 'foundry_M', 'bots:H': 'foundry_H', 'bots:rkt': 'foundry_rocketeer', 'bots:cmd': 'foundry_foreman', 'bots:boss': 'foundry_siege',
+  'lizards:L': 'talon_L', 'lizards:M': 'talon_M', 'lizards:H': 'talon_H', 'lizards:mort': 'talon_bombardier', 'lizards:soak': 'talon_herd', 'lizards:boss': 'talon_thunder',
+  van: 'vanguard', inf: 'soldier', civ0: 'citizen_a', civ1: 'citizen_b', civ2: 'citizen_c',
+};
 const b64 = (s) => { const b = atob(s), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; };
-export function modelFrames(d) {
-  const tris = new Uint16Array(b64(d.tris).buffer), cols = b64(d.cols), nt = d.nt, out = {}, c = new THREE.Color();
+// One set of frames from a model file (or from its lighter copy, d.lod). remap: { a material's name: a colour } to dress it in the fleet's own.
+function frameSet(d, fit, remap) {
+  const tris = new Uint16Array(b64(d.tris).buffer.slice(0)), cols = b64(d.cols), mi = d.mi ? b64(d.mi) : null, nt = d.nt, out = {}, c = new THREE.Color();
   const col = new Float32Array(nt * 9);
-  for (let t = 0; t < nt; t++) { c.setRGB(cols[t * 3] / 255, cols[t * 3 + 1] / 255, cols[t * 3 + 2] / 255, THREE.SRGBColorSpace); for (let k = 0; k < 3; k++) { col[t * 9 + k * 3] = c.r; col[t * 9 + k * 3 + 1] = c.g; col[t * 9 + k * 3 + 2] = c.b; } }
-  let fit = null;
+  for (let t = 0; t < nt; t++) {
+    const nm = mi && d.pal ? d.pal[mi[t]] : null, rc = nm && remap ? remap[nm] : null;
+    if (rc) c.set(rc); else c.setRGB(cols[t * 3] / 255, cols[t * 3 + 1] / 255, cols[t * 3 + 2] / 255, THREE.SRGBColorSpace);
+    for (let k = 0; k < 3; k++) { col[t * 9 + k * 3] = c.r; col[t * 9 + k * 3 + 1] = c.g; col[t * 9 + k * 3 + 2] = c.b; }
+  }
   const names = Object.keys(d.frames).sort((a, b) => (a === 'stand' ? -1 : b === 'stand' ? 1 : 0));     // (the standing frame sets the size for all of them)
   for (const name of names) {
-    const q = new Uint16Array(b64(d.frames[name]).buffer), pos = new Float32Array(nt * 9);
+    const q = new Uint16Array(b64(d.frames[name]).buffer.slice(0)), pos = new Float32Array(nt * 9);
     for (let i = 0; i < nt * 3; i++) { const v = tris[i] * 3; for (let k = 0; k < 3; k++) pos[i * 3 + k] = d.min[k] + q[v + k] / 65535 * d.size[k]; }
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.computeVertexNormals();
-    if (!fit) { g.computeBoundingBox(); const b = g.boundingBox; fit = { x: -(b.min.x + b.max.x) / 2, y: -b.min.y, z: -(b.min.z + b.max.z) / 2, k: 2 / (d.fit || Math.max(b.max.x - b.min.x, b.max.y - b.min.y, b.max.z - b.min.z) || 1) }; }     // (d.fit: the model's own say on its size, so a long spear or tail does not shrink its carrier)
+    if (!fit.k) { g.computeBoundingBox(); const b = g.boundingBox; fit.x = -(b.min.x + b.max.x) / 2; fit.y = -b.min.y; fit.z = -(b.min.z + b.max.z) / 2; fit.k = 2 / (fit.ask || Math.max(b.max.x - b.min.x, b.max.y - b.min.y, b.max.z - b.min.z) || 1); }
     g.translate(fit.x, fit.y, fit.z); g.scale(fit.k, fit.k, fit.k); out[name] = g;
   }
-  return { frames: out };
+  return out;
+}
+// d.fit: the model's own say on its size, so a long spear or tail does not shrink its carrier. d.lod: the same creature in far fewer
+// triangles, for when it is small on the screen or the field is crowded.
+export function modelFrames(d, remap = null) {
+  const fit = { ask: d.fit || 0, k: 0 }, out = { frames: frameSet(d, fit, remap) };
+  if (d.lod) out.lod = { frames: frameSet(d.lod, fit, remap) };
+  return out;
 }
 
 export class Units3D {
@@ -152,20 +170,29 @@ export class Units3D {
     this.loaded = {};
     if (typeof fetch === 'function') fetch('assets/models/index.json').then((r) => (r.ok ? r.json() : null)).then((ix) => {     // (the list says which are made, so nothing missing is asked for)
       for (const [k, file] of Object.entries(MODELS)) if (ix && ix.models && ix.models.includes(file))
-        fetch(`assets/models/${file}.json`).then((r) => (r.ok ? r.json() : null)).then((d) => { if (!d || !d.frames) return; const made = modelFrames(d); this.def[k] = () => made; this._drop(k); this.loaded[k] = d.nt; }).catch(() => {});
+        fetch(`assets/models/${file}.json`).then((r) => (r.ok ? r.json() : null)).then((d) => { if (!d || !d.frames) return; const made = modelFrames(d, this.dress(k)); this.def[k] = () => made; this._drop(k); this.loaded[k] = d.nt; }).catch(() => {});
     }).catch(() => {});
+  }
+  // The fleet's own colours for the parts of a character model that are named for them (the enemy wears its own).
+  dress(k) {
+    const m = this.mats; if (!m || !m.uniform || k.includes(':')) return null;
+    const dark = (c, f) => c.clone().multiplyScalar(f);
+    const o = { uniform: m.uniform.color, uniform_dark: dark(m.uniform.color, 0.78), kit: dark(m.uniform.color, 0.62), helmet: m.helmet.color, armband: m.armband.color };
+    if (k === 'van') o.trim = new THREE.Color(1, 1, 1);     // (left white: each Vanguard's team colour is laid on it)
+    else o.trim = m.prim.color;
+    return o;
   }
   // a kind's meshes taken off the scene, so it is built again from what it is made of now
   _drop(k) {
     const m = this.kinds.get(k); if (m === undefined) return; this.kinds.delete(k); if (!m) return;
-    for (const im of m.frames ? Object.values(m.frames) : [m]) { this.scene.remove(im); const i = this.all.indexOf(im); if (i >= 0) this.all.splice(i, 1); im.dispose(); }
+    for (const im of m.frames ? [...Object.values(m.frames), ...(m.lod ? Object.values(m.lod.frames) : [])] : [m]) { this.scene.remove(im); const i = this.all.indexOf(im); if (i >= 0) this.all.splice(i, 1); im.dispose(); }
   }
   _kind(k) {
     let m = this.kinds.get(k); if (m !== undefined) return m;
     const make = this.def[k]; if (!make) { this.kinds.set(k, null); return null; }
     const inst = (geo, cap) => { const im = new THREE.InstancedMesh(geo, this.mat, cap); im.count = 0; im.frustumCulled = false; im.instanceMatrix.setUsage(THREE.DynamicDrawUsage); this.scene.add(im); this.all.push(im); return im; };
     const made = make();
-    if (made.frames) { m = { frames: {} }; for (const f in made.frames) m.frames[f] = inst(made.frames[f], k.includes(':') ? 320 : 160); }     // (one mesh for each frame of a person)
+    if (made.frames) { m = { frames: {} }; for (const f in made.frames) m.frames[f] = inst(made.frames[f], k.includes(':') ? 320 : 160); if (made.lod) { m.lod = { frames: {} }; for (const f in made.lod.frames) m.lod.frames[f] = inst(made.lod.frames[f], 600); } }     // (one mesh for each frame of a person)
     else m = inst(made, CAP);
     this.kinds.set(k, m); return m;
   }
@@ -175,8 +202,11 @@ export class Units3D {
     this.mat.emissive.setScalar(hot ? 0.62 : 0);
     this.used.clear();
     for (const u of list) {
-      const K = this._kind(u.k); if (!K) continue; let m = K;
-      if (K.frames) { const st = u.walk != null ? Math.floor((((u.walk % 6.2832) + 6.2832) % 6.2832) / 6.2832 * STEPS) % STEPS : -1; m = (u.atk && K.frames.atk) || (u.aim && (st < 0 ? K.frames.aim : K.frames['a' + st])) || (st < 0 ? K.frames.stand : K.frames['w' + st]) || K.frames.stand; }
+      const K = this._kind(u.k) || (u.alt ? this._kind(u.alt) : null); if (!K) continue; let m = K;
+      if (K.frames) {
+        const F = u.lod && K.lod ? K.lod.frames : K.frames, st = u.walk != null ? Math.floor((((u.walk % 6.2832) + 6.2832) % 6.2832) / 6.2832 * STEPS) % STEPS : -1;
+        m = (u.pose && F[u.pose]) || (u.jump && F.jump) || (u.atk && F.atk) || (u.aim && (st < 0 ? F.aim : F['a' + st])) || (st < 0 ? F.stand : F['w' + st] || F['w' + (st & 6)]) || F.stand;
+      }
       const n = this.used.get(m) || 0; if (n >= m.instanceMatrix.count) continue;
       Q.setFromAxisAngle(UP, Math.PI / 2 - (u.face || 0)); P.set(u.x, ground(u.x, u.y) + (u.up || 0), u.y); S.setScalar(u.r);
       if (u.tumble != null) { Q.multiply(Q2.setFromAxisAngle(SIDE, -u.tumble)); P.y += Math.abs(Math.sin(u.tumble)) * 0.16 * u.r - (u.sink || 0) * 0.6 * u.r; }     // (GC 0.29) a body: turned over backwards about its feet, lying on the ground, sinking away as it fades
