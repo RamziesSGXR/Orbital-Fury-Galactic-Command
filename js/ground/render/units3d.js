@@ -124,7 +124,7 @@ export function modelFrames(d) {
     const q = new Uint16Array(b64(d.frames[name]).buffer), pos = new Float32Array(nt * 9);
     for (let i = 0; i < nt * 3; i++) { const v = tris[i] * 3; for (let k = 0; k < 3; k++) pos[i * 3 + k] = d.min[k] + q[v + k] / 65535 * d.size[k]; }
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.computeVertexNormals();
-    if (!fit) { g.computeBoundingBox(); const b = g.boundingBox; fit = { x: -(b.min.x + b.max.x) / 2, y: -b.min.y, z: -(b.min.z + b.max.z) / 2, k: 2 / (Math.max(b.max.x - b.min.x, b.max.y - b.min.y, b.max.z - b.min.z) || 1) }; }
+    if (!fit) { g.computeBoundingBox(); const b = g.boundingBox; fit = { x: -(b.min.x + b.max.x) / 2, y: -b.min.y, z: -(b.min.z + b.max.z) / 2, k: 2 / (d.fit || Math.max(b.max.x - b.min.x, b.max.y - b.min.y, b.max.z - b.min.z) || 1) }; }     // (d.fit: the model's own say on its size, so a long spear or tail does not shrink its carrier)
     g.translate(fit.x, fit.y, fit.z); g.scale(fit.k, fit.k, fit.k); out[name] = g;
   }
   return { frames: out };

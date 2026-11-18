@@ -192,15 +192,46 @@ def turn(name, x=0.0, y=0.0, z=0.0):
 def shift(name, x=0.0, y=0.0, z=0.0):
     o = bpy.data.objects[PRE + name]; r = o['rest']; o.location = (r[0] + x, r[1] + y, r[2] + z)
 
-def leg(tag, parent, hip, rz, out, rise, drop, r, m_thigh, m_shin, sides=5, toe=0.0, reach2=0.75):
-    """A two-part leg on the +X side (mirror it for the other): hip joint, a thigh up and out, a knee joint, a shin down to the ground."""
+def leg(tag, parent, hip, rz, out, rise, drop, r, m_thigh, m_shin, sides=5, toe=0.0, reach2=0.75, tip=0.12, foot=None, m_foot=None, roll=0.0):
+    """A two-part leg on the +X side (it is mirrored for the other): hip joint, a thigh up and out, a knee joint, a shin down to the ground.
+    tip: how thick the shin ends (a share of r); foot: the size of a pad under it, for a machine."""
     h = joint('hip%s.L' % tag, hip, parent); h.rotation_euler = (0, 0, rz)
-    loft('thigh%s.L' % tag, [((0, 0, 0), r * 1.25, r * 1.25), ((out * 0.5, 0, rise * 0.62), r, r), ((out, 0, rise), r * 0.8, r * 0.8)], sides=sides, m=m_thigh, parent=h)
-    k = joint('knee%s.L' % tag, (out, 0, rise), h)
-    loft('shin%s.L' % tag, [((0, 0, 0), r, r), ((out * reach2 * 0.55, 0, -drop * 0.42), r * 0.7, r * 0.7), ((out * reach2, toe, -drop), max(0.004, r * 0.12), max(0.004, r * 0.12))], sides=sides, m=m_shin, parent=k)
+    loft(PRE + 'thigh%s.L' % tag, [((0, 0, 0), r * 1.25, r * 1.25, roll), ((out * 0.5, 0, rise * 0.62), r, r, roll), ((out, 0, rise), r * 0.8, r * 0.8, roll)], sides=sides, m=m_thigh, parent=h)
+    k = joint('knee%s.L' % tag, (out, 0, rise), h); fd = foot[2] if foot else 0.0
+    loft(PRE + 'shin%s.L' % tag, [((0, 0, 0), r, r, roll), ((out * reach2 * 0.55, 0, -(drop - fd) * 0.42), r * 0.7, r * 0.7, roll), ((out * reach2, toe, -(drop - fd)), max(0.004, r * tip), max(0.004, r * tip), roll)], sides=sides, m=m_shin, parent=k)
+    if foot: box(PRE + 'foot%s.L' % tag, foot, (out * reach2, toe, -drop + fd / 2), m=m_foot or m_shin, parent=k, bevel=min(foot) * 0.18)
     mirror_x(h); return h
+def bleg(parent, hip, thigh, shin, r, m_thigh, m_shin, foot, m_foot, sides=6, roll=0.0, kneecap=None, m_knee=None, tag=''):
+    """A leg that hangs straight down on the +X side (mirrored for the other): hip joint, thigh, knee joint, shin, a foot."""
+    h = joint('hip%s.L' % tag, hip, parent)
+    loft(PRE + 'thigh%s.L' % tag, [((0, 0, 0), r * 1.15, r * 1.15, roll), ((0, 0, -thigh), r * 0.85, r * 0.85, roll)], sides=sides, m=m_thigh, parent=h)
+    k = joint('knee%s.L' % tag, (0, 0, -thigh), h)
+    loft(PRE + 'shin%s.L' % tag, [((0, 0, 0), r * 0.95, r * 0.95, roll), ((0, 0, -shin), r * 0.7, r * 0.7, roll)], sides=sides, m=m_shin, parent=k)
+    if kneecap: box(PRE + 'kneecap.L', kneecap, (0, -r * 0.8, 0), m=m_knee or m_thigh, parent=k, bevel=min(kneecap) * 0.2)
+    box(PRE + 'foot.L', foot, (0, -foot[1] * 0.18, -shin - foot[2] / 2), m=m_foot, parent=k, bevel=min(foot) * 0.2)
+    mirror_x(h); return h
+def stride(ph, sw=0.5, kn=0.7, arm=0.4):
+    """Two legs walking: hips swing, the knee of the leg coming forward bends, the arms swing against the legs."""
+    for s, sd in ((1, 'L'), (-1, 'R')):
+        a = ph + (0 if s > 0 else math.pi)
+        turn('hip.' + sd, x=-sw * math.sin(a)); turn('knee.' + sd, x=kn * max(0.0, math.cos(a)) + 0.06)
+        if arm and (PRE + 'sho.' + sd) in bpy.data.objects: turn('sho.' + sd, x=arm * math.sin(a))
+def cyl(name, a, b, r, m=None, parent=None, sides=8, r2=None):
+    """A round bar from a to b."""
+    return loft(name, [(a, r, r), (b, r if r2 is None else r2, r if r2 is None else r2)], sides=sides, m=m, parent=parent)
 def lineup(name, roots, gaps, scales, **kw):
     """Stand several creatures side by side at their sizes in the game and take a picture."""
     x = 0.0
     for r, g, sc in zip(roots, gaps, scales): r.location = (x, 0, 0); r.scale = (sc, sc, sc); x += g
     bpy.context.view_layer.update(); return shot(name, **kw)
+
+def tail(parent, at, lens, radii, m, sides=6, droop=0.0, flat=1.0):
+    """A chain of joints running back (+Y), a tapering piece on each: tail0, tail1, ... radii has one more entry than lens."""
+    p = parent; loc = at; out = []
+    for i, L in enumerate(lens):
+        j = joint('tail%d' % i, loc, p); j.rotation_euler = (droop if i else 0.0, 0, 0)
+        loft(PRE + 'tailseg%d' % i, [((0, 0, 0), radii[i], radii[i] * flat), ((0, L, 0), max(0.004, radii[i + 1]), max(0.004, radii[i + 1] * flat))], sides=sides, m=m[i % len(m)] if isinstance(m, (list, tuple)) else m, parent=j)
+        out.append(j); p = j; loc = (0, L, 0)
+    return out
+def wag(n, ph, amp=0.18, lag=0.9, up=0.0):
+    for i in range(n): turn('tail%d' % i, z=amp * math.sin(ph - i * lag), x=up * math.sin(2 * ph - i * lag))
