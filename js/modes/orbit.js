@@ -4,6 +4,7 @@
 import { C } from '../orbit/config.js';
 import { Station } from '../orbit/sim.js';
 import { View } from '../orbit/view.js';
+import { ensureLogo } from '../orbit/logo.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
@@ -122,6 +123,7 @@ const mode = {
     let loaded = null; try { loaded = saved ? Station.load(saved) : null; } catch (err) { console.error(err); }
     st = loaded || new Station(1000 + sys.id * 37 + ((app.camp.war && app.camp.war.seed) || 0) % 1000, 'run');
     st.faction = stationFaction(sys); st._noAdvice = true;
+    await ensureLogo(st.faction.logo);
     if (!view) { view = new View(canvas, st); bind(); }
     view.setStation(st);
     st.livery = { ...C.livery.def, ...(st.livery || {}), ...livery(st.faction) };

@@ -29,6 +29,10 @@ with sync_playwright() as pw:
         pg.wait_for_function('!sgs.ui.show && !sgs.ui.anims.length', timeout=30000); pg.wait_for_timeout(300)
         print(name, 'round', pg.evaluate('sgs.g.round'), 'battle', pg.evaluate('!!sgs.g.battle'))
         pg.screenshot(path=f'{out}/{name}-5-battle.png')
+        # the armoury, from the battle's choice
+        pg.click('[data-a=armoury]'); pg.wait_for_timeout(200); pg.screenshot(path=f'{out}/{name}-5b-armoury.png')
+        assert pg.locator('#modal [data-buy]').count() > 5, 'the armoury is empty'
+        pg.click('#modal [data-x=close]'); pg.wait_for_timeout(150)
         # down to the ground
         pg.click('[data-a=ground]'); pg.wait_for_function("gc.state === 'ground' && document.getElementById('trans').hidden", timeout=60000)
         pg.wait_for_timeout(2500)
@@ -36,6 +40,11 @@ with sync_playwright() as pw:
         t0 = pg.evaluate('gc.mode.mission.t'); pg.wait_for_timeout(1000); assert pg.evaluate('gc.mode.mission.t') > t0, 'the ground battle is not running'
         pg.click('[data-g=deploy]') if pg.is_visible('[data-g=deploy]') else None
         pg.click('[data-g=arm]'); pg.mouse.click(w / 2, h / 2); pg.wait_for_timeout(800)
+        pg.evaluate('gc.mode.fast(1200)')
+        pg.click('[data-gt=troops]'); pg.wait_for_timeout(150); pg.click('[data-k=seaf]'); pg.mouse.click(w / 2, h / 2); pg.wait_for_timeout(300)
+        pg.evaluate('gc.mode.fast(900)'); pg.wait_for_timeout(400); pg.screenshot(path=f'{out}/{name}-6b-troops.png')
+        pg.click('[data-gt=build]'); pg.wait_for_timeout(150); pg.click('[data-k="build:foxhole"]'); pg.mouse.click(w / 2 + 30, h / 2 + 20); pg.wait_for_timeout(300); pg.screenshot(path=f'{out}/{name}-6c-build.png')
+        pg.click('[data-gt=weapons]')
         for i in range(60):
             r = pg.evaluate('gc.mode.fast(900)')
             if r['over']: break

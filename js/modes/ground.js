@@ -9,6 +9,9 @@ import { sunAt } from '../ground/render/sky.js';
 import { slotStats, refreshAim } from '../ground/sim/player.js';
 import { squadCentres } from '../ground/sim/seaf.js';
 import { makeBot, botStep, NOVICE } from '../ground/sim/bot.js';
+import { POSTS } from '../ground/sim/posts.js';
+import { buildStats, buildLevel } from '../ground/data/kit.js';
+import { t as tr } from '../ground/i18n.js';
 import { C as GC } from '../galaxy/config.js';
 
 const $ = (id) => document.getElementById(id);
@@ -19,6 +22,7 @@ const WON = (o) => o === 'victory' || o === 'complete';
 let app, ui, audio, canvas, renderer;
 let m = null, args = null, bot = null, auto = false;
 let cam = { x: 800, y: 800, view: 400, follow: false };
+let tab = 'weapons', mini = null, miniT = 0;
 let acc = 0, armed = false, placing = null, overAt = 0, shown = false, level = 1, barSig = '', credits0 = 0;
 const keys = new Set(), settings = { polarity: 'white', relief: false, quality: 'auto', reduceFlash: false, colorblind: false, showNames: false, showBlasts: false, relief3d: 'auto', bubbles: true, uiScale: 1, smooth: true };
 
@@ -106,23 +110,44 @@ function arm(i) {
   armed = true; audio.click(); bar(true);
 }
 function disarm() { armed = false; if (m) { m.setFiring(false); m.player.queued = -1; } bar(true); }
+const ORDERS = { move: ['MOVE', 'go there and hold'], attack: ['ATTACK', 'push on that point'], protect: ['PROTECT', 'guard that spot'] };
+const bname = (w) => { const n = tr('kit.bld.' + w); return n && n !== 'kit.bld.' + w ? n : w === 'wire' ? 'Razor Wire' : w === 'foxhole' ? 'Foxhole' : w; };
+function tabs() { $('th-tabs').innerHTML = [['weapons', 'SHIP WEAPONS'], ['troops', 'TROOPS'], ['build', 'BUILD']].map(([k, n]) => `<button data-gt="${k}" class="${tab === k ? 'on' : ''}">${n}</button>`).join(''); }
+function setPlacing(k) { placing = placing === k ? null : k; if (placing) { armed = false; m.setFiring(false); } audio.click(); bar(true); stats(); }
 function bar(force) {
   if (!m) return;
   const p = m.player, t = m.t, items = [];
   if (m.dropIn > 0) items.push(`<button class="plate amber btn tool on" data-g="deploy"><b>DROP NOW</b><span>${Math.ceil(m.dropIn)} s to the drop</span></button>`);
-  p.slots.forEach((s, i) => {
-    if (s.type === 'empty') return;
-    const st = slotStats(m, i) || { name: s.type }, on = armed && p.weapon === i;
-    let sub = 'READY', cool = false, frac = 0;
-    if (s.type === 'gun') { sub = `${Math.floor(p.gun.ammo)} / ${p.gun.max} ROUNDS`; frac = p.gun.ammo / p.gun.max; }
-    else if (s.type === 'nuke') { const ok = m.nukeReady(); sub = s.uses > 0 ? (ok ? 'ARMED' : 'NEEDS A LAUNCH SITE') : 'SPENT'; cool = !ok || s.uses <= 0; }
-    else if (s.readyAt > t) { sub = `${Math.ceil(s.readyAt - t)} s`; cool = true; frac = 1 - clamp((s.readyAt - t) / Math.max(1, st.cd || 30), 0, 1); }
-    else if (s.eu !== undefined) sub = `${s.eu} RUN${s.eu === 1 ? '' : 'S'}`;
-    else if (s.uses !== undefined && s.uses !== Infinity) sub = `${s.uses} LEFT`;
-    items.push(`<button class="plate btn tool${on ? ' on' : ''}${cool ? ' cool' : ''}" data-g="arm" data-i="${i}"><kbd>${SLOT_KEYS[i] || ''}</kbd><b>${esc(st.name || s.type)}</b><span>${sub}</span>${frac ? `<i class="cd" style="width:${Math.round(frac * 100)}%"></i>` : ''}</button>`);
-  });
-  items.push(`<button class="plate btn tool${placing === 'seaf' ? ' on' : ''}" data-g="seaf"><kbd>T</kbd><b>TROOP DROP</b><span>${m.wallet ? Math.floor(m.wallet.bal) + ' CR' : ''}</span></button>`);
-  items.push(`<button class="plate btn tool${auto ? ' on' : ''}" data-g="auto"><b>AUTO-GUNNER</b><span>${auto ? 'ON · THE CREW FIRES' : 'OFF · YOU FIRE'}</span></button>`);
+  if (tab === 'weapons') {
+    p.slots.forEach((s, i) => {
+      if (s.type === 'empty') return;
+      const st = slotStats(m, i) || { name: s.type }, on = armed && p.weapon === i;
+      let sub = 'READY', cool = false, frac = 0;
+      if (s.type === 'gun') { sub = `${Math.floor(p.gun.ammo)} / ${p.gun.max} ROUNDS`; frac = p.gun.ammo / p.gun.max; }
+      else if (s.type === 'nuke') { const ok = m.nukeReady(); sub = s.uses > 0 ? (ok ? 'ARMED' : 'NEEDS A LAUNCH SITE') : 'SPENT'; cool = !ok || s.uses <= 0; }
+      else if (s.readyAt > t) { sub = `${Math.ceil(s.readyAt - t)} s`; cool = true; frac = 1 - clamp((s.readyAt - t) / Math.max(1, st.cd || 30), 0, 1); }
+      else if (s.eu !== undefined) sub = `${s.eu} RUN${s.eu === 1 ? '' : 'S'}`;
+      else if (s.uses !== undefined && s.uses !== Infinity) sub = `${s.uses} LEFT`;
+      items.push(`<button class="plate btn tool${on ? ' on' : ''}${cool ? ' cool' : ''}" data-g="arm" data-i="${i}"><kbd>${SLOT_KEYS[i] || ''}</kbd><b>${esc(st.name || s.type)}</b><span>${sub}</span>${frac ? `<i class="cd" style="width:${Math.round(frac * 100)}%"></i>` : ''}</button>`);
+    });
+    items.push(`<button class="plate btn tool${auto ? ' on' : ''}" data-g="auto"><b>AUTO-GUNNER</b><span>${auto ? 'ON · THE CREW FIRES' : 'OFF · YOU FIRE'}</span></button>`);
+  } else if (tab === 'troops') {
+    const sf = m.seaf, sq = sf.squads || [];
+    items.push(`<button class="plate btn tool${placing === 'seaf' ? ' on' : ''}" data-g="place" data-k="seaf"><kbd>T</kbd><b>TROOP DROP</b><span>${Math.floor(m.wallet.bal)} CR</span></button>`);
+    if (sq.length) {
+      items.push(`<button class="plate btn tool${sf.sel < 0 ? ' on' : ''}" data-g="squad" data-i="-1"><b>ALL SQUADS</b><span>${sq.reduce((a, q) => a + (q.n || 0), 0)} troops</span></button>`);
+      sq.forEach((q, i) => { if (q.n > 0) items.push(`<button class="plate btn tool${sf.sel === i ? ' on' : ''}" data-g="squad" data-i="${i}"><b>SQUAD ${i + 1}</b><span>${q.n} · ${esc(String(typeof q.order === 'string' ? q.order : (q.order && q.order.kind) || 'auto').toUpperCase())}</span></button>`); });
+      for (const k in ORDERS) items.push(`<button class="plate amber btn tool${placing === 'order:' + k ? ' on' : ''}" data-g="place" data-k="order:${k}"><b>${ORDERS[k][0]}</b><span>${ORDERS[k][1]}</span></button>`);
+      items.push('<button class="plate amber btn tool" data-g="order" data-k="escort"><b>ESCORT</b><span>stay with the squad</span></button>');
+      items.push('<button class="plate amber btn tool" data-g="order" data-k="auto"><b>AT WILL</b><span>their own judgement</span></button>');
+      items.push(`<button class="plate btn tool${placing === 'pickup' ? ' on' : ''}" data-g="place" data-k="pickup"><b>PICKUP</b><span>lift troops out</span></button>`);
+    }
+  } else {
+    for (const w of POSTS) {
+      const free = w === 'foxhole' || w === 'wire', lvl = free ? 1 : buildLevel(m.kit, w), st = lvl ? buildStats(w, lvl) : null, cost = st && st.cost != null ? Math.round(st.cost * (m.buildMul ? m.buildMul() : 1)) : null;
+      items.push(`<button class="plate btn tool${placing === 'build:' + w ? ' on' : ''}" data-g="place" data-k="build:${w}" ${lvl ? '' : 'disabled'}><b>${esc(bname(w))}</b><span>${!lvl ? 'ARMOURY' : cost ? cost + ' CR' : 'FREE'}</span></button>`);
+    }
+  }
   const html = items.join('');
   if (force || html !== barSig) { barSig = html; $('th-bar').innerHTML = html; }
 }
@@ -134,6 +159,9 @@ function stats() {
   let tip = '';
   if (m.over) tip = '';
   else if (placing === 'seaf') tip = 'Tap where the troops should land.';
+  else if (placing === 'pickup') tip = 'Tap where the pelican should lift them out.';
+  else if (placing && placing.startsWith('order:')) tip = `${ORDERS[placing.slice(6)][0]}: tap the ground.`;
+  else if (placing && placing.startsWith('build:')) tip = `${bname(placing.slice(6))}: tap where the troops should build it.`;
   else if (armed) { const s = m.player.slots[m.player.weapon]; tip = s.type === 'gun' ? 'Hold on the map to fire the ship gun.' : `${(slotStats(m, m.player.weapon) || {}).name || 'Weapon'}: tap the map to call it.`; }
   ui.tip(tip);
 }
@@ -145,7 +173,11 @@ function panBy(dx, dy) { const k = cam.view / canvas.clientWidth; cam.x = clamp(
 function zoom(f) { cam.view = clamp(cam.view / f, C.world.zoomMin, C.world.zoomMax); }
 function tapAt(e) {
   const w = world(e); if (!w || !m || m.over) return;
-  if (placing === 'seaf') { const r = m.callSeaf(w.x, w.y); if (r && r.ok === false) audio.deny(); else { audio.chirp(); placing = null; bar(true); } return; }
+  if (placing) {
+    const r = placing === 'seaf' ? m.callSeaf(w.x, w.y) : placing === 'pickup' ? m.callPickup(w.x, w.y) : placing.startsWith('order:') ? m.seafOrder(placing.slice(6), w.x, w.y) : m.seafBuild(placing.slice(6), w.x, w.y, {});
+    if (r && r.ok === false) audio.deny(); else { audio.chirp(); if (!placing.startsWith('build:')) placing = null; bar(true); stats(); }
+    return;
+  }
   if (armed && !auto) { m.setAim(w.x, w.y); m.fire(); }
 }
 function bind() {
@@ -180,22 +212,26 @@ function bind() {
   };
   canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up);
   canvas.addEventListener('contextmenu', (e) => { e.preventDefault(); if (armed) disarm(); placing = null; bar(true); });
+  $('th-tabs').addEventListener('click', (e) => { const b = e.target.closest('[data-gt]'); if (!b || mode.off) return; tab = b.dataset.gt; placing = null; audio.click(); tabs(); bar(true); stats(); });
   canvas.addEventListener('wheel', (e) => { e.preventDefault(); zoom(e.deltaY < 0 ? 1.12 : 1 / 1.12); }, { passive: false });
   $('th-bar').addEventListener('click', (e) => {
     const b = e.target.closest('[data-g]'); if (!b || !m || mode.off) return;
     const g = b.dataset.g;
     if (g === 'arm') arm(+b.dataset.i);
     else if (g === 'deploy') { m.deployNow(); audio.ready(); }
-    else if (g === 'seaf') { placing = placing === 'seaf' ? null : 'seaf'; if (placing) { armed = false; m.setFiring(false); } audio.click(); bar(true); }
+    else if (g === 'place') setPlacing(b.dataset.k);
+    else if (g === 'squad') { m.selectSquad(+b.dataset.i); audio.click(); bar(true); }
+    else if (g === 'order') { const r = m.seafOrder(b.dataset.k); if (r && r.ok === false) audio.deny(); else audio.chirp(); bar(true); }
     else if (g === 'auto') { auto = !auto; bot = auto ? makeBot(NOVICE) : null; if (auto) { armed = false; placing = null; } audio.click(); bar(true); }
   });
   window.addEventListener('keydown', (e) => {
-    if (mode.off || !m || e.target.tagName === 'INPUT') return;
+    if (mode.off || !m || e.target.tagName === 'INPUT' || !$('menu').hidden || !$('modal').hidden) return;
     const k = e.key.length === 1 ? e.key.toUpperCase() : e.key;
     keys.add(k);
     const i = SLOT_KEYS.indexOf(k);
     if (i >= 0 && m.player.slots[i] && m.player.slots[i].type !== 'empty') arm(i);
-    else if (k === 'T') { placing = placing === 'seaf' ? null : 'seaf'; bar(true); }
+    else if (k === 'T') { tab = 'troops'; tabs(); setPlacing('seaf'); }
+    else if (k === 'Escape' && (placing || armed)) { e.stopImmediatePropagation(); placing = null; if (armed) disarm(); bar(true); stats(); }
     else if (k === ' ') { e.preventDefault(); $('th-pause').click(); }
   });
   window.addEventListener('keyup', (e) => keys.delete(e.key.length === 1 ? e.key.toUpperCase() : e.key));
@@ -245,11 +281,13 @@ const mode = {
     audio.humStart();
     ui.message(b.kind === 'atk' ? `ASSAULT ON ${kw.name.toUpperCase()}` : `DEFEND ${kw.name.toUpperCase()}`, 3000);
     ui.feed('Your ship holds over the landing. Pick a weapon below, then tap the ground.', 'radio');
-    bar(true); stats();
+    tab = 'weapons'; tabs(); bar(true); stats();
+    if (!mini) { mini = document.createElement('canvas'); mini.id = 'g-mini'; $('th-stage').appendChild(mini); }
+    mini.width = mini.height = 220; mini.classList.remove('hidden');
     document.body.style.setProperty('--tt', $('th-top').offsetHeight + 'px'); document.body.style.setProperty('--tb', $('th-bar').offsetHeight + 'px');
     if (new URLSearchParams(location.search).has('auto')) { auto = true; bot = makeBot(); }
   },
-  leave() { mode.off = true; audio.humStop(); if (audio.scapeStop) audio.scapeStop(); m = null; $('s-theatre').classList.remove('full'); keys.clear(); },
+  leave() { if (mini) mini.classList.add('hidden'); $('th-tabs').innerHTML = ''; mode.off = true; audio.humStop(); if (audio.scapeStop) audio.scapeStop(); m = null; $('s-theatre').classList.remove('full'); keys.clear(); },
   askLeave() {
     if (!m || m.over) return;
     const was = ui.paused; ui.paused = true;
@@ -279,9 +317,11 @@ const mode = {
     }
     const p = m.player, tw = dt > 0 && !m.over;
     if (tw) tween(m, acc / STEP);
-    try { renderer.draw(m, cam, { now, aim: { x: p.aimX, y: p.aimY }, armed: armed || auto, placing, ghost: null, plan: [], draw: null, snap: (x, y) => ({ x, y }), sel: null, box: null, pface: null, pshape: 'ring' }); }
+    const bp = placing && placing.startsWith('build:') ? placing : null;
+    try { renderer.draw(m, cam, { now, aim: { x: p.aimX, y: p.aimY }, armed: armed || auto, placing: bp, ghost: bp ? { x: p.aimX, y: p.aimY } : null, plan: [], draw: null, snap: (x, y) => ({ x, y }), sel: null, box: null, pface: null, pshape: 'ring' }); }
     finally { if (tw) untween(m); }
     if ((mode._t = (mode._t || 0) + real) > 0.2) { mode._t = 0; bar(); stats(); }
+    if (mini && (miniT -= real) <= 0) { miniT = 0.1; try { renderer.drawMinimap(mini, m, cam); } catch { /* no map this frame */ } }
     if (m.over && !shown) { overAt = overAt || now; if (now - overAt > 3.2) { shown = true; result(); } }
   },
   report() { return { abandon: true }; },

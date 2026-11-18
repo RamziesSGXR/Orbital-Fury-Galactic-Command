@@ -250,8 +250,9 @@ function fight() {
     <div class="flog">${b.lines.map(l => `<div>${esc(l)}</div>`).join('')}</div>`;
   if (b.done) h += `<div class="fres ${b.win ? 'cy' : 'rd2'}">${b.win ? 'VICTORY' : 'DEFEAT'} · ${esc(b.result || '')}</div><button class="plate btn go" data-a="bclose">CONTINUE</button>`;
   else if (ui.fx && ui.fx.t < 0.9) h += '<div class="fhand wait"><span class="sm2 dim">…</span></div>';
-  else if (b.round === 0 && !ui.cards) h += `<div class="fchoice"><button class="plate btn go" data-a="ground">${b.kind === 'atk' ? 'LAND THE ASSAULT' : 'DEFEND ON THE GROUND'}<small>FIRE SUPPORT FROM ORBIT</small></button>
-      <button class="plate btn" data-a="cards">FIGHT IT IN SPACE<small>FLEET ACTION · CARDS</small></button></div>`;
+  else if (b.round === 0 && !ui.cards && ui.tut == null) h += `<div class="fchoice"><button class="plate btn go" data-a="ground">${b.kind === 'atk' ? 'LAND THE ASSAULT' : 'DEFEND ON THE GROUND'}<small>FIRE SUPPORT FROM ORBIT</small></button>
+      <button class="plate btn" data-a="cards">FIGHT IT IN SPACE<small>FLEET ACTION · CARDS</small></button>
+      <button class="plate btn sm" data-a="armoury">ARMOURY · ${Math.floor(app.camp.wallet.bal)} CR</button></div>`;
   else if (you.hand.length) h += `<div class="fhand">${you.hand.map((id, i) => cardHtml(id, `data-a="bplay" data-i="${i}"`)).join('')}</div><button class="plate btn sm" style="width:100%;margin-top:6px" data-a="bplay">PASS</button>`;
   else h += '<div class="fhand wait"><b class="dim">GUNS ONLY</b></div>';
   $('fbody').innerHTML = h;
@@ -337,6 +338,7 @@ document.addEventListener('click', e => {
     case 'menu': return app.menu();
     case 'totitle': $('modal').hidden = true; return app.endCampaign();
     case 'cards': ui.cards = true; break;
+    case 'armoury': return app.armoury(() => refresh());
     case 'ground': return app.theatre('ground', { battle: g.battle, system: g.P[g.battle.pid] });
     case 'orbit': return app.theatre('orbit', { system: g.P[+d.p] });
     case 'base': return app.theatre('base', { system: g.P[+d.p] });

@@ -1,6 +1,6 @@
 # Orbital Fury: Galactic Command
 
-**Prototype 0.1.0.** One war, run from four posts, in one game.
+**Prototype 0.1.1.** One war, run from four posts, in one game.
 
 You found a command (a name, a crest, colours) and hold the centre of the galaxy against three enemies. Everything in
 the war is yours to run, and each part changes the others:
@@ -48,7 +48,7 @@ come back to them.
 
 ## Not in this version
 
-- The armoury (spending the credits a ground battle earns), saved loadouts, and the ground battle's troop orders and builds.
+- In the ground battle: drawing routes, formations, squad merging, the supply pod and the tactical pause. Saved loadouts.
 - Most of the station's and the base's deeper panels (rooms inside parts, the ledger, research, patrols, landscaping).
 - The tutorial for the theatres, music, French and Spanish.
 - The setting: names and wording still come from the four prototypes and have not been made into one original setting yet.

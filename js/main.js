@@ -9,7 +9,9 @@
 // needs to know: who won, what tier the station is, what rank the base is.
 import { VERSION, C as GC } from './galaxy/config.js';
 import * as War from './galaxy/screen.js';
-import { drawLogo, SHAPES, SYMBOLS, PATTERNS, PALETTE } from './core/logo.js';
+import { drawLogo, ensureLogo, readUpload, SHAPES, SYMBOLS, PATTERNS, PALETTE } from './core/logo.js';
+import { SEED } from './galaxy/tutorial.js';
+import { shopItems, buy, equip, unequip, shownAt, TIER_MAX } from './ground/data/kit.js';
 import { Audio } from './ground/audio.js';
 import { newKit, newWallet } from './ground/data/kit.js';
 
@@ -33,9 +35,10 @@ const MOTTOS = ['Hold the centre.', 'First in, last out.', 'The line is here.', 
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
 function rollFaction() {
   const bg = pick(['#1b2a1a', '#111111', '#1d3f8a', '#3d4247', '#8a1c1c', '#2e4a2a']), fg = pick(['#ffe600', '#f4f4f4', '#ffb020', '#3da9ff']);
+  const pc = pick(['#3d4247', '#8a1c1c', '#1d3f8a', '#2e4a2a', '#111111', '#c0392b'].filter((c) => c !== bg));     // the pattern: dark, and never the field's or the symbol's colour
   const name = pick(NAMES);
   return { name, motto: pick(MOTTOS), primary: pick(['#22262a', '#2e4a2a', '#3a4f6a', '#5d6a4a', '#8a5a44']), secondary: fg,
-    logo: { shape: pick(SHAPES), symbol: pick(SYMBOLS.filter((s) => s !== 'none')), bg, fg, rim: fg, text: name.split(/\s+/).map((w) => w[0]).join('').slice(0, 4).toUpperCase(), pattern: pick(PATTERNS), pc: fg },
+    logo: { shape: pick(SHAPES), symbol: pick(SYMBOLS.filter((s) => s !== 'none')), bg, fg, rim: fg, text: name.split(/\s+/).map((w) => w[0]).join('').slice(0, 4).toUpperCase(), pattern: pick(PATTERNS), pc },
     look: { uniform: '#5d6a4a', helmet: '#4c5a3c', armband: fg, crest: true } };
 }
 
@@ -73,11 +76,12 @@ function toTitle() {
   const saved = read(KEY, null), ok = saved && saved.v === 1 && saved.faction;
   $('b-continue').classList.toggle('hidden', !ok);
   $('b-new').classList.toggle('go', !ok);
+  if (ok && saved.faction.logo.img) ensureLogo(saved.faction.logo).then(() => { if (state === 'title') drawLogo($('t-crest').getContext('2d'), saved.faction.logo, 4, 4, 152); });
   if (ok) { $('b-continue-sub').textContent = `${saved.faction.name} · round ${(saved.war && saved.war.round) || 1}`; drawLogo($('t-crest').getContext('2d'), saved.faction.logo, 4, 4, 152); }
   else { const g = $('t-crest').getContext('2d'); g.clearRect(0, 0, 160, 160); drawLogo(g, draft.logo, 4, 4, 152); }
   $('t-ver').textContent = `PROTOTYPE ${VERSION} · A FAN PROJECT · NOT AFFILIATED WITH ANY STUDIO`;
 }
-$('b-continue').onclick = () => { audio.click(); camp = read(KEY, null); if (!camp) return toTitle(); toWar({ saved: camp.war }); };
+$('b-continue').onclick = async () => { audio.click(); camp = read(KEY, null); if (!camp) return toTitle(); await ensureLogo(camp.faction.logo); toWar({ saved: camp.war }); };
 $('b-new').onclick = () => { audio.click(); if (read(KEY, null)) return confirmBox('Start a new campaign?', 'The campaign in progress, with its stations and bases, will be lost.', 'START A NEW CAMPAIGN', toFound); toFound(); };
 $('b-how').onclick = () => { audio.click(); how(); };
 $('b-settings').onclick = () => { audio.click(); openMenu('settings'); };
@@ -140,7 +144,10 @@ function toFound() {
   $('f-name').value = draft.name; $('f-motto').value = draft.motto; $('f-text').value = draft.logo.text || '';
   const sw = (id, get, set) => { $(id).innerHTML = PALETTE.map((c) => `<button style="background:${c}" data-c="${c}" class="${get() === c ? 'on' : ''}" aria-label="${c}"></button>`).join(''); $(id).onclick = (e) => { const b = e.target.closest('[data-c]'); if (!b) return; set(b.dataset.c); audio.click(); toFound(); }; };
   sw('f-bg', () => draft.logo.bg, (c) => { draft.logo.bg = c; });
-  sw('f-fg', () => draft.logo.fg, (c) => { draft.logo.fg = c; draft.logo.rim = c; draft.logo.pc = c; });
+  sw('f-fg', () => draft.logo.fg, (c) => { draft.logo.fg = c; });
+  sw('f-pc', () => draft.logo.pc, (c) => { draft.logo.pc = c; });
+  sw('f-rim', () => draft.logo.rim, (c) => { draft.logo.rim = c; });
+  $('f-unup').classList.toggle('hidden', !draft.logo.img); $('f-up').textContent = draft.logo.img ? 'CHANGE THE PICTURE' : 'UPLOAD A PICTURE';
   sw('f-primary', () => draft.primary, (c) => { draft.primary = c; });
   sw('f-secondary', () => draft.secondary, (c) => { draft.secondary = c; draft.look.armband = c; });
   foundDraw();
@@ -159,13 +166,26 @@ $('f-name').oninput = () => { draft.name = $('f-name').value; };
 $('f-motto').oninput = () => { draft.motto = $('f-motto').value; };
 $('f-text').oninput = () => { draft.logo.text = $('f-text').value.toUpperCase(); foundDraw(); };
 $('f-roll').onclick = () => { draft = rollFaction(); audio.click(); toFound(); };
+// your own picture in place of the crest: shrunk to 128 px and kept with the campaign on this device
+$('f-up').onclick = () => $('f-file').click();
+$('f-file').onchange = async () => {
+  const f = $('f-file').files[0]; $('f-file').value = ''; if (!f) return;
+  try { draft.logo.img = await readUpload(f); audio.ready(); toFound(); } catch (err) { audio.deny(); app.toast(err.message || 'That picture could not be read.', 4000); }
+};
+$('f-unup').onclick = () => { delete draft.logo.img; audio.click(); toFound(); };
 $('f-back').onclick = () => { audio.click(); toTitle(); };
 $('f-go').onclick = () => {
   audio.ready();
   draft.name = (draft.name || '').trim() || 'The Command'; draft.motto = (draft.motto || '').trim();
   app.endCampaignQuiet();
   camp = { v: 1, faction: JSON.parse(JSON.stringify(draft)), war: null, kit: newKit(), wallet: newWallet(), sites: {}, stats: { ground: 0, groundWon: 0 }, at: Date.now() };
-  how(() => toWar({ seed: Number(qs.get('seed')) || (Date.now() % 100000) }));
+  how(() => {
+    if (qs.has('seed')) return toWar({ seed: Number(qs.get('seed')) });
+    War.modal(`<h2>Your first war</h2><p>The guided opening walks you through the first rounds in the war room, one step at a time: reading the map, moving a fleet, your first battle. It takes about three minutes, and the war carries on from there.</p>
+      <button class="plate btn go" data-x="tut">PLAY THE GUIDED OPENING</button><button class="plate btn" style="width:100%;margin-top:8px" data-x="skip">SKIP IT, I KNOW THE WAR ROOM</button>`);
+    $('modal').querySelector('[data-x=tut]').onclick = () => { $('modal').hidden = true; audio.click(); toWar({ seed: SEED, tutorial: true }); };
+    $('modal').querySelector('[data-x=skip]').onclick = () => { $('modal').hidden = true; audio.click(); toWar({ seed: Date.now() % 100000 }); };
+  });
 };
 app.endCampaignQuiet = () => { drop(KEY); try { for (const k of Object.keys(localStorage)) if (k.startsWith('ofgc.site.')) drop(k); } catch { /* no storage */ } };
 
@@ -247,6 +267,36 @@ $('th-pause').onclick = () => { frameUi.paused = !frameUi.paused; $('th-pause').
 $('th-speed').onclick = () => { const s = frameUi.speeds; frameUi.speed = s[(s.indexOf(frameUi.speed) + 1) % s.length]; $('th-speed').textContent = frameUi.speed + '×'; audio.click(); };
 $('th-leave').onclick = () => { audio.click(); if (mode && mode.askLeave) mode.askLeave(); else if (mode) leaveTheatre(mode.report ? mode.report() : {}); };
 
+// ---------------------------------------------------------------- the armoury: the ship's weapons, bought with what the ground earns
+// What it will sell is set by the war effort behind you: every station tier and every base charter you hold opens the
+// next rank of it. Lose them and the shelves close again (what you own, you keep).
+const SECTIONS = { orbitals: 'ORBITALS', eagles: 'EAGLES', defense: 'DEFENCES', utilities: 'UTILITIES', hangar: 'HANGAR', gun: 'SHIP GUN', uav: 'UAV', seaf: 'TROOPS', build: 'BUILDING', support: 'SUPPORT', classified: 'CLASSIFIED' };
+app.armouryTier = () => { const g = War.war(); let n = 0; if (g) for (const p of g.P) if (p.owner === 'fed') n += (p.station || 0) + (p.base || 0); return Math.min(TIER_MAX, n); };
+app.armoury = (then) => {
+  const kit = camp.kit, wal = camp.wallet, tier = app.armouryTier();
+  const draw = (note = '') => {
+    const items = shopItems(kit), secs = [...new Set(items.map((i) => i.section))];
+    const slots = Array.from({ length: kit.slots }, (_, i) => { const id = kit.loadout[i], it = id && items.find((x) => x.orb === id); return `<button class="plate btn sm${id ? ' on' : ''}" data-un="${i}" ${id ? '' : 'disabled'}>${id ? esc((it && it.name) || id) + ' ×' : 'EMPTY'}</button>`; }).join('');
+    let h = `<h2>Armoury</h2><p><b class="am">${Math.floor(wal.bal)} CR</b> · rank ${tier} of ${TIER_MAX} open <span class="dim">(one for every station tier and base charter you hold)</span></p>
+      <h3>Loadout · tap to take one out</h3><div class="row" style="margin-bottom:10px">${slots}</div>${note ? `<p class="am">${esc(note)}</p>` : ''}`;
+    for (const sec of secs) {
+      h += `<h3>${SECTIONS[sec] || sec.toUpperCase()}</h3>`;
+      for (const it of items.filter((i) => i.section === sec)) {
+        const open = shownAt(it, tier), maxed = it.cost == null, can = open && !maxed && wal.bal >= it.cost, inLoad = it.orb && kit.loadout.includes(it.orb);
+        h += `<div class="mis"><div><b class="${open ? '' : 'dim'}">${esc(it.name || it.id)}</b> <span class="sm2 dim">${it.max > 1 ? `level ${it.level}/${it.max}` : it.level ? 'owned' : ''}${it.blurb ? ' · ' + esc(it.blurb) : ''}</span></div>
+          <span class="row" style="flex-wrap:nowrap">${it.orb && it.owned && !inLoad ? `<button class="plate btn sm" data-eq="${it.orb}">EQUIP</button>` : ''}<button class="plate amber btn sm" data-buy="${it.id}" ${can ? '' : 'disabled'}>${!open ? 'LOCKED' : maxed ? 'MAX' : it.cost + ' CR'}</button></span></div>`;
+      }
+    }
+    War.modal(h + '<button class="plate btn go" data-x="close" style="margin-top:10px;position:sticky;bottom:0">DONE</button>');
+    const box = $('modal');
+    box.querySelector('[data-x=close]').onclick = () => { box.hidden = true; audio.click(); app.keep(); if (then) then(); };
+    for (const b of box.querySelectorAll('[data-buy]')) b.onclick = () => { const r = buy(kit, wal, b.dataset.buy, false, tier); if (r.ok) { audio.coin(); draw(); } else { audio.deny(); draw('That cannot be bought yet.'); } };
+    for (const b of box.querySelectorAll('[data-eq]')) b.onclick = () => { if (equip(kit, b.dataset.eq)) { audio.click(); draw(); } else { audio.deny(); draw('Every slot is full. Take one out first.'); } };
+    for (const b of box.querySelectorAll('[data-un]')) b.onclick = () => { unequip(kit, +b.dataset.un); audio.click(); draw(); };
+  };
+  draw();
+};
+
 // ---------------------------------------------------------------- the menu (the same one everywhere)
 function openMenu(page = 'main') {
   const inPlay = state !== 'title' && state !== 'found', m = $('menu'), was = frameUi.paused;
@@ -265,10 +315,12 @@ function openMenu(page = 'main') {
     m.innerHTML = `<div class="plate amber box"><h2>${esc(app.faction.name)}</h2><p>${esc(app.faction.motto || '')}</p>
       <p>${state === 'war' ? `The war room · round ${g ? g.round : 1}` : state === 'ground' ? 'Fire support' : state === 'orbit' ? 'Station command' : 'Base command'} · saved on this device</p>
       <div class="mm"><button class="plate btn go" id="m-resume">RESUME</button>
+      ${state === 'war' ? '<button class="plate btn" id="m-arm">ARMOURY</button>' : ''}
       <button class="plate btn" id="m-how">HOW THE WAR FITS TOGETHER</button>
       <button class="plate btn" id="m-set">SETTINGS</button>
       <button class="plate btn" id="m-title">SAVE AND GO TO THE MAIN MENU</button></div></div>`;
     $('m-resume').onclick = close;
+    if ($('m-arm')) $('m-arm').onclick = () => { m.hidden = true; audio.click(); app.armoury(); };
     $('m-how').onclick = () => { m.hidden = true; how(); if (mode) frameUi.paused = was; };
     $('m-set').onclick = () => openMenu('settings');
     $('m-title').onclick = () => {
