@@ -45,8 +45,41 @@ const GCX = (() => { try { return window.parent !== window ? window.parent.gcGro
 if (GCX) document.documentElement.classList.add('gc');
 let gcOver = false;
 function gcDone() { if (gcOver) return; gcOver = true; audio.humStop(); if (lastRes) GCX.onResult(lastRes); else GCX.onAbort(); }
+// PHOTO MODE (GC 0.20): the fight stops, the interface goes away, and the camera is yours: drag to look round and up and
+// down, right-drag to move over the ground, the wheel to come closer. F4 or DONE puts everything back as it was.
+let photo = false, photoKeep = null, photoDrag = null;
+function setPhoto(on) {
+  on = !!on; if (on === photo) return;
+  if (on) {
+    if (state !== 'play' || !mission || mission.over || paused) return;
+    photoKeep = { x: cam.x, y: cam.y, view: cam.view, follow: cam.follow, tilt: cam.tilt, yaw0: cam.yaw0 || 0 };
+    photo = true; cam.photo = true; paused = true; firePending = false; mission.setFiring(false); setHideUi(true); document.body.classList.add('photo');
+  } else {
+    photo = false; cam.photo = false; document.body.classList.remove('photo', 'photo-clean'); setHideUi(false);
+    if (photoKeep) { cam.x = photoKeep.x; cam.y = photoKeep.y; cam.view = photoKeep.view; cam.follow = photoKeep.follow; cam.tilt = photoKeep.tilt; cam.yaw0 = photoKeep.yaw0; }
+    photoKeep = null; photoDrag = null; if (state === 'play') { paused = false; audio.unlock(); }
+  }
+}
+function wirePhoto() {
+  $('btn-photo').onclick = () => setPhoto(true); $('photo-done').onclick = () => setPhoto(false);
+  window.addEventListener('keydown', (e) => {
+    if (e.target && e.target.closest && e.target.closest('input, textarea')) return;
+    if (e.code === 'F4' && !e.repeat && (photo || state === 'play')) { e.preventDefault(); e.stopImmediatePropagation(); setPhoto(!photo); }
+    else if (photo && e.code === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); setPhoto(false); }
+    else if (photo) { e.preventDefault(); e.stopImmediatePropagation(); if (e.code === 'KeyH') document.body.classList.toggle('photo-clean'); }     // (nothing else is listening while the picture is being taken)
+  }, true);
+  window.addEventListener('pointerdown', (e) => { if (photo && e.target === canvas) photoDrag = { x: e.clientX, y: e.clientY, pan: e.button === 2 }; });
+  window.addEventListener('pointerup', () => { photoDrag = null; });
+  window.addEventListener('pointermove', (e) => {
+    if (!photo || !photoDrag) return; const dx = e.clientX - photoDrag.x, dy = e.clientY - photoDrag.y; photoDrag.x = e.clientX; photoDrag.y = e.clientY;
+    if (photoDrag.pan) { const k = cam.view / window.innerWidth, a = cam.yaw || 0, c = Math.cos(a), s = Math.sin(a); cam.x -= (dx * c + dy * s) * k; cam.y -= (-dx * s + dy * c) * k; cam.follow = false; }
+    else { cam.yaw0 = (cam.yaw0 || 0) - dx * 0.006; cam.tilt = Math.max(30, Math.min(86, (cam.tilt || 56) + dy * 0.18)); }
+  });
+  canvas.addEventListener('wheel', (e) => { if (!photo) return; e.preventDefault(); cam.view = Math.max(C.world.zoomMin * 0.6, Math.min(C.world.zoomMax, cam.view * (e.deltaY > 0 ? 1.1 : 1 / 1.1))); }, { passive: false });
+}
 function gcStart() {
-  cam.orbit = GCX.orbit ?? 0.02; cam.g3d = GCX.flat ? false : true;     // the land in 3D under the circling view     // the circling view: a full turn about every five minutes of mission time
+  wirePhoto();
+  cam.livery = GCX.livery || null; cam.orbit = GCX.orbit ?? 0.004; cam.g3d = GCX.flat ? false : true;     // the land in 3D under the circling view     // the circling view: slow, as from high up; a full turn takes about twenty-six minutes of mission time
   // what the war sends down with you: reinforcements from a station and the ratings, a garrison from a base
   if (GCX.support) { C.vanguards.lives = Math.max(8, C.vanguards.lives + (GCX.support.lives | 0)); if (GCX.support.garrison > 0) { C.infantry.defendChance = 1; C.infantry.defendN += GCX.support.garrison | 0; } }
   session = S.newSession(GCX.callsign, GCX.level, GCX.op);

@@ -6,12 +6,13 @@
 //
 // One camera decides everything: where the land is drawn, where a label goes, and what the pointer is over.
 import * as THREE from '../../vendor/three.js';
+import { Units3D } from './units3d.js';
 
 export const V3 = { tilt: 56, fov: 30, amp: 22, grid: 112, blocks: 420, sides: 8 };     // degrees above the horizon; the lens; metres of relief either way of the middle height; cells across the sheet
 const RAD = Math.PI / 180;
 
 export class Ground3D {
-  constructor() {
+  constructor(livery) {
     this.cv = document.createElement('canvas');
     this.r = new THREE.WebGLRenderer({ canvas: this.cv, antialias: true, alpha: false, powerPreference: 'high-performance' });
     this.r.setClearColor(0x000000, 1);
@@ -36,6 +37,7 @@ export class Ground3D {
       this.bmesh = new THREE.Mesh(bg, this.bmat); this.bmesh.frustumCulled = false; this.scene.add(this.bmesh); }
     this.v = new THREE.Vector3(); this.pv = new THREE.Matrix4(); this.inv = new THREE.Matrix4();
     this.h = () => 0.5; this.W = this.H = 1; this.ok = true; this.amp = V3.amp;
+    try { this.units = new Units3D(this.scene, livery); } catch (err) { console.warn('3D units unavailable', err); this.units = null; }
   }
   // metres above the middle height at a point of the map
   y(x, z) { return (this.h(x, z) - 0.5) * 2 * this.amp; }
@@ -69,8 +71,9 @@ export class Ground3D {
         }
       }
       this.bgeo.setDrawRange(0, k); for (const a of ['position', 'uv', 'normal', 'color']) this.bgeo.attributes[a].needsUpdate = true; this.nBlocks = B.length; }
+    if (this.units) this.units.frame(o.units || [], (x, z) => this.y(x, z));
     // the lens: as far off as makes a metre at the camera's point the same size on screen as it is on the sheet
-    const E = V3.tilt * RAD, d = H / 2 / Math.tan(V3.fov * RAD / 2) / scale, fx = -Math.sin(yaw), fz = -Math.cos(yaw), ly = this.y(camX, camY), C = this.cam;
+    const E = Math.max(30, Math.min(86, o.tilt || V3.tilt)) * RAD, d = H / 2 / Math.tan(V3.fov * RAD / 2) / scale, fx = -Math.sin(yaw), fz = -Math.cos(yaw), ly = this.y(camX, camY), C = this.cam;
     C.aspect = W / H; C.setViewOffset(W, H, 0, (0.5 - fy) * H, W, H);
     C.position.set(camX - fx * d * Math.cos(E), ly + d * Math.sin(E), camY - fz * d * Math.cos(E)); C.lookAt(camX, ly, camY); C.updateMatrixWorld(); C.updateProjectionMatrix();
     C.matrixWorldInverse.copy(C.matrixWorld).invert(); this.pv.multiplyMatrices(C.projectionMatrix, C.matrixWorldInverse); this.inv.copy(this.pv).invert();

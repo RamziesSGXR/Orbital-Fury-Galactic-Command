@@ -26,14 +26,23 @@ with sync_playwright() as pw:
         if f.evaluate("__game.state") == 'play': break
         pg.wait_for_timeout(500); f.evaluate(go)
     assert f.evaluate("__game.state") == 'play', 'the mission did not start'
-    f.evaluate("__game.cam.orbit = 0.25"); pg.wait_for_timeout(4000)
+    f.evaluate("__game.cam.orbit = 0.25"); pg.keyboard.press('Enter'); pg.wait_for_timeout(9000)     # (Enter: the squad drops now)
     yaw = f.evaluate("__game.cam.yaw"); print('yaw after a few seconds', round(yaw, 2)); assert yaw > 0.3, 'the view is not turning'
     # a point on the ground, to the screen and back, comes back to itself
     err = f.evaluate("(() => { const r = __game.renderer, cv = document.querySelector('canvas'), m = __game.mission, p = { x: m.lz.x + 37, y: m.lz.y - 22 }; const s = r.worldToScreen(p.x, p.y, cv), w = r.screenToWorld(s.x, s.y, cv); return Math.hypot(w.x - p.x, w.y - p.y); })()")
     print('there-and-back error, metres', round(err, 4)); assert err < 0.05, 'the pointer does not land where the ground is drawn'
-    pg.screenshot(path=f'{out}/orbit-1.png'); pg.wait_for_timeout(3000); pg.screenshot(path=f'{out}/orbit-2.png')
-    print('3D ground on:', f.evaluate('!!__game.renderer._g3on'), '| blocks standing:', f.evaluate('__game.renderer._g3 ? __game.renderer._g3.nBlocks : 0'), '| heights in view (metres):', f.evaluate("(() => { const g = __game.renderer._g3; if (!g) return null; const P = g.pos; let a = 1e9, b = -1e9; for (let i = 1; i < P.length; i += 3) { a = Math.min(a, P[i]); b = Math.max(b, P[i]); } return [Math.round(a * 10) / 10, Math.round(b * 10) / 10]; })()"))
+    pg.screenshot(path=f'{out}/orbit-1.png'); f.evaluate("(() => { const m = __game.mission, a = m.alive[0]; if (a) { __game.cam.x = a.x; __game.cam.y = a.y; __game.cam.follow = false; __game.cam.view = 110; } })()"); pg.wait_for_timeout(2500); pg.screenshot(path=f'{out}/orbit-2.png')
+    print('3D ground on:', f.evaluate('!!__game.renderer._g3on'), '| blocks standing:', f.evaluate('__game.renderer._g3 ? __game.renderer._g3.nBlocks : 0'), '| units standing:', f.evaluate('__game.renderer._g3 && __game.renderer._g3.units ? __game.renderer._g3.units.n : 0'), 'of', f.evaluate('__game.mission.alive.length + __game.mission.enemies.filter(e => !e.dead).length'), 'alive |', '| heights in view (metres):', f.evaluate("(() => { const g = __game.renderer._g3; if (!g) return null; const P = g.pos; let a = 1e9, b = -1e9; for (let i = 1; i < P.length; i += 3) { a = Math.min(a, P[i]); b = Math.max(b, P[i]); } return [Math.round(a * 10) / 10, Math.round(b * 10) / 10]; })()"))
     f.evaluate('__game.renderer._g3 && (__game.renderer._g3.amp = 45)'); pg.wait_for_timeout(1500); pg.screenshot(path=f'{out}/orbit-3-tall.png'); f.evaluate('__game.renderer._g3 && (__game.renderer._g3.amp = 22)')
+    # photo mode: the fight stops, the interface goes, a drag turns the camera, and leaving puts it all back
+    f.click('#btn-photo'); pg.wait_for_timeout(300); t0 = f.evaluate('__game.mission.t'); pg.wait_for_timeout(500)
+    box = f.query_selector('#view').bounding_box(); pg.mouse.move(box['x'] + 500, box['y'] + 300); pg.mouse.down(); pg.mouse.move(box['x'] + 700, box['y'] + 240, steps=5); pg.mouse.up(); pg.wait_for_timeout(500)
+    pg.screenshot(path=f'{out}/orbit-4-photo.png')
+    assert f.evaluate("document.body.classList.contains('photo') && document.body.classList.contains('hide-ui')"), 'photo mode did not open'
+    assert abs(f.evaluate('__game.mission.t') - t0) < 0.2, 'the fight went on during photo mode'
+    assert abs(f.evaluate('__game.cam.yaw0 || 0')) > 0.5, 'the drag did not turn the camera'
+    pg.keyboard.press('F4'); pg.wait_for_timeout(700)
+    assert f.evaluate("!document.body.classList.contains('photo') && (__game.cam.yaw0 || 0) === 0") and f.evaluate('__game.mission.t') > t0, 'leaving photo mode did not put things back'
     print('frames drawn', f.evaluate('__game.frames'))
     br.close()
 print('\n'.join(errs[:6]) if errs else 'no page errors')

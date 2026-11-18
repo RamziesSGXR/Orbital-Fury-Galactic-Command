@@ -382,8 +382,9 @@ export class Renderer {
     if (this._real) { const r = this._real; this.ctx = r.ctx; this.W = r.W; this.H = r.H; this.focusY = r.focusY; this._real = null; }     // (a frame that threw half way: put the screen back)
     cam.yaw = cam.orbit ? (cam.yaw0 || 0) + m.t * cam.orbit : 0; this.yaw = cam.yaw;
     // (GC 0.18) the land in 3D, when the camera asks for it and the machine can do it; without it, the turned sheet of 0.16
-    if (cam.g3d && this._g3 === undefined) { try { this._g3 = new Ground3D(); } catch (err) { console.warn('3D ground unavailable', err); this._g3 = null; } }
+    if (cam.g3d && this._g3 === undefined) { try { this._g3 = new Ground3D(cam.livery); } catch (err) { console.warn('3D ground unavailable', err); this._g3 = null; } }
     const g3 = cam.g3d ? this._g3 : null; this._g3on = false;
+    const U3 = this._u3 || (this._u3 = []); U3.length = 0; const u3 = g3 && g3.units ? U3 : null;     // (GC 0.20) who stands up in 3D this frame, and is not drawn on the sheet
     let real = null;
     if (cam.yaw || g3) { real = { ctx: this.ctx, W: this.W, H: this.H, focusY: this.focusY }; const S = this._sheet(real); this._real = real; this.ctx = this._wx; this.W = S; this.H = S; this.focusY = 0.5; }
     let ctx = this.ctx, W = this.W, H = this.H;
@@ -440,7 +441,7 @@ export class Renderer {
     drawExtraction(ctx, m, now, px, labels, scale);
 
     // Cover at the sites the squad holds, and the citadel's walls
-    { const r3 = this.settings.relief3d; setFlat(r3 === 'off' || this.quality === 'low' || this.perf.low || (r3 !== 'on' && (this.perf.tier >= 2 || (this.phone && this.qset !== 'high')))); } reliefFrame(now); this.flat3d = isFlat();     // (0.61) the slight 3D look (render/relief.js)
+    { const r3 = this.settings.relief3d; setFlat((cam.g3d && !!this._g3) || r3 === 'off' || this.quality === 'low' || this.perf.low || (r3 !== 'on' && (this.perf.tier >= 2 || (this.phone && this.qset !== 'high')))); } reliefFrame(now); this.flat3d = isFlat();     // (0.61) the slight 3D look (render/relief.js)
     drawCover(ctx, m, px);
     drawCitadelWalls(ctx, m, pal.enemy, px);
     // Bases: always known from orbit.
@@ -546,7 +547,7 @@ export class Renderer {
     let nAll = nOn; for (const a of m.alive) if (!a.dead && !a.inside && onScr(a.x, a.y, 6)) nAll++;
     const fine = !flat && nAll <= 60 && !(this.perf.tier >= 1);
     if (fine) setRelief(2);
-    const crowd = this.perf.low ? 150 : 300, dotKinds = nOn > crowd * 2 ? 'LM' : nOn > crowd ? 'L' : '', lod0 = [], lod1 = [], hot = [];
+    const crowd = this.perf.low ? 150 : 300, dotKinds = u3 ? '' : nOn > crowd * 2 ? 'LM' : nOn > crowd ? 'L' : '', lod0 = [], lod1 = [], hot = [];
     for (const e of m.enemies) {
       if (e.dead || e.vis <= 0) continue;
       if (!onScr(e.x, e.y, e.boss ? e.r * 4 : 8)) continue;
@@ -570,10 +571,12 @@ export class Renderer {
       else { const sr = e.r * 1.5; ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.beginPath(); ctx.ellipse(e.x + sr * 0.5, e.y + sr * 0.4, sr * 1.1, sr * 0.8, 0, 0, TAU); ctx.fill(); }
       if (e.boss) {
         const br = bossR(e, px), body = (q) => drawBossBody(ctx, q, fid, br, pal.enemy, now, px, t - e.hurtAt < 0.06, t);
-        if (arriving(e, t)) drawBossArrival(ctx, e, fid, br, pal.enemy, now, px, t, body);     // (0.55.1) its arrival
+        if (u3 && !arriving(e, t)) u3.push({ k: fid + ':H', x: e.x, y: e.y, r: br * 1.15, face: e.face, tint: t - e.hurtAt < 0.06 ? '#ffffff' : null, dim: e.vis >= 2 ? 1 : 0.6 });
+        else if (arriving(e, t)) drawBossArrival(ctx, e, fid, br, pal.enemy, now, px, t, body);     // (0.55.1) its arrival
         else if (flat) body(e);
         else raiseUnit(ctx, br * 0.34, wallE, (c) => drawBossBody(c, e, fid, br, pal.enemy, now, px, t - e.hurtAt < 0.06, t));
       }
+      else if (u3) u3.push({ k: fid + ':' + e.kind, x: e.x, y: e.y, r: enemyR(e, SUBTYPES[e.kind], px) * 1.25, face: e.face, tint: t - e.hurtAt < 0.06 ? '#ffffff' : null, dim: e.vis >= 2 ? 1 : 0.6, up: e.air ? e.air * 4 : 0 });
       else drawEnemyBody(ctx, e, fid, enemyR(e, SUBTYPES[e.kind], px), pal.enemy, now, px, t - e.hurtAt < 0.06);
       if (up) dropUnit(ctx, up);
       ctx.globalAlpha = 1;
@@ -631,7 +634,7 @@ export class Renderer {
       }
       else if (!flat) up = liftUnit(ctx, a.x, a.y, r, r * (H_ ? 0.5 : 0.42), wallA);
       else { ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.ellipse(a.x + r * 0.45, a.y + r * 0.35, r * 0.95, r * 0.7, 0, 0, TAU); ctx.fill(); }     // (0.59) its shadow
-      if (!fine) drawAllyBody(ctx, a, r, pal.ally, tm ? tm.color : null, on, now, px, t);
+      if (!fine) { if (u3) u3.push({ k: H_ ? 'van' : 'inf', x: a.x, y: a.y, r: r * (H_ ? 1.25 : 1.1), face: a.aimUntil > t ? a.aimA : a.face, tint: tm ? tm.color : null }); else drawAllyBody(ctx, a, r, pal.ally, tm ? tm.color : null, on, now, px, t); }
       if (up) dropUnit(ctx, up);
       if (t - a.hurtAt < 0.1 && !hideUi) { ctx.strokeStyle = '#ff6a6a'; ctx.lineWidth = px(1.5); ctx.beginPath(); ctx.arc(a.x, a.y, r * 1.3, 0, TAU); ctx.stroke(); }
       if (H_ && !hideUi) { ctx.strokeStyle = tm ? tm.color : '#e8f6ff'; ctx.globalAlpha = 0.8; ctx.lineWidth = px(1.3); ctx.beginPath(); ctx.arc(a.x, a.y, r * 1.55, 0, TAU); ctx.stroke(); }
@@ -692,7 +695,7 @@ export class Renderer {
     if (real) {     // lay the turned world on the screen
       const wc = this._wc, S = this.W; this.ctx = real.ctx; this.W = real.W; this.H = real.H; this.focusY = real.focusY; this._real = null; ctx = this.ctx; W = this.W; H = this.H;
       ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
-      if (g3) { g3.frame({ sheet: wc, S, scale, camX: v.camX, camY: v.camY, yaw: cam.yaw, W, H, fy: this.focusY || 0.5, sun: this._sun, height: (x, y) => m.terrain.height(x, y), blocks: this._blocks(m, v.camX, v.camY, S / scale / 2) }); ctx.drawImage(g3.cv, 0, 0); this._g3on = true; }
+      if (g3) { g3.frame({ sheet: wc, S, scale, camX: v.camX, camY: v.camY, yaw: cam.yaw, tilt: cam.tilt, W, H, fy: this.focusY || 0.5, sun: this._sun, height: (x, y) => m.terrain.height(x, y), blocks: this._blocks(m, v.camX, v.camY, S / scale / 2), units: U3 }); ctx.drawImage(g3.cv, 0, 0); this._g3on = true; }
       else { ctx.translate(v.px, v.py); ctx.rotate(cam.yaw); ctx.drawImage(wc, -S / 2, -S / 2); }
     }
     ctx.setTransform(1, 0, 0, 1, 0, 0);

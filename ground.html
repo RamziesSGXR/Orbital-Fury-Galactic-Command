@@ -8,7 +8,11 @@
 <title>Orbital Fury: Galactic Command</title>
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="css/fury.css">
-<style>.gc #btn-retry, .gc #s-title { display: none !important; }</style>
+<style>.gc #btn-retry, .gc #s-title { display: none !important; }
+html:not(.gc) .gc-only { display: none !important; }
+#photo-bar { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 60; display: none; gap: 14px; align-items: center; padding: 8px 14px; background: rgba(8,10,9,.82); border: 1px solid rgba(255,204,51,.5); color: #e6eadc; font: 600 12px/1 ui-monospace, Menlo, Consolas, monospace; letter-spacing: .08em; }
+body.photo #photo-bar { display: flex; } body.photo.photo-clean #photo-bar { display: none; }
+body.photo #showui { display: none !important; }</style>
 </head>
 <body>
 <div id="app">
@@ -51,6 +55,7 @@
       <div class="mm-wrap">
         <canvas id="minimap" class="fadeable" width="240" height="240" data-tt="hud.miniTitle"></canvas>
         <div class="tl-btns mm-btns">
+        <button id="btn-photo" class="btn icon gc-only" type="button" title="Photo mode (F4)">PHOTO</button>
         <button id="btn-info" class="btn icon" data-ta="hud.infoAria" data-tt="hud.infoTitle" data-t="hud.info">INFO</button>
         <button id="btn-shop" class="btn icon" data-ta="hud.armory" data-t="hud.armory">ARMORY</button>
         <button id="btn-menu" class="btn icon" data-ta="hud.menu" data-t="hud.menu">MENU</button>
@@ -609,5 +614,6 @@
   <div id="debug" class="hidden"><div id="debug-warn" class="hidden"></div><pre id="debug-t"></pre><button id="debug-copy" class="btn" type="button" data-t="dbg.copy">COPY REPORT</button></div>
 </div>
 <script type="module" src="js/ground/main.js"></script>
+<div id="photo-bar"><span>PHOTO</span><span>DRAG: LOOK</span><span>RIGHT-DRAG: MOVE</span><span>WHEEL: ZOOM</span><span>H: HIDE THIS</span><button id="photo-done" class="btn icon" type="button">DONE · F4</button></div>
 </body>
 </html>

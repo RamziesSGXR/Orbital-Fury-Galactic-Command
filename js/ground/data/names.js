@@ -1,16 +1,14 @@
-// Ship names, callsigns and the helpers for the lines Vanguards and Infantry call out. All text here is original to this fan project.
+// Ship names, callsigns and the helpers for the lines Vanguards and Infantry call out. All text here is the game's own.
 // Ship names and callsigns are never translated.
 
-// Fire-Support Ship names, in the "SES <thing> of <ideal>" style.
-const SHIP_THINGS = ['Hammer', 'Guided Missile', 'Shield', 'Fist', 'Beacon', 'Anthem', 'Banner', 'Vanguard', 'Bulwark', 'Torch', 'Gavel', 'Aegis',
-  'Lantern', 'Pledge', 'Verdict', 'Chorus', 'Standard', 'Tempest', 'Charter', 'Sentinel', 'Harvest', 'Keystone', 'Pennant', 'Rampart'];
-const SHIP_IDEALS = ['Victory', 'Justice', 'Common Sense', 'Civic Duty', 'Steady Progress', 'Rightful Order', 'Fair Weather', 'Good Neighbors',
-  'Honest Work', 'Quiet Resolve', 'Open Skies', 'Sturdy Ballots', 'Shared Prosperity', 'Dutiful Thunder', 'Patient Fury', 'Reliable Freedom',
-  'Cheerful Compliance', 'Rolling Thunder', 'Sensible Shoes', 'Unanimous Consent', 'Bright Mornings', 'Fair Play'];
+// Fire-Support Ship names. The fleet is its own brand, and it names its ships the way a network names its shows.
+const SHIP_NAMES = ['Prime Time', 'Breaking News', 'Front Page', 'Top Story', 'Late Edition', 'Special Report', 'Season Finale', 'Opening Night',
+  'Final Cut', 'Standing Ovation', 'Crowd Pleaser', 'Sweeps Week', 'Good Publicity', 'Press Release', 'No Comment', 'Off The Record',
+  'Target Audience', 'Viewer Discretion', 'Word From Our Sponsors', 'Slow News Day', 'Exclusive Footage', 'Headline Act', 'Encore', 'Live At Five'];
 export function shipNames(rng, n = 4) {
   const out = [], used = new Set();
   while (out.length < n) {
-    const name = `SES ${SHIP_THINGS[rng.int(SHIP_THINGS.length)]} of ${SHIP_IDEALS[rng.int(SHIP_IDEALS.length)]}`;
+    const name = `FS ${SHIP_NAMES[rng.int(SHIP_NAMES.length)]}`;
     if (used.has(name)) continue;
     used.add(name); out.push(name);
   }
