@@ -160,7 +160,7 @@ function tabInt() {
   C.fronts.forEach(fr => {
     const F = g.F[fr.f], own = g.P.filter(p => p.owner === fr.f).length, n = g.fleets.filter(x => x.owner === fr.f).reduce((a, x) => a + x.ships, 0);
     h += `<div class="front" style="--fc:${C.color[fr.f]}"><div class="fh"><b>${fr.short} · ${F.state === 'wait' ? 'UNKNOWN' : N.factions[fr.f]}</b><span class="sm2 dim">${F.state === 'wait' ? 'QUIET' : F.state === 'warn' ? `EXPECTED ROUND ${F.at}` : F.state === 'dead' ? 'DESTROYED' : `${own} SYSTEMS · ${ships(n)} · HOME ${g.strength(F.home)}`}</span></div>` +
-      (F.state === 'active' ? `<div class="ln dim">${C.enemy[fr.f].text}</div>` : '') + '</div>';
+      (F.state === 'active' ? `<div class="ln dim">${C.enemy[fr.f].text}</div>` + (() => { const pl = g.planSeen(fr.f); return pl ? `<div class="ln"><b class="am">PLAN: ${pl.name}</b> <span class="sm2">${pl.text}</span></div>` : `<div class="ln"><b class="dim">PLAN: ?</b> <button class="plate btn sm" data-a="leak" data-k="${fr.f}" ${g.canLeak(fr.f) ? '' : 'disabled'}>BUY A LEAK · ${C.plans.leak} TECH</button></div>`; })() : '') + '</div>';
   });
   return h + '</section>';
 }
@@ -455,6 +455,7 @@ document.addEventListener('click', e => {
     case 'help': return help();
     case 'log': return logModal();
     case 'camp': g.campaign(d.k); break;
+    case 'leak': g.leak(d.k); break;
     case 'fleets': return fleetOffice();
     case 'yard': g.setYard(d.k); return fleetOffice();
     case 'asktut': return modal('<h2>Play the tutorial?</h2><p>It starts a new guided war. The war in progress will be lost.</p><button class="plate btn go" data-a="tut">START THE TUTORIAL</button><button class="plate btn" style="width:100%;margin-top:8px" data-a="close">KEEP PLAYING</button>');

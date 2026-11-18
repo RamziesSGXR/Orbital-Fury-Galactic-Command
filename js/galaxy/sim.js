@@ -350,6 +350,7 @@ export class Game {
   _enemyAct() {
     const fr = C.fronts[this.fi], f = fr.f, F = this.F[f], c = C.enemy[f];
     this.phase = 'plan'; this.last = { f, text: 'holds its ground.' };
+    const PL = this._plan(f);
     // ships gather at its home by themselves
     {
       const E = C.foe, sys = this.P.filter(p => p.owner === f), link = this.linked(f, F.home), st = sys.filter(p => p.station && link.has(p.id)), bs = sys.filter(p => p.base && link.has(p.id));
@@ -359,7 +360,7 @@ export class Game {
       let n = Math.floor(F.pool); if (n > 0 && yards.length) { F.pool -= n; while (n-- > 0) { F.yardI = ((F.yardI || 0) + 1) % yards.length; this._put(f, yards[F.yardI], 1); } }
       // a new post, when it is due: a station just behind the line, a base as far from it as it has
       const posts = sys.filter(p => p.station).length + sys.filter(p => p.base).length;
-      if (F.arrived != null && this.round - F.arrived >= E.firstAfter && this.round - (F.foundAt ?? F.arrived) >= E.foundEvery && posts < Math.floor(sys.length / E.perSystems)) {
+      if (F.arrived != null && this.round - F.arrived >= E.firstAfter && this.round - (F.foundAt ?? F.arrived) >= E.foundEvery * (PL.found || 1) && posts < Math.floor(sys.length / E.perSystems)) {
         const kind = sys.filter(p => p.station).length <= sys.filter(p => p.base).length ? 'station' : 'base';
         const line = id => this.P[id].adj.some(t => this.P[t].owner === 'fed');
         const c2 = sys.filter(p => p.id !== F.home && link.has(p.id) && !p[kind] && !line(p.id)).sort((a, b) => kind === 'station' ? a.dist - b.dist || a.id - b.id : b.dist - a.dist || a.id - b.id)[0];
@@ -373,10 +374,10 @@ export class Game {
     let best = null;
     for (const x of mine) for (const t of this.P[x.at].adj) {
       if (!ok(t) || this.P[t].owner !== 'fed') continue;
-      const r = x.ships * HP / this.strength(t) + (t === 0 ? 0.1 : 0) - this.P[t].dist * 0.01;
+      const r = x.ships * HP / this.strength(t) + (t === 0 ? 0.1 : 0) - this.P[t].dist * (0.01 + (PL.depth || 0)) + (PL.weak ? PL.weak / Math.max(1, this.strength(t)) : 0) + (PL.post && (this.P[t].station || this.P[t].base) ? PL.post : 0);
       if (!best || r > best.r) best = { x, t, r };
     }
-    if (best && (best.r >= c.aggr || F.wait >= C.patience)) {
+    if (best && (best.r >= c.aggr * PL.aggr || F.wait >= C.patience * (PL.aggr > 1.2 ? 2 : 1))) {
       F.wait = 0;
       if (best.t === 0) {
         if (this.capHit.length && !this.capHit.includes(f)) return this._end('lost', `Two enemies struck ${N.capital} in the same round.`);
@@ -494,6 +495,16 @@ export class Game {
   canGround() { return this.canPay({ ammo: C.groundAmmo }); }
   // The post being fought for in this battle, if the enemy has come for one of yours: 'base', 'station' or null.
   postAt(b = this.battle) { if (!b || b.kind !== 'def') return null; const p = this.P[b.pid]; return p.base ? 'base' : p.station ? 'station' : null; }
+  // ---------- the enemy's plans, and what you know of them ----------
+  _plan(f) {
+    const F = this.F[f], K = C.plans;
+    if (!F.plan || this.round - (F.planAt || 0) >= K.every) { const w = K.w[f]; let n = 0; for (const k in w) n += w[k]; let r = this.rnd() * n; for (const k in w) { r -= w[k]; if (r < 0) { F.plan = k; break; } } F.plan ||= 'raid'; F.planAt = this.round; }
+    return K[F.plan];
+  }
+  // the plan of an enemy, if you have eyes on it just now; null if you do not
+  planSeen(f) { const F = this.F[f]; return F.state === 'active' && F.plan && (this.rat >= C.ratings.high || (F.seen || 0) >= this.round) ? C.plans[F.plan] : null; }
+  canLeak(f) { const F = this.F[f]; return this.ready() && F.state === 'active' && !this.planSeen(f) && this.res.tech >= C.plans.leak; }
+  leak(f) { if (!this.canLeak(f)) return false; this.res.tech -= C.plans.leak; this.F[f].seen = this.round + C.plans.leakRounds; this.say('info', `Intelligence Office: a leak from inside ${N.factions[f]}. We can read their plan, for now.`); return true; }
   // ---------- campaigns ----------
   _dealOffers() { const ids = C.campaigns.map(c => c.id); for (let i = ids.length - 1; i > 0; i--) { const j = Math.floor(this.rnd() * (i + 1)); [ids[i], ids[j]] = [ids[j], ids[i]]; } this.offers = ids.slice(0, 3); }
   campDef(id) { return C.campaigns.find(c => c.id === id); }
@@ -573,6 +584,7 @@ export class Game {
     if (win) this.loot[b.f] += Math.round(left * C.post.groundLoot);
     { const p = this.P[b.pid], lv = (p.station || 0) + (p.base || 0); if (win && b.kind === 'def' && lv) { const n = lv * C.support.evac; this.res.army = Math.min(Math.max(this.resMax(), this.res.army), this.res.army + n); if (this.aired !== this.round) this.rate(C.support.evacRatings); this.say('good', `${p.name}: the ${p.base ? 'base' : 'station'} is held and its people are out. ${n} troops rejoin the fight.`); } }
     const st = this.stunt(); if (st && win && res) { let ok = false; try { ok = !!st.test(res); } catch { ok = false; } if (ok) { this.rate(C.ratings.stunt); this.say('good', `Publicity Office: ${st.name}, live. The sponsors are delighted.`); } }
+    if (this.aired !== this.round && win && left >= C.ratings.ground.flawlessAt) this.F[b.f].seen = this.round + C.plans.leakRounds;     // the footage shows more than they meant it to
     if (this.aired !== this.round && win) this.cnt.aired++;
     if (this.aired !== this.round) { this.aired = this.round; const G = C.ratings.ground; this.rate(win ? G.win + (left >= G.flawlessAt ? G.flawless : 0) : G.loss); if (win && left >= G.flawlessAt) this.say('good', 'Publicity Office: a flawless action, live. The footage is everywhere.'); }
     // one hard engagement: each side's fire over a full engagement, scaled by how the ground went

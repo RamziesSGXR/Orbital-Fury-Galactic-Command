@@ -1,5 +1,5 @@
 // Every number and every name in the game lives here, so the prototype can be retuned or renamed in one place.
-export const VERSION = '0.16.0';
+export const VERSION = '0.17.0';
 
 export const C = {
   names: {
@@ -104,7 +104,7 @@ export const C = {
   // line. It raises a new post every foundEvery rounds, up to one for every perSystems systems it holds: stations near
   // the fighting, bases deep behind it. Its stations add stationFort to their system. A post changes hands with its
   // system, at its lowest level and not in profit. `level` is the campaign's difficulty: it scales what they build.
-  foe: { home: 0.8, yard: 0.3, supply: { base: 0.7, per: 0.016, perBase: 0.3 }, foundEvery: 5, firstAfter: 3, perSystems: 5, stationFort: 2,
+  foe: { home: 0.72, yard: 0.27, supply: { base: 0.65, per: 0.015, perBase: 0.27 }, foundEvery: 5, firstAfter: 3, perSystems: 5, stationFort: 2,
          level: { easy: 0.75, normal: 1, hard: 1.25, brutal: 1.5 } },
   // ---------------------------------------------------------------- YOUR POSTS IN THE FIGHT (0.12)
   // A post helps a fight at its own system and at the systems one link away. In a card battle: a base adds baseFort
@@ -147,6 +147,22 @@ export const C = {
   // first you fight; the rest are not aired. Losses lower it, and above `settle` it slips back by `drift` of the
   // distance every round as the audience moves on. Effects: at `high` and above, output and the posts' pay rise; under `low` they fall;
   // under `sack` they fall hard, and sackRounds rounds in a row down there and the board replaces you.
+  // THE ENEMY'S PLANS (0.17). Every `every` rounds each enemy settles on a plan, and the plan changes what it does:
+  //   raid   strikes often at whatever is weakest (aggr lower, a bonus for weak targets)
+  //   siege  masses before it strikes, and goes for systems with your stations and bases
+  //   push   drives for your capital: the nearer a target is to it, the better
+  //   dig    holds its ground and raises posts twice as fast
+  // A plan is never announced. It can be worked out from what the enemy does on the map. It is SHOWN only while you
+  // have intelligence on that enemy: for `leakRounds` rounds after you buy a leak (`leak` tech), after a flawless aired
+  // ground win against it, and all the time your ratings are high. `w` is how each enemy leans.
+  plans: {
+    every: 8, leak: 3, leakRounds: 4,
+    raid:  { name: 'RAID',  text: 'Many small strikes at your weakest systems.', aggr: 0.82, weak: 0.5 },
+    siege: { name: 'SIEGE', text: 'Masses its fleets, then goes for your stations and bases.', aggr: 1.25, post: 0.3 },
+    push:  { name: 'PUSH',  text: 'Drives straight for your headquarters.', aggr: 1.0, depth: 0.05 },
+    dig:   { name: 'DIG IN', text: 'Holds its ground and builds.', aggr: 1.5, found: 0.5 },
+    w: { molt: { raid: 3, push: 2, siege: 1, dig: 1 }, foundry: { siege: 3, dig: 2, push: 1, raid: 1 }, talon: { raid: 2, push: 2, siege: 2, dig: 1 } },
+  },
   // CAMPAIGNS (0.15): an operation over several rounds, with a goal, a stake and a prize. One runs at a time. Three are
   // on offer; launching one pays its stake. Reach the goal inside its rounds and the prize is yours; run out of rounds
   // (or, for a holding campaign, lose a system) and it fails and costs ratings. New offers are dealt when one ends.
