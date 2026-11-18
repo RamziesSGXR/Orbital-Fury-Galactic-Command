@@ -8,6 +8,8 @@ import { buildTerrain } from '../ground/render/terrain.js';
 import { sunAt } from '../ground/render/sky.js';
 import { slotStats, refreshAim } from '../ground/sim/player.js';
 import { squadCentres } from '../ground/sim/seaf.js';
+import { hbFilling, tapHellbomb, HB_PARTS } from '../ground/sim/ops.js';
+import { fireSlot } from '../ground/sim/player.js';
 import { makeBot, botStep, NOVICE } from '../ground/sim/bot.js';
 import { POSTS } from '../ground/sim/posts.js';
 import { buildStats, buildLevel } from '../ground/data/kit.js';
@@ -22,7 +24,7 @@ const WON = (o) => o === 'victory' || o === 'complete';
 let app, ui, audio, canvas, renderer;
 let m = null, args = null, bot = null, auto = false;
 let cam = { x: 800, y: 800, view: 400, follow: false };
-let tab = 'weapons', mini = null, miniT = 0;
+let tab = 'weapons', mini = null, miniT = 0, planQ = [], selPost = null, hbSig = '';
 let acc = 0, armed = false, placing = null, overAt = 0, shown = false, level = 1, barSig = '', credits0 = 0;
 const keys = new Set(), settings = { polarity: 'white', relief: false, quality: 'auto', reduceFlash: false, colorblind: false, showNames: false, showBlasts: false, relief3d: 'auto', bubbles: true, uiScale: 1, smooth: true };
 
@@ -151,6 +153,14 @@ function bar(force) {
   const html = items.join('');
   if (force || html !== barSig) { barSig = html; $('th-bar').innerHTML = html; }
 }
+function hellbomb() {
+  const on = hbFilling(m), f = on ? m.hellbomb.fill : null, sig = on ? `${f.i}:${f.n}:${f.wrong}` : '';
+  if (sig === hbSig) return; hbSig = sig;
+  if (!on) { $('th-desk').innerHTML = ''; return; }
+  const want = f.order[f.i], need = C.objective.hellbomb.cells;
+  $('th-desk').innerHTML = `<div class="plate amber req"><b>HELLBOMB · PART ${f.i + 1} OF ${HB_PARTS.length}</b>Tap the lit part ${need} times. A wrong part costs time.
+    <div class="hbg">${HB_PARTS.map((n, i) => `<button class="plate btn${i === want ? ' go' : ''}${f.order.indexOf(i) < f.i ? ' done' : ''}" data-hb="${i}">${n.toUpperCase()}${i === want ? `<small>${f.n} / ${need}</small>` : ''}</button>`).join('')}</div></div>`;
+}
 function stats() {
   const left = Math.max(0, C.world.missionSec + (m.extraSec || 0) - m.t), mm = Math.floor(left / 60), ss = String(Math.floor(left % 60)).padStart(2, '0');
   const done = m.objectives.filter((o) => o.done).length;
@@ -158,6 +168,7 @@ function stats() {
     { k: 'CLOCK', v: `${mm}:${ss}` }, { k: 'CREDITS', v: `${Math.floor(m.wallet.bal)}` }, { k: 'THREAT', v: `L${level}` }]);
   let tip = '';
   if (m.over) tip = '';
+  else if (ui.paused) tip = planQ.length ? `PLANNING · ${planQ.length} planned. They go out when you resume.` : 'PLANNING · the game is stopped. What you tap now is planned, and goes out when you resume.';
   else if (placing === 'seaf') tip = 'Tap where the troops should land.';
   else if (placing === 'pickup') tip = 'Tap where the pelican should lift them out.';
   else if (placing && placing.startsWith('order:')) tip = `${ORDERS[placing.slice(6)][0]}: tap the ground.`;
@@ -171,14 +182,42 @@ const ptr = new Map(); let moved = 0, pinch = 0, firing = false, downAt = 0;
 const world = (e) => renderer.screenToWorld(e.clientX, e.clientY, canvas);
 function panBy(dx, dy) { const k = cam.view / canvas.clientWidth; cam.x = clamp(cam.x - dx * k, 0, C.world.size); cam.y = clamp(cam.y - dy * k, 0, C.world.size); }
 function zoom(f) { cam.view = clamp(cam.view / f, C.world.zoomMin, C.world.zoomMax); }
+// THE PLANNING PAUSE: while the game is paused, what you tap is planned instead of done. It all goes out together the
+// moment the game runs again.
+function plan(kind, x, y, run) { if (planQ.length >= 24) { audio.deny(); return; } const sf = m.seaf; planQ.push({ kind, x, y, sq: sf.sel >= 0 ? [sf.sel] : [], sel: { sel: sf.sel, multi: sf.multi }, run }); audio.chirp(); stats(); }
+function runPlan() {
+  const q = planQ; planQ = []; const sf = m.seaf, keep = { sel: sf.sel, multi: sf.multi }, w0 = m.player.weapon; let bad = 0;
+  for (const it of q) { sf.sel = it.sel.sel; sf.multi = it.sel.multi; let r = null; try { r = it.run(); } catch (err) { console.error(err); } if (!r || r.ok === false) bad++; }
+  sf.sel = keep.sel; sf.multi = keep.multi;
+  if (m.player.weapon !== w0 && m.player.slots[w0] && m.player.slots[w0].type !== 'empty') { m.player.weapon = w0; m.player.swapUntil = m.t; m.player.queued = -1; }
+  ui.feed(bad ? `Plan sent: ${q.length - bad} of ${q.length} went out.` : `Plan sent: ${q.length} order${q.length === 1 ? '' : 's'}.`, bad ? 'warn' : 'good');
+}
+function act(kind, x, y) {
+  return kind === 'seaf' ? m.callSeaf(x, y) : kind === 'pickup' ? m.callPickup(x, y) : kind.startsWith('order:') ? m.seafOrder(kind.slice(6), x, y) : m.seafBuild(kind.slice(6), x, y, {});
+}
+function postAt(x, y) { let best = null, bd = 14; for (const p of m.posts || []) { if (p.dead) continue; const d = Math.hypot(p.x - x, p.y - y) - (p.r || 0); if (d < bd) { bd = d; best = p; } } return best; }
+function selBar() {
+  const el = $('th-sel'), p = selPost && !selPost.dead ? selPost : null; if (!p) selPost = null;
+  el.classList.toggle('hidden', !p); if (!p) return;
+  const cap = p.cap || 0, gar = p.garrison || 0;
+  el.innerHTML = `<b>${esc(String(p.name || p.what).toUpperCase())}</b><span class="grow dim">${cap ? `CREW ${gar} / ${cap}` : 'NO ROOM INSIDE'}</span>${cap ? '<button class="plate amber btn sm" data-gp="in">SEND TROOPS IN</button><button class="plate btn sm" data-gp="out">BRING THEM OUT</button>' : ''}<button class="plate btn sm" data-gp="x">×</button>`;
+}
 function tapAt(e) {
   const w = world(e); if (!w || !m || m.over) return;
   if (placing) {
-    const r = placing === 'seaf' ? m.callSeaf(w.x, w.y) : placing === 'pickup' ? m.callPickup(w.x, w.y) : placing.startsWith('order:') ? m.seafOrder(placing.slice(6), w.x, w.y) : m.seafBuild(placing.slice(6), w.x, w.y, {});
+    const k = placing;
+    if (ui.paused) { plan(k.startsWith('order:') ? k.slice(6) : k, w.x, w.y, () => act(k, w.x, w.y)); if (!k.startsWith('build:')) { placing = null; bar(true); } return; }
+    const r = act(k, w.x, w.y);
     if (r && r.ok === false) audio.deny(); else { audio.chirp(); if (!placing.startsWith('build:')) placing = null; bar(true); stats(); }
     return;
   }
-  if (armed && !auto) { m.setAim(w.x, w.y); m.fire(); }
+  if (armed && !auto) {
+    const i = m.player.weapon;
+    if (ui.paused) { if (m.player.slots[i].type !== 'gun') plan('fire:' + i, w.x, w.y, () => { m.selectWeapon(i); m.setAim(w.x, w.y); return { ok: fireSlot(m, i) }; }); return; }
+    m.setAim(w.x, w.y); m.fire(); return;
+  }
+  // nothing in hand: a tap on something the troops built picks it up
+  const p = postAt(w.x, w.y); selPost = p; if (p) audio.click(); selBar();
 }
 function bind() {
   canvas.addEventListener('pointerdown', (e) => {
@@ -212,6 +251,13 @@ function bind() {
   };
   canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up);
   canvas.addEventListener('contextmenu', (e) => { e.preventDefault(); if (armed) disarm(); placing = null; bar(true); });
+  $('th-sel').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-gp]'); if (!b || mode.off || !selPost) return;
+    const k = b.dataset.gp, r = k === 'in' ? m.garrisonGo(selPost) : k === 'out' ? m.ungarrison(selPost) : null;
+    if (k === 'x') selPost = null; else if (r && r.ok === false) audio.deny(); else audio.chirp();
+    selBar();
+  });
+  $('th-desk').addEventListener('click', (e) => { const b = e.target.closest('[data-hb]'); if (!b || mode.off || !m) return; tapHellbomb(m, +b.dataset.hb); hbSig = ''; hellbomb(); });
   $('th-tabs').addEventListener('click', (e) => { const b = e.target.closest('[data-gt]'); if (!b || mode.off) return; tab = b.dataset.gt; placing = null; audio.click(); tabs(); bar(true); stats(); });
   canvas.addEventListener('wheel', (e) => { e.preventDefault(); zoom(e.deltaY < 0 ? 1.12 : 1 / 1.12); }, { passive: false });
   $('th-bar').addEventListener('click', (e) => {
@@ -245,11 +291,11 @@ function result() {
   const left = win ? clamp(0.35 + 0.65 * (r.livesLeft / Math.max(1, r.livesMax)), 0.1, 1) : clamp(1 - 0.5 * (r.bases / Math.max(1, r.baseTotal)), 0.3, 1);
   const sys = args.system, atk = args.battle.kind === 'atk';
   const box = document.createElement('div');
-  $('modal').innerHTML = `<div class="plate amber box"><h2 class="${win ? '' : 'rd2'}">${win ? (atk ? 'THE GROUND IS TAKEN' : 'THE LINE HOLDS') : (atk ? 'THE LANDING FAILED' : 'THE GROUND IS LOST')}</h2>
+  $('modal').innerHTML = `<div class="plate amber box"><h2 class="${win ? '' : 'rd2'}">${win ? (atk ? 'THE ASSAULT IS WON' : 'THE LINE HOLDS') : (atk ? 'THE LANDING FAILED' : 'THE GROUND IS LOST')}</h2>
     <p>${esc(sys.name)} · ${esc(String(r.outcome).toUpperCase())} · threat level ${level}</p>
     <table class="tb"><tr><td>Enemy destroyed</td><td>${r.kills}</td></tr><tr><td>Bases destroyed</td><td>${r.bases} / ${r.baseTotal}</td></tr>
     <tr><td>Lives left</td><td>${r.livesLeft} / ${r.livesMax}</td></tr><tr><td>Credits earned for the armoury</td><td class="am">+${earned}</td></tr></table>
-    <p class="dim">${win ? 'What is left of the landing force holds the system. The fleet keeps what the ground saved.' : 'The fleet pulls back with what it could lift off.'}</p>
+    <p class="dim">${win ? 'This counts as a hard engagement won: half again the damage of a fleet action, and less taken for every life you kept. Whether the system changes hands is on the map.' : 'The enemy has the better of this engagement. The fight for the system is settled on the map.'}</p>
     <button class="plate btn go" id="g-done">RETURN TO THE WAR ROOM</button></div>`;
   void box; $('modal').hidden = false;
   $('g-done').onclick = () => { $('modal').hidden = true; audio.click(); ui.leave({ win, left }); };
@@ -268,15 +314,16 @@ const mode = {
     const b = a.battle, sys = a.system, g = app.camp, kw = sys.worlds[sys.key];
     const faction = GC.link.foe[b.f] || 'bugs', biome = GC.link.biome[kw.type] || 'grass';
     const seed = hash(sys.id + 1, (g.war && g.war.seed) || 1, g.stats.ground + 1);
-    level = levelFor(b, sys);
+    level = a.level || levelFor(b, sys);
+    const objs = GC.groundObj[b.kind === 'atk' ? 'atk' : 'def'], obj = objs[seed % objs.length];
     $('s-theatre').classList.add('full');
     renderer.phone = Math.min(innerWidth, innerHeight) < 540; renderer.resize();
     credits0 = g.wallet.bal;
     const tod = 6 + (seed % 12);
     renderer.setTerrain(buildTerrain(biome, seed, { polarity: 'white', quality: renderer.phone ? 0.6 : 1, relief: false, sun: sunAt(tod) }));
-    m = new Mission({ seed, faction, biome, sessionMinutes: 0, events: true, missionN: 1, opDone: 0, difficulty: level, kit: g.kit, wallet: g.wallet, tod, countdown: C.helldivers.countdown, defenders: true });
+    m = new Mission({ seed, faction, biome, sessionMinutes: 0, events: true, missionN: 1, opDone: 0, difficulty: level, objectives: [obj], kit: g.kit, wallet: g.wallet, tod, countdown: C.helldivers.countdown, defenders: true });
     cam = { x: m.lz.x, y: m.lz.y, view: innerWidth >= innerHeight ? C.world.viewWidth : 280, follow: false, ao: m.ao };
-    acc = 0; armed = false; placing = null; overAt = 0; shown = false; auto = false; bot = null; barSig = '';
+    acc = 0; armed = false; placing = null; overAt = 0; shown = false; auto = false; bot = null; barSig = ''; planQ = []; selPost = null; hbSig = '';
     $('th-where').textContent = `${sys.name} · ${kw.name}`;
     audio.humStart();
     ui.message(b.kind === 'atk' ? `ASSAULT ON ${kw.name.toUpperCase()}` : `DEFEND ${kw.name.toUpperCase()}`, 3000);
@@ -287,7 +334,7 @@ const mode = {
     document.body.style.setProperty('--tt', $('th-top').offsetHeight + 'px'); document.body.style.setProperty('--tb', $('th-bar').offsetHeight + 'px');
     if (new URLSearchParams(location.search).has('auto')) { auto = true; bot = makeBot(); }
   },
-  leave() { if (mini) mini.classList.add('hidden'); $('th-tabs').innerHTML = ''; mode.off = true; audio.humStop(); if (audio.scapeStop) audio.scapeStop(); m = null; $('s-theatre').classList.remove('full'); keys.clear(); },
+  leave() { planQ = []; selPost = null; $('th-desk').innerHTML = ''; $('th-sel').classList.add('hidden'); if (mini) mini.classList.add('hidden'); $('th-tabs').innerHTML = ''; mode.off = true; audio.humStop(); if (audio.scapeStop) audio.scapeStop(); m = null; $('s-theatre').classList.remove('full'); keys.clear(); },
   askLeave() {
     if (!m || m.over) return;
     const was = ui.paused; ui.paused = true;
@@ -304,8 +351,9 @@ const mode = {
     if (kx || ky) { cam.x = clamp(cam.x + kx * sp, 0, C.world.size); cam.y = clamp(cam.y + ky * sp, 0, C.world.size); }
     renderer.focusY = 0.5;
     renderer.updateView(cam, now);
+    if (dt > 0 && planQ.length && !m.over) runPlan();
     if (dt > 0 && !shown) {
-      acc += dt; let n = 0;
+      acc += dt * (hbFilling(m) ? C.objective.hellbomb.slowmo : 1); let n = 0;
       while (acc >= STEP && n < 8) {
         if (bot && !m.over) botStep(m, bot);
         keepPrev(m);
@@ -318,9 +366,9 @@ const mode = {
     const p = m.player, tw = dt > 0 && !m.over;
     if (tw) tween(m, acc / STEP);
     const bp = placing && placing.startsWith('build:') ? placing : null;
-    try { renderer.draw(m, cam, { now, aim: { x: p.aimX, y: p.aimY }, armed: armed || auto, placing: bp, ghost: bp ? { x: p.aimX, y: p.aimY } : null, plan: [], draw: null, snap: (x, y) => ({ x, y }), sel: null, box: null, pface: null, pshape: 'ring' }); }
+    try { renderer.draw(m, cam, { now, aim: { x: p.aimX, y: p.aimY }, armed: armed || auto, placing: bp, ghost: bp ? { x: p.aimX, y: p.aimY } : null, plan: planQ, draw: null, snap: (x, y) => ({ x, y }), sel: selPost, box: null, pface: null, pshape: 'ring' }); }
     finally { if (tw) untween(m); }
-    if ((mode._t = (mode._t || 0) + real) > 0.2) { mode._t = 0; bar(); stats(); }
+    if ((mode._t = (mode._t || 0) + real) > 0.2) { mode._t = 0; bar(); stats(); hellbomb(); if (selPost) selBar(); }
     if (mini && (miniT -= real) <= 0) { miniT = 0.1; try { renderer.drawMinimap(mini, m, cam); } catch { /* no map this frame */ } }
     if (m.over && !shown) { overAt = overAt || now; if (now - overAt > 3.2) { shown = true; result(); } }
   },

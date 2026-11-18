@@ -39,7 +39,7 @@ export class Game {
     this.last = null;                // what the enemy just did on this front, for the screen to announce
     this.log = [];
     this.stats = { taken: 0, fallen: 0, held: 0, repelled: 0 };
-    for (const p of this.P) { p.station = 0; p.base = 0; }
+    for (const p of this.P) { p.station = 0; p.base = 0; p.dmg = 0; }
     if (saved) return this._restore(saved);
     this.say('info', `Every world on the map flies the ${N.fed} flag. Long may it last.`);
     this._arrivals(); this._startRound();
@@ -56,13 +56,13 @@ export class Game {
   // ---------- saving (only while you are deciding) ----------
   save() {
     const k = ['seed', 'rs', 'round', 'fi', 'res', 'loot', 'truth', 'F', 'fleets', 'fid', 'policy', 'priority', 'capHit', 'stats', 'over', 'last'];
-    const d = { v: 8, log: this.log.slice(-80), P: this.P.map(p => [p.owner, p.dev, p.site, p.built ? 1 : 0, p.station || 0, p.base || 0]) };
+    const d = { v: 8, log: this.log.slice(-80), P: this.P.map(p => [p.owner, p.dev, p.site, p.built ? 1 : 0, p.station || 0, p.base || 0, p.dmg || 0]) };
     for (const x of k) d[x] = this[x];
     return d;
   }
   _restore(d) {
     for (const k in d) if (k !== 'v' && k !== 'P') this[k] = d[k];
-    d.P.forEach(([o, dv, st, bu, sn, bs], i) => Object.assign(this.P[i], { owner: o, dev: dv, site: st, built: !!bu, station: sn || 0, base: bs || 0 }));
+    d.P.forEach(([o, dv, st, bu, sn, bs, dm], i) => Object.assign(this.P[i], { owner: o, dev: dv, site: st, built: !!bu, station: sn || 0, base: bs || 0, dmg: dm || 0 }));
     this.phase = this.over ? 'over' : 'plan';
     return this;
   }
@@ -93,11 +93,11 @@ export class Game {
   _drop(f) { const i = this.fleets.indexOf(f); if (i >= 0) this.fleets.splice(i, 1); }
   // Hit points a system has by itself, with no fleet there.
   fort(p) {
-    if (p.owner !== 'fed') return (p.kind === 'home' ? C.garr.home : C.garr.sys) + p.worlds.filter(w => w.type === 'fortress').length * C.garr.fortress;
+    if (p.owner !== 'fed') return Math.max(0, (p.kind === 'home' ? C.garr.home : C.garr.sys) + p.worlds.filter(w => w.type === 'fortress').length * C.garr.fortress - (p.dmg || 0));
     let v = (p.id === 0 ? C.fort.capital : C.fort.sys) + (this.priority != null && p.front === this.priority ? C.priority.fort : 0);
     for (const w of p.worlds) v += C.worlds[w.type].fort || 0;
     v += (p.station || 0) * C.link.stationFort;
-    return Math.round(v * (this.fedLinked().has(p.id) ? 1 : C.cut));
+    return Math.max(0, Math.round(v * (this.fedLinked().has(p.id) ? 1 : C.cut)) - (p.dmg || 0));
   }
   // Total hit points a system would fight with: its own, plus its owner's fleet there.
   strength(pid) { const p = this.P[pid]; return this.fort(p) + this.shipsAt(pid, p.owner) * HP; }
@@ -266,7 +266,7 @@ export class Game {
     const r = this.res, inc = this.income();
     for (const k in inc) r[k] = clamp(r[k] + inc[k], 0, C.resMax);
     for (const f of this.fleets) f.moved = false;
-    for (const p of this.P) p.built = false;
+    for (const p of this.P) { p.built = false; if (p.dmg) p.dmg = Math.max(0, p.dmg - C.battle.repair); }
     this.capHit = [];
     this.round++;
     this._arrivals();
@@ -287,7 +287,7 @@ export class Game {
       }
     }
   }
-  _capture(p, owner) { p.owner = owner; p.dev = 0; if (p.station || p.base) { if (owner !== 'fed') this.say('bad', `${p.station ? 'The station over' : 'The base on'} ${p.name} is lost.`); p.station = 0; p.base = 0; this.lostSites = (this.lostSites || []).concat(p.id); } if (p.site) { if (owner !== 'fed') this.say('bad', `The ${C.sites[p.site].name} at ${p.name} is lost.`); p.site = null; } }
+  _capture(p, owner) { p.owner = owner; p.dev = 0; p.dmg = 0; if (p.station || p.base) { if (owner !== 'fed') this.say('bad', `${p.station ? 'The station over' : 'The base on'} ${p.name} is lost.`); p.station = 0; p.base = 0; this.lostSites = (this.lostSites || []).concat(p.id); } if (p.site) { if (owner !== 'fed') this.say('bad', `The ${C.sites[p.site].name} at ${p.name} is lost.`); p.site = null; } }
   // A beaten fleet falls back to a neighbouring system of its own side, or is lost if there is none.
   _retreat(f, pid) {
     const fl = f.owner === 'fed' ? this.fedLinked() : null;
@@ -342,7 +342,7 @@ export class Game {
   _startBattle(kind, f, pid, from, fleet) {
     const p = this.P[pid], here = this.fleetAt(pid, p.owner), side = (hp, ships, owner) => ({ hp, max: hp, ships, fire: Math.max(1, ships), hand: this._hand(owner), owner });
     const att = side(fleet.ships * HP, fleet.ships, fleet.owner), def = side(this.strength(pid), here ? here.ships : 0, p.owner);
-    this.battle = { kind, f, pid, from, fid: fleet.id, fort: this.fort(p), you: kind === 'atk' ? att : def, foe: kind === 'atk' ? def : att, round: 0, done: false, win: null, ev: null, lines: [] };
+    this.battle = { kind, f, pid, from, fid: fleet.id, fort: this.fort(p), limit: C.battle.engage, you: kind === 'atk' ? att : def, foe: kind === 'atk' ? def : att, round: 0, done: false, win: null, ev: null, lines: [] };
     this.phase = 'battle';
   }
   // The enemy's choice of card: block when it would otherwise die or is far behind, else its hardest hit.
@@ -378,25 +378,45 @@ export class Game {
     lines.push(fc ? `${N.factions[b.f]} plays ${e.name}: it hits you for ${hitYou}.` : `${N.factions[b.f]} hits you for ${hitYou}.`);
     // the end: whoever is out of hit points loses; if both are, the defender holds; a very long fight goes to the defender
     const youDown = you.hp <= 0, foeDown = foe.hp <= 0;
-    if (youDown || foeDown || b.round >= C.battle.maxRounds) {
+    if (youDown || foeDown || b.round >= b.limit || b.round >= C.battle.maxRounds) {
       b.done = true;
-      b.win = youDown && foeDown ? b.kind === 'def' : foeDown ? true : youDown ? false : b.kind === 'def';
+      // nobody out of hit points when the engagement ends: the fight for the system goes on next round (win is null)
+      b.win = youDown && foeDown ? b.kind === 'def' : foeDown ? true : youDown ? false : null;
       you.hp = Math.max(0, you.hp); foe.hp = Math.max(0, foe.hp);
     }
     b.ev = { round: b.round, yc, fc, hitFoe, hitYou, healYou: a.heal || 0, healFoe: e.heal || 0, blockYou: a.block || 0, blockFoe: e.block || 0 };
     b.lines = lines;
-    if (b.done) this._settle(b);
+    if (b.done && !(b.win === null && this.canPress())) this._settle(b); else if (b.done) b.pending = true;
     return b.ev;
+  }
+  // PRESS THE ATTACK: when your attack ends undecided you may pay fuel to fight on for more rounds, now.
+  canPress() { const b = this.battle; return !!b && b.kind === 'atk' && b.win === null && !b.pressed && this.canPay({ fuel: C.battle.press.fuel }); }
+  press() {
+    const b = this.battle; if (!b || !b.pending || !this.canPress()) return false;
+    this._pay({ fuel: C.battle.press.fuel }); b.pressed = true; b.pending = false; b.done = false; b.limit += C.battle.press.rounds; b.lines = ['The fleet presses the attack.'];
+    return true;
+  }
+  // Break off instead: the engagement is settled as it stands.
+  breakOff() { const b = this.battle; if (!b || !b.pending) return false; b.pending = false; this._settle(b); return true; }
+  // How hard the ground is, from what each side has put into this fight: the enemy's hit points here against yours.
+  groundLevel() {
+    const b = this.battle; if (!b) return 1; const p = this.P[b.pid];
+    const raw = 1.5 + 1.5 * Math.log2(Math.max(1, b.foe.hp) / Math.max(1, b.you.hp)) + (p.kind === 'home' ? 2 : 0) - Math.floor((p.station || 0) / 2);
+    return clamp(Math.round(raw), C.link.level.min, C.link.level.max);
   }
   // A battle fought on the ground instead of with cards. `win` is whether you won it; `left` (0 to 1) is how much of
   // the winner's strength is still standing. The map is settled exactly as after a card battle.
   battleResolve(win, left = 0.5) {
     const b = this.battle; if (!b || b.done) return false;
-    left = clamp(left, 0.05, 1);
-    b.you.hp = win ? Math.max(1, Math.round(b.you.max * left)) : 0;
-    b.foe.hp = win ? 0 : Math.max(1, Math.round(b.foe.max * left));
-    b.done = true; b.win = !!win; b.ground = true; b.round = Math.max(1, b.round);
-    b.lines = [win ? 'The ground is yours. The fleet holds the sky over it.' : 'The landing is thrown back. The fleet pulls out of range.'];
+    left = clamp(left, 0, 1);
+    // one hard engagement: each side's fire over a full engagement, scaled by how the ground went
+    const K = win ? C.groundWin : C.groundLoss, n = C.battle.engage;
+    const deal = Math.ceil((b.you.fire * n + 3) * K.deal), take = Math.ceil((b.foe.fire * n + 2) * K.take * (win ? 1 - 0.7 * left : 1));
+    b.foe.hp = Math.max(0, b.foe.hp - deal); b.you.hp = Math.max(win ? 1 : 0, b.you.hp - take);     // a ground you won always leaves something standing
+    b.done = true; b.ground = true; b.round = Math.max(1, b.round);
+    b.win = b.foe.hp <= 0 ? true : b.you.hp <= 0 ? false : null;
+    if (win && b.win === false) { b.win = null; b.you.hp = 1; }      // a ground you won is never the round you are thrown off it
+    b.lines = [win ? `The ground action is won: ${deal} damage done, ${take} taken.` : `The ground action is lost: ${take} damage taken, ${deal} done.`];
     this._settle(b);
     return true;
   }
@@ -406,6 +426,19 @@ export class Game {
     const left = (side, own) => Math.min(side.ships, Math.ceil(Math.max(0, side.hp - own) / HP));   // ships still flying: the system's own defences soak up damage first
     const gain = n => { this.loot[f] += n; b.lines.push(`+${n} ${fr.loot.toLowerCase()}.`); };
     const mine = this.fleets.find(x => x.id === b.fid && x.owner === 'fed') || this.fleetAt(b.pid, 'fed'), theirs = this.fleets.find(x => x.id === b.fid && x.owner === f) || this.fleetAt(b.pid, f);
+    if (b.win === null) {
+      // The fight goes on. Each side keeps the ships its hit points still pay for, and the system keeps the damage to its own
+      // defences until it is repaired, a point a round.
+      const att = b.kind === 'atk' ? b.you : b.foe, def = b.kind === 'atk' ? b.foe : b.you;
+      const attF = b.kind === 'atk' ? mine : theirs, defF = this.fleetAt(b.pid, p.owner);
+      const lost = def.max - def.hp, toFort = Math.min(b.fort, lost);
+      p.dmg = (p.dmg || 0) + toFort;
+      if (defF) { defF.ships = left(def, b.fort - toFort); if (defF.ships <= 0) this._drop(defF); }
+      if (attF) { attF.ships = left(att, 0); if (attF.ships <= 0) this._drop(attF); }
+      b.result = `The fight for ${p.name} goes on.`; this.stats.sieges = (this.stats.sieges || 0) + 1;
+      this.say('warn', `${p.name}: neither side gives way. ${b.kind === 'atk' ? 'Your attack' : fn + "'s attack"} continues next round if it is pressed.`);
+      return;
+    }
     if (b.kind === 'atk') {
       if (b.win) {
         if (theirs) { theirs.ships = Math.floor(theirs.ships / 2); this._retreat(theirs, b.pid); }
@@ -439,6 +472,7 @@ export class Game {
   // Leave the battle screen. After the enemy's attack it is your decision; after yours, the next front.
   battleClose() {
     const b = this.battle; if (!b || !b.done) return false;
+    if (b.pending) this.breakOff();
     this.battle = null; this._tidy(); if (this.over) return true;
     this.phase = 'plan';
     if (b.kind === 'atk') this._afterYou();

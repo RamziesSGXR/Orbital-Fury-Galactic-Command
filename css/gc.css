@@ -378,3 +378,6 @@ button small { display: block; font: 9.5px var(--mono); letter-spacing: 0.5px; o
 #g-mini { position: absolute; right: 8px; top: calc(var(--tt, 60px) + 8px); width: 150px; height: 150px; pointer-events: none; opacity: 0.92; }
 @media (max-width: 640px) { #g-mini { width: 96px; height: 96px; } }
 #modal .box h3 { margin-top: 10px; }
+
+.hbg { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
+.hbg .btn { min-height: 52px; width: 100%; } .hbg .btn.done { opacity: 0.35; }

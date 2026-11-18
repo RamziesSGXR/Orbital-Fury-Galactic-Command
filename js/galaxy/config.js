@@ -1,5 +1,5 @@
 // Every number and every name in the game lives here, so the prototype can be retuned or renamed in one place.
-export const VERSION = '0.1.1';
+export const VERSION = '0.2.0';
 
 export const C = {
   names: {
@@ -84,7 +84,15 @@ export const C = {
   // pierce: ignores the other side's block. sap: the other side's ships fire this much less for the rest of the battle.
   // Truth cards are propaganda: used up when played. If both sides play propaganda in the same round, the stronger
   // (`power`) takes the other's card for its own deck and cancels it.
-  battle: { hand: 3, maxRounds: 12 },
+  // `engage`: rounds in one engagement. If neither side is out of hit points by then, the fight for the system goes on next
+  // round: the fleets stay where they are and the damage stays done. `press`: pay fuel to fight on for more rounds now.
+  // `repair`: hit points a system's own defences win back each round.
+  battle: { hand: 3, maxRounds: 12, engage: 3, press: { fuel: 3, rounds: 2 }, repair: 1 },
+  // A battle fought on the ground is one hard engagement, not the whole war for the system: winning it does the damage of a
+  // full engagement and half again, and spares your own side by how many lives were left.
+  groundWin: { deal: 1.5, take: 0.6 }, groundLoss: { deal: 0.4, take: 1.2 },
+  // The kinds of ground mission: what you are sent to do when you attack a system, and when you defend one.
+  groundObj: { atk: ['fortress', 'nuke'], def: ['evac', 'vip'] },
   bcards: {
     // every fleet carries these
     volley:  { name: 'FULL VOLLEY',     kind: 'fleet', atk: 2, text: '' },

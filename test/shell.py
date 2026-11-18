@@ -45,6 +45,10 @@ with sync_playwright() as pw:
         pg.evaluate('gc.mode.fast(900)'); pg.wait_for_timeout(400); pg.screenshot(path=f'{out}/{name}-6b-troops.png')
         pg.click('[data-gt=build]'); pg.wait_for_timeout(150); pg.click('[data-k="build:foxhole"]'); pg.mouse.click(w / 2 + 30, h / 2 + 20); pg.wait_for_timeout(300); pg.screenshot(path=f'{out}/{name}-6c-build.png')
         pg.click('[data-gt=weapons]')
+        # the planning pause: a strike tapped while paused is planned, and goes out on resume
+        pg.click('#th-pause'); pg.click('[data-g=arm][data-i="1"]'); pg.mouse.click(w / 2, h / 2); pg.wait_for_timeout(200)
+        pg.screenshot(path=f'{out}/{name}-6d-plan.png')
+        pg.click('#th-pause'); pg.wait_for_timeout(500)
         for i in range(60):
             r = pg.evaluate('gc.mode.fast(900)')
             if r['over']: break
