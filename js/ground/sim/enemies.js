@@ -1,0 +1,954 @@
+// Ally rifles, SEAF grenadiers and rocket troopers, and enemy awareness, movement and attacks.
+// Enemy damage depends on size and faction (CONFIG.combat.atk): light enemies nibble, mediums hurt, heavies are special.
+import { t as tr } from '../i18n.js';
+import { CONFIG as C } from '../config.js';
+import { ALLY } from '../data/data.js';
+import { armorOf, fireShot, hurtTarget, hurtAlly, hurtEnemy, nearestTarget, inZoneKind, pickClear, eBlocker, bandOf, bandAcc, bandDmg, reveal } from './combat.js';
+import { steer } from './terrain.js';
+import { solidAt } from './solids.js';
+import { softNear, baseNear } from './pois.js';
+import { bark } from './chatter.js';
+import { dropNear } from './reinforce.js';
+import { turretStep } from './eturret.js';
+import { claim, claimedBy } from './helldiver.js';
+
+const DIRS = ['e', 'ne', 'n', 'nw', 'w', 'sw', 's', 'se'];
+// Compass word for a vector on the map (north is up, so -y).
+export function compass(dx, dy) {
+  const a = Math.atan2(-dy, dx);
+  return tr('dir.' + DIRS[((Math.round(a / (Math.PI / 4)) % 8) + 8) % 8]);
+}
+
+// A group learns roughly where the allies are. Neighbors nearby hear about it once.
+export function alertGroup(m, g) {
+  if (!g) return;
+  const A = C.enemies.alert;
+  if (g.state === 'hunt') { g.alertT = Math.max(g.alertT, A.loseSec); return; }
+  g.state = 'hunt'; g.alertT = A.loseSec; g.garrison = false; g.targetT = 0; g.fuzzT = 0;
+  // Bugs swarm: when one pack finds the squad every pack within earshot comes with it.
+  const callR = m.faction.id === 'bugs' ? C.enemies.tactics.swarm.callRadius : A.callRadius;
+  const r2 = callR * callR;
+  for (const o of m.groups) {
+    if (o === g || o.state === 'hunt') continue;
+    const dx = o.cx - g.cx, dy = o.cy - g.cy;
+    if (dx * dx + dy * dy <= r2) { o.state = 'hunt'; o.alertT = A.loseSec; o.garrison = false; o.targetT = 0; o.fuzzT = 0; }
+  }
+}
+// A fight makes noise. A patrol that hears it close comes hunting; one farther off walks over to see what it was (and finds the
+// squad, if the squad is still there). Garrisons hold their base unless it is right on top of them.
+export function noise(m, x, y, r) {
+  const r2 = r * r, near2 = r2 * C.noise.near * C.noise.near, t = m.t;
+  for (const g of m.groups) {
+    if (g.state === 'hunt') continue;
+    const dx = g.cx - x, dy = g.cy - y, d2 = dx * dx + dy * dy;
+    if (d2 > r2) continue;
+    if (d2 <= near2) { alertGroup(m, g); continue; }
+    if (g.garrison) continue;
+    if (!g.inv || t > g.invUntil - C.patrols.investigateSec * 0.5) { g.inv = { x: x + m.rng.range(-12, 12), y: y + m.rng.range(-12, 12) }; g.invUntil = t + C.patrols.investigateSec; }
+  }
+}
+
+// Rifle profile per ally type: damage per burst is dps x burst seconds.
+const RIFLE = {};
+for (const k of ['H', 'S']) { const d = ALLY[k]; RIFLE[k] = { dmg: d.dps * d.burst, acc: d.acc, splash: 0, mult: { ...d.mult, B: 0.04 }, burst: d.burst, range: d.range }; }
+// (0.26) SEAF by role: the Squad Leader and Riflemen carry the Liberator (RIFLE.S), the Specialist the MG-43, the Medic the SMG-37
+for (const [k, d] of [['spec', C.combat.seafMg], ['medic', C.combat.seafSmg]]) RIFLE[k] = { dmg: d.dps * d.burst, acc: d.acc, splash: 0, mult: { ...d.mult, B: 0.04 }, burst: d.burst, range: d.range };
+const gunOf = (a) => (a.type === 'H' ? RIFLE.H : RIFLE[a.role] || RIFLE.S);
+
+// SEAF specialists. A grenadier lobs frags at groups; a rocket trooper hunts mediums and heavies.
+const GRENADE = { dmg: C.combat.grenadier.dmg, acc: C.combat.grenadier.acc, splash: C.combat.grenadier.splash, flight: C.combat.grenadier.flight, range: C.combat.grenadier.range, fuse: C.combat.grenadier.fuse, mult: C.combat.grenadier.mult };
+const ROCKET = { dmg: C.combat.rocketeer.dmg, acc: C.combat.rocketeer.acc, splash: C.combat.rocketeer.splash, flight: C.combat.rocketeer.flight, range: C.combat.rocketeer.range, mult: C.combat.rocketeer.mult };
+
+export function updateAllies(m, dt) {
+  const sq = m.squad, P = C.poi;
+  for (const a of m.alive) {
+    if (a.dead || a.mounted || a.down) continue;      // (0.26: a downed trooper is out of the fight)
+    const mechOn = a.mech && a.mech.hp > 0 && (a.mech.gat > 0 || a.mech.rkt > 0);
+    const H = a.type === 'H';
+
+    // Rifle (the Liberator for a Helldiver): a burst every half second or so at the nearest enemy in range that has a clear lane;
+    // a friendly in the way means the trigger is held (and now and then it is not, and the friendly pays for it). The exosuit
+    // replaces it; a Helldiver with a support weapon keeps it, but fires it less often.
+    // Helldivers hold fire while the squad is setting up on an enemy that has not noticed them.
+    if (!mechOn) {
+      a.atk -= dt;
+      if (a.atk <= 0) {
+        const G = gunOf(a), range = G.range;       // the rifle's reach (by role for SEAF); long shots are weaker (see fireShot)
+        const pick = pickClear(m, a, range, null);
+        const e = pick && pick.e;
+        // (0.53.4) a stalemate at the base the squad came for (it has pushed in): a Helldiver with nothing right on him shoots the
+        // structure, so a base feeding troops in is not fought for ever (a citadel's last outer base held a squad for good)
+        const tb = H && sq.pushed && sq.stage === 'go' && sq.base && !sq.base.destroyed && !sq.base.bombOnly ? sq.base : null;
+        const breakIt = !!tb && Math.hypot(tb.x - a.x, tb.y - a.y) - tb.r <= C.structure.range && (!e || Math.hypot(e.x - a.x, e.y - a.y) > C.structure.breakR);
+        if (e && !breakIt && (!H || sq.free || e.g.state === 'hunt')) {
+          const pf = G, slow = a.sw ? 1.8 : 1, cmd = !H && m.kitCmd && a.cmdUntil > m.t ? m.kitCmd : null;     // (0.50) near a Squad Leader
+          if (pick.block && m.rng.next() >= C.hd.fire.collateral) {
+            a.atk += 0.3;                           // a friendly is in the way: hold, look again in a moment
+          } else {
+            a.atk += pf.burst * slow / (a.inPost && a.inPost.what === 'foxhole' ? C.build.foxhole.rof : 1) / (cmd ? cmd.rof : 1);   // shooting from a foxhole: faster
+            let prof = a.dmgMul && a.dmgMul !== 1 ? { ...pf, dmg: pf.dmg * a.dmgMul } : pf;
+            if (cmd) prof = { ...prof, acc: Math.min(0.97, prof.acc * cmd.acc) };
+            fireShot(m, a, e, prof, 'squad', 'a', H ? 'rifle' : a.role === 'spec' ? 'mg' : 'smg');
+            if (a.role === 'spec') a.braceUntil = m.t + 1;     // (0.26) braced behind the MG-43: he barely moves while it fires
+            if (m.t >= (a.noiseAt || 0)) { a.noiseAt = m.t + C.noise.rifleEvery; noise(m, a.x, a.y, C.noise.rifle); }
+            // taking the shot anyway: some collateral is expected
+            if (pick.block) {
+              m.stats.collateral = (m.stats.collateral || 0) + 1;
+              hurtAlly(m, pick.block, prof.dmg * C.hd.fire.ffMul, 'squad', false, 'friendly');
+            }
+          }
+        } else {
+          // No enemy: shoot a point of interest or a breach that is close.
+          const soft = !e && !breakIt && softNear(m, a.x, a.y, 30);
+          const bs = breakIt ? tb : !e && !soft ? baseNear(m, a.x, a.y, C.structure.range, H ? m.squad && m.squad.base : null) : null;     // (0.53.4: the base the squad is after first)
+          if (soft) {
+            a.atk += G.burst;
+            const dmg = G.dmg * (a.dmgMul || 1) * (soft.kind === 'hole' ? C.reinf.bugs.rifle : P.rifleMul) * (m.rng.next() < G.acc ? 1 : 0);   // a bug hole wants explosives
+            m.emit('tracer', { x: a.x, y: a.y, tx: soft.x, ty: soft.y, s: 'a', hit: true, big: false, fl: 0, snd: H ? 'rifle' : 'smg' });
+            if (dmg > 0) (soft.isPoi ? m.damagePoi(soft, dmg, 'squad') : m.damageBreach(soft, dmg, 'squad'));
+          } else if (bs) {
+            // A base or the citadel: the squad shoots it down itself, so nothing the destroyer can break is out of the Helldivers' reach.
+            a.atk += G.burst;
+            const hit = m.rng.next() < G.acc, dx = a.x - bs.x, dy = a.y - bs.y, d = Math.hypot(dx, dy) || 1, k = bs.r * 0.7 / d;
+            m.emit('tracer', { x: a.x, y: a.y, tx: bs.x + dx * k, ty: bs.y + dy * k, s: 'a', hit, big: false, fl: 0, snd: H ? 'rifle' : 'smg' });
+            if (hit) m.damageBase(bs, G.dmg * (a.dmgMul || 1) * (H ? C.structure.rifleH : C.structure.rifleS), 'squad', a.x, a.y);
+          } else a.atk = 0;
+        }
+      }
+    }
+
+    // (0.26) SEAF: every role throws G-12 grenades at groups while it has some; the Specialist fires the EAT-17 at heavies and
+    // armour (and at a dropship hovering in reach). Each has its own timer.
+    if (!H) {
+      if (a.role === 'spec') {
+        a.spT -= dt;
+        if (a.spT <= 0) {
+          const spec = C.combat.rocketeer;
+          let e = dropNear(m, a.x, a.y, spec.range), bs = -Infinity;     // a dropship hovering in reach is the best target there is
+          // (0.40) not a target another Specialist (or a Helldiver's Ultimatum) is on already: something else, or wait a moment
+          if (!e) m.eGrid.near(a.x, a.y, spec.range, (q, d2) => { if (q.kind === 'L') return; const sc = (q.kind === 'H' ? 90 : 30) - Math.sqrt(d2) * 0.2; if (sc > bs && !shared(m, a, q)) { bs = sc; e = q; } });
+          const soft = !e && softNear(m, a.x, a.y, spec.range);
+          if (e || soft) {
+            a.spT = spec.every * (0.9 + 0.2 * m.rng.next());
+            const t = e || soft, prof = { ...ROCKET };
+            prof.dmg *= (a.dmgMul || 1) * (m.kitEat || 1);
+            if (e) { fireShot(m, a, e, prof, 'squad', 'a', 'rocket'); if (e.kind) claim(m, a, e, 'rocket', 1, C.hd.stagger.seafRocket); }
+            else {
+              m.emit('tracer', { x: a.x, y: a.y, tx: t.x, ty: t.y, s: 'a', hit: true, big: true, fl: prof.flight, snd: 'rocket' });
+              m.shells.push({ x: t.x, y: t.y, at: m.t + prof.flight, land: m.t + prof.flight, born: m.t, dmg: prof.dmg, splash: prof.splash, mult: prof.mult, by: 'squad', friendly: false, quiet: true });
+            }
+            bark(m, a, 'rocket', '');
+          } else a.spT = 0.4;
+        }
+      }
+      if ((a.gren ?? C.seaf.grenades) > 0) {
+        a.grT = (a.grT ?? 2 + m.rng.next() * 3) - dt;
+        if (a.grT <= 0) {
+          const spec = C.combat.grenadier;
+          // the densest spot within reach; a lone light enemy is not worth a grenade
+          let e = null, bn = 0;
+          // (0.40) not a spot someone else has just put a grenade (or an Ultimatum) on
+          m.eGrid.near(a.x, a.y, spec.range, (q, d2) => { if (d2 < spec.minR * spec.minR || claimedBy(m, a, q.x, q.y)) return; let n = 0; m.eGrid.near(q.x, q.y, spec.near || 6, () => { n++; }); if (q.kind === 'H') n += 2; if (n > bn) { bn = n; e = q; } });
+          if (bn < spec.group) e = null;
+          if (e) {
+            a.grT = spec.every * (0.9 + 0.2 * m.rng.next());
+            a.gren = (a.gren ?? C.seaf.grenades) - 1;
+            const prof = { ...GRENADE };
+            if (a.dmgMul) prof.dmg *= a.dmgMul;
+            fireShot(m, a, e, prof, 'squad', 'a', 'grenade');
+            claim(m, a, e, 'gren', spec.near || 6, C.hd.stagger.seafGren);     // (the group it counted, not just the splash)
+            bark(m, a, 'gren', '');
+          } else a.grT = 0.5;
+        }
+      }
+    }
+  }
+}
+
+// (0.40) A target someone else has a rocket (or an Ultimatum) on right now: a super heavy can take everyone's.
+function shared(m, a, q) {
+  if (q.boss || !m.hdClaims) return false;
+  for (const c of m.hdClaims) {
+    if (c.by === a || c.until <= m.t) continue;
+    if (c.kind === 'rocket' ? c.e === q : c.kind === 'ult' && (q.x - (c.e && !c.e.dead ? c.e.x : c.x)) ** 2 + (q.y - (c.e && !c.e.dead ? c.e.y : c.y)) ** 2 < c.r * c.r) return true;
+  }
+  return false;
+}
+// An enemy's attack: its kind's for the faction, or a special medium's own (CONFIG.special).
+export const profileOf = (fid, e) => (e.sub ? C.special[fid].atk : e.v && C.variants[fid].atk ? C.variants[fid].atk : C.combat.atk[fid][e.kind]);   // (0.54: a variant's own, if it has one)
+
+// Ground movement goes round deep water: NAV is the mission's terrain for this tick, and steer() picks the point to walk to.
+// AOB is the mission's area of operations: every goal is pulled inside it, and nobody walks out of it (a route can only be found
+// inside it). A goal on blocked ground (deep water, rock) is moved to the nearest dry ground, so a slot in a formation that falls
+// in the water does not leave its enemy standing at the shore. And anyone who has made no headway for a while takes a short step
+// sideways and plans again, so nothing stays wedged in a corner.
+let NAV = null, NAVT = 0, AOB = null, FB = null, MM = null;   // FB: the group being moved (its members fall back toward its centre)
+const WIRES = [];                                  // (0.39) the concertina wire standing this tick (posts.js)
+// (0.39) How fast an enemy can go where it is, in concertina wire (1: it is in none). A light one stops when it first walks into a
+// section, then crawls through; mediums and (0.39.2) heavies wade through slowly; only a super heavy tears the section down as it
+// goes (posts.js takes it off the map).
+function wireMul(o, dt) {
+  if (!WIRES.length || !o.kind) return 1;
+  const W = C.build.wire, reach = (W.len / 2 + W.band) ** 2;
+  let inW = null;
+  for (const p of WIRES) {
+    if (p.wireHp <= 0 || (o.x - p.x) ** 2 + (o.y - p.y) ** 2 > reach) continue;
+    if (segDist(o.x, o.y, p.ends[0].x, p.ends[0].y, p.ends[1].x, p.ends[1].y) <= W.band) { inW = p; break; }
+  }
+  if (!inW) { o.wireIn = null; return 1; }
+  const first = o.wireIn !== inW;
+  o.wireIn = inW;
+  if (o.boss) { inW.wireHp -= W.tear * dt; inW.tornBy = o; return W.boss; }
+  if (o.kind === 'H') return W.heavy;
+  if (o.kind === 'M') return W.medium;
+  if (first) { o.wireUntil = NAVT + W.stopSec; o.wireAt = NAVT; }
+  return NAVT < o.wireUntil ? 0 : W.light;
+}
+// The dry ground nearest a blocked spot on the mover's own side of it (walking back from the spot toward the mover), so the stand-in
+// does not flip from one shore to the other as the spot moves. Falls back to the nearest dry ground anywhere.
+export function shoreToward(tr, tx, ty, x, y) {
+  const dx = x - tx, dy = y - ty, d = Math.hypot(dx, dy);
+  for (let k = 3; k < d; k += 3) { const px = tx + (dx / d) * k, py = ty + (dy / d) * k; if (!tr.blocked(px, py)) return { x: px, y: py }; }
+  return tr.nearestLand(tx, ty);
+}
+function moveToward(o, tx, ty, speed, dt, size) {
+  if (WIRES.length) { const k = wireMul(o, dt); if (k <= 0) { o.vx = 0; o.vy = 0; return; } speed *= k; }
+  if (AOB) {      // (the round area: nobody goes out of it; done in place, this runs for every enemy every tick)
+    const R = (AOB.R || AOB.size / 2) - 3, dx = tx - AOB.cx, dy = ty - AOB.cy, d2 = dx * dx + dy * dy;
+    if (d2 > R * R) { const k = R / Math.sqrt(d2); tx = AOB.cx + dx * k; ty = AOB.cy + dy * k; }
+  }
+  if (NAV && NAV.blocked(tx, ty)) {
+    const c = o.nlc;
+    if (c && Math.abs(c.tx - tx) + Math.abs(c.ty - ty) < 3) { tx = c.x; ty = c.y; }
+    else {
+      const an = FB && o !== FB.mv && !NAV.blocked(FB.cx, FB.cy) ? { x: FB.cx, y: FB.cy } : o;   // a member: the shore on its group's side
+      const l = shoreToward(NAV, tx, ty, an.x, an.y); o.nlc = { tx, ty, x: l.x, y: l.y }; tx = l.x; ty = l.y;
+    }
+  }
+  // (0.62.8) a place inside something solid (a formation slot or a guard post that falls on its own base) is swapped for the
+  // spot on that thing's edge nearest the mover. It used to walk at the wall, be held a second and a half, and then be let
+  // through to stand on the roof.
+  if (MM && C.solids.on && !o.air && !o.boss) {
+    const so = solidAt(MM, tx, ty, (o.r || 2) * 0.5);
+    if (so && !(o.kind === 'H' && so.soft)) {
+      let dx = o.x - so.x, dy = o.y - so.y, dl = Math.hypot(dx, dy);
+      if (dl > so.r) { const k = (so.r + (o.r || 2) * 0.5 + 0.4) / dl; tx = so.x + dx * k; ty = so.y + dy * k; }
+    }
+  }
+  const far = Math.hypot(tx - o.x, ty - o.y);
+  if (o.dtr && NAVT < o.dtr.until) { tx = o.dtr.x; ty = o.dtr.y; }
+  else if (NAV) { o.dtr = null; const w = steer(NAV, o, o.x, o.y, tx, ty, NAVT); tx = w.x; ty = w.y; }
+  const dx = tx - o.x, dy = ty - o.y, d = Math.hypot(dx, dy);
+  // headway check, every two seconds
+  const sk = o.sk || (o.sk = { t: NAVT, x: o.x, y: o.y });
+  if (NAVT - sk.t >= 2 || NAVT < sk.t) {
+    if (far > 6 && speed > 0.5 && Math.hypot(o.x - sk.x, o.y - sk.y) < 0.6 && !o.dtr && NAV) {
+      const ang = Math.atan2(dy || 1e-6, dx || 1e-6) + (((o.id || 0) + Math.floor(NAVT)) % 2 ? 1 : -1) * Math.PI / 2;
+      let px = o.x + Math.cos(ang) * 6, py = o.y + Math.sin(ang) * 6;
+      if (NAV.blocked(px, py)) { px = o.x - Math.cos(ang) * 6; py = o.y - Math.sin(ang) * 6; }
+      if (!NAV.blocked(px, py)) o.dtr = { x: px, y: py, until: NAVT + 1.2 };
+      o.nv = null;
+    }
+    sk.t = NAVT; sk.x = o.x; sk.y = o.y;
+  }
+  if (d <= 0.4) { o.vx = 0; o.vy = 0; return; }
+  const s = Math.min(speed * dt, d);
+  o.vx = (dx / d) * (s / dt); o.vy = (dy / d) * (s / dt);
+  let nx = o.x + (dx / d) * s, ny = o.y + (dy / d) * s;
+  if (AOB) { const R = (AOB.R || AOB.size / 2) - 1, dx = nx - AOB.cx, dy = ny - AOB.cy, d2 = dx * dx + dy * dy; if (d2 > R * R) { const k = R / Math.sqrt(d2); nx = AOB.cx + dx * k; ny = AOB.cy + dy * k; } } else { nx = Math.max(0, Math.min(size, nx)); ny = Math.max(0, Math.min(size, ny)); }
+  o.x = nx; o.y = ny;
+}
+
+// Distance from point (px, py) to the segment (x1, y1)-(x2, y2).
+function segDist(px, py, x1, y1, x2, y2) {
+  const dx = x2 - x1, dy = y2 - y1, l2 = dx * dx + dy * dy || 1;
+  const u = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / l2));
+  return Math.hypot(px - (x1 + u * dx), py - (y1 + u * dy));
+}
+
+// Harvester (squid heavy): picks a target, charges for a couple of seconds with a visible line, then fires a beam.
+function squidHeavy(m, e, p, t) {
+  if (e.ch) {
+    const c = e.ch;
+    if (!c.tgt || c.tgt.dead) c.tgt = nearestTarget(m, e.x, e.y, Math.min(p.range, m.faction.sight * m.biome.ping));
+    if (!c.tgt) { e.ch = null; return; }
+    if (t < c.t0 + c.dur - p.lock) { c.tx = c.tgt.x; c.ty = c.tgt.y; }   // tracks until the last moment, then locks
+    e.aimA = Math.atan2(c.ty - e.y, c.tx - e.x); e.aimUntil = t + 0.5;
+    if (t >= c.t0 + c.dur) {
+      let dx = c.tx - e.x, dy = c.ty - e.y;
+      const d = Math.hypot(dx, dy) || 1;
+      // (0.40) it can miss: the beam goes wide, past the target's side by a few metres
+      if (m.rng.next() >= (p.acc ?? 1)) { const off = p.width / 2 + 3 + m.rng.next() * 4, s = m.rng.next() < 0.5 ? -1 : 1, a = Math.atan2(dy, dx) + s * Math.atan2(off, d); dx = Math.cos(a) * d; dy = Math.sin(a) * d; }
+      const L = Math.max(p.range, d), ex = e.x + (dx / d) * L, ey = e.y + (dy / d) * L;
+      for (const a of m.alive) if (!a.dead && !a.mounted && segDist(a.x, a.y, e.x, e.y, ex, ey) <= p.width / 2 + 1.5) hurtTarget(m, a, p.dmg * m.dmgMul, 'enemy', 'H', e.x, e.y);
+      for (const cv of m.civs) if (!cv.dead && !cv.safe && segDist(cv.x, cv.y, e.x, e.y, ex, ey) <= p.width / 2 + 1.5) m.hurtCiv(cv, p.dmg * m.dmgMul, 'enemy');
+      for (const s of m.assets) if (!s.dead && s.kind !== 'mines' && segDist(s.x, s.y, e.x, e.y, ex, ey) <= p.width / 2 + 2) hurtTarget(m, s, p.dmg * m.dmgMul, 'enemy');
+      m.emit('beam', { x: e.x, y: e.y, tx: ex, ty: ey, w: p.width });
+      e.ch = null; e.atk = p.every;
+    }
+    return;
+  }
+  if (e.atk > 0) return;
+  const tgt = nearestTarget(m, e.x, e.y, Math.min(p.range, m.faction.sight * m.biome.ping));   // the beam reaches no farther than it sees
+  if (tgt) { e.ch = { t0: t, dur: p.charge, tgt, tx: tgt.x, ty: tgt.y }; reveal(m, e); }
+}
+// (while charging, the harvester turns to its target: see the charge branch above, which keeps aimA fresh)
+
+// (0.55) The warp colossus's walking beam, like the destroyer's orbital laser: after a charge (a line to the target, then a ring
+// where it will touch down), a column of light comes down `lead` metres short of the target, between it and the colossus, and
+// walks: it steers at the nearest ally at `follow` m/s (it never jumps), burning everyone inside width/2 at dps, for dur seconds.
+// Running across it is how you get out of it; standing still is how you die. e.walk: the beam on the ground (render/world.js).
+function colossusBeam(m, e, p, t, dt) {
+  const W = e.walk;
+  if (W) {
+    if (t >= W.until) { e.walk = null; e.atk = p.every; return; }
+    let best = null, bd = Infinity;
+    for (const a of m.alive) { if (a.dead || a.mounted) continue; const d2 = (a.x - W.x) ** 2 + (a.y - W.y) ** 2; if (d2 < bd) { bd = d2; best = a; } }
+    if (best) {
+      const dx = best.x - W.x, dy = best.y - W.y, d = Math.sqrt(bd);
+      if (d > 0.05) { const s2 = Math.min(p.follow * dt, d); W.x += (dx / d) * s2; W.y += (dy / d) * s2; }
+    }
+    // never farther out than its reach
+    const ox = W.x - e.x, oy = W.y - e.y, od = Math.hypot(ox, oy);
+    if (od > p.range) { W.x = e.x + (ox / od) * p.range; W.y = e.y + (oy / od) * p.range; }
+    e.aimA = Math.atan2(W.y - e.y, W.x - e.x); e.aimUntil = t + 0.5;
+    const R = p.width / 2, dmg = p.dps * dt * m.dmgMul;
+    m.aGrid.near(W.x, W.y, R + 1, (o) => { if (!o.dead && !o.mounted) hurtTarget(m, o, dmg, 'enemy', 'H', e.x, e.y); });
+    for (const cv of m.civs) if (!cv.dead && !cv.safe && (cv.x - W.x) ** 2 + (cv.y - W.y) ** 2 <= (R + 1) ** 2) m.hurtCiv(cv, dmg, 'enemy');
+    for (const s of m.assets) if (!s.dead && s.kind !== 'mines' && (s.x - W.x) ** 2 + (s.y - W.y) ** 2 <= (R + 2) ** 2) hurtTarget(m, s, dmg, 'enemy');
+    W.trail.push(W.x, W.y); if (W.trail.length > 80) W.trail.splice(0, 2);
+    return;
+  }
+  if (e.ch) {
+    const c = e.ch;
+    if (!c.tgt || c.tgt.dead) c.tgt = nearestTarget(m, e.x, e.y, p.range);
+    if (!c.tgt) { e.ch = null; return; }
+    if (t < c.t0 + c.dur - p.lock) { c.tx = c.tgt.x; c.ty = c.tgt.y; }
+    e.aimA = Math.atan2(c.ty - e.y, c.tx - e.x); e.aimUntil = t + 0.5;
+    if (t >= c.t0 + c.dur) {
+      const dx = c.tx - e.x, dy = c.ty - e.y, d = Math.hypot(dx, dy) || 1, k = Math.max(0, d - p.lead) / d;
+      e.walk = { x: e.x + dx * k, y: e.y + dy * k, t0: t, until: t + p.dur, trail: [] };
+      e.ch = null;
+      m.emit('beam_walk', { x: e.walk.x, y: e.walk.y });
+    }
+    return;
+  }
+  if (e.atk > 0) return;
+  const tgt = nearestTarget(m, e.x, e.y, p.range);
+  if (tgt) { e.ch = { t0: t, dur: p.charge, tgt, tx: tgt.x, ty: tgt.y }; reveal(m, e); }
+}
+
+// ---------------------------------------------------------------- super heavies (sim/boss.js spawns them)
+// It walks at the nearest ally until it is at its own fighting distance (the titan wants to be on top of you, the walker and the
+// colossus stand off and shoot), turning slowly, round water like everyone else.
+// (0.55) how far a super heavy reaches: the allies' natural sight (C.sight.helldiver, by the biome), so it hits from as far as
+// they can see it, and no farther
+export const bossReach = (m) => C.sight.helldiver * ((m.biome && m.biome.ping) || 1) * (C.boss.reachMul || 1);
+function bossMove(m, e, dt, size) {
+  let best = null, bd = Infinity;     // it hunts the Helldivers (anyone else only once they are gone)
+  for (const a of (m.hdAlive.length ? m.hdAlive : m.alive)) { if (a.dead || a.mounted) continue; const d2 = (a.x - e.x) ** 2 + (a.y - e.y) ** 2; if (d2 < bd) { bd = d2; best = a; } }
+  const gx = best ? best.x : m.hx, gy = best ? best.y : m.hy, d = Math.sqrt(bd);
+  // (0.55) every super heavy fights from the edge of the allies' own sight (bossReach): it closes to standOff of that and stops,
+  // and backs off when the squad gets well inside it (never on top of them)
+  const R = bossReach(m), K = C.boss;
+  if (best && d < R * K.backOff) { const ux = (e.x - gx) / (d || 1), uy = (e.y - gy) / (d || 1); moveToward(e, e.x + ux * 20, e.y + uy * 20, e.speed * 0.8, dt, size); e.face = Math.atan2(gy - e.y, gx - e.x); e.aimA = e.face; e.aimUntil = m.t + 0.5; e.g.cx = e.x; e.g.cy = e.y; return; }
+  if (best && d <= R * K.standOff) { e.vx = 0; e.vy = 0; e.aimA = Math.atan2(gy - e.y, gx - e.x); e.aimUntil = m.t + 0.5; return; }
+  moveToward(e, gx, gy, e.speed * (d > 260 ? 1.6 : 1), dt, size);    // far off it closes faster, so it always gets to the fight
+  e.g.cx = e.x; e.g.cy = e.y;
+}
+function bossAttack(m, e, dt, t) {
+  const D = C.boss[e.boss], see = bossReach(m), dm = m.dmgMul;     // (0.55: its reach is the allies' sight)
+  if (e.aimUntil > t) reveal(m, e);
+  if (e.boss === 'squids') { e.atk -= dt; colossusBeam(m, e, { ...D.walk, range: see }, t, dt); return; }
+  e.atk -= dt; e.atk2 -= dt;
+  if (e.boss === 'bugs') {
+    // (0.55) the spray: every so often it rears up and hoses a cone of acid over the ground ahead, blobs landing all across it
+    // and leaving pools that burn whoever stands in them for a while (C.boss.bugs.spray)
+    const SP = D.spray;
+    if (SP) {
+      e.atk3 = (e.atk3 ?? SP.first) - dt;
+      if (e.atk3 <= 0) {
+        const tg = nearestTarget(m, e.x, e.y, see);
+        if (tg) {
+          e.atk3 = SP.every;
+          const a0 = Math.atan2(tg.y - e.y, tg.x - e.x), d0 = Math.hypot(tg.x - e.x, tg.y - e.y);
+          e.aimA = a0; e.aimUntil = t + 1.4; e.sprayAt = t;
+          for (let k = 0; k < SP.n; k++) {
+            const a = a0 + (k / (SP.n - 1) - 0.5) * SP.cone + (m.rng.next() - 0.5) * 0.12, dd = Math.max(8, Math.min(see, d0 * (0.7 + 0.5 * m.rng.next())));
+            const tx = e.x + Math.cos(a) * dd, ty = e.y + Math.sin(a) * dd, fl = SP.flight * (0.7 + 0.6 * dd / see) + k * 0.04;
+            m.bossShells.push({ x: tx, y: ty, at: t + fl, dmg: SP.dmg * dm, splash: SP.splash, fx: e.x, fy: e.y, pool: k % 2 === 0 });
+            m.emit('tracer', { x: e.x, y: e.y, tx, ty, s: 'e', f: 'bugs', k: 'B', hit: true, big: true, fl, snd: k === 0 ? 'bugsB' : 'quiet' });
+          }
+        } else e.atk3 = 0.5;
+      }
+    }
+    // stomp whatever is underfoot; spit acid at anyone farther off
+    if (e.atk <= 0) {
+      const tg = nearestTarget(m, e.x, e.y, D.stomp.range);
+      if (tg) {
+        e.atk = D.stomp.every;
+        e.aimA = Math.atan2(tg.y - e.y, tg.x - e.x); e.aimUntil = t + 0.6;
+        // (0.40) it can miss: the foot comes down beside the target instead
+        let sx = tg.x, sy = tg.y;
+        if (m.rng.next() >= (D.stomp.acc ?? 1)) { const a = m.rng.angle(), off = D.stomp.splash + 1.5; sx += Math.cos(a) * off; sy += Math.sin(a) * off; }
+        m.aGrid.near(sx, sy, D.stomp.splash, (o) => hurtTarget(m, o, D.stomp.dmg * dm, 'enemy', 'H', e.x, e.y));
+        m.tGrid.near(sx, sy, D.stomp.splash, (o) => hurtTarget(m, o, D.stomp.dmg * dm, 'enemy', 'H'));
+        m.emit('boom', { x: sx, y: sy, r: D.stomp.splash, dmg: D.stomp.dmg, by: 'enemy', stomp: true });
+      } else e.atk = 0.3;
+    }
+    if (e.atk2 <= 0) {
+      const tg = nearestTarget(m, e.x, e.y, see);
+      if (tg && Math.hypot(tg.x - e.x, tg.y - e.y) > D.stomp.range) {
+        e.atk2 = D.spit.every;
+        const hit = m.rng.next() < D.spit.acc * bandAcc(bandOf(Math.hypot(tg.x - e.x, tg.y - e.y), see));
+        let tx = tg.x + (tg.vx || 0) * D.spit.flight * 0.5, ty = tg.y + (tg.vy || 0) * D.spit.flight * 0.5;
+        if (!hit) { const [ox, oy] = m.rng.inDisc(7); tx += ox; ty += oy; }
+        e.aimA = Math.atan2(ty - e.y, tx - e.x); e.aimUntil = t + 0.8;
+        m.bossShells.push({ x: tx, y: ty, at: t + D.spit.flight, dmg: D.spit.dmg * dm, splash: D.spit.splash, fx: e.x, fy: e.y });
+        m.emit('tracer', { x: e.x, y: e.y, tx, ty, s: 'e', f: 'bugs', k: 'B', hit, big: true, fl: D.spit.flight, snd: 'bugsB' });
+      } else e.atk2 = 0.4;
+    }
+    return;
+  }
+  // (0.55) the walker's back: turrets like a bot base's, each on its own target
+  if (D.turrets) {
+    if (!e.turrets) e.turrets = D.turrets.map(([ox, oy]) => ({ ox, oy, face: e.face, cool: 0.5 + 0.4 * (ox + oy + 1) }));
+    const c = Math.cos(e.face), sn = Math.sin(e.face);
+    for (const T of e.turrets) turretStep(m, T, e.x + (T.ox * c - T.oy * sn) * e.r, e.y + (T.ox * sn + T.oy * c) * e.r, dt, D.turretMul || 1, see);
+  }
+  // the walker: twin cannons at whatever is nearest in reach
+  if (e.atk > 0) return;
+  const P = D.cannon, tg = nearestTarget(m, e.x, e.y, see);
+  if (!tg) { e.atk = 0.3; return; }
+  e.atk = P.every;
+  const d = Math.hypot(tg.x - e.x, tg.y - e.y), b = bandOf(d, see);
+  e.aimA = Math.atan2(tg.y - e.y, tg.x - e.x); e.aimUntil = t + 0.8;
+  for (const side of [-1, 1]) {
+    const hit = m.rng.next() < P.acc * bandAcc(b);
+    let tx = tg.x, ty = tg.y;
+    if (!hit) { const [ox, oy] = m.rng.inDisc(6); tx += ox; ty += oy; }
+    const nx = -Math.sin(e.face) * side * e.r * 0.5, ny = Math.cos(e.face) * side * e.r * 0.5;
+    m.emit('tracer', { x: e.x + nx, y: e.y + ny, tx, ty, s: 'e', f: 'bots', k: 'B', hit, big: true, snd: 'botsH' });
+    m.aGrid.near(tx, ty, P.splash, (o) => hurtTarget(m, o, P.dmg * dm * bandDmg(b), 'enemy', 'H', e.x, e.y));
+    m.tGrid.near(tx, ty, P.splash, (o) => hurtTarget(m, o, P.dmg * dm * bandDmg(b), 'enemy', 'H'));
+    for (const cv of m.civs) if (!cv.dead && !cv.safe && (cv.x - tx) ** 2 + (cv.y - ty) ** 2 <= P.splash * P.splash) m.hurtCiv(cv, P.dmg * dm, 'enemy');
+    m.emit('boom', { x: tx, y: ty, r: P.splash, dmg: P.dmg, by: 'enemy' });
+  }
+}
+
+// ---------------------------------------------------------------- (0.54) the new enemies
+// Leaper: the jump is a straight dash from here to a spot just short of the prey, at a fixed speed (maxD / sec), over in a blink.
+function leapStep(m, e) {
+  const L = e.lp, u = Math.min(1, (m.t - L.t0) / L.dur);
+  e.x = L.x0 + (L.x1 - L.x0) * u; e.y = L.y0 + (L.y1 - L.y0) * u;
+  e.vx = (L.x1 - L.x0) / L.dur; e.vy = (L.y1 - L.y0) / L.dur; e.face = L.face; e.air = Math.sin(u * Math.PI);
+  if (u >= 1) {
+    e.lp = null; e.air = 0; e.vx = 0; e.vy = 0;
+    e.leapCd = m.t + C.variants.bugs.cool * (0.8 + ((e.id * 0.37) % 1) * 0.4);
+    m.emit('leap_land', { x: e.x, y: e.y });
+  }
+}
+function tryLeap(m, e, p, d) {
+  const V = C.variants.bugs, t = m.t;
+  if (e.lp || (e.leapCd || 0) > t || d < V.minD || d > V.maxD) return false;
+  const k = (d - 3) / d, lx = e.x + (p.x - e.x) * k, ly = e.y + (p.y - e.y) * k;
+  if (m.terrain.blocked(lx, ly) || (AOB && ((lx - AOB.cx) ** 2 + (ly - AOB.cy) ** 2 > ((AOB.R || AOB.size / 2) - 2) ** 2))) { e.leapCd = t + 1; return false; }
+  e.lp = { t0: t, dur: Math.max(0.3, d / (V.maxD / V.sec)), x0: e.x, y0: e.y, x1: lx, y1: ly, face: Math.atan2(ly - e.y, lx - e.x) };
+  e.air = 0;
+  m.emit('leap', { x: e.x, y: e.y, tx: lx, ty: ly, id: e.id });
+  return true;
+}
+// Rocketeer: aims once, then sends the whole barrage at that spot (each rocket lands a few metres off it), standing still while it does.
+function rocketeer(m, e, dt, t, p) {
+  const V = C.variants.bots;
+  if (e.vol) {
+    const v = e.vol;
+    v.gap -= dt;
+    while (v.left > 0 && v.gap <= 0) {
+      const [ox, oy] = m.rng.inDisc(V.scatter), tx = v.x + ox, ty = v.y + oy;
+      m.bossShells.push({ x: tx, y: ty, at: t + V.flight, dmg: p.dmg * m.dmgMul, splash: p.splash, fx: e.x, fy: e.y, rocket: true });
+      m.emit('tracer', { x: e.x, y: e.y, tx, ty, s: 'e', f: 'bots', k: 'M', hit: true, rocket: true, fl: V.flight, snd: 'botsM' });
+      v.left--; v.gap += V.gap;
+    }
+    e.aimA = Math.atan2(v.y - e.y, v.x - e.x); e.aimUntil = t + 0.4;
+    if (v.left <= 0) e.vol = null;
+    return;
+  }
+  e.atk -= dt;
+  if (e.atk > 0 || !e.tgt || e.tgt.dead) return;
+  const a = e.tgt;
+  e.atk = p.every;
+  const c = densest(m, a, p.splash);
+  e.vol = { left: V.n, gap: 0.35, x: c.x + (a.vx || 0) * V.flight * 0.5, y: c.y + (a.vy || 0) * V.flight * 0.5 };   // (a short wind-up, at the thickest bunch, leading a moving one a little)
+  e.aimA = Math.atan2(a.y - e.y, a.x - e.x); e.aimUntil = t + 1.2;
+  reveal(m, e);
+}
+// Where a blast does the most: the middle of the biggest bunch of allies (within `splash` of each other) near the target, so a pile of
+// troopers is what gets hit. Falls back to the target itself.
+function densest(m, a, splash) {
+  let best = a, bn = 0;
+  m.aGrid.near(a.x, a.y, splash * 3, (c) => { let n = 0; m.aGrid.near(c.x, c.y, splash, () => { n++; }); if (n > bn) { bn = n; best = c; } });
+  let sx = 0, sy = 0, n = 0;
+  m.aGrid.near(best.x, best.y, splash, (c) => { sx += c.x; sy += c.y; n++; });
+  return n ? { x: sx / n, y: sy / n } : { x: a.x, y: a.y };
+}
+// Bombardier: one mortar shell at a time, with a flight time you can see coming (a ring on the ground) and a wide blast.
+function bombardier(m, e, dt, t, p) {
+  const V = C.variants.squids;
+  e.atk -= dt;
+  if (e.atk > 0 || !e.tgt || e.tgt.dead) return;
+  e.atk = p.every;
+  const a = e.tgt, c = densest(m, a, p.splash), [ox, oy] = m.rng.inDisc(V.scatter), tx = c.x + (a.vx || 0) * V.flight * 0.4 + ox, ty = c.y + (a.vy || 0) * V.flight * 0.4 + oy;
+  m.bossShells.push({ x: tx, y: ty, at: t + V.flight, dmg: p.dmg * m.dmgMul, splash: p.splash, fx: e.x, fy: e.y, mortar: true });
+  m.emit('tracer', { x: e.x, y: e.y, tx, ty, s: 'e', f: 'squids', k: 'M', hit: true, big: true, mortar: true, fl: V.flight, snd: 'squidsM' });
+  e.aimA = Math.atan2(ty - e.y, tx - e.x); e.aimUntil = t + 0.9;
+  reveal(m, e);
+}
+
+// ---------------------------------------------------------------- (0.54) formations
+// Where an enemy walks to while it keeps up with its group: its slot (g.cx + ox, g.cy + oy), or, in an ant trail, a spot `gap` metres
+// behind the one ahead of it on the line from that one to itself (so the trail follows the leader's path).
+function homeOf(g, e) {
+  const f = e.fol;
+  if (f && !f.dead) {
+    const dx = e.x - f.x, dy = e.y - f.y, d = Math.hypot(dx, dy), gap = C.formations.bugs.gap;
+    if (d > 0.01) return d < gap * 1.05 ? { x: e.x, y: e.y } : { x: f.x + (dx / d) * gap, y: f.y + (dy / d) * gap };
+  }
+  return { x: g.cx + e.ox, y: g.cy + e.oy };
+}
+const isLeader = (e) => e.kind !== 'L';
+// Bots and bugs: slots in the group's own frame (forward = the way it is heading, or at its target once it hunts). Twice a second.
+function arrangeForm(g) {
+  const F = C.formations, hunt = g.state === 'hunt', hx = hunt ? g.ux : g.hx, hy = hunt ? g.uy : g.hy, sx = -hy, sy = hx;
+  const live = g.members.filter((q) => !q.dead && !q.boss);
+  const put = (q, fwd, side) => { q.ox = hx * fwd + sx * side; q.oy = hy * fwd + sy * side; };
+  if (g.form === 'trail') {
+    const order = live.filter(isLeader).concat(live.filter((q) => !isLeader(q))), gap = F.bugs.gap, n = order.length;
+    order.forEach((q, i) => { q.fol = i && !isLeader(q) ? order[i - 1] : null; put(q, ((n - 1) / 2 - i) * gap, 0); });
+    return;
+  }
+  if (g.form === 'swarm') { for (const q of live) q.fol = null; return; }
+  const lead = live.filter(isLeader), rest = live.filter((q) => !isLeader(q));
+  const lineSp = F.bots.line.spacing, blk = F.bots.block.spacing;
+  if (g.form === 'line') {
+    rest.forEach((q, i) => put(q, 0, (i - (rest.length - 1) / 2) * lineSp));
+    lead.forEach((q, i) => put(q, -F.bots.rank, (i - (lead.length - 1) / 2) * lineSp));
+  } else {
+    const cols = Math.max(1, Math.ceil(Math.sqrt(rest.length))), rows = Math.max(1, Math.ceil(rest.length / cols));
+    rest.forEach((q, i) => put(q, ((rows - 1) / 2 - Math.floor(i / cols)) * blk, ((i % cols) - (cols - 1) / 2) * blk));
+    lead.forEach((q, i) => put(q, -((rows - 1) / 2 + 1) * blk - blk * 0.5, (i - (lead.length - 1) / 2) * blk));
+  }
+}
+const startled = (g, t) => ((g.startle ?? -99) > t ? C.formations.squids.startle.speed : 1);
+function arrangeSchool(g, t) {
+  const S = C.formations.squids, live = g.members.filter((q) => !q.dead && !q.boss);
+  const lead = live.filter((q) => q.kind !== 'L'), rest = live.filter((q) => q.kind === 'L');
+  // startled: one of it hurt this moment, or fewer of it than a moment ago
+  // (not again until it has closed up and swum on a while: under steady fire it scatters, re-forms, scatters)
+  if (t >= (g.startleOk ?? 0)) {
+    let hit = g.schoolN !== undefined && live.length < g.schoolN;
+    if (!hit) for (const q of live) if (t - (q.hurtAt ?? -99) < 0.15) { hit = true; break; }
+    if (hit) { g.startle = t + S.startle.sec; g.startleOk = g.startle + S.startle.rest; }
+  }
+  g.schoolN = live.length;
+  const st = Math.max(0, Math.min(1, ((g.startle ?? -99) - t) / S.startle.sec)), burst = 1 + (S.startle.mul - 1) * Math.sin(Math.min(1, st * 1.6) * Math.PI / 2);
+  // (0.62.4) An arrowhead. The school swims as a filled triangle, its point the way it is going: one in front, two behind it,
+  // three behind those, `wedge.gap` metres apart across and `wedge.row` front to back. The leaders take the places nearest its
+  // middle, with lights ahead of them and on both sides. Every place is fixed in the arrow, so a member only moves when the
+  // school does (the old rings turned all the time, so everyone was always chasing a place through its neighbours). The arrow
+  // turns toward the school's heading at `wedge.turn` radians a second at most. Places are handed out when the school changes
+  // size, by where each one already is: the ones furthest forward get the front rows.
+  const W = S.wedge, want = Math.atan2(g.hy, g.hx);
+  if (g.wA === undefined) { g.wA = want; g.wSharp = t; }
+  {
+    // A turn of more than `wedge.flip` radians: the arrow does not wheel round (its ends would have to outrun everyone), it
+    // points the new way at once and the places are handed out again from where everyone is, so the back becomes the front.
+    const d = wrap(want - g.wA), lim = W.turn * (g.wT === undefined ? 0 : Math.max(0, t - g.wT));
+    if (Math.abs(d) <= W.flip) g.wSharp = t;     // (the last moment it was not asking for a sharp turn)
+    if (t - (g.wSharp ?? t) > W.flipSec) { g.wA = want; g.schoolKey = -1; g.wSharp = t; }     // (it has meant it for flipSec: a wandering patrol changing its mind does not re-form the school)
+    else if (Math.abs(d) <= W.flip) g.wA += Math.max(-lim, Math.min(lim, d));
+    g.wT = t;
+  }
+  const fx = Math.cos(g.wA), fy = Math.sin(g.wA);
+  if (g.schoolN !== g.schoolKey) {
+    g.schoolKey = g.schoolN;
+    const n = live.length, slots = [];
+    let rows = 0; while ((rows * (rows + 1)) / 2 < n) rows++;
+    for (let k = 0, left = n; k < rows; k++) { const c = Math.min(k + 1, left); for (let j = 0; j < c; j++) slots.push({ f: -k, s: j - (c - 1) / 2 }); left -= c; }
+    const mf = slots.reduce((a, q) => a + q.f, 0) / (n || 1);
+    for (const q of slots) q.f -= mf;     // (the school's own point is the middle of the arrow)
+    const along = (q) => (q.x - g.cx) * fx + (q.y - g.cy) * fy, across = (q) => -(q.x - g.cx) * fy + (q.y - g.cy) * fx;
+    // the leaders: the places nearest the middle
+    const free = slots.slice().sort((a, b) => (a.f * a.f * W.row * W.row + a.s * a.s * W.gap * W.gap) - (b.f * b.f * W.row * W.row + b.s * b.s * W.gap * W.gap));
+    const mine = free.splice(0, lead.length).sort((a, b) => a.s - b.s);
+    lead.slice().sort((a, b) => across(a) - across(b)).forEach((q, i) => { q.sF = mine[i].f; q.sS = mine[i].s; });
+    // the lights: front rows to the ones furthest forward, and across each row in the order they already are
+    free.sort((a, b) => b.f - a.f || a.s - b.s);
+    const by = rest.slice().sort((a, b) => along(b) - along(a));
+    for (let i = 0; i < free.length;) {
+      let j = i; while (j < free.length && free[j].f === free[i].f) j++;
+      by.slice(i, j).sort((a, b) => across(a) - across(b)).forEach((q, k) => { q.sF = free[i + k].f; q.sS = free[i + k].s; });
+      i = j;
+    }
+  }
+  for (const q of live) {
+    const f = (q.sF || 0) * W.row * burst, sd = (q.sS || 0) * W.gap * burst;
+    q.ox = fx * f - fy * sd; q.oy = fy * f + fx * sd;
+  }
+  // How far behind its places the school is (the mean, over those not busy shooting): its own point waits for it (schoolPace),
+  // so the arrow forms and holds instead of its point running off ahead of a crowd that never catches it.
+  let lag = 0, ln = 0;
+  const aR = AOB ? (AOB.R || AOB.size / 2) - 3 : 0;
+  for (const q of live) if (!q.tgt) {
+    let sx = g.cx + q.ox, sy = g.cy + q.oy;
+    if (AOB) { const dx = sx - AOB.cx, dy = sy - AOB.cy, d2 = dx * dx + dy * dy; if (d2 > aR * aR) { const k = aR / Math.sqrt(d2); sx = AOB.cx + dx * k; sy = AOB.cy + dy * k; } }     // (a place past the rim of the map: as near to it as anyone can stand)
+    // (0.62.8) one that is AHEAD of its place (nearer where the school is going than its place is) is not behind: on a hunt the
+    // squids near enough to go for the ring ran on, that read as the school falling behind, and its point stopped to wait
+    const T = g.tp || g.target;
+    if (T && (q.x - T.x) ** 2 + (q.y - T.y) ** 2 < (sx - T.x) ** 2 + (sy - T.y) ** 2) { ln++; continue; }
+    lag += Math.hypot(q.x - sx, q.y - sy); ln++;
+  }
+  g.lag = ln ? lag / ln : 0;
+}
+const schoolPace = (g) => { const W = C.formations.squids.wedge; return Math.max(W.wait, Math.min(1, 1 - ((g.lag || 0) - W.slack) / W.leash)); };
+
+// ---------------------------------------------------------------- how each faction fights
+const TAU = Math.PI * 2;
+const wrap = (a) => { while (a > Math.PI) a -= TAU; while (a < -Math.PI) a += TAU; return a; };
+
+// Bugs: a swarm. Every bug picks the closest ally it can sense and runs at it from its own angle, weaving as it goes, and a pack
+// that is still big enough (CONFIG.enemies.tactics.swarm.rushN) moves faster. Far from anyone they follow the pack.
+function swarmMove(m, g, e, tgt, dt, size, sightE) {
+  const S = C.enemies.tactics.swarm, t = m.t;
+  if (e.kind === 'H' || e.sub === 'guard') {   // the charger sprints at whatever is nearest; the hive guard leads the pack straight in
+    if (tgt && Math.hypot(tgt.x - e.x, tgt.y - e.y) < 180) moveToward(e, tgt.x, tgt.y, e.speed, dt, size);
+    else { const h = homeOf(g, e); moveToward(e, h.x, h.y, e.speed * 1.5, dt, size); }
+    return;
+  }
+  if (e.tgt && holdHere(e)) { e.vx = 0; e.vy = 0; return; }   // in biting range (0.62.2: unless it is plinking a gun from outside its reach)
+  e.ptT -= dt;
+  if (e.ptT <= 0) { e.ptT = 0.25 + m.rng.next() * 0.15; e.pt = nearestTarget(m, e.x, e.y, sightE * 1.6); }
+  const p = e.pt && !e.pt.dead ? e.pt : null;
+  if (!p) { const h = homeOf(g, e); moveToward(e, h.x, h.y, e.speed * 1.5, dt, size); return; }
+  const dx = p.x - e.x, dy = p.y - e.y, d = Math.hypot(dx, dy) || 1;
+  if (e.v === 'leap' && tryLeap(m, e, p, d)) return;      // (0.54) the last stretch in one jump
+  // each bug keeps its own side of the approach (a wide arc either way of the pack's bearing) until it is almost on top of the target,
+  // so the pack spreads into a wide front and wraps round the squad instead of arriving as one column
+  const bear = Math.atan2(g.cy - p.y, g.cx - p.x) + wrap(e.ang) * (S.arc / Math.PI), off = Math.min(S.reach, d * S.fan);
+  const w = Math.sin(t * 3.1 + e.id) * S.weave * Math.min(1, d / 30);
+  const rush = g.members.length >= S.rushN ? S.rushMul : 1;
+  moveToward(e, p.x + Math.cos(bear) * off - (dy / d) * w, p.y + Math.sin(bear) * off + (dx / d) * w, e.speed * 1.2 * rush, dt, size);
+}
+
+// Bots: a firing line. The pack advances abreast, perpendicular to the way it faces; close in, every bot walks to its own spot on
+// a line across the approach, a standoff short of its weapon range (the tank hangs back behind the others), and stands there firing.
+// (0.62.2) Standing still and shooting is fair against anything that can shoot back: a live ally, or a building whose own gun
+// reaches this far. Against a gun it outranges, the enemy keeps walking in until it is inside that gun's reach (x closeIn), so a
+// turret nest is fought for instead of plinked from outside it.
+// How far out this enemy may take its stand: its own reach, or the reach of the gun it is shooting at, whichever is shorter.
+export function standCap(e, range, tg = e.tgt) {
+  const gr = tg && tg.kind && !tg.dead && tg.p && tg.p.range;
+  return gr ? Math.min(range, gr * C.enemies.tactics.closeIn) : range;
+}
+export function holdHere(e) {
+  const tg = e.tgt;
+  if (!tg || !tg.kind) return true;                                  // a live ally, or nothing: stand
+  const gr = tg.p && tg.p.range;                                     // the building's own gun (a turret nest, a sentry)
+  if (!gr || tg.dead) return true;                                   // an unarmed thing: no need to walk into it
+  return (tg.x - e.x) ** 2 + (tg.y - e.y) ** 2 <= (gr * C.enemies.tactics.closeIn) ** 2;
+}
+function arrangeLine(g, L) {
+  const lights = g.members.filter((q) => !q.dead && q.kind !== 'H'), n = lights.length;
+  g.members.forEach((q) => {
+    if (q.dead) return;
+    const i = q.kind === 'H' ? 0 : lights.indexOf(q), lane = q.kind === 'H' ? 0 : (i - (n - 1) / 2) * L.spacing;
+    q.lane = lane;
+  });
+}
+function lineMove(m, g, e, tgt, dt, size) {
+  const L = C.enemies.tactics.line;
+  if ((e.tgt || e.vol) && holdHere(e)) { e.vx = 0; e.vy = 0; return; }   // something is in range: stand and shoot
+  if (!tgt) { moveToward(e, g.cx + e.ox, g.cy + e.oy, e.speed * 1.5, dt, size); return; }
+  const range = profileOf(m.faction.id, e).range, d = Math.hypot(tgt.x - e.x, tgt.y - e.y);
+  if (d > L.arm + range) { moveToward(e, g.cx + e.ox, g.cy + e.oy, e.speed * 1.5, dt, size); return; }   // (still marching: its slot in the line or the block)
+  const stand = standCap(e, range, e.tgt || tgt) * L.standoff + (e.kind === 'H' ? L.tankBack : e.kind === 'M' ? L.rank * 0.5 : 0) + (e.sub === 'cmd' ? L.rank * 1.1 : 0), nx = -g.uy, ny = g.ux;   // (the leaders stand behind the line)
+  moveToward(e, tgt.x - g.ux * stand + nx * (e.lane || 0), tgt.y - g.uy * stand + ny * (e.lane || 0), e.speed * 1.3, dt, size);
+}
+
+// Squids: encirclement. Everything hunting one target spreads evenly round it (assignRings, twice a second); each one walks the
+// ring toward its own slot while it closes to its firing distance, shooting as it goes, and stops once it is in place.
+// (0.54) a squid leader (a medium that is not the fleshmob) keeps inside the ring instead of on it
+const midOf = (e) => e.kind === 'M' && !e.sub && !e.boss;
+// (0.62.2) The leaders get their own evenly spaced slots on the inner ring, as the lights do on the outer one. Before this they
+// only held their current bearing, so every leader hunting one target could end up on the same side of it, in a heap.
+function assignRings(m) {
+  const byT = new Map();
+  for (const g of m.groups) {
+    if (g.state !== 'hunt' || !g.target || g.target.dead) continue;
+    let l = byT.get(g.target);
+    if (!l) byT.set(g.target, (l = [[], []]));
+    for (const e of g.members) { if (e.dead || e.kind === 'H') continue; l[midOf(e) ? 1 : 0].push(e); }
+  }
+  const ring = (tg, l) => {
+    if (!l.length) return;
+    for (const e of l) e.ra = Math.atan2(e.y - tg.y, e.x - tg.x);
+    l.sort((a, b) => a.ra - b.ra);
+    const base = l[0].ra;
+    l.forEach((e, i) => { e.slot = base + (i / l.length) * TAU; });
+  };
+  for (const [tg, [out, mid]] of byT) { ring(tg, out); ring(tg, mid); }
+}
+// To its own place in the school. (0.62.2) One that has fallen a long way behind it (a lake in the way, a wall, a place that
+// landed in deep water) swims back to the school itself first, instead of walking for ever at a place it cannot reach.
+function schoolTo(m, g, e, dt, size) {
+  const far = (e.x - g.cx) ** 2 + (e.y - g.cy) ** 2 > C.formations.squids.lost ** 2;
+  const sp = e.speed * 1.5 * startled(g, m.t);
+  if (far) moveToward(e, g.cx, g.cy, sp, dt, size);
+  else moveToward(e, g.cx + e.ox, g.cy + e.oy, sp, dt, size);
+}
+function ringMove(m, g, e, tgt, dt, size, atk, engaged) {
+  const R = C.enemies.tactics.ring;
+  if (!tgt || e.kind === 'H') {
+    if (e.tgt && holdHere(e)) { e.vx = 0; e.vy = 0; return; }
+    if (e.tgt) { moveToward(e, e.tgt.x, e.tgt.y, e.speed, dt, size); return; }     // (0.62.2) walking into the gun it is shooting
+    if (e.kind === 'H' && engaged && tgt) { moveToward(e, tgt.x, tgt.y, e.speed, dt, size); return; }
+    schoolTo(m, g, e, dt, size);
+    return;
+  }
+  const range = standCap(e, profileOf(m.faction.id, e).range, e.tgt || tgt), Rr = range * R.radius, d = Math.hypot(tgt.x - e.x, tgt.y - e.y);
+  if (d > R.arm + Rr) {   // still on the way in: move with the school
+    if (e.tgt && holdHere(e)) { e.vx = 0; e.vy = 0; return; }
+    // (0.62.8) unless the school has stopped because its front is already fighting: the group's point only moves while nobody
+    // is engaged, so the back rows of the arrowhead were left standing at their places a hundred metres off, for good. They
+    // come in to the fight.
+    if (engaged) moveToward(e, tgt.x, tgt.y, e.speed * 1.2, dt, size); else schoolTo(m, g, e, dt, size);
+    return;
+  }
+  // (0.54) a leader holds a little way in from the ring, behind its lights; (0.62.2) on a slot of its own, as the lights are
+  const Rw = midOf(e) ? Rr * C.formations.squids.hold : Rr;
+  const cur = Math.atan2(e.y - tgt.y, e.x - tgt.x), diff = e.slot === undefined ? 0 : wrap(e.slot - cur);
+  const inPlace = Math.abs(diff) < 0.3 && Math.abs(d - Rw) < R.slack;
+  if (inPlace) { e.vx = 0; e.vy = 0; return; }   // in position: stand and shoot (the attack step does the rest)
+  const sp = e.speed * 1.4, step = Math.min(Math.abs(diff), Math.max(2.5, sp * 0.35) / Math.max(8, Rw));   // aim a few metres ahead along the ring
+  const ang = cur + Math.sign(diff) * step;
+  moveToward(e, tgt.x + Math.cos(ang) * Rw, tgt.y + Math.sin(ang) * Rw, sp, dt, size);
+}
+
+export function updateEnemies(m, dt) {
+  const fac = m.faction, rng = m.rng, size = C.world.size, A = C.enemies.alert, t = m.t, T = C.enemies.tactics;
+  const sightE = fac.sight * m.biome.ping;
+  NAV = m.terrain; NAVT = m.t; AOB = m.ao; MM = m;
+  WIRES.length = 0; for (const p of m.posts) if (p.what === 'wire' && !p.dead && p.wireHp > 0) WIRES.push(p);
+  const atk = C.combat.atk[fac.id], prof = (e) => profileOf(fac.id, e);
+  if (fac.id === 'squids') { m.ringT = (m.ringT || 0) - dt; if (m.ringT <= 0) { m.ringT = 0.5; assignRings(m); } }
+  // Commanders jam the ground round them (see jammedAt); a heavy's shield comes back once it has been left alone a while.
+  const jam = m.jammers || (m.jammers = []);
+  jam.length = 0;
+  m.bubbles = (m.bubbles || []).filter((b) => b.dome);     // (the domes of a shield-generator mission stay; the harvesters' are rebuilt)
+  for (const e of m.enemies) {
+    if (e.dead) continue;
+    // (0.40) a commander jams for jamSec, then cools down for jamCool, over and over
+    if (e.jamR) { const J = C.special.bots, cyc = J.jamSec + J.jamCool, ph = (t - (e.born ?? 0) + (e.jamPh || 0)) % cyc; e.jamming = ph < J.jamSec; e.jamLeft = e.jamming ? J.jamSec - ph : cyc - ph; if (e.jamming) jam.push(e); }
+    if (e.bubR && e.shield > 0) m.bubbles.push({ x: e.x, y: e.y, r: e.bubR, src: e });
+    if (e.maxShield && !e.boss && e.shield < e.maxShield && t - e.shieldAt > e.regenDelay) e.shield = Math.min(e.maxShield, e.shield + e.regen * dt);
+  }
+  for (const g of m.groups) {
+    FB = g;
+    let n = 0, minSpeed = Infinity;
+    for (const e of g.members) {
+      if (e.dead) continue;
+      n++; if (e.speed < minSpeed) minSpeed = e.speed;
+    }
+    if (!n) continue;
+    // (0.54) the way the group is heading (smoothed), and where each member keeps in its formation
+    {
+      const mx = g.cx - (g.lx ?? g.cx), my = g.cy - (g.ly ?? g.cy), md = Math.hypot(mx, my);
+      g.lx = g.cx; g.ly = g.cy;
+      if (md > 0.01) { const k = Math.min(1, dt * 3), hx = g.hx + (mx / md - g.hx) * k, hy = g.hy + (my / md - g.hy) * k, hn = Math.hypot(hx, hy) || 1; g.hx = hx / hn; g.hy = hy / hn; }
+      if (fac.id === 'squids') arrangeSchool(g, t);
+      else if ((g.formT -= dt) <= 0) { g.formT = 0.5; arrangeForm(g); }
+    }
+
+    // Notice allies at the enemy's own (shorter) sight, four times a second.
+    g.senseT -= dt;
+    if (g.senseT <= 0) {
+      g.senseT = 0.25;
+      for (const e of g.members) {
+        if (e.dead) continue;
+        if (nearestTarget(m, e.x, e.y, sightE * m.terrain.sightMul(e.x, e.y))) {
+          if (g.state === 'patrol') alertGroup(m, g); else g.alertT = Math.max(g.alertT, A.loseSec);
+          break;
+        }
+      }
+    }
+
+    if (g.state === 'patrol') {
+      // Investigating a noise: walk over at a good pace, look round, then go back to the route.
+      // Walking a route: on to the next waypoint once this one is reached (round and round, or there and back).
+      // Otherwise wander round home (garrisons stay at their base).
+      let goal = null, pace = C.enemies.patrolSpeedMul;
+      if (g.inv) {
+        if (t > g.invUntil || (g.cx - g.inv.x) ** 2 + (g.cy - g.inv.y) ** 2 < 144) { g.inv = null; if (!g.route) { g.home = { x: g.cx, y: g.cy }; g.pt = null; } }
+        else { goal = g.inv; pace = 0.95; }
+      }
+      if (!goal && g.route) {
+        const R = g.route, w = R.pts[g.ri];
+        if ((g.cx - w.x) ** 2 + (g.cy - w.y) ** 2 < 100) {
+          if (R.loop) g.ri = (g.ri + 1) % R.pts.length;
+          else { if (g.ri + g.rdir < 0 || g.ri + g.rdir >= R.pts.length) g.rdir = -g.rdir; g.ri += g.rdir; }
+        }
+        goal = R.pts[g.ri]; pace = C.patrols.speed;
+      }
+      if (!goal) {
+        g.patrolT -= dt;
+        if (g.patrolT <= 0 || !g.pt) {
+          const [ox, oy] = rng.inDisc(C.enemies.patrolRadius);
+          g.pt = { x: g.home.x + ox, y: g.home.y + oy }; g.patrolT = rng.range(6, 10);
+          if (m.terrain.blocked(g.pt.x, g.pt.y)) g.pt = m.terrain.nearestLand(g.pt.x, g.pt.y);
+        }
+        goal = g.pt;
+      }
+      const o = g.mv || (g.mv = { x: 0, y: 0, nv: null, nvc: null }); o.x = g.cx; o.y = g.cy; o.nv = g.nv;
+      moveToward(o, goal.x, goal.y, minSpeed * pace * (fac.id === 'squids' ? schoolPace(g) : 1), dt, size);
+      g.cx = o.x; g.cy = o.y; g.nv = o.nv;
+      for (const e of g.members) {
+        if (e.dead) continue;
+        e.tgt = null;
+        if (e.stunUntil > t) { e.vx = 0; e.vy = 0; continue; }
+        const h = homeOf(g, e);
+        moveToward(e, h.x, h.y, e.speed * (fac.id === 'squids' ? ((e.x - h.x) ** 2 + (e.y - h.y) ** 2 > 9 ? 1.6 : 1.1) : 0.8), dt, size);     // (0.62.4: a squid keeps up with its place in the arrow)
+      }
+      continue;
+    }
+
+    // A group told to hold (g.hold) stands still until its hold time is over.
+    if (g.hold > t) {
+      for (const e of g.members) { if (!e.dead) { e.vx = 0; e.vy = 0; e.tgt = null; } }
+      continue;
+    }
+
+    // Hunting: head for roughly where the nearest ally (or placed asset) is.
+    g.alertT -= dt;
+    g.targetT -= dt;
+    if (g.targetT <= 0) {
+      g.targetT = 0.5;
+      let best = null, bd = Infinity;
+      for (const a of m.alive) {
+        const d2 = (a.x - g.cx) ** 2 + (a.y - g.cy) ** 2;
+        if (d2 < bd) { bd = d2; best = a; }
+      }
+      for (const s of m.assets) {
+        if (s.dead || s.kind === 'mines' || s.fallen || s.dormant || s.asleep) continue;     // (0.52: a fallen work site is left; 0.53: the gun before its crew; 0.53.6: a site not yet worked)
+        const d2 = (s.x - g.cx) ** 2 + (s.y - g.cy) ** 2;
+        if (d2 < bd) { bd = d2; best = s; }
+      }
+      for (const c of m.civs) {     // civilians on an evacuation are fair game
+        if (c.dead || c.safe) continue;
+        const d2 = (c.x - g.cx) ** 2 + (c.y - g.cy) ** 2;
+        if (d2 < bd) { bd = d2; best = c; }
+      }
+      g.target = best;
+      g.fuzzT -= 0.5;
+      if (best && (g.fuzzT <= 0 || !g.tp)) {
+        g.fuzzT = 2;
+        const close = Math.sqrt(bd) <= sightE * 1.2;
+        const [fx, fy] = rng.inDisc(close ? 0 : A.fuzz);
+        g.tp = { x: best.x + fx, y: best.y + fy };
+      } else if (best && Math.sqrt(bd) <= sightE * 1.2) g.tp = { x: best.x, y: best.y };
+    }
+    if (g.alertT <= 0) {
+      // lost the squad: back to its route (from the nearest waypoint), or to wandering where it is
+      // (0.62.2) and it lets go of what it was after: the group kept walking to the last place it saw someone, so members
+      // strung out toward it one by one and left their formation behind
+      g.state = 'patrol'; g.target = null; g.home = { x: g.cx, y: g.cy }; g.patrolT = 0; g.pt = null; g.inv = null;
+      if (g.route) { let bi = 0, bd = Infinity; g.route.pts.forEach((p, i) => { const d = (p.x - g.cx) ** 2 + (p.y - g.cy) ** 2; if (d < bd) { bd = d; bi = i; } }); g.ri = bi; }
+      continue;
+    }
+
+    // Light and medium enemies decide whether the group stops to fight. Heavies fight on their own terms.
+    let engaged = false;
+    for (const e of g.members) {
+      if (e.dead) continue;
+      e.tgt = nearestTarget(m, e.x, e.y, Math.min(prof(e).range, sightE * m.terrain.sightMul(e.x, e.y)));   // nothing shoots farther than it sees
+      if (e.tgt && e.kind !== 'H') engaged = true;
+    }
+    g.engaged = engaged;
+    if (engaged || g.members.some((e) => !e.dead && e.tgt)) g.alertT = Math.max(g.alertT, A.loseSec);
+
+    const tgt = g.target && !g.target.dead ? g.target : null;
+    if (!engaged && g.tp) {
+      const o = g.mv || (g.mv = { x: 0, y: 0, nv: null, nvc: null }); o.x = g.cx; o.y = g.cy; o.nv = g.nv;
+      moveToward(o, g.tp.x, g.tp.y, minSpeed * (fac.id === 'squids' ? schoolPace(g) : 1), dt, size);
+      g.cx = o.x; g.cy = o.y; g.nv = o.nv;
+    }
+    // Which way the group is facing the target and how its members line up across it (used by the firing line).
+    if (tgt && g.faceT <= t) {
+      g.faceT = t + 0.5;
+      const dx = tgt.x - g.cx, dy = tgt.y - g.cy, d = Math.hypot(dx, dy) || 1;
+      g.ux = dx / d; g.uy = dy / d;
+      if (fac.id === 'bots') arrangeLine(g, T.line);
+    }
+    for (const e of g.members) {
+      if (e.dead) continue;
+      if (e.boss) { if (t < (e.arriveUntil || 0)) { e.vx = 0; e.vy = 0; continue; } bossMove(m, e, dt, size); continue; }
+      if (e.lp) { leapStep(m, e); continue; }                   // (0.54) in the air
+      if (e.stunUntil > t || e.ch || e.vol) { e.vx = 0; e.vy = 0; continue; }
+      if (fac.id === 'bugs') { swarmMove(m, g, e, tgt, dt, size, sightE); continue; }
+      if (fac.id === 'bots') { lineMove(m, g, e, tgt, dt, size); continue; }
+      ringMove(m, g, e, tgt, dt, size, atk, engaged);
+    }
+  }
+
+  // Attacks. Each enemy has its own range, damage and rate. Misses fly wide, smoke makes them worse.
+  for (const g of m.groups) {
+    if (g.state !== 'hunt' || g.hold > t) continue;
+    for (const e of g.members) {
+      if (e.dead) continue;
+      if (e.stunUntil > t) { e.ch = null; e.vol = null; continue; }
+      if (e.lp) continue;
+      const p = prof(e);
+      if (e.boss) { if (t < (e.arriveUntil || 0)) continue; bossAttack(m, e, dt, t); continue; }     // (0.55.1: not while it arrives)
+      if (e.v === 'rkt') { rocketeer(m, e, dt, t, p); continue; }
+      if (e.v === 'mort') { bombardier(m, e, dt, t, p); continue; }
+      if (e.kind === 'H' && fac.id === 'squids') { e.atk -= dt; squidHeavy(m, e, p, t); continue; }
+      if (!e.tgt) continue;
+      e.atk -= dt;
+      if (e.atk > 0) continue;
+      const a = e.tgt;
+      if (a.dead) { e.atk += p.every; continue; }
+      // (0.57) trigger discipline: another of theirs in the line of fire, it holds (now and then it fires anyway, and hits it)
+      const melee0 = (fac.id === 'bugs' && e.kind !== 'M') || e.sub === 'guard' || e.sub === 'soak', FE = C.ff.enemy;
+      const blk = !melee0 && p.range > 8 ? eBlocker(m, e, a.x, a.y) : null;
+      if (blk && rng.next() >= FE.collateral) { e.atk = 0.3; continue; }
+      e.atk += p.every;
+      e.aimA = Math.atan2(a.y - e.y, a.x - e.x); e.aimUntil = t + 0.9;    // turn to face what it is shooting
+      reveal(m, e);                                                      // and gives its position away
+      const smoke = inZoneKind(m, a.x, a.y, 'smoke') ? 0.35 : 1;
+      const band = p.range > 8 ? bandOf(Math.hypot(a.x - e.x, a.y - e.y), p.range) : 0;   // short, medium or long range
+      const hit = rng.next() < p.acc * smoke * bandAcc(band);
+      let tx = a.x, ty = a.y;
+      if (!hit) { const [ox, oy] = rng.inDisc(3.5); tx += ox; ty += oy; }
+      const melee = (fac.id === 'bugs' && e.kind !== 'M') || e.sub === 'guard' || e.sub === 'soak';
+      m.emit('tracer', { x: e.x, y: e.y, tx, ty, s: 'e', f: fac.id, k: e.kind, hit, melee, snd: fac.id + e.kind });
+      if (blk) { m.stats.ffE = (m.stats.ffE || 0) + 1; hurtEnemy(m, blk, p.dmg * m.dmgMul * FE.ffMul, 'enemy', e.x, e.y, ''); }
+      if (!hit) { if (!melee) { const sb = eBlocker(m, e, tx, ty); if (sb) hurtEnemy(m, sb, p.dmg * m.dmgMul * C.ff.strayMul, 'enemy', e.x, e.y, ''); } continue; }
+      const hi = m.terrain.attackMul(e.x, e.y, a.x, a.y) * bandDmg(band);     // shooting down from a rise hits harder; far shots softer
+      if (p.splash) {
+        m.aGrid.near(tx, ty, p.splash, (o) => hurtTarget(m, o, p.dmg * m.dmgMul * hi, 'enemy', e.kind, e.x, e.y));
+        m.eGrid.near(tx, ty, p.splash, (o) => { if (o !== e && !o.boss) hurtEnemy(m, o, p.dmg * m.dmgMul * FE.splashMul, 'enemy', tx, ty, ''); });     // (0.57) its own too
+        m.tGrid.near(tx, ty, p.splash, (o) => hurtTarget(m, o, p.dmg * m.dmgMul * hi, 'enemy', e.kind));
+        for (const cv of m.civs) if (!cv.dead && !cv.safe && (cv.x - tx) ** 2 + (cv.y - ty) ** 2 <= p.splash * p.splash) m.hurtCiv(cv, p.dmg * m.dmgMul, 'enemy');
+        m.emit('boom', { x: tx, y: ty, r: p.splash, dmg: p.dmg, by: 'enemy' });
+      } else {
+        // (0.58) the same glancing hits on our side: a light round on a Helldiver's armour may skip off
+        const R = C.ric, k = a.type ? Math.max(R.minPen, (R.vs[e.kind] || {})[armorOf(a)] ?? 1) : 1;
+        if (k < 1 && rng.next() < Math.min(R.max, R.base + (1 - k) * R.perGap)) {
+          hurtTarget(m, a, p.dmg * m.dmgMul * hi * Math.max(R.minPen, k * R.chip), 'enemy', e.kind, e.x, e.y);
+          const ra = Math.atan2(a.y - e.y, a.x - e.x) + Math.PI + (rng.next() - 0.5) * 2.4;
+          m.emit('ricochet', { x: a.x, y: a.y, tx: a.x + Math.cos(ra) * 9, ty: a.y + Math.sin(ra) * 9, ally: true });
+        } else hurtTarget(m, a, p.dmg * m.dmgMul * hi, 'enemy', e.kind, e.x, e.y);     // (a clean hit: as before)
+      }
+    }
+  }
+}
+

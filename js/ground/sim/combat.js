@@ -1,0 +1,386 @@
+// Damage rules shared by every side: hurting enemies, allies and placed assets, shields, smoke, and shots with tracers.
+import { CONFIG as C } from '../config.js';
+import { damageRock } from './scenery.js';
+import { ALLY } from '../data/data.js';
+import { uavBuff } from '../data/kit.js';
+import { coverMul } from './cover.js';
+import { alertGroup, noise } from './enemies.js';
+import { medicNear, goDown } from './seaf.js';
+
+// ---------- hits from behind and critical hits ----------
+// The multiplier for one hit on tgt coming from (fx, fy): more from behind (the back of every unit is its weak side, and a heavy's
+// most of all), and now and then a critical hit. cs names whose crit chance applies ('player', 'gun', 'ally', 'enemy'), or '' for
+// none (burning ground, gas). m.hitFlags says what happened (1 = from behind, 2 = critical) for whoever wants to show it.
+const B = C.combat.back, CR = C.combat.crit;
+// An armoured front (a bug heavy, the Hive Guard: tgt.front, the share that gets through within the arc tgt.frontCos) takes less
+// from ahead (f 4), unless the hit pierces (the Ultimatum). A bot heavy's weak points crit more often (tgt.critUp).
+// (ABOVE: the hit is a blast coming down from orbit, not a shot from someone on the ground: a heavy's front plate does not stop it)
+let ABOVE = false;
+export function hitMul(m, tgt, fx, fy, cs, pierce = false) {
+  let k = 1, f = 0;
+  if (fx !== undefined && fx !== null && tgt.face !== undefined) {
+    const dx = fx - tgt.x, dy = fy - tgt.y, d = Math.hypot(dx, dy);
+    if (d > 1.2) {
+      const c = (dx * Math.cos(tgt.face) + dy * Math.sin(tgt.face)) / d;
+      if (c < B.cos) { k *= tgt.kind === 'H' ? B.heavy : B.mul; f |= 1; }
+      else if (tgt.front && !pierce && !ABOVE && c > tgt.frontCos) { k *= tgt.front; f |= 4; }
+    }
+  }
+  if (cs && m.rng.next() < CR[cs] + (tgt.critUp || 0)) { k *= CR.mul; f |= 2; }
+  m.hitFlags = f;
+  return k;
+}
+
+// (0.58) friendly fire. The armour class a blast's table is read for: an enemy's kind (a super heavy: H), an ally's (Helldivers
+// medium, SEAF light), anything else light.
+export const armorOf = (o) => (o.g !== undefined || o.kind === 'L' || o.kind === 'M' || o.kind === 'H' ? (o.boss ? 'H' : o.kind) : C.ff.allyArmor[o.type] || 'L');
+// The share of a hit on one's own side: half, unless it comes from right behind a unit and lands on it (a rocket in the back).
+export function ownMul(tgt, fx, fy, x = fx, y = fy) {
+  const F = C.ff;
+  if (fx === undefined || fx === null || tgt.face === undefined) return F.own;
+  if ((tgt.x - x) ** 2 + (tgt.y - y) ** 2 > F.backR * F.backR) return F.own;
+  const dx = fx - tgt.x, dy = fy - tgt.y, d = Math.hypot(dx, dy);
+  if (d < 1.2) return F.own;
+  return (dx * Math.cos(tgt.face) + dy * Math.sin(tgt.face)) / d < B.cos ? 1 : F.own;
+}
+// A blast's share on the allies (and civilians) in it, when the allies' own side set it off: the table for their armour, x ownMul.
+export function ffBlast(m, x, y, rad, dmg, mult, by, fx, fy) {
+  const who = by === 'player' ? 'player' : 'squad';
+  m.aGrid.near(x, y, rad, (a) => { const k = mult[armorOf(a)] ?? 1; if (k > 0) hurtAlly(m, a, dmg * k * ownMul(a, fx, fy, x, y), who, true, 'friendly'); });
+  for (const c of m.civs) if (!c.dead && (c.x - x) ** 2 + (c.y - y) ** 2 <= rad * rad) m.hurtCiv(c, dmg * (mult.L ?? 1) * C.ff.own, by);
+}
+
+// ---------- enemies ----------
+// by: 'player' (the destroyer), 'squad' (rifles) or 'strat' (stratagems, turrets, vehicles, support weapons).
+// (fx, fy): where the hit comes from, for the back bonus. cs: whose crit chance (defaults to the attacker's side; '' for none).
+// Troops still under the dropship or warp ship that brought them cannot be hurt until it has pulled away (or they have walked out
+// from under it): the ship covers them.
+// An enemy that shoots at an ally shows itself (see CONFIG.reveal). Locked: shown long enough to be targeted from orbit.
+export function reveal(m, e) {
+  const t = m.t;
+  if (!(e.revealUntil > t)) e.revealFrom = t;
+  e.revealUntil = t + C.reveal.sec;
+}
+export const revealed = (m, e) => e.revealUntil > m.t;
+export const locked = (m, e) => e.revealUntil > m.t && m.t - e.revealFrom >= C.reveal.lockSec;
+
+// A commander's jammer: the enemy jamming (x, y), if any. Nothing the destroyer or the squad calls down can land there.
+// (0.37) A jammer site (sides.js: the spore spewer, stratagem jammer or cognitive disruptor) does the same over its reach R, but the
+// ship gun's direct fire and SEAF's grenades still get through it (gun: true leaves the sites out).
+export function jammedAt(m, x, y, pad = 0, gun = false) {
+  for (const e of m.jammers || []) if (!e.dead && (e.x - x) ** 2 + (e.y - y) ** 2 <= (e.jamR + pad) ** 2) return e;
+  if (!gun) for (const s of m.sides || []) if (s.kind === 'jammer' && !s.done && !s.failed && (s.x - x) ** 2 + (s.y - y) ** 2 <= (s.R + pad) ** 2) return s;
+  return null;
+}
+
+export function covered(e) {
+  const d = e.cover;
+  if (!d) return false;
+  if (d.dead || d.state === 'down' || (d.state === 'out' && d.outT > 1.2) || (e.x - d.x) ** 2 + (e.y - d.y) ** 2 > (d.r + 5) ** 2) { e.cover = null; return false; }
+  return true;
+}
+
+// Shield bubbles (a harvester's, or a shield generator's dome): the one that keeps a hit from (fx, fy) off a target at (x, y), or
+// null. A hit with no source point comes from above (a strike) and is outside every bubble.
+export function bubbleFor(m, x, y, fx, fy) {
+  const B = m.bubbles;
+  if (!B || !B.length) return null;
+  for (const b of B) {
+    const r2 = b.r * b.r;
+    if ((x - b.x) ** 2 + (y - b.y) ** 2 > r2) continue;
+    if (fx !== undefined && fy !== undefined && (fx - b.x) ** 2 + (fy - b.y) ** 2 <= r2) continue;    // fired from inside: through
+    if (b.dome ? b.dome.up && !b.dome.open : b.src.shield > 0) return b;
+  }
+  return null;
+}
+// A hit on a bubble: a harvester's shield soaks it (what is left goes through); a dome takes it all. Returns what gets through.
+export function soakBubble(m, b, dmg) {
+  if (b.dome) { b.dome.hitAt = m.t; return 0; }
+  const h = b.src, soak = Math.min(h.shield, dmg);
+  h.shield -= soak; h.shieldAt = m.t;
+  return dmg - soak;
+}
+
+// pierce: the hit goes through armour and shields (the Ultimatum's round).
+// armor: the share of the hit the body takes (a light round on a heavy: very little). (0.26) Shields do not care about armour:
+// a harvester's bubble, a squid heavy's or the Colossus's own shield soak the hit at full strength (light penetration strips them
+// as well as anything), and only what gets through meets the armour.
+export function hurtEnemy(m, e, dmg, by, fx, fy, cs, pierce = false, armor = 1) {
+  if (e.dead || !(dmg > 0)) return 0;
+  if (e.lp) return 0;                          // (0.54) a leaper in mid-jump cannot be hit
+  if (e.arriveUntil && m.t < e.arriveUntil) return 0;     // (0.55.1) a super heavy still arriving
+  if (e.cover && covered(e)) return 0;
+  if (!pierce && m.bubbles && m.bubbles.length) {
+    const b = ABOVE ? bubbleFor(m, e.x, e.y) : bubbleFor(m, e.x, e.y, fx, fy);
+    if (b && b.src !== e) { dmg = soakBubble(m, b, dmg); if (dmg <= 0) { e.hurtAt = m.t; return 0; } }
+  }
+  const k = hitMul(m, e, fx, fy, cs === undefined ? (by === 'player' ? 'player' : 'ally') : cs, pierce);
+  dmg *= k * (e.soak && !pierce ? e.soak : 1);     // the fleshmob takes only part of every hit
+  if (e.shield > 0 && !pierce) {         // a shield (a squid heavy, the Warp Colossus) soaks up damage first, at full strength
+    const soak = Math.min(e.shield, dmg);
+    e.shield -= soak; e.shieldAt = m.t; dmg -= soak;
+    const bd = m.stats.bossDmg || (m.stats.bossDmg = {}); bd.shield = (bd.shield || 0) + soak;
+    if (dmg <= 0) { e.hurtAt = m.t; return 0; }
+  }
+  dmg *= armor;                          // what gets through meets the armour
+  if (m.hitFlags && (by === 'player' || dmg >= 60)) m.emit('crit', { x: e.x, y: e.y, f: m.hitFlags, by });
+  const dealt = Math.min(dmg, e.hp);
+  e.hp -= dmg; e.hurtAt = m.t;
+  m.stats.dmg[by] += dealt;
+  if (e.boss) { const bd = m.stats.bossDmg || (m.stats.bossDmg = {}); bd[by] = (bd[by] || 0) + dealt; }
+  if (m.hitFlags & 1) m.stats.backHits = (m.stats.backHits || 0) + 1;
+  if (m.hitFlags & 2) m.stats.crits = (m.stats.crits || 0) + 1;
+  if (e.hp <= 0) m.killEnemy(e, by);
+  else if (e.g && e.g.state === 'patrol') e.g.hitAt = m.t;      // a patrol that is shot at may call for help (see reinforce.js)
+  return dealt;
+}
+
+// Damage everything in a circle. mult is the per-size multiplier table (L, M, H, B for bases).
+// friendly: also hurts allies (the destroyer does, stratagems do not). The blast comes from its centre (for the back bonus).
+// cs: crit side ('' for none). Civilians on an evacuation are hurt by friendly blasts too.
+// (fx, fy): where the blow comes from, when that is not the centre (a shell fired by someone standing there).
+export function damageArea(m, x, y, rad, dmg, mult, by = 'player', friendly = true, cs, fx = x, fy = y) {
+  ABOVE = (fx === x && fy === y) || cs === 'gun';      // a strike or a Ship Gun round, not a rocket fired along the ground
+  // (0.26) a Ship Gun round that lands on a medium's or a heavy's body hits it (the gun is heavy-penetrating: see GUN_MULT), not
+  // only one that lands within its blast of the centre; light enemies are small enough that the centre is what counts
+  const body = cs === 'gun';
+  m.eGrid.near(x, y, body ? rad + C.gun.bodyMax : rad, (e, d2) => {
+    if (body && d2 > rad * rad && (e.kind === 'L' || d2 > (rad + (e.r || 0) * C.gun.body) ** 2)) return;
+    alertGroup(m, e.g);
+    const k0 = e.boss && mult.boss !== undefined ? mult.boss : mult[e.kind];
+    if (body) {
+      // (0.59) a Ship Gun round into armour heavier than it goes through may glance off, as a rifle round does (C.ric): a little
+      // durability damage and a streak skipping away. Every round that strikes throws off the enemy's own kind of burst.
+      const R = C.ric, k = Math.max(R.minPen, k0 ?? 1), ch = k >= 1 ? R.base : Math.min(R.max, R.base + (1 - k) * R.perGap), vr = m.vrng || m.rng;
+      if (vr.next() < ch) {
+        m.stats.ricochets = (m.stats.ricochets || 0) + 1;
+        hurtEnemy(m, e, dmg * Math.max(R.minPen, k * R.chip), by, fx, fy, '', false, 1);
+        if (m.t - (m._gunRicT || -9) > 0.05) { m._gunRicT = m.t; const a = vr.angle(); m.emit('ricochet', { x: e.x, y: e.y, tx: e.x + Math.cos(a) * 9, ty: e.y + Math.sin(a) * 9, fac: m.faction.id, kind: e.kind }); }
+        return;
+      }
+      if (m.t - (m._gunHitT || -9) > 0.03) { m._gunHitT = m.t; m.emit('gunhit', { x: e.x, y: e.y, fac: m.faction.id, kind: e.kind, boss: !!e.boss }); }
+    }
+    hurtEnemy(m, e, dmg, by, fx, fy, cs, false, k0);   // (a few blasts set their own share for a super heavy)
+  });
+  const above = ABOVE; ABOVE = false;
+  if (rad >= 2.5) damageRock(m, x, y, rad, dmg * Math.max(mult.B ?? 0.3, 0.3));     // (0.59) a big rock in it takes the hit, and may break up
+  for (const d of m.drops) if (!d.dead && d.hp > 0 && d.low && Math.hypot(d.x - x, d.y - y) <= rad + d.r) m.damageDrop(d, dmg * (mult.H ?? 1), by);
+  // (0.58) every blast hurts everyone in it: an enemy's (by 'enemy') at full strength, one from the allies' own side (the player,
+  // the squad, a stratagem) at the friendly-fire share against each ally's armour. friendly 'none': a few that never touch allies
+  // (a pod landing, a ship coming down).
+  if (friendly !== 'none') {
+    if (by === 'enemy') {
+      m.aGrid.near(x, y, rad, (a) => hurtAlly(m, a, dmg, 'enemy', true, 'enemy'));
+      for (const c of m.civs) if (!c.dead && (c.x - x) ** 2 + (c.y - y) ** 2 <= rad * rad) m.hurtCiv(c, dmg, by);
+    } else ffBlast(m, x, y, rad, dmg, mult, by, above ? undefined : fx, above ? undefined : fy);
+  }
+  const sm = by === 'strat' || by === 'squad' ? C.structure.stratMul : 1;   // anything the squad calls hits structures harder
+  for (const b of m.bases) {
+    if (b.destroyed) continue;
+    if (Math.hypot(b.x - x, b.y - y) <= rad + b.r) m.damageBase(b, dmg * mult.B * sm, by, above ? undefined : fx, above ? undefined : fy, { x, y, rad });     // (0.49: where it hit, for a cluster's spawners)
+  }
+  // Points of interest and breaches are soft: any real explosion hurts them.
+  const pm = Math.max(mult.B, 0.25);
+  for (const p of m.pois) if (!p.done && Math.hypot(p.x - x, p.y - y) <= rad + p.r) m.damagePoi(p, dmg * pm, by);
+  for (const b of m.breaches) if (!b.dead && Math.hypot(b.x - x, b.y - y) <= rad + b.r) m.damageBreach(b, dmg * pm, by);
+}
+
+// ---------- allies and assets ----------
+// Shield relays soak damage for anyone inside their dome.
+function absorb(m, x, y, dmg) {
+  for (const s of m.assets) {
+    if (s.dead || s.kind !== 'shield' || s.shield <= 0) continue;
+    if ((s.x - x) ** 2 + (s.y - y) ** 2 > s.r * s.r) continue;
+    const take = Math.min(s.shield, dmg);
+    s.shield -= take; dmg -= take; s.hurtAt = m.t;
+    if (dmg <= 0) break;
+  }
+  return dmg;
+}
+
+// A Helldiver dodges an incoming enemy attack now and then: a quick dive sideways, and that hit does nothing. It has to be a real
+// hit (not a nibble), and the dodge has to have come round again. Friendly fire and falling pods cannot be dodged.
+// SEAF troopers dodge too, far less often. A UAV overhead adds to either chance (its threat-warning upgrade adds more).
+function tryDodge(m, a, dmg) {
+  const H = a.type === 'H', D = C.hd.dodge, SD = C.hd.seafDodge, t = m.t;
+  if (a.mounted || (a.mech && a.mech.hp > 0) || t < (a.dodgeAt || 0) || dmg < D.minHit) return false;
+  const uav = a.uavAt !== undefined && t - a.uavAt < 0.25 ? uavBuff(m.kit).dodge : 0;
+  if (m.rng.next() >= (H ? D.chance : SD.chance) + uav) return false;
+  a.dodgeAt = t + (H ? D.cool : SD.cool) * (0.8 + 0.4 * m.rng.next());
+  const e = m.eGrid.nearest(a.x, a.y, 60);
+  const ang = (e ? Math.atan2(e.y - a.y, e.x - a.x) : m.rng.angle()) + (m.rng.next() < 0.5 ? 1 : -1) * Math.PI / 2;
+  if (H) a.dv = { vx: Math.cos(ang) * D.dist / D.sec, vy: Math.sin(ang) * D.dist / D.sec, until: t + D.sec };   // a Helldiver dives aside
+  a.diveAt = t;
+  m.stats.dodges = (m.stats.dodges || 0) + 1;
+  m.emit('dodge', { id: a.id, x: a.x, y: a.y, ang });
+  return true;
+}
+
+// raw: true skips the armor (friendly fire from the destroyer is full strength). (fx, fy): where an enemy hit comes from, so a
+// shot in the back hurts more; enemy hits can crit too.
+export function hurtAlly(m, a, rawDmg, by, raw = false, src = null, fx, fy) {
+  if (a.dead || !(rawDmg > 0)) return;
+  // inside a building (posts.js): the building takes it
+  if (a.inside && !a.inside.dead && a.inside.hp > 0) { if (by === 'enemy') hurtAsset(m, a.inside, rawDmg * 0.5); return; }
+  if ((a.type === 'H' || a.type === 'S') && !raw && by === 'enemy' && tryDodge(m, a, rawDmg)) return;
+  if (by === 'enemy' && !raw) rawDmg *= hitMul(m, a, fx, fy, 'enemy') * coverMul(m, a.x, a.y);   // behind a wall: less
+  a.hurtAt = m.t;
+  a.lastSrc = src || (by === 'player' ? 'friendly' : 'enemy');
+  if (a.mech && a.mech.hp > 0) {
+    a.mech.hp -= absorb(m, a.x, a.y, rawDmg) * (raw ? 1 : C.strat.mech.armor);
+    if (a.mech.hp <= 0) m.mechDown(a);
+    return;
+  }
+  let dmg = absorb(m, a.x, a.y, rawDmg * (raw ? 1 : ALLY[a.type].armor * (a.armorMul || 1)));
+  if (dmg <= 0) return;
+  if (a.type === 'H' && by === 'enemy' && !raw) dmg = Math.min(dmg, a.maxHp * C.hd.maxHit);     // nothing kills a healthy Helldiver in one hit
+  a.hp -= dmg;
+  if (a.hp <= 0) {
+    const who = by === 'player' ? 'player' : 'enemy';
+    // (0.26) a SEAF trooper with a Medic in reach goes down instead (seaf.js); hit again while down, he is gone
+    if (a.type === 'S' && !a.down && medicNear(m, a)) { goDown(m, a, who, a.lastSrc); return; }
+    if (a.down) a.down = null;
+    m.killAlly(a, who, a.lastSrc);
+  }
+}
+
+export function hurtAsset(m, s, dmg) {
+  if (s.dead || s.dormant || s.asleep || !(dmg > 0)) return;     // (0.53: the defence gun is shut down, armoured, until its crew is there; 0.53.6: a work site nobody has worked yet is left alone)
+  dmg = absorb(m, s.x, s.y, dmg);
+  if (dmg <= 0) return;
+  s.hp -= dmg; s.hurtAt = m.t;
+  if (s.hp <= 0) m.destroyAsset(s, 'killed');
+}
+
+export function hurtTarget(m, tgt, dmg, by, src = null, fx, fy) {
+  if (tgt.civ) m.hurtCiv(tgt, dmg, by);
+  else if (tgt.kind) hurtAsset(m, tgt, dmg); else hurtAlly(m, tgt, dmg, by, false, src, fx, fy);
+}
+
+// Nearest thing an enemy can shoot: an ally on foot, a placed asset (not mounted Helldivers, not mines), or a civilian on an
+// evacuation.
+export function nearestTarget(m, x, y, r) {
+  let best = m.aGrid.nearest(x, y, r), bd = best ? (best.x - x) ** 2 + (best.y - y) ** 2 : r * r;
+  const s = m.tGrid.nearest(x, y, r);
+  if (s) { const d = (s.x - x) ** 2 + (s.y - y) ** 2; if (d < bd) { bd = d; best = s; } }
+  for (const c of m.civs) { if (c.dead || c.safe) continue; const d = (c.x - x) ** 2 + (c.y - y) ** 2; if (d < bd) { bd = d; best = c; } }
+  return best;
+}
+
+// Is a point inside a zone of this kind (smoke, fire, gas, ems)?
+export function inZoneKind(m, x, y, kind) {
+  for (const z of m.zones) if (z.kind === kind && (z.x - x) ** 2 + (z.y - y) ** 2 <= z.r * z.r) return true;
+  return false;
+}
+
+// ---------- trigger discipline ----------
+// Is a friendly standing in the line of fire from `src` to (tx, ty)? Returns the closest one in the way, or null. A friendly
+// behind the shooter, or beyond the target, is not in the way.
+export function blocker(m, src, tx, ty) {
+  const lane = C.hd.fire.lane, dx = tx - src.x, dy = ty - src.y, len2 = dx * dx + dy * dy, len = Math.sqrt(len2);
+  if (len < 4) return null;
+  let found = null, fu = 9;
+  m.aGrid.near(src.x + dx / 2, src.y + dy / 2, len / 2 + lane + 2, (o) => {
+    if (o === src || o.dead) return;
+    const u = ((o.x - src.x) * dx + (o.y - src.y) * dy) / len2;
+    if (u <= 0.04 || u >= 0.97 || u >= fu) return;
+    const px = src.x + dx * u - o.x, py = src.y + dy * u - o.y, w = lane + (o.r || 2) * 0.3;
+    if (px * px + py * py <= w * w) { fu = u; found = o; }
+  });
+  return found;
+}
+
+// (0.57) The same for the enemy: another enemy standing in the line of fire from enemy `src` to (tx, ty).
+export function eBlocker(m, src, tx, ty) {
+  const lane = C.ff.enemy.lane, dx = tx - src.x, dy = ty - src.y, len2 = dx * dx + dy * dy, len = Math.sqrt(len2);
+  if (len < 4) return null;
+  let found = null, fu = 9;
+  m.eGrid.near(src.x + dx / 2, src.y + dy / 2, len / 2 + lane + 3, (o) => {
+    if (o === src || o.dead || o.boss || o.lp) return;
+    const u = ((o.x - src.x) * dx + (o.y - src.y) * dy) / len2;
+    if (u <= 0.04 || u >= 0.97 || u >= fu) return;
+    const px = src.x + dx * u - o.x, py = src.y + dy * u - o.y, w = lane + (o.r || 1) * 0.4;
+    if (px * px + py * py <= w * w) { fu = u; found = o; }
+  });
+  return found;
+}
+
+// The best enemy in range for a direct shot: the closest one with a clear lane. If every target has a friendly in the way, the
+// result carries that friendly in `block` and the caller decides whether to hold fire or take the shot (now and then it does).
+// (0.57) the candidates are gathered first and the lane is tested nearest first, at most PICK_TRIES of them: with hundreds of
+// enemies in range, testing the lane to every one of them was most of the cost of a big fight
+const PICK_TRIES = 5, candE = [], candD = [];
+export function pickClear(m, a, range, accept) {
+  candE.length = 0; candD.length = 0;
+  m.eGrid.near(a.x, a.y, range, (e, d2) => {
+    if (e.cover && covered(e)) return;          // still under its ship: not worth a bullet yet
+    if (accept && !accept(e)) return;
+    // keep the PICK_TRIES nearest (insertion into a short sorted list)
+    let i = candD.length;
+    if (i >= PICK_TRIES && d2 >= candD[i - 1]) return;
+    if (i < PICK_TRIES) { candD.push(d2); candE.push(e); } else { candD[i - 1] = d2; candE[i - 1] = e; i--; }
+    while (i > 0 && candD[i - 1] > d2) { candD[i] = candD[i - 1]; candE[i] = candE[i - 1]; candD[i - 1] = d2; candE[i - 1] = e; i--; }
+  });
+  let blk = null, who = null;
+  for (let i = 0; i < candE.length; i++) {
+    const e = candE[i], b = blocker(m, a, e.x, e.y);
+    if (!b) return { e, block: null };
+    if (!blk) { blk = e; who = b; }
+  }
+  return blk ? { e: blk, block: who } : null;
+}
+
+// ---------- shots ----------
+// A shot from src at enemy e. prof: { dmg, acc, splash, mult, flight } where flight > 0 makes it a slow shell.
+// Misses fly wide. Every shot sends a tracer event so the renderer can draw it and leave an impact mark.
+// Effective range: which band a shot at distance d falls in for a weapon that reaches R (0 short, 1 medium, 2 long), and what that
+// band does to accuracy and damage. A weapon with no reach given always counts as short range.
+const BANDS = C.combat.bands;
+export function bandOf(d, R) { if (!R) return 0; const f = d / R; return f <= BANDS.short ? 0 : f <= BANDS.medium ? 1 : 2; }
+export const bandAcc = (b) => BANDS.acc[b], bandDmg = (b) => BANDS.dmg[b];
+
+export function fireShot(m, src, e, prof, by, side = 'a', snd = '') {
+  if (side === 'a') src.shotAt = m.t;                        // (0.26: an ally who has just fired is in a fight: see speedMul)
+  const hi = m.terrain.attackMul(src.x, src.y, e.x, e.y);   // from a rise the same shot hits harder
+  if (hi > 1.001) prof = { ...prof, dmg: prof.dmg * hi };
+  if (prof.range) {                                         // farther out, a shot is less likely to hit and hits softer
+    const b = bandOf(Math.hypot(e.x - src.x, e.y - src.y), prof.range);
+    if (b) prof = { ...prof, acc: prof.acc * BANDS.acc[b], dmg: prof.dmg * BANDS.dmg[b] };
+  }
+  if (src.face !== undefined && !src.kind) { src.aimA = Math.atan2(e.y - src.y, e.x - src.x); src.aimUntil = m.t + 0.7; }   // turn to the target
+  const rng = m.rng, hit = rng.next() < prof.acc;
+  let tx = e.x, ty = e.y;
+  if (!hit) { const [ox, oy] = rng.inDisc(4.5); tx += ox; ty += oy; }
+  const big = (prof.splash || 0) > 0 || prof.dmg >= 60;
+  m.emit('tracer', { x: src.x, y: src.y, tx, ty, s: side, hit, big, fl: prof.flight || 0, snd });
+  alertGroup(m, e.g);
+  const mult = prof.mult || { L: 1, M: 1, H: 1, B: 0.1 };
+  if (prof.flight > 0) {
+    // (0.58) a grenade lands and lies there until its fuse is out (seen, and run from); a rocket goes off where it lands
+    const fuse = snd === 'grenade' ? Math.max(prof.flight, prof.fuse ?? C.combat.grenadier.fuse) : prof.flight;
+    m.shells.push({ x: tx, y: ty, at: m.t + fuse, land: m.t + prof.flight, born: m.t, gren: snd === 'grenade', dmg: prof.dmg, splash: prof.splash || 0, mult, by, friendly: true, quiet: true, fx: src.x, fy: src.y });
+    return hit;
+  }
+  if (!hit) {
+    // (0.57) a miss flies on: a friendly who has stepped into its path takes it
+    if (side === 'a' && !(prof.flight > 0)) { const b = blocker(m, src, tx, ty); if (b) { m.stats.stray = (m.stats.stray || 0) + 1; hurtAlly(m, b, prof.dmg * C.ff.strayMul * (prof.flight > 0 ? 1 : 1), by === 'player' ? 'player' : 'squad', false, 'friendly'); } }
+    return false;
+  }
+  if (e.drop) { m.damageDrop(e, prof.dmg * (mult.H ?? 1), by); return true; }      // a dropship or a warp ship
+  if (prof.splash > 0) {
+    damageArea(m, tx, ty, prof.splash, prof.dmg, mult, by, true, undefined, src.x, src.y);
+    if (prof.splash >= 3) { m.emit('boom', { x: tx, y: ty, r: prof.splash, dmg: prof.dmg, by }); if (prof.splash >= 6) noise(m, tx, ty, C.noise.blast); }
+  } else {
+    // (0.58) a round that hits armour heavier than it can go through may glance off (the more it is outmatched, the likelier):
+    // it still does a little (durability damage), and flies off somewhere else. Any hit does at least minPen of its damage.
+    const R = C.ric, k = Math.max(R.minPen, e.boss && mult.boss !== undefined ? mult.boss : mult[e.kind] ?? 1);
+    const ch = k >= 1 ? R.base : Math.min(R.max, R.base + (1 - k) * R.perGap);
+    if ((m.vrng || m.rng).next() < ch) {
+      m.stats.ricochets = (m.stats.ricochets || 0) + 1;
+      hurtEnemy(m, e, prof.dmg * Math.max(R.minPen, k * R.chip), by, src.x, src.y, '', false, 1);
+      const a = Math.atan2(e.y - src.y, e.x - src.x) + Math.PI + ((m.vrng || m.rng).next() - 0.5) * 2.4;
+      m.emit('ricochet', { x: e.x, y: e.y, tx: e.x + Math.cos(a) * 9, ty: e.y + Math.sin(a) * 9, fac: m.faction.id, kind: e.kind });
+    } else hurtEnemy(m, e, prof.dmg, by, src.x, src.y, undefined, false, k);
+  }
+  return true;
+}

@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0b0d0c">
+<meta name="description" content="Orbital Fury: Galactic Command. One war, fought from the map room, from orbit, from the gunship and from the ground. A fan-made prototype.">
+<title>Orbital Fury: Galactic Command</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/gc.css">
+</head>
+<body>
+
+<!-- ================= TITLE ================= -->
+<section id="s-title" class="scr on">
+  <canvas id="tbg"></canvas>
+  <div class="tcard">
+    <canvas id="t-crest" width="160" height="160"></canvas>
+    <p class="over">ORBITAL FURY</p>
+    <h1>GALACTIC COMMAND</h1>
+    <p class="tag">One war. Every post in it is yours.</p>
+    <div class="tbtns">
+      <button class="plate btn go hidden" id="b-continue">CONTINUE<small id="b-continue-sub"></small></button>
+      <button class="plate btn go" id="b-new">NEW CAMPAIGN</button>
+      <button class="plate btn" id="b-how">HOW THE WAR FITS TOGETHER</button>
+      <div class="row2"><button class="plate btn" id="b-settings">SETTINGS</button><button class="plate btn" id="b-credits">CREDITS</button></div>
+    </div>
+    <p class="ver" id="t-ver"></p>
+  </div>
+</section>
+
+<!-- ================= FOUND YOUR FACTION ================= -->
+<section id="s-found" class="scr">
+  <div class="fwrap">
+    <header class="fhd"><b>FOUND YOUR COMMAND</b><span>Your name, crest and colours go with you to every post.</span></header>
+    <div class="fgrid">
+      <div class="fprev plate"><canvas id="f-crest" width="320" height="320"></canvas><div id="f-strip"></div></div>
+      <div class="fform">
+        <label>COMMAND NAME<input id="f-name" maxlength="32" autocomplete="off"></label>
+        <label>MOTTO<input id="f-motto" maxlength="40" autocomplete="off"></label>
+        <label>LETTERS ON THE CREST<input id="f-text" maxlength="4" autocomplete="off"></label>
+        <div class="fpick"><span>SHAPE</span><button class="plate btn sm" data-f="shape" data-d="-1">‹</button><b id="f-shape"></b><button class="plate btn sm" data-f="shape" data-d="1">›</button></div>
+        <div class="fpick"><span>SYMBOL</span><button class="plate btn sm" data-f="symbol" data-d="-1">‹</button><b id="f-symbol"></b><button class="plate btn sm" data-f="symbol" data-d="1">›</button></div>
+        <div class="fpick"><span>PATTERN</span><button class="plate btn sm" data-f="pattern" data-d="-1">‹</button><b id="f-pattern"></b><button class="plate btn sm" data-f="pattern" data-d="1">›</button></div>
+        <div class="fcol"><span>FIELD</span><div id="f-bg" class="sw"></div></div>
+        <div class="fcol"><span>SYMBOL COLOUR</span><div id="f-fg" class="sw"></div></div>
+        <div class="fcol"><span>HULLS AND ROOFS</span><div id="f-primary" class="sw"></div></div>
+        <div class="fcol"><span>TRIM</span><div id="f-secondary" class="sw"></div></div>
+      </div>
+    </div>
+    <div class="frow"><button class="plate btn" id="f-back">BACK</button><button class="plate btn" id="f-roll">ROLL ANOTHER</button><button class="plate btn go" id="f-go">TAKE COMMAND</button></div>
+  </div>
+</section>
+
+<!-- ================= THE WAR ROOM (galaxy) ================= -->
+<section id="s-war" class="scr">
+  <header id="top"></header>
+  <main id="main">
+    <div id="stage"><canvas id="map"></canvas>
+      <div id="turn"></div>
+      <div id="zoom"><button class="plate btn sm" data-a="zin" aria-label="Zoom in">+</button><button class="plate btn sm" data-a="zout" aria-label="Zoom out">−</button></div>
+      <button id="bulletin" data-a="tab" data-t="int"></button></div>
+    <aside id="side"><div id="panel"></div></aside>
+  </main>
+  <div id="coach" hidden></div>
+  <nav id="mins"></nav>
+  <footer id="deck"></footer>
+  <div id="fight" hidden><div id="fcoach" hidden></div><div id="fbody"></div></div>
+</section>
+
+<!-- ================= A THEATRE: the ground, the station, the base ================= -->
+<!-- One frame for all three: the command bar on top (crest, where you are, the numbers that matter there), the
+     world itself, and one bar of tools along the bottom. Each theatre fills these in (js/modes/*.js). -->
+<section id="s-theatre" class="scr">
+  <header id="th-top">
+    <button class="crest" id="th-menu" aria-label="Menu"><canvas id="crest-th" width="64" height="64"></canvas></button>
+    <div class="ttl"><span id="th-where"></span><small id="th-kind"></small></div>
+    <div class="ro" id="th-stats"></div>
+    <div class="thb"><button class="plate btn sm" id="th-pause">II</button><button class="plate btn sm" id="th-speed">1×</button><button class="plate btn sm" id="th-leave">TO THE MAP</button></div>
+  </header>
+  <div id="th-stage">
+    <canvas id="v-ground" class="tv"></canvas>
+    <canvas id="v-orbit" class="tv"></canvas>
+    <canvas id="v-base" class="tv"></canvas>
+    <div id="th-msg"></div>
+    <div id="th-feed"></div>
+    <div id="th-side" class="hidden"></div>
+    <div id="th-desk"></div>
+    <div id="th-tip" class="hidden"></div>
+  </div>
+  <div id="th-sel" class="hidden"></div>
+  <nav id="th-tabs"></nav>
+  <footer id="th-bar"></footer>
+</section>
+
+<!-- ================= between places ================= -->
+<div id="trans" hidden><div class="tbox"><canvas id="tr-crest" width="120" height="120"></canvas><p class="over" id="tr-over"></p><h2 id="tr-title"></h2><p id="tr-sub"></p><div class="bar big2"><i id="tr-bar"></i></div></div></div>
+<div id="menu" hidden></div>
+<div id="modal" hidden></div>
+<div id="toast"></div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

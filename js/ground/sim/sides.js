@@ -1,0 +1,262 @@
+// Side missions the Helldivers take on around the main objective, and the SEAF drop beacons.
+//   radio tower:       stand by it while it powers up (holdSec); once active it relights the SEAF drop beacons around it.
+//   propaganda tower:  an enemy structure (a point of interest of its own kind, see pois.js) that rallies nearby patrols onto the
+//                      squad while it stands. Destroy it.
+//   hidden SEAF:       a SEAF squad lying low (the sheep of an old strategy game): nobody sees them or anything round them, and
+//                      they see nothing for the player, until a Helldiver or a SEAF trooper walks close by. Then they join.
+//                      (Nobody goes looking for them: they are near the ways the squad is likely to walk.)
+//   spore tower (0.40): the bugs' fungal stalk (a point of interest of its own kind, like the broadcast tower): allies near it
+//                      see a lot less far while it stands. Destroy it.
+//   jammer (0.37):     an enemy structure only a Hellbomb brings down (a spore spewer, a stratagem jammer, a cognitive disruptor,
+//                      by the enemy): no orbital can be called within its reach while it stands. The squad clears round it and asks
+//                      the gunner for a Hellbomb (ops.js); the enemy broadcast tower takes one too.
+// Drop beacons: places the player can send a SEAF drop to without a strike zone. SEAF build them (seaf.js); a radio tower powered
+// up keeps the ground round it in view for the rest of the mission (a relay, mission.js visLevel).
+import { revealBases } from './spawners.js';
+import { CONFIG as C } from '../config.js';
+import { makePost } from './posts.js';
+import { buildLevel } from '../data/kit.js';
+import { COMMS } from '../data/data.js';
+import { callReinforcements } from './reinforce.js';
+import { rollRoles, dropSquad } from './seaf.js';
+import { seafStats } from '../data/kit.js';
+import { aoScale, inAO } from './ao.js';
+import { findSpot } from './objectives.js';
+import { alertGroup } from './enemies.js';
+import { hbRequest, hbStep, hbCancel } from './ops.js';
+import { t as tr } from '../i18n.js';
+import { RNG } from '../util/rng.js';
+
+const SD = () => C.sides;
+
+// Does a kind of side mission go with this mission's objectives?
+export function sideFits(m, kind) {
+  const not = (SD().notWith || {})[kind];
+  return !not || !(m.objectives || []).some((o) => not.includes(o.type));
+}
+// Which side missions this mission has: more on the bigger maps.
+function kindsFor(m) {
+  const n = Math.min(SD().max, SD().min + Math.floor((m.ao.size - C.ao.start) / SD().perAoM));
+  const pool = ['radio', 'propaganda', 'rescue'], out = [];
+  const order = m.rng.shuffle(pool.slice());
+  for (let i = 0; i < n; i++) out.push(order[i % order.length]);
+  // some maps have an abandoned SEAF howitzer the squad can take over (from the second mission of a session)
+  if ((m.missionN || 1) >= C.arty.fromMission && m.rng.next() < C.arty.chance) out.push('arty');
+  return out;
+}
+
+export function setupSides(m) {
+  const S = SD();
+  m.sides = [];
+  const avoid = () => [
+    { x: m.lz.x, y: m.lz.y, r: aoScale(m, 260) }, { x: m.extraction.x, y: m.extraction.y, r: 90 },
+    ...m.bases.map((b) => ({ x: b.x, y: b.y, r: 110 })), ...m.objectives.map((o) => ({ x: o.x, y: o.y, r: 150 })),
+    ...m.pois.map((p) => ({ x: p.x, y: p.y, r: 80 })), ...m.sides.map((s) => ({ x: s.x, y: s.y, r: aoScale(m, 260) })),
+  ];
+  // (0.18: the drop is at the rim of the round map, so every other side mission is put round the way to the main objective)
+  const o0 = m.objectives[0], way = o0 ? { x: (m.lz.x + o0.x) / 2, y: (m.lz.y + o0.y) / 2, r: Math.hypot(o0.x - m.lz.x, o0.y - m.lz.y) * 0.5 + aoScale(m, 160) } : null;
+  let si = 0;
+  for (const kind of kindsFor(m)) {
+    const p = kind === 'rescue' ? (alongTheWay(m, avoid()) || findSpot(m, avoid(), 70)) : findSpot(m, avoid(), 70, si++ % 2 === 0 ? way : null);
+    if (kind === 'radio' || kind === 'arty') {
+      m.sides.push({ id: m.nextId++, side: true, kind, x: p.x, y: p.y, r: kind === 'arty' ? 10 : 9, state: 'idle', holdT: 0, done: false, failed: false, callT: 0, face: m.rng.angle() });
+    } else if (kind === 'propaganda') {
+      // a point of interest of its own kind, so everything that can hurt a structure hurts it; listed here as a side mission too
+      const fac = m.faction.id;
+      const poi = { id: m.nextId++, isPoi: true, side: true, kind: 'propaganda', get name() { return COMMS.propName(fac); }, x: p.x, y: p.y, r: 12,
+        hp: S.propaganda.hp, maxHp: S.propaganda.hp, reward: S.propaganda.reward, guards: S.propaganda.guards, woke: false, done: false, hurtAt: -9, by: null, rallyT: S.propaganda.every };
+      m.pois.push(poi); m.sides.push(poi);
+    } else {
+      const s = { id: m.nextId++, side: true, kind: 'rescue', x: p.x, y: p.y, r: 14, state: 'hidden', troops: [], done: false, failed: false, callT: 0, hidden: true };
+      const st = seafStats(m.kit), roles = rollRoles(m, S.rescue.n, st);
+      for (const role of roles) {
+        const a = m.addAlly('S', p.x + m.rng.range(-7, 7), p.y + m.rng.range(-7, 7), { role });
+        a.pinned = s.id; a.hidden = true; a.face = m.rng.angle();     // lying low: not on the map for anyone until found
+        s.troops.push(a);
+      }
+      m.sides.push(s);
+    }
+  }
+  // (0.62.8) One of each at most, and none that repeats the mission's own objective (sides.notWith): a big map used to get the
+  // same side mission twice (two radio towers, two broadcast towers), and SEAF to rescue beside a VIP, a howitzer beside a
+  // defence gun. They are all placed as before and the ones not wanted taken off again, so the map's dice roll as they did
+  // and everything else is where it was.
+  {
+    const seen = new Set(), drop = [];
+    for (const q of m.sides) { if (seen.has(q.kind) || !sideFits(m, q.kind)) drop.push(q); else seen.add(q.kind); }
+    if (drop.length) {
+      const gone = new Set(drop), men = new Set();
+      for (const q of drop) for (const a of q.troops || []) men.add(a);
+      m.sides = m.sides.filter((q) => !gone.has(q)); m.pois = m.pois.filter((q) => !gone.has(q));
+      if (men.size) { m.allies = m.allies.filter((a) => !men.has(a)); if (m._refreshAlive) m._refreshAlive(); }
+      // a big map left short takes the howitzer, if the operation is far enough along for it: placed from a stream of its own
+      if (!seen.has('arty') && (m.missionN || 1) >= C.arty.fromMission && sideFits(m, 'arty')) {
+        const r0 = m.rng; m.rng = new RNG((m.seed ^ 0x27d4eb2f) >>> 0);
+        try { const p = findSpot(m, avoid(), 70, way); m.sides.push({ id: m.nextId++, side: true, kind: 'arty', x: p.x, y: p.y, r: 10, state: 'idle', holdT: 0, done: false, failed: false, callT: 0, face: m.rng.angle() }); } finally { m.rng = r0; }
+      }
+    }
+  }
+  // (0.37) a jammer, rolled and placed from a stream of its own so the rest of the map (and everything after) rolls as it did
+  // before there were any
+  const jr = new RNG((m.seed ^ 0x3c6ef372) >>> 0);
+  const jamRoll = jr.next();
+  if (!m.noHbSides && (m.forceJam || ((m.missionN || 1) >= S.jammer.fromMission && jamRoll < S.jammer.chance && sideFits(m, 'jammer')))) {     // (0.38: a chapter can ask for one, or for none)
+    const r0 = m.rng; m.rng = jr;
+    try { const p = findSpot(m, avoid(), 70, way); addJammer(m, p.x, p.y); } finally { m.rng = r0; }
+  }
+  // (0.40) the bugs' spore tower, from a stream of its own too
+  const sr = new RNG((m.seed ^ 0x5bd1e995) >>> 0);
+  if (m.faction.id === 'bugs' && !m.ls && (m.forceSpore || sr.next() < S.spore.chance)) {
+    const r0 = m.rng; m.rng = sr;
+    try { const p = findSpot(m, avoid(), 70, way); addSpore(m, p.x, p.y); } finally { m.rng = r0; }
+  }
+  // SEAF drop beacons are no longer on the map at the start: SEAF build them (seaf.js, the build order)
+  m.beacons = [];
+}
+// (0.40) a spore tower at (x, y): a structure (a point of interest), so everything that hurts one hurts it
+export function addSpore(m, x, y) {
+  const P = SD().spore;
+  const s = { id: m.nextId++, isPoi: true, side: true, kind: 'spore', get name() { return tr('side.spore'); }, x, y, r: P.r, R: P.R,
+    hp: P.hp, maxHp: P.hp, reward: P.reward, guards: P.guards, woke: false, done: false, hurtAt: -9, by: null };
+  m.pois.push(s); m.sides.push(s);
+  return s;
+}
+// (0.40) How far an ally at (x, y) can see, as a share of how far he could (1, or less inside a spore tower's cloud).
+export function sporeMul(m, x, y) {
+  let k = 1;
+  for (const s of m.sides || []) if (s.kind === 'spore' && !s.done && !s.failed && (s.x - x) ** 2 + (s.y - y) ** 2 <= s.R * s.R) k = Math.min(k, SD().spore.sight);
+  return k;
+}
+// (0.37) a jammer at (x, y) (the tutorial puts one down too)
+export function addJammer(m, x, y) {
+  const J = SD().jammer, fac = m.faction.id;
+  const s = { id: m.nextId++, side: true, kind: 'jammer', fac, get name() { return tr('side.jam.' + fac); }, x, y, r: J.r, R: J.R, state: 'idle', done: false, failed: false, callT: 0, face: m.rng.angle() };
+  m.sides.push(s);
+  return s;
+}
+
+
+export const beaconLit = (m, b) => b.relit || b.built || m.t < C.beacons.darkSec;
+// A lit beacon a SEAF drop at (x, y) can use, or null.
+export function beaconAt(m, x, y) {
+  const r2 = C.beacons.r * C.beacons.r;
+  for (const b of m.beacons || []) if (beaconLit(m, b) && (b.x - x) ** 2 + (b.y - y) ** 2 <= r2) return b;
+  return null;
+}
+
+const hdNear = (m, x, y, r) => { for (const a of m.hdAlive) if (!a.mounted && (a.x - x) ** 2 + (a.y - y) ** 2 <= r * r) return a; return null; };
+
+function finish(m, s, ok) {
+  s.done = ok; s.failed = !ok; s.state = ok ? 'done' : 'failed';
+  if (!ok) { m.radio(COMMS.sideFailed(s.kind), 'sidefail', 0); m.notice(COMMS.sideFailedNotice(s.kind), 'bad'); m.emit('side_failed', { kind: s.kind, x: s.x, y: s.y }); return; }
+  const R = SD()[s.kind];
+  m.sc.sides = (m.sc.sides || 0) + C.score.side;
+  m.stats.sides = (m.stats.sides || 0) + 1;
+  m.earn('sides', R.reward, s.x, s.y);
+  m.radio(COMMS.sideDone(s.kind), 'sidedone', 0);
+  m.notice(COMMS.sideDoneNotice(s.kind, R.reward), 'good');
+  m.emit('side_done', { kind: s.kind, x: s.x, y: s.y });
+  // the ground round a powered radio tower stays in view (0.51: only the radio tower: a propaganda tower blown up or SEAF got out
+  // used to leave a bubble of view behind too, which read as a leftover)
+  if (s.kind === 'radio') (m.relays || (m.relays = [])).push({ x: s.x, y: s.y, r: C.relay.r, kind: s.kind });
+  // (0.49) the radio tower powered: every enemy base's layout shows (how many spawners, where), like Helldivers 2's radio point
+  if (s.kind === 'radio') { const n = revealBases(m); if (n) m.notice(tr('n.basesRevealed', { n }), 'good'); }
+}
+
+// A propaganda tower has been destroyed (pois.js damagePoi).
+export function sideDestroyed(m, p) { hbCancel(m, p); if (!p.failed) finish(m, p, true); }
+
+export function updateSides(m, dt) {
+  const S = SD();
+  // (0.37) a Hellbomb already armed for a side that fell some other way still goes off
+  const hb = m.hellbomb;
+  if (hb && hb.state === 'armed' && hb.o && hb.o.side && (hb.o.done || hb.o.failed)) hbStep(m, hb.o, dt, null);
+  for (const s of m.sides || []) {
+    if (s.done || s.failed) continue;
+    if (s.kind === 'radio') {
+      const a = hdNear(m, s.x, s.y, S.radio.holdR);
+      if (a && s.state === 'idle') { s.state = 'active'; m.radio(COMMS.radioStart, 'radiostart', 0); m.emit('side_state', { kind: 'radio', state: 'active', x: s.x, y: s.y }); }
+      if (s.state !== 'active') continue;
+      if (a) s.holdT += dt;
+      siteActivity(m, s, dt);
+      if (s.holdT >= S.radio.holdSec) {
+        // relight the beacons in reach (or at least the nearest one)
+        const R = aoScale(m, S.radio.relightR);
+        let lit = 0;
+        for (const b of m.beacons) if (Math.hypot(b.x - s.x, b.y - s.y) <= R) { b.relit = true; lit++; }
+        if (!lit && m.beacons.length) { const b = m.beacons.slice().sort((p, q) => Math.hypot(p.x - s.x, p.y - s.y) - Math.hypot(q.x - s.x, q.y - s.y))[0]; b.relit = true; lit = 1; }
+        s.relit = lit;
+        m.emit('beacons_lit', { n: lit, x: s.x, y: s.y });
+        finish(m, s, true);
+      }
+    } else if (s.kind === 'arty') {
+      // an abandoned artillery cannon: a Helldiver gets it working again (then it needs a crew, like one SEAF build); the enemy
+      // comes to see what the noise is
+      const a = hdNear(m, s.x, s.y, S.arty.holdR);
+      if (a && s.state === 'idle') { s.state = 'active'; m.radio(COMMS.artyStart, 'artystart', 0); m.emit('side_state', { kind: 'arty', state: 'active', x: s.x, y: s.y }); }
+      if (s.state !== 'active') continue;
+      if (a) s.holdT += dt;
+      siteActivity(m, s, dt);
+      if (s.holdT >= S.arty.holdSec) {
+        makePost(m, 'arty', s.x, s.y, { captured: true, lvl: Math.max(1, buildLevel(m.kit, 'arty')), face: s.face });
+        m.emit('arty_new', { x: s.x, y: s.y, captured: true });
+        finish(m, s, true);
+      }
+    } else if (s.kind === 'jammer') {
+      // the squad there and the ground clear: a Hellbomb; it is the only thing that brings one down
+      if (m.hellbomb && m.hellbomb.o === s) { if (hbStep(m, s, dt, () => siteActivity(m, s, dt))) finish(m, s, true); continue; }
+      if (hbRequest(m, s, s, tr('c.hb.callSide', { name: s.name }))) { s.state = 'bomb'; m.emit('side_state', { kind: 'jammer', state: 'bomb', x: s.x, y: s.y }); }
+    } else if (s.kind === 'propaganda') {
+      // (0.37) a tower still standing strong when the squad gets there: they call a Hellbomb on it (its guns still work on it too)
+      if (m.hellbomb && m.hellbomb.o === s) { if (hbStep(m, s, dt, null) && !s.done) { s.hp = 0; s.done = true; s.by = 'strat'; finish(m, s, true); m.emit('poi_down', { x: s.x, y: s.y, r: s.r, id: s.id }); } }
+      else if (!m.noHbSides && (m.missionN || 1) >= S.jammer.fromMission && s.hp > s.maxHp * S.propBomb) hbRequest(m, s, s, tr('c.hb.callSide', { name: s.name }));
+      // while it stands it rallies the patrols round it onto the squad, when the squad is in its reach
+      s.rallyT -= dt;
+      if (s.rallyT <= 0) {
+        s.rallyT = S.propaganda.every;
+        const R = aoScale(m, S.propaganda.reach);
+        if (m.hdAlive.length && Math.hypot(m.hx - s.x, m.hy - s.y) <= R * 1.3) {
+          let n = 0;
+          for (const g of m.groups) if (g.state !== 'hunt' && !g.garrison && (g.cx - s.x) ** 2 + (g.cy - s.y) ** 2 <= R * R) { alertGroup(m, g); n++; }
+          if (n) m.emit('rally', { x: s.x, y: s.y, n });
+        }
+      }
+    } else if (s.kind === 'rescue') {
+      // found: a Helldiver or a SEAF trooper walks close by, and they join the player's SEAF (the finder's squad, for a trooper)
+      const R2 = S.rescue.claimR * S.rescue.claimR;
+      let by = null;
+      for (const a of m.alive) if (!a.mounted && !a.hidden && (a.x - s.x) ** 2 + (a.y - s.y) ** 2 <= R2) { by = a; break; }
+      if (!by) continue;
+      const alive = s.troops.filter((a) => !a.dead);
+      const sq = by.type === 'S' && by.sq >= 0 ? by.sq : dropSquad(m);
+      for (const q of alive) { q.pinned = 0; q.hidden = false; q.sq = sq; }
+      s.joined = alive.length; s.hidden = false;
+      m.radio(COMMS.rescueDone(alive.length, sq + 1), 'rescuedone', 0);
+      finish(m, s, true);
+    }
+  }
+}
+
+// A spot for hidden SEAF near a way the squad is likely to walk: part way from the drop to an objective (or the pad), a little
+// to one side. null if nothing there will do.
+function alongTheWay(m, avoid) {
+  const goals = [...m.objectives, m.extraction].filter(Boolean);
+  for (let k = 0; k < 24; k++) {
+    const g = goals[m.rng.int(goals.length)], f = m.rng.range(0.3, 0.75), off = m.rng.range(-1, 1) * SD().rescue.offR;
+    const dx = g.x - m.lz.x, dy = g.y - m.lz.y, L = Math.hypot(dx, dy) || 1;
+    const x = m.lz.x + dx * f - (dy / L) * off, y = m.lz.y + dy * f + (dx / L) * off;
+    if (!m.terrain.isLand(x, y) || !inAO(m, x, y, 30)) continue;
+    if (avoid.some((a) => (a.x - x) ** 2 + (a.y - y) ** 2 < (a.r * 0.6) ** 2)) continue;
+    return { x, y };
+  }
+  return null;
+}
+
+// An objective being worked is loud, and the enemy keeps calling in help there.
+function siteActivity(m, s, dt) {
+  const S = SD();
+  s.callT -= dt;
+  if (s.callT <= 0) { s.callT = C.reinf.siteEvery * S.callMul; callReinforcements(m, s.x, s.y, 'site', { dist: [55, 100] }); }
+  s.noiseT = (s.noiseT || 0) - dt;
+  if (s.noiseT <= 0) { s.noiseT = C.noise.siteEvery; m.siteNoise(s.x, s.y); }
+}

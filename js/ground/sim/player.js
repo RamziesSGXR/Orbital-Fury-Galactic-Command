@@ -1,0 +1,478 @@
+// The player's destroyer kit: a UAV scan, up to five orbital stratagems from the armory, and the nuclear strike once the
+// launch site is armed. Strikes land inside the strike zone: the ring around the Helldivers and SEAF, plus any UAV circle.
+// The player never steers the Helldivers. Friendly fire from the player's own strikes is real.
+import { t as tr } from '../i18n.js';
+import { CONFIG as C } from '../config.js';
+import { orbCdMul } from '../data/perks.js';
+import { orbSiteMul, uavSiteMul } from './sites.js';
+import { COMMS } from '../data/data.js';
+import { orbStats, uavStats, gunStats, buildStats, buildLevel, hangarStats } from '../data/kit.js';
+import { noise, alertGroup } from './enemies.js';
+import { ffBlast, damageArea, hurtEnemy, jammedAt } from './combat.js';
+import { domeAt } from './ops.js';
+import { strikeAt, queueZone, destroyAsset } from './strat.js';
+
+export const SLOT_ARTY = 8, ORB_SLOTS = 5;
+export const UAV_REACH = 70;       // a UAV can be dropped this far beyond the strike zone of the allies
+const ALL = { L: 1, M: 1, H: 1, B: 1 };
+// (0.59) the gun's damage table goes with its Penetrator Rounds level (GUN_PEN): light to start, medium, then heavy
+
+export function initPlayer(m) {
+  const p = {
+    weapon: 1, aimX: m.lz.x, aimY: m.lz.y + 60, firing: false, prevFiring: false, swapUntil: 0,
+    slots: [{ type: 'uav', readyAt: startCd(uavStats(m.kit.uav).cd) }, { type: 'empty' }, { type: 'empty' }, { type: 'empty' }, { type: 'empty' }, { type: 'empty' }, { type: 'nuke', uses: 1, readyAt: 0 }, { type: 'gun' }, { type: 'empty' }],
+    gun: { ammo: gunStats(m.kit).ammo, max: gunStats(m.kit).ammo, bloom: 0, idle: 9, acc: 0, dry: false, firing: false },
+    aim: { ok: true, inZone: true, danger: false, dangerR: 0, ready: false, splash: 0, spread: 0, delay: 0, name: '' },
+  };
+  // (0.23) the Eagle (the Hangar): every Eagle in the loadout calls on it, and it flies back to rearm. (0.53.2) Each Eagle stratagem
+  // has its own runs (its slot's eu, max each); the Eagle rearms once every one is out, or when the gunner calls it back early.
+  const H = hangarStats(m.kit);
+  p.eagle = { max: H.uses, rearmAt: 0 };
+  m.player = p;
+  m.utilQ = [];
+  syncSlots(m, true);
+  p.weapon = GUN_SLOT;      // the ship gun is the first thing the gunner can use; everything else is still cooling down
+}
+const GUN_SLOT = 7;
+// Where a weapon's cooldown stands at the start of a mission: part-way through, never less than a few seconds.
+const startCd = (cd) => Math.max(C.weapons.startCdMin, cd * C.weapons.startCdFrac);
+
+// Make the five orbital slots match the kit's loadout. Slots that keep the same orbital keep their cooldown.
+export function syncSlots(m, start = false) {
+  const p = m.player, kit = m.kit;
+  for (let i = 1; i <= ORB_SLOTS; i++) {
+    const id = i - 1 < kit.slots ? kit.loadout[i - 1] : '';
+    const cur = p.slots[i];
+    if (!id) { p.slots[i] = { type: 'empty' }; continue; }
+    const level = kit.owned[id] || 1;
+    if (cur.type === 'orb' && cur.id === id) { cur.level = level; continue; }
+    p.slots[i] = { type: 'orb', id, level, readyAt: m.t + (start ? startCd(orbStats(id, level).cd) : C.weapons.warmupSec), uses: id === 'orb_laser' ? C.orbital.laserUses : Infinity };
+    if (orbStats(id, level).cat === 'EAGLE') p.slots[i].eu = hangarStats(kit).uses;     // (0.53.2) its own runs, full
+  }
+  // gun upgrades bought mid-mission: a bigger magazine arrives full of the extra rounds
+  const gs = gunStats(kit);
+  if (p.gun && gs.ammo !== p.gun.max) { p.gun.ammo = Math.min(gs.ammo, p.gun.ammo + Math.max(0, gs.ammo - p.gun.max)); p.gun.max = gs.ammo; }
+  // the howitzer: weapon 9, once one stands (built by SEAF or captured on the map). (0.62.13) Its rounds are the cannons' own (artyTick).
+  const hasArty = (m.arty || []).length > 0;
+  if (hasArty && p.slots[SLOT_ARTY].type !== 'arty') { p.slots[SLOT_ARTY] = { type: 'arty', readyAt: m.t, gapAt: 0, ammo: 0, max: 0, fill: 0 }; artyTick(m, 0); }
+  else if (!hasArty) p.slots[SLOT_ARTY] = { type: 'empty' };
+  if (p.slots[p.weapon].type === 'empty') {
+    const j = p.slots.findIndex((s, i) => i >= 1 && i <= ORB_SLOTS && s.type === 'orb');
+    p.weapon = j >= 0 ? j : 0;
+  }
+}
+
+// Stats for a slot as the HUD and the reticle need them.
+export function slotStats(m, i) {
+  const s = m.player.slots[i];
+  if (s.type === 'orb') return orbStats(s.id, s.level);
+  if (s.type === 'uav') { const u = uavStats(m.kit.uav); return { name: tr('hud.w.uav'), g: 'UAV', cd: u.cd, r: u.r, sec: u.sec, delay: 0 }; }
+  if (s.type === 'nuke') return { name: tr('card.nuke.h'), g: 'NUKE', cd: 0, delay: C.objective.nuke.delaySec, splash: C.objective.nuke.blastR, dmg: C.objective.nuke.blastDmg };
+  if (s.type === 'gun') return { name: tr('hud.w.gun'), g: 'GUN', cd: 0, delay: 0 };
+  if (s.type === 'arty') { const a = artyStats(m); return { name: tr('hud.w.arty'), g: 'ARTY', cd: a.cd, delay: C.arty.flight, splash: a.r, dmg: a.dmg, range: a.range }; }
+  return null;
+}
+// The cannon's numbers: the armory level (a captured gun fires at level 1 at least).
+export const artyStats = (m) => buildStats('arty', Math.max(1, buildLevel(m.kit, 'arty')));
+// The nearest artillery cannon to (x, y), and how far it is (0.18: it fires with or without a crew; a crew loads it faster).
+// loaded: only cannons with a round in them.
+export function nearestArty(m, x, y, loaded = false) {
+  let best = null, bd = Infinity;
+  for (const g of m.arty || []) {
+    if (loaded && !(g.loaded > 0)) continue;
+    const d = Math.hypot(g.x - x, g.y - y);
+    if (d < bd) { bd = d; best = g; }
+  }
+  return { g: best, d: bd };
+}
+// A mini-nuke from the cannon: anywhere in its range that is in sight (or locked), on a slow recharge, while someone mans it.
+// It hurts allies too.
+// (0.62.13) Each cannon is its own gun: it holds C.arty.mag rounds and loads the next in the level's cd, slower with a short crew or
+// none. A new cannon's first round is in after the warm-up. The slot (weapon 9) shows the rounds loaded across all of them: ammo of
+// max, fill (the bar: loaded and part-loaded), and readyAt (now, or when the next round is in).
+const artyCrewMul = (g) => { const K = C.arty.crewMul; return g.crew >= (g.cap || 2) ? K.full : g.crew > 0 ? K.short : K.none; };
+export function artyTick(m, dt) {
+  const s = m.player.slots[SLOT_ARTY];
+  if (!s || s.type !== 'arty') return;
+  const a = artyStats(m), mag = C.arty.mag, t = m.t;
+  let ammo = 0, max = 0, fill = 0, next = Infinity;
+  for (const g of m.arty || []) {
+    const per = a.cd * artyCrewMul(g);
+    if (g.loaded === undefined) { g.loaded = 0; g.load = Math.max(0, 1 - C.weapons.warmupSec / per); }     // (its first round after the warm-up, crew or none)
+    if (g.loaded < mag) {
+      g.load += dt / per;
+      if (g.load >= 1) { g.loaded++; g.load = g.loaded < mag ? g.load - 1 : 0; }
+    } else g.load = 0;
+    ammo += g.loaded; max += mag; fill += g.loaded + (g.loaded < mag ? g.load : 0);
+    g.nextIn = g.loaded < mag ? (1 - g.load) * per : 0;     // (the selection panel: when its next round is in)
+    if (g.loaded < mag) next = Math.min(next, g.nextIn);
+  }
+  s.ammo = ammo; s.max = max; s.fill = max ? fill / max : 0;
+  s.readyAt = ammo > 0 ? Math.max(t, s.gapAt || 0) : t + (next < Infinity ? next : 0);
+}
+function fireArty(m, s) {
+  const p = m.player, t = m.t, a = artyStats(m), A = C.arty;
+  if (t < (s.gapAt || 0) || !(s.ammo > 0)) return deny(m, 'cooldown');
+  const { g, d } = nearestArty(m, p.aimX, p.aimY, true);     // the nearest cannon with a round in it
+  if (!g || d > a.range) return deny(m, 'artyrange');
+  if (m.visLevel(p.aimX, p.aimY) <= 0 && !m.nearLock(p.aimX, p.aimY)) return deny(m, 'novisual');
+  g.loaded--; s.gapAt = t + A.gap;
+  artyTick(m, 0);
+  g.face = Math.atan2(p.aimY - g.y, p.aimX - g.x); g.firedAt = t;
+  m.shells.push({ x: p.aimX, y: p.aimY, at: t + A.flight, dmg: a.dmg, splash: a.r, mult: A.mult, by: 'player', friendly: true, big: true, mini: true, fx: g.x, fy: g.y, above: true });   // (a high arc: it comes down from above)
+  m.markers.push({ type: 'strat', x: p.aimX, y: p.aimY, r: a.r, start: t, end: t + A.flight, impact: t + A.flight, id: tr('hud.w.arty'), cat: 'ORBITAL', by: 'player' });
+  m.stats.artyShots = (m.stats.artyShots || 0) + 1; m.stats.shots++;
+  m.radio(COMMS.artyFire, 'artyfire', 3);
+  m.emit('arty_fire', { x: p.aimX, y: p.aimY, gx: g.x, gy: g.y });
+  return true;
+}
+
+// The footprint of an orbital for aiming: how big each blast is and how far the shells spread around the aim point.
+export function aimGeom(m, st) {
+  const splash = (st.zone ? st.zone.r : st.beam ? st.beam.width / 2 : st.splash || 0) * (st.zone ? 1 : m.biome.splash);
+  const spread = st.pat === 'scatter' ? st.len : st.pat === 'line' || st.pat === 'walk' ? st.len / 2 : st.beam ? st.beam.leash : 0;
+  return { splash, spread, danger: splash + spread + 5 };
+}
+
+// A shell lands. by says who fired it; friendly = whether it hurts allies (only the player's strikes do).
+function explode(m, sh) {
+  const by = sh.by || 'player', friendly = sh.friendly !== false;
+  // (0.26) the Ultimatum: a blast that kills every enemy in it, through armour and shields; a super heavy loses a big piece
+  if (sh.ultAoe) {
+    if (sh.miss) { const [ox, oy] = m.rng.inDisc(sh.ultAoe * 0.8); sh.x += ox; sh.y += oy; }
+    else if (sh.lock && !sh.lock.dead) { sh.x = sh.lock.x; sh.y = sh.lock.y; }     // (it was locked on: it follows its target in)
+    const U = C.hd.ult;
+    m.eGrid.near(sh.x, sh.y, sh.ultAoe + 8, (e, d2) => {
+      if (e.dead || d2 > (sh.ultAoe + (e.r || 0) * 0.6) ** 2) return;
+      alertGroup(m, e.g);
+      if (e.boss) hurtEnemy(m, e, e.maxHp * U.bossFrac, by, null, null, '', false);
+      else hurtEnemy(m, e, e.maxHp * U.kill * 1.5 * (sh.dmgMul || 1), by, sh.fx ?? sh.x, sh.fy ?? sh.y, '', true);
+    });
+    damageArea(m, sh.x, sh.y, sh.ultAoe, U.structDmg, { L: 0, M: 0, H: 0, B: 1 }, by, 'none', '', sh.x, sh.y);     // and what stands there
+    ffBlast(m, sh.x, sh.y, sh.ultAoe, C.ff.ultDmg, { L: 1, M: 1, H: 1, B: 0 }, by, sh.fx, sh.fy);     // (0.58) and any of ours caught in it
+    noise(m, sh.x, sh.y, C.noise.strike);
+    m.emit('boom', { x: sh.x, y: sh.y, r: sh.ultAoe, dmg: 9999, by, ult: true, big: true });
+    return;
+  }
+  // a round aimed at one enemy: it takes the full hit if it is still where the round lands
+  if (sh.direct && !sh.direct.dead && Math.hypot(sh.direct.x - sh.x, sh.direct.y - sh.y) <= sh.direct.r + 1.5) {
+    if (sh.flat) hurtEnemy(m, sh.direct, sh.directDmg, by, null, null, '', !!sh.pierce);      // a flat share: no rear or critical bonus on top
+    else hurtEnemy(m, sh.direct, sh.directDmg, by, sh.fx ?? sh.x, sh.fy ?? sh.y, sh.cs, !!sh.pierce);
+    m.emit('boom', { x: sh.x, y: sh.y, r: 3, dmg: sh.directDmg, by, ult: true });
+  }
+  if (!(sh.splash > 0) || !(sh.dmg > 0)) return;
+  damageArea(m, sh.x, sh.y, sh.splash, sh.dmg, sh.mult, by, friendly, sh.cs, sh.above ? sh.x : sh.fx ?? sh.x, sh.above ? sh.y : sh.fy ?? sh.y);
+  if (sh.splash >= 4) noise(m, sh.x, sh.y, C.noise.strike);
+  m.emit('boom', { x: sh.x, y: sh.y, r: sh.splash, dmg: sh.dmg, by, big: !!sh.big, nuke: !!sh.nuke, sid: sh.sid || '', cat: sh.cat || '', first: !sh.n });
+}
+
+function deny(m, reason, text) { m.emit('deny', { reason }); if (text) m.radio(text, 'deny' + reason, 3); return false; }
+
+function fireUav(m, s) {
+  const p = m.player, t = m.t;
+  if (t < s.readyAt) return deny(m, 'cooldown');
+  if (!m.inAllyZone(p.aimX, p.aimY, UAV_REACH)) return deny(m, 'nocoverage', COMMS.noCoverage);
+  const U = { ...uavStats(m.kit.uav) }, lab = uavSiteMul(m);     // (0.52) a worked dark-fluid lab: a wider scan, sooner again
+  U.r = Math.round(U.r * lab); U.cd = U.cd / lab;
+  s.readyAt = t + U.cd;
+  m.uavs.push({ x: p.aimX, y: p.aimY, r: U.r, born: t, until: t + U.sec });
+  m.stats.uavs++;
+  m.emit('uav', { x: p.aimX, y: p.aimY, r: U.r, sec: U.sec });
+  m.radio(COMMS.uavUp, 'uav', 6);
+  return true;
+}
+
+function fireOrbital(m, idx) {
+  const p = m.player, s = p.slots[idx], t = m.t;
+  const st = orbStats(s.id, s.level);
+  if (t < s.readyAt || s.uses <= 0) return deny(m, 'cooldown');
+  if (st.cat === 'EAGLE' && !eagleReady(m, s)) return deny(m, m.t < m.player.eagle.rearmAt ? 'rearm' : 'eagleempty');
+  if (!m.inZone(p.aimX, p.aimY) && !(st.k !== 'util' && m.nearLock(p.aimX, p.aimY))) return deny(m, 'nocoverage', COMMS.noCoverage);   // a locked enemy can be hit anywhere
+  if (st.k === 'util') return callUtil(m, s, st);
+  if (st.k === 'mines') return callMines(m, s, st);
+  // into a free-fire zone the Helldivers asked for: the destroyer recharges faster, so the gunner can saturate it
+  s.readyAt = t + st.cd * orbCdMul(m.kit) * orbSiteMul(m);     // (0.51: the Orbital Efficiency commendation; 0.52: a worked refinery)
+  if (st.cat === 'EAGLE') eagleUse(m, s);
+  if (s.uses !== Infinity) s.uses--;
+  let tgt = { x: p.aimX, y: p.aimY };
+  if (st.lock) {      // the railcannon picks the biggest enemy near the aim point
+    let best = null, bd = Infinity;
+    m.eGrid.near(p.aimX, p.aimY, 26, (e, d2) => { if ((e.vis > 0 || m.locked.includes(e)) && (e.kind === 'H' || !best) && d2 < bd) { bd = d2; best = e; } });
+    if (best) tgt = { x: best.x, y: best.y, e: best };
+  }
+  // an orbital defence cannon has the ship dodging (ops.js): the strike lands wide
+  if (m.evading && !tgt.e) { const [dx, dy] = m.rng.inDisc(C.objective.cannon.scatter); tgt = { x: tgt.x + dx, y: tgt.y + dy }; }
+  if (st.k === 'strike') strikeAt(m, st, tgt, { ox: m.hx, oy: m.hy, by: 'player', friendly: true, dmgMul: 1 });
+  else if (st.k === 'zone') queueZone(m, st.zone, tgt.x, tgt.y, t + st.delay, st.delay, st, 'player');
+  else if (st.k === 'beam') {
+    const b = st.beam;
+    m.beams.push({ lx: tgt.x, ly: tgt.y, cx: tgt.x, cy: tgt.y, start: t + st.delay, end: t + st.delay + b.dur, dps: b.dps, width: b.width, follow: b.follow, leash: b.leash });
+    m.markers.push({ type: 'laser', x: tgt.x, y: tgt.y, r: b.leash, start: t, end: t + st.delay + b.dur });
+  }
+  m.stats.shots++; m.stats.orbCalls++;
+  m.stats.stratBy[s.id] = (m.stats.stratBy[s.id] || 0) + 1;
+  m.emit('strike_call', { slot: idx, id: s.id, name: st.name, x: tgt.x, y: tgt.y });
+  return true;
+}
+
+// ---------------------------------------------------------------- (0.23) the Eagle and the minefields
+// The Eagle: an Eagle stratagem is ready while it has runs left (0.53.2: its own, s.eu) and the Eagle is not away rearming. Each call
+// takes one of its runs; once every Eagle in the loadout is out, the Eagle flies back to rearm. The gunner can call it back to rearm
+// early (eagleRearm) once any run is spent. While it is away no Eagle can be called; it comes back with every one full.
+export const eagleSlots = (m) => m.player.slots.filter((s) => s.type === 'orb' && s.eu !== undefined);
+export const eagleAway = (m) => m.t < m.player.eagle.rearmAt;
+export function eagleReady(m, s) {
+  if (eagleAway(m)) return false;
+  return s ? s.eu > 0 : eagleSlots(m).some((q) => q.eu > 0);
+}
+function eagleBack(m, early) {
+  const e = m.player.eagle, H = hangarStats(m.kit);
+  e.rearmAt = m.t + H.rearm; e.early = !!early;
+  m.emit('eagle_rearm', { sec: H.rearm, early: !!early });
+  m.radio(COMMS.eagleRearm, 'eaglerearm', 4);
+}
+function eagleUse(m, s) {
+  const H = hangarStats(m.kit);
+  s.readyAt = m.t + H.callCd;
+  s.eu = Math.max(0, s.eu - 1);
+  if (eagleSlots(m).every((q) => q.eu <= 0)) eagleBack(m, false);
+}
+// (0.53.2) EAGLE REARM: the Eagle flies back now, with runs still on it. Refused while it is away, or when no run has been spent.
+export function eagleRearm(m) {
+  const e = m.player.eagle, list = eagleSlots(m);
+  if (!list.length) return { ok: false, reason: 'noeagle' };
+  if (eagleAway(m)) return { ok: false, reason: 'rearm' };
+  if (list.every((q) => q.eu >= e.max)) return { ok: false, reason: 'eaglefull' };
+  eagleBack(m, true);
+  return { ok: true, sec: hangarStats(m.kit).rearm };
+}
+function eagleTick(m) {
+  const e = m.player.eagle, H = hangarStats(m.kit);
+  if (e.max !== H.uses) { for (const q of eagleSlots(m)) q.eu = Math.max(0, q.eu + (H.uses - e.max)); e.max = H.uses; }     // (a Hangar level bought mid-mission)
+  if (e.rearmAt && m.t >= e.rearmAt) { for (const q of eagleSlots(m)) q.eu = e.max; e.rearmAt = 0; e.early = false; m.emit('eagle_ready', {}); }
+}
+// A minefield from the ship: it comes down at the aim point after st.delay and lies there until it is spent or st.life is up.
+function callMines(m, s, st) {
+  const p = m.player, t = m.t, x = p.aimX, y = p.aimY;
+  if (!m.terrain.isLand(x, y)) return deny(m, 'water', COMMS.noWater);
+  s.readyAt = t + st.cd * orbCdMul(m.kit) * orbSiteMul(m);     // (0.51: the Orbital Efficiency commendation; 0.52: a worked refinery)
+  m.utilQ.push({ at: t + st.delay, st, x, y, id: s.id, mines: true });
+  m.markers.push({ type: 'pod', x, y, r: st.r, start: t, end: t + st.delay, id: s.id, util: 'mines' });
+  m.stats.shots++; m.stats.stratBy[s.id] = (m.stats.stratBy[s.id] || 0) + 1;
+  m.emit('util_call', { id: s.id, util: 'mines', name: st.name, x, y, delay: st.delay });
+  return true;
+}
+function landMines(m, u) {
+  const st = u.st, mines = [];
+  for (let i = 0; i < st.n; i++) { const [dx, dy] = m.rng.inDisc(st.r); if (m.terrain.isLand(u.x + dx, u.y + dy)) mines.push({ x: u.x + dx, y: u.y + dy, dead: false }); }
+  const a = { id: m.nextId++, kind: 'mines', sid: u.id, x: u.x, y: u.y, born: m.t, dead: false, hurtAt: -9, hp: 100, maxHp: 100, r: 3, ship: true, by: 'player',
+    mines, left: mines.length, until: m.t + st.life, life: st.life, d: st, name: st.name, scan: 0 };
+  m.assets.push(a);
+  m.emit('asset_new', { kind: 'mines', sid: u.id, x: u.x, y: u.y });
+  m.emit('util_land', { util: 'mines', x: u.x, y: u.y, r: st.r });
+}
+
+// ---------------------------------------------------------------- ship utilities
+// Help for the squad instead of firepower: a pod (or a canister of smoke, or medical nanites) comes down where the player aims.
+function callUtil(m, s, st) {
+  const p = m.player, t = m.t, x = p.aimX, y = p.aimY;
+  if ((st.util === 'sentry' || st.util === 'shield') && !m.terrain.isLand(x, y)) return deny(m, 'water', COMMS.noWater);
+  s.readyAt = t + st.cd * orbCdMul(m.kit) * orbSiteMul(m);     // (0.51: the Orbital Efficiency commendation; 0.52: a worked refinery)
+  m.utilQ.push({ at: t + st.delay, st, x, y, id: s.id });
+  m.markers.push({ type: 'pod', x, y, r: st.r || (st.zone ? st.zone.r : 6), start: t, end: t + st.delay, id: s.id, util: st.util });
+  m.stats.utils = (m.stats.utils || 0) + 1; m.stats.shots++;
+  m.stats.stratBy[s.id] = (m.stats.stratBy[s.id] || 0) + 1;
+  m.emit('util_call', { id: s.id, util: st.util, name: st.name, x, y, delay: st.delay });
+  m.radio(COMMS.utilCall(st.name), 'util', 2);
+  return true;
+}
+function landUtil(m, u) {
+  const t = m.t, st = u.st;
+  if (u.mines) { landMines(m, u); return; }
+  if (st.util === 'med') {
+    let n = 0;
+    for (const a of m.alive) {
+      if (a.dead || (a.x - u.x) ** 2 + (a.y - u.y) ** 2 > st.r * st.r) continue;
+      if (a.type === 'H') a.heal = (a.heal || 0) + a.maxHp * st.heal;       // Helldivers heal over a few seconds, like a stim
+      else a.hp = Math.min(a.maxHp, a.hp + a.maxHp * st.heal);
+      n++;
+      m.emit('heal', { x: u.x, y: u.y, tx: a.x, ty: a.y, id: a.id });
+    }
+    m.emit('util_land', { util: 'med', x: u.x, y: u.y, r: st.r, n });
+    return;
+  }
+  if (st.util === 'smoke') {
+    m.zones.push({ kind: 'smoke', x: u.x, y: u.y, r: st.zone.r, until: t + st.zone.sec, dps: 0, tick: 0, born: t, by: 'player' });
+    m.emit('zone', { kind: 'smoke', x: u.x, y: u.y, r: st.zone.r });
+    m.emit('util_land', { util: 'smoke', x: u.x, y: u.y, r: st.zone.r });
+    return;
+  }
+  // a shield dome or a sentry: one of each at a time from the ship, the new one replaces the old
+  for (const a of m.assets) if (!a.dead && a.sid === u.id) destroyAsset(m, a, 'replaced');
+  const base = { id: m.nextId++, sid: u.id, x: u.x, y: u.y, born: t, dead: false, hurtAt: -9, name: st.name, ship: true };
+  const a = st.util === 'shield'
+    ? { ...base, kind: 'shield', hp: 60, maxHp: 60, shield: st.shield, maxShield: st.shield, r: st.r, until: t + st.life, life: st.life }
+    : { ...base, kind: 'turret', hp: st.t.hp, maxHp: st.t.hp, ammo: st.t.ammo, maxAmmo: st.t.ammo, p: st.t, cool: 0.6, scan: 0, tgt: null, face: m.squad.dir || 0, focus: null, r: 3.5, snd: 'ac' };
+  m.assets.push(a);
+  m.emit('asset_new', { kind: a.kind, sid: u.id, x: u.x, y: u.y });
+  m.emit('util_land', { util: st.util, x: u.x, y: u.y, r: st.r || 4 });
+}
+
+export function fireSlot(m, idx) {
+  const p = m.player, s = p.slots[idx];
+  if (!s || s.type === 'empty') return false;
+  { const j = s.type !== 'nuke' && s.type !== 'gun' ? jammedAt(m, p.aimX, p.aimY) : null;     // a commander jams the ground round it; (0.37) so does a jammer site
+    if (j) return j.side ? deny(m, 'jamsite', tr('c.jamSite', { name: j.name })) : deny(m, 'jammed', COMMS.jammed); }
+  if (s.type === 'gun' && jammedAt(m, p.aimX, p.aimY, 0, true)) return deny(m, 'jammed', COMMS.jammed);
+  if (s.type !== 'uav' && s.type !== 'nuke' && domeAt(m, p.aimX, p.aimY)) return deny(m, 'shielded', tr('c.shielded'));   // a shield dome (ops.js)
+  if (s.type === 'uav') return fireUav(m, s);
+  if (s.type === 'nuke') {   // works anywhere on the map, once the launch site is armed
+    if (!m.nukeReady() || s.uses <= 0) return deny(m, 'nomark', COMMS.holdFire);
+    s.uses--;
+    return m.nukeFire(p.aimX, p.aimY);
+  }
+  if (s.type === 'arty') return fireArty(m, s);
+  return fireOrbital(m, idx);
+}
+
+// Aim readout for the HUD and the reticle: coverage, whether the shot is ready, danger close. (0.47) Its own function, so the soft
+// pause can refresh it too: a weapon picked while paused used to show the last weapon's rings until the game ran again.
+export function refreshAim(m) {
+  const p = m.player, t = m.t, info = p.aim, s = p.slots[p.weapon];
+  const st = slotStats(m, p.weapon) || {};
+  info.name = st.name || '';
+  info.delay = st.delay || 0;
+  info.splash = 0; info.spread = 0; info.lock = false;
+  if (s.type === 'orb') {
+    const g = aimGeom(m, st);
+    info.lock = st.k !== 'util' && !m.inZone(p.aimX, p.aimY) ? !!m.nearLock(p.aimX, p.aimY) : false;
+    info.inZone = m.inZone(p.aimX, p.aimY) || info.lock;
+    info.splash = g.splash; info.spread = g.spread + (m.evading && st.k !== 'util' ? C.objective.cannon.scatter : 0);     // (the ship dodging a cannon: wider)
+    info.ready = info.inZone && t >= s.readyAt && s.uses > 0 && (st.cat !== 'EAGLE' || eagleReady(m, s));
+  } else if (s.type === 'uav') {
+    info.inZone = m.inAllyZone(p.aimX, p.aimY, UAV_REACH);
+    info.splash = st.r; info.ready = info.inZone && t >= s.readyAt;
+  } else if (s.type === 'nuke') {
+    info.inZone = true; info.splash = C.objective.nuke.blastR; info.ready = m.nukeReady() && s.uses > 0;
+  } else if (s.type === 'arty') {
+    const a = artyStats(m), near = nearestArty(m, p.aimX, p.aimY, (s.ammo || 0) > 0);
+    info.lock = m.visLevel(p.aimX, p.aimY) <= 0 && !!m.nearLock(p.aimX, p.aimY);
+    info.artyWhy = !near.g || near.d > a.range ? 'range' : m.visLevel(p.aimX, p.aimY) > 0 || info.lock ? '' : 'vis';
+    info.inZone = !info.artyWhy; info.splash = a.r; info.ready = info.inZone && t >= s.readyAt;
+  } else if (s.type === 'gun') {
+    // free fire: anywhere the player can see, no strike zone needed
+    const gs = gunStats(m.kit), g = p.gun;
+    info.lock = m.visLevel(p.aimX, p.aimY) <= 0 && !!m.nearLock(p.aimX, p.aimY);
+    info.inZone = m.visLevel(p.aimX, p.aimY) > 0 || info.lock;
+    info.splash = (gs.spread + gs.bloom * g.bloom) * (m.evading ? C.objective.cannon.gunMul : 1); info.ready = info.inZone && g.ammo >= 1 && !g.dry;
+    info.gun = { ammo: g.ammo, max: g.max, dry: g.dry };
+  } else { info.inZone = false; info.ready = false; }
+  { const j = s.type === 'nuke' ? null : jammedAt(m, p.aimX, p.aimY, 0, s.type === 'gun'); info.jammed = !!j; info.jamSite = !!(j && j.side); }     // (0.37: the ship gun still fires into a jammer site)
+  info.shielded = s.type !== 'nuke' && s.type !== 'uav' && !!domeAt(m, p.aimX, p.aimY);
+  if (info.jammed) info.ready = false;
+  info.ok = info.ready;
+  info.util = s.type === 'orb' && st.k === 'util' ? st.util : null;      // help for the squad: no danger-close warning
+  info.dangerR = s.type === 'uav' || s.type === 'gun' || info.util ? 0 : info.splash + info.spread + 5;
+  info.danger = false;
+  if (info.dangerR > 0) {
+    for (const a of m.alive) if (!a.dead && Math.hypot(a.x - p.aimX, a.y - p.aimY) <= info.dangerR) { info.danger = true; break; }
+  }
+}
+export function updatePlayer(m, dt) {
+  for (let i = m.utilQ.length - 1; i >= 0; i--) if (m.t >= m.utilQ[i].at) landUtil(m, m.utilQ.splice(i, 1)[0]);
+  if (m.player.eagle) eagleTick(m);
+  const p = m.player, t = m.t;
+  if (((m.arty || []).length > 0) !== (p.slots[SLOT_ARTY].type === 'arty')) syncSlots(m);
+  artyTick(m, dt);     // (0.62.13) every cannon loads its own round
+  // The nuke slot is only usable while the launch site is armed; fall back to the first orbital when it is spent.
+  if (p.slots[p.weapon].type === 'nuke' && !m.nukeReady()) {
+    const j = p.slots.findIndex((q, i) => i >= 1 && i <= ORB_SLOTS && q.type === 'orb');
+    p.weapon = j >= 0 ? j : 0;
+  }
+  const s = p.slots[p.weapon];
+
+  refreshAim(m);
+
+  // Fire on the press of the button (one strike per press). The gun fires for as long as the trigger is held.
+  const pressed = p.firePress || (p.firing && !p.prevFiring);
+  p.firePress = false;
+  p.prevFiring = p.firing;
+  if (s.type === 'gun') updateGun(m, dt, pressed);
+  else {
+    // a press while the weapon is still coming up waits for it (arming a weapon and clicking at once is one call, not none)
+    if (pressed && t < p.swapUntil) p.queued = p.weapon;
+    if ((pressed || p.queued === p.weapon) && t >= p.swapUntil) { p.queued = -1; fireSlot(m, p.weapon); }
+    updateGun(m, dt, false);
+  }
+
+  // Shells land.
+  for (let i = m.shells.length - 1; i >= 0; i--) {
+    const sh = m.shells[i];
+    if (t < sh.at) continue;
+    m.shells.splice(i, 1);
+    if (sh.lock && !sh.lock.dead) { sh.x = sh.lock.x; sh.y = sh.lock.y; }
+    explode(m, sh);
+    if (sh.nuke) m.onNukeLanded();
+  }
+
+  // Laser beams follow the aim point on a leash.
+  for (let i = m.beams.length - 1; i >= 0; i--) {
+    const b = m.beams[i];
+    if (t >= b.end) { m.beams.splice(i, 1); continue; }
+    if (t < b.start) continue;
+    let dx = p.aimX - b.cx, dy = p.aimY - b.cy;
+    const d = Math.hypot(dx, dy);
+    if (d > 0.01) {
+      const s2 = Math.min(b.follow * dt, d);
+      b.cx += (dx / d) * s2; b.cy += (dy / d) * s2;
+    }
+    dx = b.cx - b.lx; dy = b.cy - b.ly;
+    const off = Math.hypot(dx, dy);
+    if (off > b.leash) { b.cx = b.lx + (dx / off) * b.leash; b.cy = b.ly + (dy / off) * b.leash; }
+    damageArea(m, b.cx, b.cy, (b.width / 2) * m.biome.splash, b.dps * dt, ALL, 'player', true, '');
+  }
+
+  // UAV scans run out. Allies under one get its lift (a.uavAt: the last tick they were covered).
+  for (let i = m.uavs.length - 1; i >= 0; i--) if (t >= m.uavs[i].until) m.uavs.splice(i, 1);
+  if (m.uavs.length) for (const a of m.alive) for (const u of m.uavs) if ((a.x - u.x) ** 2 + (a.y - u.y) ** 2 <= u.r * u.r) { a.uavAt = t; break; }
+  // Inbound markers expire.
+  for (let i = m.markers.length - 1; i >= 0; i--) if (t >= m.markers[i].end) m.markers.splice(i, 1);
+}
+
+// The Ship Gun: hold the trigger and rounds scatter around the aim point; the spread blooms while it fires and settles when
+// it stops. The magazine is the player's own: it refills by itself a moment after the trigger is released.
+function updateGun(m, dt, pressed) {
+  const p = m.player, g = p.gun, G = C.gun, gs = gunStats(m.kit), t = m.t;
+  const holding = p.slots[p.weapon].type === 'gun' && p.firing && t >= p.swapUntil;
+  const jam = holding && (!!jammedAt(m, p.aimX, p.aimY, 0, true) || !!domeAt(m, p.aimX, p.aimY));
+  const seen = holding && !jam && (m.visLevel(p.aimX, p.aimY) > 0 || !!m.nearLock(p.aimX, p.aimY));   // a locked enemy can be shot unseen
+  // (0.62.7) The magazine, plainly. The gun fires at its full rate through whatever is in it. Empty, it stops and reloads,
+  // and it reloads with the trigger still held. The next press fires whatever has come back, however little: no minimum to
+  // wait for (0.62.5 and before locked it until 45 were back) and no slow fire off the loader (0.62.6).
+  if (g.dry && (!holding || pressed)) g.dry = false;     // empty until the trigger is let go, or pressed again
+  if (holding && pressed) {
+    if (jam) deny(m, 'jammed', COMMS.jammed);
+    else if (!seen) deny(m, 'novisual', COMMS.noVisual);
+    else if (g.ammo < 1) deny(m, 'gundry', COMMS.gunDry);
+  }
+  if (seen && g.ammo >= 1 && !g.dry) {
+    g.idle = 0; g.firing = true;
+    g.bloom = Math.min(1, g.bloom + G.bloomUp * dt / 3);
+    g.acc += G.rps * dt;
+    const pts = [], spread = (gs.spread + gs.bloom * g.bloom) * (m.evading ? C.objective.cannon.gunMul : 1);
+    while (g.acc >= 1 && g.ammo >= 1) {
+      g.acc -= 1; g.ammo -= 1;
+      const [ox, oy] = m.rng.inDisc(spread), x = p.aimX + ox, y = p.aimY + oy;
+      damageArea(m, x, y, G.splash * m.biome.splash, gs.dmg, gs.pen, 'player', false, 'gun', x, y - 3);   // rounds fall from the ship
+      if (pts.length < 4) pts.push([x, y]);
+      m.stats.gunRounds = (m.stats.gunRounds || 0) + 1;
+    }
+    if (g.ammo < 1) { g.ammo = 0; g.dry = true; g.firing = false; m.radio(COMMS.gunDry, 'gundry', 4); }
+    if (pts.length) { m.emit('gun', { x: p.aimX, y: p.aimY, pts }); noise(m, p.aimX, p.aimY, C.noise.gun); }
+    m.stats.shots++;
+  } else {
+    g.firing = false; g.idle += dt; g.acc = 0;
+    g.bloom = Math.max(0, g.bloom - G.bloomDown * dt / 3);
+    if (g.idle >= G.regenDelay) g.ammo = Math.min(g.max, g.ammo + gs.regen * dt);
+  }
+}
