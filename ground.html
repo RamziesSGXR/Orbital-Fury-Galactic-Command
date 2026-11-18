@@ -1,0 +1,629 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#030805">
+<meta name="description" content="Orbital Fury: a Super Destroyer targeting minigame for the Super Earth Special Forces community.">
+<title>Orbital Fury</title>
+<!-- the tab icon, and the icon on a phone's home screen -->
+<link rel="icon" href="data:,">
+<!-- the card Discord, X, Facebook and messaging apps show when the link is shared -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Orbital Fury">
+<meta property="og:title" content="Orbital Fury">
+<meta property="og:description" content="Cover four Helldivers from orbit: scan with the UAV, drop orbital strikes, fire the ship gun and send in SEAF. Free, in your browser.">
+<meta property="og:url" content="https://orbitalfury.com/">
+<meta property="og:image" content="https://orbitalfury.com/img/preview.jpg">
+<meta property="og:image:type" content="image/jpeg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Orbital Fury: Helldivers fighting an Automaton column under orbital fire, seen through the Super Destroyer's thermal view">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Orbital Fury">
+<meta name="twitter:description" content="Cover four Helldivers from orbit. Free, in your browser.">
+<meta name="twitter:image" content="https://orbitalfury.com/img/preview.jpg">
+<link rel="stylesheet" href="css/fury.css">
+<style>.gc #btn-retry, .gc #s-title { display: none !important; }</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="view"></canvas>
+  <canvas id="title-bg" aria-hidden="true"></canvas>
+
+  <!-- In-mission HUD -->
+  <div id="hud" class="hidden">
+    <!-- top left: the buttons, and the news under them -->
+    <!-- (0.20) the HUD as an RTS: the resource bar at the top left (credits, the Helldivers' lives, SEAF) -->
+    <div id="topbar">
+      <div class="cr-row">
+        <div id="bigcr" class="bigcr" data-tt="hud.crTitle"><b id="bigcr-v">0</b><span data-t="hud.cr">CR</span><i id="bigcr-d"></i></div>
+        <div id="lives" class="bigcr lives" data-tt="hud.livesTitle"><b id="lives-v">0</b><span data-t="hud.lives">LIVES</span><i id="lives-d"></i></div>
+        <div id="seafc" class="bigcr seafc" data-tt="hud.seafTitle"><b id="seafc-v">0</b><span>SEAF</span></div>
+        <div id="alertc" class="bigcr alertc" data-tt="hud.alertTitle"><b id="alertc-v"></b><span id="alertc-n">CALM</span></div>
+      </div>
+    </div>
+    <button id="showui" class="btn icon" type="button"><span data-t="hud.showUi">SHOW UI</span> <kbd data-k="hideUi">F2</kbd></button>
+    <!-- top right: the clock, the mission and the difficulty, the score; the objective under it -->
+    <div class="hud-tr">
+      <div id="mbox" class="panel fadeable">
+        <div class="mb-top"><div id="timer">30:00</div><div class="mb-id"><b id="mb-num"></b><span id="mb-diff"></span></div></div>
+        <div id="opname"></div>
+        <div class="mb-sc"><span><span data-t="hud.score">SCORE</span> <b id="sc-mission">0</b></span><span><span data-t="hud.session">SESSION</span> <b id="sc-session">0</b></span><span><span data-t="hud.cr">CR</span> <b id="sc-credits" class="cr">0</b></span></div>
+        <div id="combo" class="combo"></div>
+      </div>
+      <div id="objective" class="panel fadeable"><div id="obj-main"></div><div id="obj-bar" class="hidden"><i></i></div><div id="obj-sub"></div></div>
+      <div id="place-hint" class="panel hidden"></div>
+      <div id="callouts">
+          <div id="co-sup" class="callout sup hidden"><span class="co-i">⬢</span><span class="co-t"></span><button class="co-b primary" data-co="accept"><span data-t="hud.loadPod">LOAD POD</span> <kbd data-k="supply">U</kbd></button><button class="co-b" data-co="look-sup"><span data-t="hud.look">LOOK</span> <kbd data-k="look">J</kbd></button><button class="co-b x" data-co="decline" data-ta="hud.declineSup" aria-label="Turn down the supply request">✕</button><i class="co-bar"></i></div>
+          <div id="co-time" class="callout time hidden"><span class="co-i">⏱</span><span class="co-t"></span><button class="co-b primary" data-co="time-yes"><span data-t="hud.approve">APPROVE</span> <kbd data-k="timeYes">K</kbd></button><button class="co-b x" data-co="time-no" data-ta="hud.declineTime" aria-label="Turn down the request">✕</button><i class="co-bar"></i></div>
+          <div id="co-boss" class="callout boss hidden"><span class="co-i">☠</span><span class="co-t"></span><button class="co-b" data-co="look-boss" data-t="hud.look">LOOK</button><i class="co-hp"><u></u><s></s></i></div>
+        </div>
+    </div>
+    <!-- bottom right: the minimap (round; a click or a tap opens the map) -->
+    <div class="hud-br">
+      <div id="flavor" class="fadeable hidden"></div>
+      <div id="notices"></div>
+      <div class="mm-wrap">
+        <canvas id="minimap" class="fadeable" width="240" height="240" data-tt="hud.miniTitle"></canvas>
+        <div class="tl-btns mm-btns">
+        <button id="btn-info" class="btn icon" data-ta="hud.infoAria" data-tt="hud.infoTitle" data-t="hud.info">INFO</button>
+        <button id="btn-shop" class="btn icon" data-ta="hud.armory" data-t="hud.armory">ARMORY</button>
+        <button id="btn-menu" class="btn icon" data-ta="hud.menu" data-t="hud.menu">MENU</button>
+        <button id="btn-speed" class="btn icon" type="button" data-ta="hud.speedAria" data-tt="hud.speedTitle">1×</button>
+        <button id="btn-pause" class="btn icon" data-ta="hud.pause">II</button>
+        <button id="btn-follow" class="btn icon dkb"><span class="n"></span></button>
+        <!-- (0.42) a phone: the minimap is folded away until this opens it (and folds it again) -->
+        <button id="btn-mini" class="btn icon dkb" type="button" data-ta="hud.miniAria"><span class="n" data-t="hud.miniBtn">MAP</span></button>
+      </div>
+      </div>
+    </div>
+    <!-- (0.28) the command radio (tutorial and campaign): a button by the minimap, and the log it opens (on a phone, in the minimap's place) -->
+    <button id="btn-radio" class="hidden" type="button" data-ta="radio.title" data-tt="radio.open"><i class="radio-ic" aria-hidden="true"></i><b class="rdot" aria-hidden="true"></b></button>
+    <div id="radiolog" class="hidden" role="log" aria-live="off">
+      <div class="rl-h"><span data-t="radio.title">COMMAND RADIO</span><button id="radio-full" class="rl-b" type="button" data-ta="radio.log" data-tt="radio.log">⤢</button><button id="radio-x" class="rl-b" type="button" data-ta="radio.map" data-tt="radio.map">✕</button></div>
+      <div id="rl-body" class="rl-body"></div>
+    </div>
+    <!-- bottom left: the Helldivers (health, kit, stratagems, ships), then the SEAF squads and their orders -->
+    <!-- (0.20) left: the Helldivers (always shown), just above what is selected -->
+    <div id="hdpanel"><div id="sqpanel" class="panel" data-tt="hud.hdbarTitle"><div id="hdrows"></div><div id="supply"></div></div></div>
+    <div id="selpanel" class="panel"><div id="tc-sel" class="tc-sel"></div></div>
+    <div id="tray">
+    <button class="x-close tray-x" type="button" data-close="tray" data-ta="hud.closeTray">✕</button>
+
+    <div id="squads" class="panel">
+      <button class="sqb" data-sq="-1"><span class="n" data-t="hud.all">ALL</span><span class="s">0</span></button>
+      <span class="sqbs"><!-- S1 to S9: only the squads with troops in them (ui.js) --></span>
+      <button class="sqa" data-a="draw"><span class="k">R</span><i class="gl">✎</i><span class="n" data-t="hud.draw">DRAW</span></button>
+      <button class="sqa" data-a="disband"><span class="k">DEL</span><i class="gl">⊘</i><span class="n" data-t="hud.disband">DISBAND</span></button>
+      <button class="sqa" data-a="merge"><i class="gl">⧉</i><span class="n" data-t="hud.merge">MERGE</span></button>
+    </div>
+    <div id="orders" class="panel">
+      <button class="ord" data-o="seaf"><span class="k" data-k="seaf">G</span><span class="n" data-t="hud.seafDrop">SEAF DROP</span><span class="s">--</span></button>
+      <button class="ord" data-o="pickup"><span class="k" data-k="pickup">⇧G</span><span class="n" data-t="hud.pickup">PICKUP</span><span class="s">--</span></button>
+      <button class="ord" data-o="auto"><span class="k" data-k="auto">X</span><span class="n" data-t="hud.auto">AUTO</span><span class="s">--</span></button>
+      <button class="ord" data-o="move"><span class="k" data-k="move">V</span><span class="n" data-t="hud.move">MOVE</span><span class="s">--</span></button>
+      <button class="ord" data-o="protect"><span class="k" data-k="protect">Z</span><span class="n" data-t="hud.protect">PROTECT</span><span class="s">--</span></button>
+      <button class="ord" data-o="attack"><span class="k" data-k="attack">N</span><span class="n" data-t="hud.attack">ATTACK</span><span class="s">--</span></button>
+      <button class="ord" data-o="escort"><span class="k" data-k="escort">C</span><span class="n" data-t="hud.escort">ESCORT</span><span class="s">--</span></button>
+    </div>
+    <button id="btn-tac" class="tacb" type="button" data-tt="hud.tacTitle"><span class="n" data-t="tac.title">TACTICAL BUILD</span><kbd data-k="map">TAB</kbd></button>
+    <!-- the tactical build screen: the Helldivers and the SEAF squads fold away into these two drop menus -->
+    <div id="tac-drops">
+      <button id="td-hd" class="btn tdb" type="button"><span data-t="tac.dropHd">HELLDIVERS</span> <i>▴</i></button>
+      <button id="td-sf" class="btn tdb" type="button"><span data-t="tac.dropSf">SEAF SQUADS</span> <i>▴</i></button>
+    </div>
+    </div>
+    <!-- the tactical screen (Tab or O; it runs in real time): what is selected, the orders, what SEAF can build, the ship's weapons,
+         the armory, and formations -->
+    <div id="tactical" class="panel hidden" role="dialog">
+      <div class="tc-h"><b data-t="tac.title">TACTICAL BUILD</b><span id="tc-state" class="tc-state"></span><span class="tc-help" id="tc-help"></span><button class="x-close tc-x" type="button" data-ta="hud.closeTac">✕</button></div>
+      <div class="tc-body">
+        <!-- (0.18) four modes, a square of icons: the troops, building, the ship's weapons, the armory -->
+        <div class="tc-tabs" role="tablist">
+          <button class="tct" type="button" data-tab="units" role="tab"><i>⛨</i><span data-t="tac.tUnits">TROOPS</span></button>
+          <button class="tct" type="button" data-tab="build" role="tab"><i>⚒</i><span data-t="tac.tBuild">BUILD</span><kbd data-k="build">B</kbd></button>
+          <button class="tct" type="button" data-tab="armory" role="tab"><i>⬢</i><span data-t="tac.tArmory">ARMORY</span><kbd data-k="armory">Y</kbd></button>
+        </div>
+        <div class="tc-sec tc-u">
+          <div class="tc-sqs"></div>
+          <div class="tc-l" data-t="tac.orders">ORDERS</div><div class="tc-grid tac-ord"></div>
+          <div class="tc-l" data-t="tac.squadTo">INTO SQUAD (ALT + 1-9)</div><div class="tc-grid tac-sq"></div>
+        </div>
+        <div class="tc-sec tc-b"><div id="tc-list" class="tc-list"></div><div class="tc-l" data-t="tac.build">BUILD</div><div class="tc-grid tac-build"></div></div>
+        <div class="tc-sec tc-s"><div class="tc-l" data-t="tac.ship">SHIP WEAPONS</div><div class="tc-grid tac-ship"></div><p class="fine" data-t="tac.shipHint"></p></div>
+        <div class="tc-sec tc-a"><p class="fine" data-t="arm.noteLive"></p><div id="tc-arm"></div></div>
+        <div class="tc-sec tc-f"><div class="tc-l" data-t="tac.form">FORMATION</div><div class="tc-grid tac-form"></div></div>
+      </div>
+    </div>
+    <!-- (0.19) the tutorial's card, and the glassing of Mars -->
+    <div id="tut" class="panel hidden" role="dialog" aria-live="polite">
+      <div class="tut-top"><span id="tut-k" class="tut-k"></span><button id="tut-x" class="tut-x" type="button" aria-label="Fold">▾</button></div>
+      <h3 id="tut-h"></h3><p id="tut-b"></p>
+      <div class="tut-btns"><button id="tut-next" class="btn primary" type="button"></button><button id="tut-ok" class="btn primary" type="button" data-t="tut.ok">GOT IT</button><button id="tut-skip" class="btn" type="button" data-t="tut.skip">SKIP</button><button id="tut-go" class="btn" type="button" data-t="tut.go">START THE EVACUATION</button></div>
+    </div>
+    <div id="tut-spot" class="hidden" aria-hidden="true"></div>
+    <div id="glassfx" aria-hidden="true"></div>
+    <!-- what is selected on the map (a post, a sentry or a defence site): its name, level and health, just above it -->
+    <div id="selpop" class="hidden" role="dialog"></div>
+    <div id="dock">
+      <button id="dk-hd" class="dkb dkh" type="button" data-ta="tac.tHd"><span class="hdc"></span></button>
+      <button id="dk-sq" class="dkb"><span class="n"></span><span class="s">--</span></button>
+      <button id="dk-drop" class="dkb"><span class="n" data-t="hud.seafDrop">SEAF DROP</span><span class="s">--</span></button>
+      <button id="dk-pick" class="dkb"><span class="n" data-t="hud.pickup">PICKUP</span><span class="s">--</span></button>
+      
+      <button id="dk-tac" class="dkb tacb" type="button"><span class="n" data-t="hud.tactical">TACTICAL</span></button>
+    </div>
+    <!-- a tip over whatever was just picked on a bar (a weapon, a build, a formation, a stratagem, a squad): one line, and ⓘ for the rest -->
+    <div id="hottip" class="hidden" role="status"><div class="tt-l"></div><button class="tt-i" type="button" aria-label="More">i</button><div class="tt-more hidden"></div></div>
+    <div id="supgame" class="panel hidden" role="dialog" data-ta="sg.title">
+      <div class="sg-h"><b data-t="sg.title">LOAD THE SUPPLY POD</b><span id="sg-for"></span></div>
+      <div class="sg-bars"><div class="sg-time"><i id="sg-time"></i></div><div class="sg-fast"><i id="sg-fast"></i><span id="sg-fast-t"></span></div></div>
+      <div class="sg-pod">
+        <button class="sg-slot stims" data-i="0" type="button"><span class="sg-k">1</span><span class="sg-cells"></span><span class="sg-n" data-t="sg.stims">STIMS</span></button>
+        <button class="sg-slot gren" data-i="1" type="button"><span class="sg-k">2</span><span class="sg-cells"></span><span class="sg-n" data-t="sg.gren">GRENADES</span></button>
+        <button class="sg-slot ammo" data-i="2" type="button"><span class="sg-k">3</span><span class="sg-cells"></span><span class="sg-n" data-t="sg.ammo">AMMO</span></button>
+      </div>
+      <div class="sg-foot"><span class="fine" id="sg-hint" data-t="sg.hint"></span><button id="sg-launch" class="btn primary" type="button" data-t="sg.launch">LAUNCH NOW</button></div>
+    </div>
+    <div id="hbgame" class="panel hidden" role="dialog" data-ta="hb.title">
+      <div class="sg-h"><b data-t="hb.title">ASSEMBLE THE HELLBOMB</b><span id="hb-sub" data-t="hb.sub">BEFORE IT DROPS</span></div>
+      <div class="sg-bars"><div class="sg-time"><i id="hb-time"></i></div></div>
+      <div class="hb-pod">
+        <button class="sg-slot hb-slot" data-i="0" type="button"><span class="sg-k">1</span><span class="sg-cells"></span><span class="sg-n" data-t="hb.casing">CASING</span></button>
+        <button class="sg-slot hb-slot" data-i="1" type="button"><span class="sg-k">2</span><span class="sg-cells"></span><span class="sg-n" data-t="hb.core">CORE</span></button>
+        <button class="sg-slot hb-slot" data-i="2" type="button"><span class="sg-k">3</span><span class="sg-cells"></span><span class="sg-n" data-t="hb.detonator">DETONATOR</span></button>
+        <button class="sg-slot hb-slot" data-i="3" type="button"><span class="sg-k">4</span><span class="sg-cells"></span><span class="sg-n" data-t="hb.fuse">FUSE</span></button>
+      </div>
+      <div class="sg-foot"><span class="fine" id="hb-hint" data-t="hb.hint"></span></div>
+    </div>
+    <div id="weapons"></div>
+    <div id="touch-ctl">
+      <button id="fire-btn" class="btn fire" data-t="hud.call">CALL</button>
+    </div>
+    <div id="softpause" class="hidden" role="status">
+      <div class="sp-frame"></div>
+      <div class="sp-bar panel">
+        <b data-t="soft.title">PAUSED</b><span class="sp-hint" data-t="soft.hint">Look around: pan, zoom, open the map</span>
+        <span id="sp-q" class="sp-q hidden"></span><button id="sp-undo" class="btn hidden" type="button" data-t="plan.undo">UNDO</button>
+        <button id="sp-resume" class="btn primary" type="button"><span data-t="soft.resume">RESUME</span> <kbd data-k="softPause">P</kbd></button>
+        <button id="sp-menu" class="btn" type="button"><span data-t="soft.menu">PAUSE MENU</span> <kbd>ESC</kbd></button>
+      </div>
+    </div>
+    <!-- (0.21) top centre: the drop countdown (one line), then the big alerts under it -->
+    <div id="topmid">
+      <div id="dropcd" class="hidden" role="status"><div class="dc-t"><small class="dc-l" data-t="hud.dropIn">HELLDIVERS DROP IN</small><small class="dc-s" data-t="hud.dropShort">DROP IN</small><b id="dropcd-n">0:30</b></div><button id="dropcd-go" class="btn primary" type="button"><span class="dc-l" data-t="hud.deployNow">DEPLOY NOW</span><span class="dc-s" data-t="hud.deployShort">DEPLOY</span> <kbd data-k="deploy">ENTER</kbd></button></div>
+      <div id="center-msg"></div>
+      <!-- (0.22) a question the game asks (go inside a building?), answered with a tap; it goes by itself -->
+      <div id="ask" class="panel hidden" role="alertdialog"><span class="ask-t"></span><span class="ask-b"></span></div>
+    </div>
+    <!-- (0.22) touch: the ghost of what is being placed waits for PLACE (a tap on the map moves it) -->
+    <div id="place-ok" class="panel hidden" role="group"><span class="po-t"></span><button id="po-turn" class="btn po-tool hidden" type="button" data-ta="place.turn"><i>↻</i><span data-t="place.turnS">TURN</span></button><button id="po-shape" class="btn po-tool hidden" type="button"><i></i><span></span></button><button id="po-go" class="btn primary" type="button" data-t="place.go">PLACE</button><button id="po-x" class="btn" type="button" data-t="place.cancel">CANCEL</button></div>
+    <!-- (0.22) MERGE: the squads to merge, over the button -->
+    <div id="merge-pop" class="panel hidden" role="dialog"><span class="mp-t"></span><button id="mp-go" class="btn primary" type="button" data-t="merge.go">MERGE</button><button id="mp-x" class="btn" type="button">✕</button></div>
+    <div id="toast"></div>
+  </div>
+
+  <!-- Screens -->
+  <section id="s-title" class="screen">
+    <div class="ttl">
+      <header class="tt-head">
+        <p class="tt-eyebrow" data-t="title.eyebrow">Super Earth Special Forces</p>
+        <h1 class="tt-mark" aria-label="Orbital Fury"><span>ORBITAL</span><span>FURY</span></h1>
+        <p class="tt-tag" data-t="title.tag"></p>
+        <p id="tt-wiped" class="tt-wiped hidden" role="status"></p>
+      </header>
+      <div id="langs" class="langs tt-langs" role="group" data-ta="set.lang"></div>
+      <!-- (0.37) the tutorial in the big window; QUICK PLAY and the campaign ask for the rest (NEW OPERATION, s-lock) -->
+      <section class="tt-deploy tt-tut" aria-labelledby="tt-dh">
+        <h2 id="tt-dh" class="tt-h"><span data-t="title.tutH">TUTORIAL</span> <i id="tut-new" class="tt-new hidden" data-t="title.new">NEW</i></h2>
+        <p class="tt-tut-n" data-t="title.tutName">LAST STAND ON MARS</p>
+        <p class="tt-tut-p" data-t="title.tutP"></p>
+        <button id="btn-tutorial" class="btn tt-item tt-play" type="button" data-t="title.tutPlay">PLAY TUTORIAL</button>
+      </section>
+      <nav class="tt-menu" data-ta="title.menu">
+        <button id="btn-resume" class="btn tt-item tt-resume hidden" type="button"></button>
+        <button id="btn-load-t" class="btn tt-item" type="button"><span data-t="title.load">LOAD GAME</span><small id="tt-load-sub" data-t="title.loadNone">Save an operation from the menu to keep it here</small></button>
+        <button id="btn-campaign" class="btn tt-item" type="button"><span data-t="title.campaign">CAMPAIGN</span><i class="tt-dev" data-t="title.inDev">IN DEVELOPMENT</i><small id="tt-cp-sub" data-t="title.campaignSub">A story across missions</small></button>
+        <button id="btn-play" class="btn tt-item" type="button"><span data-t="title.quick">QUICK PLAY</span><small data-t="title.quickSub">Mission after mission against the enemy you pick</small></button>
+        <button id="btn-settings" class="btn tt-item" type="button"><span data-t="ui.settings">SETTINGS</span><small data-t="title.setSub">Sound, layout, language</small></button>
+        <button id="btn-credits-t" class="btn tt-item" type="button"><span data-t="ui.credits">CREDITS</span><small data-t="title.aboutSub">The team, the tools and the story</small></button>
+        <a id="lnk-fb-t" class="btn fb tt-item" target="_blank" rel="noopener"><span data-t="ui.feedback">FEEDBACK</span><small data-t="title.fbSub">The SESF Helldivers Discord</small></a>
+        <a id="lnk-sp-t" class="btn sp tt-item" target="_blank" rel="noopener"><span data-t="ui.support">SUPPORT</span><small data-t="title.spSub">Back the project on GitHub Sponsors</small></a>
+      </nav>
+      <footer class="tt-foot">
+        <p class="fine dev-note"><b data-t="title.devHead"></b> <span data-t="title.devNote"></span></p>
+        <p class="fine fb-note" data-t="title.fbNote"></p>
+        <p id="best" class="fine"></p>
+        <p class="fine" data-t="ui.disclaimer"></p>
+        <p class="ver" id="ver-t"></p>
+      </footer>
+    </div>
+  </section>
+
+  <!-- (0.24) the campaign: a test story while the real one is built -->
+  <section id="s-campaign" class="screen">
+    <div class="cp">
+      <button id="cp-back" class="btn cp-back" type="button" data-t="cp.back">BACK</button>
+      <p class="tt-eyebrow" data-t="cp.eyebrow">SUPER EARTH SPECIAL FORCES · CAMPAIGN</p>
+      <h2 class="cp-title" id="cp-title"></h2>
+      <div class="cp-dev" role="note"><b data-t="cp.devH">In development</b> <span data-t="cp.dev"></span></div>
+      <p class="cp-prog" id="cp-prog"></p>
+      <div class="cp-story" id="cp-story"></div>
+      <ol class="cp-chs" id="cp-chs"></ol>
+    </div>
+  </section>
+
+  <section id="s-shop" class="screen">
+    <div class="card wide3">
+      <div class="eyebrow" id="shop-eyebrow"></div>
+      <h2 data-t="hud.armory">ARMORY</h2>
+      <div id="shop-root"></div>
+      <div class="btns shop-go">
+        <button id="shop-go" class="btn primary big"></button>
+        <button id="shop-end" class="btn endop hidden" type="button">END OPERATION</button>
+        <button id="shop-menu" class="btn" type="button" data-t="hud.menu">MENU</button>
+        <button id="shop-back" class="btn" type="button" data-t="ui.backBtn">BACK</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="s-brief" class="screen">
+    <div class="brief-top"><span><span data-t="hud.mission">MISSION</span> <b id="b-num">1</b></span><span><span data-t="brief.sessionScore">SESSION SCORE</span> <b id="b-score">0</b></span></div>
+    <div id="b-card" class="card wide2">
+      <div class="b-cols">
+        <div class="b-left">
+          <div class="eyebrow"><span data-t="brief.mission">Mission</span> <span id="r-n">1</span> <span id="b-again" class="again hidden" data-t="brief.again">RETRY: SAME MAP</span></div>
+          <div id="r-op" class="r-line big"></div>
+          <div id="r-enemy" class="r-line"></div>
+          <div id="r-biome" class="r-line"></div>
+          <div id="r-obj" class="r-line"></div>
+          <div id="r-diff" class="r-line"></div>
+          <div id="r-fail" class="r-line fail"></div>
+          <h3 id="b-load-h" class="fold-h b-load-h" data-fold="b-load" role="button" tabindex="0"><span data-t="brief.loadouts">THE SQUAD'S STRATAGEMS</span></h3>
+          <div id="b-load"><div id="b-strats"></div>
+          <div id="b-strat-note" class="fine"></div></div>
+          <div class="progress"><i id="b-prog"></i></div>
+          <div id="b-status" class="fine"></div>
+          <div class="btns">
+            <button id="b-continue" class="btn primary big" disabled></button>
+            <button id="b-cancel" class="btn big" type="button" data-t="brief.cancel">CANCEL</button>
+            <button id="b-menu" class="btn" type="button" data-t="hud.menu">MENU</button>
+            <button id="btn-end" class="btn endop" type="button">END OPERATION</button>
+          </div>
+        </div>
+        <div class="b-right" id="b-sit">
+          <h2 class="fold-h" data-fold="b-sit" role="button" tabindex="0"><span data-t="brief.situation">THE SITUATION</span></h2>
+          <div id="b-story" class="b-story"></div>
+          <button id="b-tipbox" class="b-tip" type="button" aria-live="polite" data-tt="brief.nextTip"><span class="tip-tag" data-t="brief.tip">TIP</span><span id="b-tip"></span><span class="tip-next" data-t="brief.next">NEXT ›</span></button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- (0.19) the tutorial's cinematics: Mars from space before the last stand and after it (render/cinema.js) -->
+  <div id="cine" class="hidden" role="dialog" aria-live="polite">
+    <canvas id="cine-cv"></canvas>
+    <div id="cine-text"></div>
+    <button id="cine-skip" class="btn" type="button"><span data-t="cine.skip">SKIP</span> ▸▸</button>
+  </div>
+
+  <!-- (0.19) the end of the tutorial: Mars is glassed -->
+  <section id="s-glass" class="screen">
+    <div class="card wide glass-card">
+      <div class="eyebrow" data-t="glass.eyebrow">MARS · 20 MAY 2185</div>
+      <h2 id="g-title" data-t="glass.title">MARS IS GLASS</h2>
+      <p id="g-lede" class="g-lede"></p>
+      <table id="g-table"></table>
+      <p class="fine g-lore" data-t="glass.lore"></p>
+      <div class="d-copy">
+        <textarea id="g-text" class="rep-text" aria-hidden="true" tabindex="-1" readonly rows="7" spellcheck="false" data-ta="deb.copyTitle"></textarea>
+        <div class="btns"><button id="btn-copy-g" class="btn" type="button" data-t="deb.copy">COPY FOR DISCORD</button><button id="btn-radio-g" class="btn hidden" type="button" data-t="radio.log">RADIO LOG</button></div>
+        <p id="g-msg" class="fine"></p>
+      </div>
+      <div class="btns">
+        <button id="glass-play" class="btn primary big" type="button" data-t="glass.play">PLAY A SESSION</button>
+        <button id="glass-again" class="btn" type="button" data-t="glass.again">HOLD MARS AGAIN</button>
+        <button id="glass-title" class="btn" type="button" data-t="glass.toTitle">TITLE SCREEN</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- (0.51) after a mission that counts: MISSION COMPLETE, pick a commendation, then the next mission -->
+  <section id="s-next" class="screen">
+    <div class="card wide nx-card">
+      <div class="eyebrow" id="nx-eyebrow"></div>
+      <h2 id="nx-title"></h2>
+      <p id="nx-sub" class="fine"></p>
+      <div id="nx-cards" class="nx-cards"></div>
+      <p id="nx-foot" class="fine nx-foot"></p>
+    </div>
+  </section>
+
+  <section id="s-debrief" class="screen">
+    <div class="card wide">
+      <div class="d-main">
+        <div class="eyebrow" id="d-op"></div>
+        <h2 id="d-outcome"></h2>
+        <div id="d-why" class="fine"></div>
+        <table id="d-table" class="hidden"></table>
+        <h3 data-t="hud.credits">CREDITS</h3>
+        <table id="d-credits"></table>
+        <p id="d-diff" class="fine d-diff"></p>
+        <h3 data-t="deb.deaths">DEATH REPORT</h3>
+        <div id="d-deaths" class="deaths"></div>
+        <div id="d-extra" class="fine"></div>
+        <div class="d-total"><span data-t="deb.mscore">MISSION SCORE</span> <b id="d-mscore">0</b></div>
+        <div class="d-total"><span data-t="deb.sscore">SESSION TOTAL</span> <b id="d-sscore">0</b></div>
+      </div>
+      <!-- (0.27.3) what to do next and the report: beside the results on a computer, under them on a phone -->
+      <div class="d-side">
+        <div class="btns"><button id="btn-continue" class="btn primary big"></button><button id="btn-retry" class="btn retry" type="button"></button><button id="btn-end-d" class="btn endop" type="button">END OPERATION</button></div>
+        <p id="d-retry-note" class="fine retry-note"></p>
+        <div class="d-copy">
+
+          <textarea id="d-text" class="rep-text" aria-hidden="true" tabindex="-1" readonly rows="8" spellcheck="false" data-ta="deb.copyTitle"></textarea>
+          <div class="btns"><button id="btn-copy-d" class="btn" type="button" data-t="deb.copy">COPY REPORT</button><button id="btn-radio-d" class="btn hidden" type="button" data-t="radio.log">RADIO LOG</button></div>
+          <p id="d-msg" class="fine"></p>
+        </div>
+        <p class="ver" id="ver-d"></p>
+      </div>
+    </div>
+  </section>
+
+  <section id="s-final" class="screen">
+    <div class="card wide">
+      <div class="eyebrow" id="f-eyebrow"></div>
+      <h2><span data-t="fin.score">FINAL SCORE</span> <b id="f-score">0</b></h2>
+      <div class="f-local" id="f-local"></div>
+      <p id="f-coin" class="f-coin hidden"></p>
+      <div id="f-diff" class="f-diff"></div>
+      <div id="f-totals" class="fine"></div>
+      <table id="f-table"></table>
+      <p id="f-feed" class="f-feed hidden" role="status"></p>
+      <textarea id="f-text" class="rep-text" aria-hidden="true" tabindex="-1" readonly rows="8" spellcheck="false" data-ta="deb.copyTitle"></textarea>
+      <div class="btns">
+        <button id="btn-copy" class="btn primary" data-t="fin.copy">COPY</button>
+        <button id="btn-post" class="btn hidden">POST</button>
+        <button id="btn-share" class="btn hidden" data-t="fin.share">SHARE</button>
+        <button id="btn-again" class="btn" data-t="fin.again">PLAY AGAIN</button>
+        <a id="lnk-fb-f" class="btn fb" target="_blank" rel="noopener" data-t="ui.feedback">FEEDBACK</a>
+      </div>
+      <p id="f-msg" class="fine"></p>
+      <p class="fine fb-note" data-t="fin.fbNote"></p>
+      <p class="ver" id="ver-f"></p>
+    </div>
+  </section>
+
+  <!-- Overlays -->
+  <section id="s-pause" class="screen overlay">
+    <div class="card">
+      <button class="x-close" data-close="s-pause" data-ta="pause.close">✕</button>
+      <h2 data-t="pause.title">PAUSED</h2>
+      <div class="pm">
+        <button id="btn-resume-m" class="btn primary big pm-w"><span class="play-only" data-t="pause.resume">RESUME</span><span class="brief-only" data-t="ui.backBtn">BACK</span></button>
+        <button id="btn-info-m" class="btn play-only" data-t="ui.missionInfo">MISSION INFO</button>
+        <button id="btn-armory-m" class="btn play-only" data-t="hud.armory">ARMORY</button>
+        <button id="btn-settings-m" class="btn" data-t="ui.settings">SETTINGS</button>
+        <button id="btn-ctl-m" class="btn" type="button" data-t="pause.help">HELP</button>
+        <button id="btn-radio-m" class="btn play-only radio-only" type="button" data-t="radio.log">RADIO LOG</button>
+        <button id="btn-save-m" class="btn pm-w hidden" type="button" data-t="pause.save">SAVE GAME</button>
+        <button id="btn-home-m" class="btn pm-out" type="button" data-t="pause.home">MAIN MENU</button>
+        <button id="btn-abort" class="btn danger pm-out play-only" data-t="pause.retire">RETIRE</button>
+      </div>
+      <p id="abort-confirm" class="fine hidden" data-t="pause.confirm"></p>
+      <p id="home-confirm" class="fine hidden" data-t="pause.homeConfirm"></p>
+      <div class="pm-foot"><a id="lnk-fb-m" class="fb" target="_blank" rel="noopener" data-t="ui.feedback">FEEDBACK</a><span>·</span><button id="btn-credits-m" type="button" data-t="ui.credits">CREDITS</button></div>
+    </div>
+  </section>
+
+
+  <!-- (0.41) SAVE GAME / LOAD GAME: three slots on this browser -->
+  <section id="s-saves" class="screen overlay">
+    <div class="card">
+      <button id="sv-x" class="x-close" type="button" data-ta="sv.close">✕</button>
+      <h2 id="sv-h" data-t="sv.loadH">LOAD GAME</h2>
+      <p id="sv-intro" class="fine"></p>
+      <ol id="sv-list" class="sv-list"></ol>
+      <p id="sv-note" class="sv-note" role="status"></p>
+      <!-- (0.53.12) a save code: copy the operation out as text, or paste one in -->
+      <div id="sv-code" class="sv-code">
+        <h3 data-t="sv.codeH">SAVE CODE</h3>
+        <p id="sv-code-p" class="fine"></p>
+        <textarea id="sv-code-ta" rows="3" spellcheck="false" autocomplete="off" autocapitalize="off" data-ta="sv.codeH"></textarea>
+        <div class="sv-code-b"><button id="sv-code-copy" class="btn" type="button" data-t="sv.copyCode">COPY CODE</button><button id="sv-code-load" class="btn primary" type="button" data-t="sv.loadCode">LOAD CODE</button></div>
+        <p id="sv-code-msg" class="sv-note" role="status"></p>
+      </div>
+      <div class="btns"><button id="sv-back" class="btn" type="button" data-t="ui.backBtn">BACK</button><button id="sv-skip" class="btn hidden" type="button" data-t="sv.skip">DEPLOY WITHOUT SAVING</button></div>
+    </div>
+  </section>
+
+  <section id="s-names" class="screen overlay">
+    <div class="card">
+      <button class="x-close" data-close="s-names" data-ta="names.close">✕</button>
+      <h2 data-t="ui.names">SQUAD NAMES</h2>
+      <p class="fine" data-t="names.note"></p>
+      <div id="names-body"></div>
+      <div class="btns">
+        <button id="names-clear" class="btn" data-t="names.clear">CLEAR ALL</button>
+        <button id="names-save" class="btn primary" data-t="names.save">SAVE</button>
+        <button id="names-cancel" class="btn" data-t="names.cancel">CANCEL</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="s-settings" class="screen overlay">
+    <div class="card">
+      <button class="x-close" data-close="s-settings" data-ta="set.close">✕</button>
+      <h2 data-t="ui.settings">SETTINGS</h2>
+      <div class="set-acts"><button id="btn-names-m" class="btn" type="button" data-t="ui.names">SQUAD NAMES</button><button id="btn-keys-m" class="btn desk-only" type="button" data-t="keys.change">CHANGE KEYS</button><button id="btn-hideui-m" class="btn" type="button"><span data-t="pause.hideUi">HIDE UI</span> <kbd data-k="hideUi">F2</kbd></button></div>
+      <div id="settings-body"></div>
+      <div class="btns"><button id="btn-settings-close" class="btn primary" data-t="set.done">DONE</button></div>
+    </div>
+  </section>
+
+  <!-- (0.61) the armory in a mission: a window like the one before each mission; the mission waits while it is open -->
+  <section id="s-armory" class="screen overlay">
+    <div class="card wide3">
+      <button class="x-close" data-close="s-armory" data-ta="ui.back">✕</button>
+      <div class="eyebrow" id="arm-eyebrow"></div>
+      <h2 data-t="hud.armory">ARMORY</h2>
+      <div id="arm-root"></div>
+      <div class="btns shop-go"><button id="arm-close" class="btn primary big" data-t="ui.back">BACK TO THE MISSION</button></div>
+    </div>
+  </section>
+
+  <section id="s-info" class="screen overlay">
+    <div class="card wide">
+      <button class="x-close" data-close="s-info" data-ta="info.close">✕</button>
+      <div class="eyebrow" id="info-eyebrow"></div>
+      <h2 id="info-title"></h2>
+      <div id="info-body"></div>
+      <div class="btns"><button id="info-close" class="btn primary big" data-t="ui.back">BACK TO THE MISSION</button></div>
+    </div>
+  </section>
+
+  <section id="s-radio" class="screen overlay">
+    <div class="card">
+      <button class="x-close" data-close="s-radio" data-ta="ui.backBtn">✕</button>
+      <div class="eyebrow" data-t="radio.log">RADIO LOG</div>
+      <h2 data-t="radio.title">COMMAND RADIO</h2>
+      <p class="fine" data-t="radio.note"></p>
+      <div id="radio-body" class="rl-body"></div>
+      <div class="btns"><button id="radio-close" class="btn primary" type="button" data-t="ui.backBtn">BACK</button></div>
+    </div>
+  </section>
+
+  <section id="s-map" class="screen overlay">
+    <div class="card mapcard">
+      <button class="x-close" data-close="s-map" data-ta="map.close">✕</button>
+      <div class="eyebrow" data-t="map.title">Tactical map</div>
+      <div class="mapwrap"><canvas id="bigmap" width="900" height="900" data-ta="map.aria"></canvas></div>
+      <div class="map-key"><span class="k-hd">● <span data-t="map.k.allies">ALLIES</span></span><span class="k-en">■ <span data-t="map.k.enemies">ENEMIES</span></span><span class="k-rad">▪ <span data-t="map.k.radar">RADAR</span></span><span class="k-obj">◆ <span data-t="map.k.obj">OBJECTIVE</span></span><span class="k-base">○ <span data-t="map.k.base">ENEMY BASE</span></span><span class="k-poi">□ <span data-t="map.k.poi">TARGET</span></span><span class="k-side">◇ <span data-t="map.k.side">SIDE OBJECTIVE</span></span><span class="k-bcn">⊥ <span data-t="map.k.beacon">SEAF DROP</span></span><span class="k-boss">⊗ <span data-t="map.k.boss">SUPER HEAVY</span></span></div>
+      <p class="fine" data-t="map.note"></p>
+      <div class="btns"><button id="map-follow" class="btn" data-t="map.follow">FOLLOW SQUAD</button><button id="map-close" class="btn primary" data-t="map.back">BACK</button></div>
+    </div>
+  </section>
+
+  <section id="s-feedback" class="screen overlay">
+    <div class="card fb-card">
+      <button class="x-close" id="fb-x" data-ta="ui.close">✕</button>
+      <div class="eyebrow" data-t="fb.eyebrow">Feedback</div>
+      <h2 data-t="fb.title">SEND FEEDBACK</h2>
+      <p class="fine" data-t="fb.sub"></p>
+      <textarea id="fb-text" rows="6" maxlength="900" data-tp="fb.ph"></textarea>
+      <div class="fb-row"><label class="fb-chk"><input type="checkbox" id="fb-report" checked> <span data-t="fb.report"></span></label><span id="fb-count" class="fine"></span></div>
+      <p id="fb-msg" class="fine fb-msg" aria-live="polite"></p>
+      <div class="btns">
+        <button id="fb-send" class="btn primary" type="button" data-t="fb.send">SEND</button>
+        <a id="fb-discord" class="btn" target="_blank" rel="noopener" data-t="fb.discord">OPEN THE DISCORD</a>
+        <button id="fb-cancel" class="btn" type="button" data-t="ui.closeBtn">CLOSE</button>
+      </div>
+    </div>
+  </section>
+  <section id="s-credits" class="screen overlay">
+    <div class="card wide">
+      <button class="x-close" data-close="s-credits" data-ta="ui.close">✕</button>
+      <div class="eyebrow" data-t="credits.eyebrow">Credits</div>
+      <h2 class="cr-title">ORBITAL FURY</h2>
+      <p class="cr-lede" data-th="credits.lede"></p>
+      <div id="credits-body" class="about credits" data-th="credits.body"></div>
+      <p class="fine cr-ver" id="credits-ver"></p>
+      <div class="btns">
+        <a id="lnk-fb-a" class="btn primary fb" target="_blank" rel="noopener" data-t="ui.feedback">FEEDBACK</a>
+        <a id="lnk-sp-a" class="btn sp" target="_blank" rel="noopener" data-t="ui.support">SUPPORT</a>
+        <a id="lnk-proj" class="btn" target="_blank" rel="noopener" data-t="credits.project">SOURCE CODE</a>
+        <button id="credits-close" class="btn" data-t="ui.closeBtn">CLOSE</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="s-controls" class="screen overlay">
+    <div class="card wide">
+      <button class="x-close" data-close="s-controls" data-ta="ui.close">✕</button>
+      <h2 data-t="ui.controls">CONTROLS</h2>
+      <div class="tabs" role="tablist"><button id="ctl-tab-d" class="btn tab" type="button" data-t="ctl.tabDesk">COMPUTER</button><button id="ctl-tab-t" class="btn tab" type="button" data-t="ctl.tabTouch">PHONE AND TABLET</button></div>
+      <div id="keys-bar" class="keys-bar"><button id="keys-btn" class="btn small" type="button" data-t="keys.change">CHANGE KEYS</button><button id="keys-reset" class="btn small hidden" type="button" data-t="keys.reset">RESET TO DEFAULTS</button><span id="keys-note" class="keys-note" role="status"></span></div>
+      <div id="keys-edit" class="keys-edit hidden"></div>
+      <div id="controls-desktop" class="ctl" data-th="ctl.desktop"></div>
+      <div id="controls-touch" class="ctl hidden" data-th="ctl.touch"></div>
+      <div class="btns"><button id="ctl-close" class="btn primary" type="button" data-t="ui.backBtn">BACK</button><button id="btn-man-m" class="btn" type="button" data-t="ui.manual">FIELD MANUAL</button></div>
+    </div>
+  </section>
+
+  <section id="s-manual" class="screen overlay">
+    <div class="card wide">
+      <button class="x-close" data-close="s-manual" data-ta="ui.close">✕</button>
+      <div class="eyebrow" data-t="man.eyebrow">Super Destroyer gunner</div>
+      <h2 data-t="ui.manual">FIELD MANUAL</h2>
+      <p class="man-intro" data-t="man.intro"></p>
+      <div id="manual-body" class="manual"></div>
+      <div class="btns"><button id="man-close" class="btn primary" type="button" data-t="ui.backBtn">BACK</button></div>
+    </div>
+  </section>
+
+  <!-- (0.24) a milestone reached: a band across the screen with the level bonus and what is new in the armory -->
+  <div id="ms-splash" class="ms-splash" role="dialog" aria-modal="true" aria-labelledby="ms-k" hidden>
+    <div class="ms-band">
+      <div class="ms-in">
+        <p class="ms-k" id="ms-k"></p>
+        <p class="ms-done" id="ms-done"></p>
+        <p class="ms-bonus" id="ms-bonus"></p>
+        <div class="ms-new"><p class="ms-nh" id="ms-nh"></p><ul id="ms-list"></ul></div>
+        <p class="ms-next" id="ms-next"></p>
+        <div class="ms-btns"><button id="ms-show" class="btn primary big" type="button"></button><button id="ms-later" class="btn" type="button"></button></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- (0.37) NEW OPERATION: what QUICK PLAY and a campaign chapter ask for (the tutorial only asks the callsign) -->
+  <section id="s-lock" class="screen overlay">
+    <div class="card lockcard">
+      <button class="x-close" data-close="s-lock" data-ta="ui.backBtn">✕</button>
+      <div class="eyebrow" id="lock-eyebrow"></div>
+      <h2 id="lock-h" data-t="lock.title">NEW OPERATION</h2>
+      <p id="lock-sub" class="lock-sub"></p>
+      <div class="lock-cols"><div class="lock-l">
+      <div class="lock-who">
+        <label class="field"><span data-t="title.callsign">CALLSIGN</span> <input id="callsign" maxlength="16" data-tp="title.optional" autocomplete="off" spellcheck="false"></label>
+        <button id="btn-names-t" class="btn lock-names" type="button" data-t="ui.names">SQUAD NAMES</button>
+      </div>
+      <div id="lock-op" class="lock-who lock-op">
+        <label class="field"><span data-t="lock.opName">OPERATION</span> <input id="op-name" maxlength="34" autocomplete="off" spellcheck="false" data-tp="lock.opPh"></label>
+        <button id="btn-op-roll" class="btn lock-names" type="button" data-t="lock.opRoll">ROLL</button>
+      </div>
+      <div id="diff" class="diff">
+        <div class="diff-h"><span data-t="title.diff">DIFFICULTY</span> <b id="diff-name"></b></div>
+        <div id="diff-row" class="diff-row" role="group" data-ta="title.diff"></div>
+        <p id="diff-note" class="fine diff-note"></p>
+      </div>
+      <div id="enemy" class="diff">
+        <div class="diff-h"><span data-t="title.enemy">ENEMY</span></div>
+        <div id="enemy-row" class="enemy-row" role="group" data-ta="title.enemy"></div>
+        <p id="enemy-note" class="fine diff-note"></p>
+      </div>
+      </div><div class="lock-r">
+      <div id="lock-run">
+        <h3 class="fold-h" data-fold="lock-run" role="button" tabindex="0"><span data-t="lock.howEnds">HOW AN OPERATION WORKS</span></h3>
+        <ul id="lock-rules" class="lock-rules"></ul>
+      </div>
+      <div class="btns"><button id="btn-lock" class="btn primary big" type="button"></button><button id="btn-lock-change" class="btn" type="button" data-t="ui.backBtn">BACK</button></div>
+      </div></div>
+    </div>
+  </section>
+
+  <section id="s-notice" class="screen overlay">
+    <div class="card">
+      <button class="x-close" data-close="s-notice" data-ta="flash.ok">✕</button>
+      <h2 data-t="flash.title">FLASHING LIGHTS</h2>
+      <p data-t="flash.text"></p>
+      <div class="btns"><button id="btn-notice" class="btn primary big" data-t="flash.ok">UNDERSTOOD</button><button id="btn-notice-set" class="btn" data-t="ui.settings">SETTINGS</button></div>
+    </div>
+  </section>
+
+  <div id="rotate-hint" class="hidden" data-t="ui.rotate"></div>
+  <div id="debug" class="hidden"><div id="debug-warn" class="hidden"></div><pre id="debug-t"></pre><button id="debug-copy" class="btn" type="button" data-t="dbg.copy">COPY REPORT</button></div>
+</div>
+<script type="module" src="js/ground/main.js"></script>
+</body>
+</html>

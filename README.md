@@ -1,6 +1,6 @@
 # Orbital Fury: Galactic Command
 
-**Prototype 0.3.2.** One war, run from four posts, in one game.
+**Prototype 0.4.0.** One war, run from four posts, in one game.
 
 You found a command (a name, a crest, colours) and hold the centre of the galaxy against three enemies. Everything in
 the war is yours to run, and each part changes the others:
@@ -29,7 +29,9 @@ This is one application with one save, one faction and one interface, not four g
   including what a station and a base are worth and how a ground battle settles a fleet battle (`battleResolve`).
 - `js/modes/` holds the three theatres. Each one fills the same frame (`#s-theatre`: the command bar, the world, the tool
   bar, the desk) and reports back to the map:
-  - `ground.js` runs Orbital Fury's battle rules and drawing (`js/ground/`). The odds on the map set the threat level.
+  - `ground.js` hosts Orbital Fury whole (`ground.html`, `js/ground/`, `css/fury.css`): its armoury, briefing, mission and debrief.
+    A small adapter at the top of `js/ground/main.js` (`GCX`) starts the one mission the war room chose, with the campaign's
+    armoury and credits, and hands the result back. Its title, saved operations and Discord feed are not part of this game.
   - `orbit.js` runs Super Orbital Simulator's station (`js/orbit/`). It reports the station's tier.
   - `base.js` runs FOB Super Commander's base (`js/base/`). It reports the base's charter.
 - `js/core/logo.js` is the crest maker shared by every post. `css/gc.css` is the one stylesheet.

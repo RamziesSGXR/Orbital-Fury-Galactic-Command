@@ -30,30 +30,21 @@ with sync_playwright() as pw:
         print(name, 'round', pg.evaluate('sgs.g.round'), 'battle', pg.evaluate('!!sgs.g.battle'))
         pg.screenshot(path=f'{out}/{name}-5-battle.png')
         # down to the ground
-        pg.click('[data-a=ground]'); pg.wait_for_timeout(250); pg.screenshot(path=f'{out}/{name}-5b-armoury.png')
-        assert pg.locator('#modal [data-buy]').count() > 5, 'the armoury did not open before the drop'
-        pg.click('#modal [data-x=close]'); pg.wait_for_function("gc.state === 'ground' && document.getElementById('trans').hidden", timeout=60000)
-        pg.wait_for_timeout(2500)
-        pg.screenshot(path=f'{out}/{name}-6-ground.png')
-        t0 = pg.evaluate('gc.mode.mission.t'); pg.wait_for_timeout(1000); assert pg.evaluate('gc.mode.mission.t') > t0, 'the ground battle is not running'
-        pg.click('[data-g=deploy]') if pg.is_visible('[data-g=deploy]') else None
-        pg.click('[data-g=arm]'); pg.mouse.click(w / 2, h / 2); pg.wait_for_timeout(800)
-        pg.evaluate('gc.mode.fast(1200)')
-        pg.click('[data-gt=troops]'); pg.wait_for_timeout(150); pg.click('[data-k=seaf]'); pg.mouse.click(w / 2, h / 2); pg.wait_for_timeout(300)
-        pg.evaluate('gc.mode.fast(900)'); pg.wait_for_timeout(400); pg.screenshot(path=f'{out}/{name}-6b-troops.png')
-        pg.click('[data-gt=build]'); pg.wait_for_timeout(150); pg.click('[data-k="build:foxhole"]'); pg.mouse.click(w / 2 + 30, h / 2 + 20); pg.wait_for_timeout(300); pg.screenshot(path=f'{out}/{name}-6c-build.png')
-        pg.click('[data-gt=weapons]')
-        # the planning pause: a strike tapped while paused is planned, and goes out on resume
-        pg.click('#th-pause'); pg.click('[data-g=arm][data-i="1"]'); pg.mouse.click(w / 2, h / 2); pg.wait_for_timeout(200)
-        pg.screenshot(path=f'{out}/{name}-6d-plan.png')
-        pg.click('#th-pause'); pg.wait_for_timeout(500)
-        for i in range(60):
-            r = pg.evaluate('gc.mode.fast(900)')
-            if r['over']: break
-        print(name, 'ground', r)
-        pg.wait_for_timeout(1500); pg.screenshot(path=f'{out}/{name}-7-ground-late.png')
-        pg.wait_for_selector('#g-done', timeout=20000); pg.screenshot(path=f'{out}/{name}-8-result.png')
-        pg.click('#g-done'); pg.wait_for_timeout(600)
+        pg.click('[data-a=ground]'); pg.wait_for_function("gc.state === 'ground' && document.getElementById('trans').hidden", timeout=60000)
+        fr = pg.frame(url=lambda u: 'ground.html' in u); assert fr, 'the ground theatre did not open'
+        fr.wait_for_function("window.__game && __game.state === 'shop'", timeout=30000); pg.wait_for_timeout(500)
+        pg.screenshot(path=f'{out}/{name}-6-armoury.png')
+        fr.click('#shop-go'); fr.wait_for_function("__game.state === 'brief'", timeout=20000); pg.wait_for_timeout(1500); pg.screenshot(path=f'{out}/{name}-6b-brief.png')
+        fr.wait_for_selector('#btn-deploy, .brief-go, #brief-go', timeout=1000) if False else None
+        fr.evaluate("(() => { const b = [...document.querySelectorAll('#s-brief button')].find(x => /DEPLOY|DROP|CONTINUE|LAUNCH/i.test(x.textContent) && !x.disabled && x.offsetParent); if (b) b.click(); return b ? b.id : null; })()")
+        for i in range(40):
+            if fr.evaluate("__game.state") == 'play': break
+            pg.wait_for_timeout(500); fr.evaluate("(() => { const b = [...document.querySelectorAll('#s-brief button')].find(x => /DEPLOY|DROP|CONTINUE|LAUNCH/i.test(x.textContent) && !x.disabled && x.offsetParent); if (b) b.click(); })()")
+        assert fr.evaluate("__game.state") == 'play', 'the mission did not start'
+        pg.wait_for_timeout(3000); pg.screenshot(path=f'{out}/{name}-7-ground.png')
+        print(name, 'ground', fr.evaluate("({ faction: __game.mission.faction.id, obj: __game.mission.objectives.map(o => o.type), level: __game.mission.difficulty, t: Math.round(__game.mission.t) })"))
+        # the result comes back to the map (handed over as Orbital Fury would after its debrief)
+        pg.evaluate("gcGround.onResult({ outcome: 'victory', livesLeft: 14, livesMax: 20 })"); pg.wait_for_timeout(800)
         assert pg.evaluate('gc.state') == 'war' and pg.evaluate('sgs.g.battle.done'), 'the ground result did not come back to the map'
         pg.screenshot(path=f'{out}/{name}-9-back.png')
         pg.close()

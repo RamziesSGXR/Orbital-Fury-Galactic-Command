@@ -1,5 +1,5 @@
 // Every number and every name in the game lives here, so the prototype can be retuned or renamed in one place.
-export const VERSION = '0.3.2';
+export const VERSION = '0.4.0';
 
 export const C = {
   names: {
@@ -167,7 +167,7 @@ export const C = {
     threatAt: [2, 4],     // a station of these tiers in the sector takes one, then two, off the ground threat there
     shipAt: 3, shipEvery: 6,   // a base of this charter or more sends a ship to its system every so many rounds
     // the ground gets harder the deeper into an enemy's rings you fight, and the more systems that enemy holds
-    depthPer: 3, holdPer: 15,
+    depthPer: 3, holdPer: 30,
     // a battle fought on the ground: which enemy and ground it is, and how hard, from the odds on the map
     foe: { swarm: 'bugs', foundry: 'bots', veil: 'squids' },
     biome: { refinery: 'desert', forge: 'moon', colony: 'grass', fortress: 'ice', barren: 'moon', capital: 'grass' },

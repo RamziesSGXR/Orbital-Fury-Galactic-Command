@@ -255,7 +255,7 @@ function fight() {
   else if (b.done) h += `<div class="fres ${b.win ? 'cy' : b.win === null ? 'am' : 'rd2'}">${b.win ? 'VICTORY' : b.win === null ? 'THE FIGHT GOES ON' : 'DEFEAT'} · ${esc(b.result || '')}</div><button class="plate btn go" data-a="bclose">CONTINUE</button>`;
   else if (ui.fx && ui.fx.t < 0.9) h += '<div class="fhand wait"><span class="sm2 dim">…</span></div>';
   else if (b.round === 0 && !ui.cards && ui.tut == null) h += `<div class="sm2 dim" style="margin-bottom:6px">${N.factions[b.f].toUpperCase()} COMMITS ${ships(foe.ships)}${b.kind === 'atk' ? ` AND THE SYSTEM'S ${b.fort} DEFENCES` : ''} · GROUND THREAT L${g.groundLevel()} · ONE ENGAGEMENT IS ${C.battle.engage} ROUNDS</div>
-    <div class="fchoice"><button class="plate btn go" data-a="ground">${b.kind === 'atk' ? 'LAND THE ASSAULT' : 'DEFEND ON THE GROUND'}<small>${b.kind === 'atk' ? 'ASSAULT MISSION' : 'DEFENCE MISSION'} · THE ARMOURY OPENS FIRST</small></button>
+    <div class="fchoice"><button class="plate btn go" data-a="ground">${b.kind === 'atk' ? 'LAND THE ASSAULT' : 'DEFEND ON THE GROUND'}<small>${b.kind === 'atk' ? 'ASSAULT MISSION' : 'DEFENCE MISSION'} · ARMOURY, BRIEFING, THEN THE DROP</small></button>
       <button class="plate btn" data-a="cards">FIGHT IT IN SPACE<small>FLEET ACTION · CARDS</small></button></div>`;
   else if (you.hand.length) h += `<div class="fhand">${you.hand.map((id, i) => cardHtml(id, `data-a="bplay" data-i="${i}"`)).join('')}</div><button class="plate btn sm" style="width:100%;margin-top:6px" data-a="bplay">PASS</button>`;
   else h += '<div class="fhand wait"><b class="dim">GUNS ONLY</b></div>';
@@ -342,7 +342,7 @@ document.addEventListener('click', e => {
     case 'menu': return app.menu();
     case 'totitle': $('modal').hidden = true; return app.endCampaign();
     case 'cards': ui.cards = true; break;
-    case 'ground': { const a = { battle: g.battle, system: g.P[g.battle.pid], level: g.groundLevel(), round: g.round }; return app.armoury(() => app.theatre('ground', a), 'TO THE DROP'); }
+    case 'ground': { const a = { battle: g.battle, system: g.P[g.battle.pid], level: g.groundLevel(), round: g.round }; return app.theatre('ground', a); }
     case 'press': g.press(); ui.fx = null; ui.auto = 0; break;
     case 'orbit': if (!g.P[+d.p].station && !g.found(+d.p, 'station')) break; return app.theatre('orbit', { system: g.P[+d.p] });
     case 'base': if (!g.P[+d.p].base && !g.found(+d.p, 'base')) break; return app.theatre('base', { system: g.P[+d.p] });

@@ -321,7 +321,6 @@ function openMenu(page = 'main') {
     m.innerHTML = `<div class="plate amber box"><h2>${esc(app.faction.name)}</h2><p>${esc(app.faction.motto || '')}</p>
       <p>${state === 'war' ? `The war room · round ${g ? g.round : 1}` : state === 'ground' ? 'Fire support' : state === 'orbit' ? 'Station command' : 'Base command'} · saved on this device</p>
       <div class="mm"><button class="plate btn go" id="m-resume">RESUME</button>
-      ${state === 'war' ? '<button class="plate btn" id="m-arm">ARMOURY</button>' : ''}
       <button class="plate btn" id="m-how">HOW THE WAR FITS TOGETHER</button>
       <button class="plate btn" id="m-set">SETTINGS</button>
       <button class="plate btn" id="m-title">SAVE AND GO TO THE MAIN MENU</button></div></div>`;

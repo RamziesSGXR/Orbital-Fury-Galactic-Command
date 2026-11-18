@@ -1,0 +1,243 @@
+// Mouse, keyboard and touch input. It never touches the sim directly: it calls the hooks main.js gives it.
+import { CONFIG as C } from './config.js';
+import { actionOf, codesOf } from './keys.js';
+
+export class Input {
+  /**
+   * hooks: { weapon(i), cycle(d), fire(bool), order(kind, viaKey), placing(), place(), cancelPlace(), pause(), soft(), armory(), polarity(), relief(), follow(),
+   *          squad(i), squadCycle(d), squadAct(kind), drawing(), drawBegin(x, y), drawMove(x, y), drawEnd(), drawCancel(), drawExit() }
+   * cam: { x, y, view, follow } shared with main.js
+   */
+  constructor(canvas, minimap, cam, hooks, isActive) {
+    this.cv = canvas; this.mini = minimap; this.cam = cam; this.h = hooks; this.active = isActive;
+    this.touch = false;
+    this.mx = window.innerWidth / 2; this.my = window.innerHeight / 2; // mouse in CSS px
+    this.keys = new Set();
+    this.ptrs = new Map();
+    this.pinch = null; this.panning = null; this.stroke = null; this.box = null; this.lp = null;   // lp: a left press that becomes a click, a pan or a box
+    this.sens = 1;
+    this._bind();
+  }
+
+  setTouch(on) {
+    if (this.touch === on) return;
+    this.touch = on; document.body.classList.toggle('touch', on);
+  }
+
+  // Where the reticle is on screen, in CSS pixels.
+  screenAim() {
+    if (this.touch) return { x: window.innerWidth / 2, y: window.innerHeight * (this.focusY || 0.5) };   // (0.19.1: above the sheet)
+    return { x: this.mx, y: this.my };
+  }
+
+  _pxPerMeter() { return this.cv.clientWidth / this.cam.view; }
+
+  _pan(dxPx, dyPx) {
+    const k = 1 / this._pxPerMeter();
+    this.cam.x -= dxPx * k; this.cam.y -= dyPx * k; this.cam.follow = false;
+    this._clamp();
+  }
+  // The camera stays over the mission's area of operations (cam.ao), or the whole world when there is none.
+  _clamp() {
+    const a = this.cam.ao || { x0: 0, y0: 0, x1: C.world.size, y1: C.world.size };
+    if (a.R) { const dx = this.cam.x - a.cx, dy = this.cam.y - a.cy, d = Math.hypot(dx, dy); if (d > a.R) { this.cam.x = a.cx + (dx / d) * a.R; this.cam.y = a.cy + (dy / d) * a.R; } return; }   // (round)
+    this.cam.x = Math.max(a.x0, Math.min(a.x1, this.cam.x)); this.cam.y = Math.max(a.y0, Math.min(a.y1, this.cam.y));
+  }
+  zoom(f) {
+    this.cam.view = Math.max(C.world.zoomMin, Math.min(C.world.zoomMax, this.cam.view * f));
+  }
+
+  update(dt) {
+    if (!this.active()) return;
+    let dx = 0, dy = 0;
+    const k = this.keys, held = (a) => codesOf(a).some((c) => k.has(c));     // (0.50.1) the player's own keys (keys.js)
+    if (held('panLeft')) dx -= 1;
+    if (held('panRight')) dx += 1;
+    if (held('panUp')) dy -= 1;
+    if (held('panDown')) dy += 1;
+    if (dx || dy) {
+      const sp = this.cam.view * 0.7 * dt, n = Math.hypot(dx, dy);
+      this.cam.x += (dx / n) * sp; this.cam.y += (dy / n) * sp; this.cam.follow = false; this._clamp();
+    }
+  }
+
+  _bind() {
+    const cv = this.cv;
+    cv.addEventListener('contextmenu', (e) => e.preventDefault());
+    cv.addEventListener('wheel', (e) => { if (!this.active()) return; e.preventDefault(); this.zoom(e.deltaY > 0 ? 1.12 : 1 / 1.12); }, { passive: false });
+
+    cv.addEventListener('pointerdown', (e) => {
+      if (!this.active()) return;
+      if (e.pointerType === 'touch') this.setTouch(true); else this.setTouch(false);
+      try { cv.setPointerCapture(e.pointerId); } catch { /* not capturable */ }
+      this.ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY, type: e.pointerType, btn: e.button, sx: e.clientX, sy: e.clientY, t0: performance.now() });
+      const draw = this.h.drawing();
+      // (0.19.5) a finger held still on a trooper adds him to the selection, or takes him out of it (a phone's shift-click)
+      clearTimeout(this.holdT);
+      const ht = e.pointerType !== 'mouse' && this.ptrs.size === 1 && !draw && this.h.holdTarget ? this.h.holdTarget(e.clientX, e.clientY) : null;
+      if (ht) {     // (who is under the finger when it goes down: troopers move)
+        const id = e.pointerId, x = e.clientX, y = e.clientY;
+        this.holdT = setTimeout(() => {
+          const q = this.ptrs.get(id);
+          if (!q || this.ptrs.size !== 1 || Math.hypot(q.x - x, q.y - y) > 10 || this.box !== null) return;
+          if (this.h.hold(ht)) { q.held = true; if (this.lp && this.lp.id === id) this.lp = null; }
+        }, 450);
+      }
+      // (0.53.4) a phone: a finger held still on open ground for a moment, then dragged, draws a box round troopers (live or paused;
+      // a phone had no way to box troopers at all). A drag straight away still pans; a hold on a trooper is the add-or-drop above.
+      else if (e.pointerType !== 'mouse' && this.ptrs.size === 1 && !draw && this.h.tac() && !this.h.placing() && !this.h.armed() && !(this.h.boxing && this.h.boxing())) {
+        const id = e.pointerId, x = e.clientX, y = e.clientY;
+        this.holdT = setTimeout(() => {
+          const q = this.ptrs.get(id);
+          if (!q || this.ptrs.size !== 1 || Math.hypot(q.x - x, q.y - y) > 10 || this.box !== null || this.stroke !== null) return;
+          this.box = id; this.h.boxBegin(x, y); q.boxHold = true;
+          try { if (navigator.vibrate) navigator.vibrate(12); } catch { /* no vibration */ }
+        }, 420);
+      }
+      if (e.pointerType === 'mouse') {
+        this.mx = e.clientX; this.my = e.clientY;
+        if (draw && e.button === 0) { this.stroke = e.pointerId; this.h.drawBegin(e.clientX, e.clientY); return; }
+        if (e.button === 0 && this.h.placing()) { this.h.place(); return; }
+        // An armed weapon: the click calls it (the ship gun fires while the button is held)
+        if (e.button === 0 && this.h.armed()) { this.h.fire(true); return; }
+        // Nothing armed, the cursor selects: a click picks what is under it; a drag pans the map, or on the tactical build screen
+        // draws a box round SEAF troopers.
+        if (e.button === 0) { this.lp = { id: e.pointerId, x: e.clientX, y: e.clientY, drag: false, box: this.h.tac() }; return; }
+        if (e.button === 2) this.panning = e.pointerId;
+      } else if (this.h.boxing && this.h.boxing() && this.ptrs.size === 1) {
+        this.box = e.pointerId; this.h.boxBegin(e.clientX, e.clientY);   // SELECT armed: one finger draws the box
+      } else if (draw && this.ptrs.size === 1) {
+        this.stroke = e.pointerId; this.h.drawBegin(e.clientX, e.clientY);   // one finger draws in draw mode
+      } else if (this.ptrs.size === 2) {
+        if (this.stroke !== null) { this.h.drawCancel(); this.stroke = null; }   // a second finger turns it back into pan and zoom
+        if (this.lp) { if (this.box !== null) { this.box = null; this.h.boxCancel && this.h.boxCancel(); } this.lp = null; }
+        const [a, b] = [...this.ptrs.values()];
+        this.pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), view: this.cam.view };
+      }
+    });
+    cv.addEventListener('pointermove', (e) => {
+      if (e.pointerType === 'mouse') { this.mx = e.clientX; this.my = e.clientY; }
+      const p = this.ptrs.get(e.pointerId);
+      if (!p || !this.active()) return;
+      const dx = e.clientX - p.x, dy = e.clientY - p.y;
+      p.x = e.clientX; p.y = e.clientY;
+      if (p.held) return;                                          // (a held finger stays put: no pan, no box)
+      if (Math.hypot(p.x - p.sx, p.y - p.sy) > 10) clearTimeout(this.holdT);
+      if (this.stroke === e.pointerId) { this.h.drawMove(e.clientX, e.clientY); return; }
+      if (this.box === e.pointerId) { this.h.boxMove(e.clientX, e.clientY); return; }
+      const lp = this.lp;
+      if (lp && lp.id === e.pointerId) {
+        if (!lp.drag && Math.hypot(e.clientX - lp.x, e.clientY - lp.y) > (p.type === 'mouse' ? 6 : 10)) {
+          lp.drag = true;
+          if (lp.box) { this.box = e.pointerId; this.h.boxBegin(lp.x, lp.y); this.h.boxMove(e.clientX, e.clientY); return; }
+        }
+        if (lp.drag && !lp.box) this._pan(dx * (p.type === 'mouse' ? 1 : this.sens), dy * (p.type === 'mouse' ? 1 : this.sens));
+        return;
+      }
+      if (p.type === 'mouse') {
+        if (this.panning === e.pointerId) this._pan(dx, dy);
+      } else if (this.ptrs.size >= 2 && this.pinch) {
+        const [a, b] = [...this.ptrs.values()], d = Math.hypot(a.x - b.x, a.y - b.y);
+        if (this.pinch.d > 10) this.cam.view = Math.max(C.world.zoomMin, Math.min(C.world.zoomMax, this.pinch.view * (this.pinch.d / Math.max(10, d))));
+        this._pan(dx / 2 * this.sens, dy / 2 * this.sens);
+      } else if (this.ptrs.size === 1) this._pan(dx * this.sens, dy * this.sens);
+    });
+    const up = (e) => {
+      const p = this.ptrs.get(e.pointerId);
+      if (!p) return;
+      this.ptrs.delete(e.pointerId);
+      clearTimeout(this.holdT);
+      if (p.held) { if (this.ptrs.size < 2) this.pinch = null; return; }
+      const lp = this.lp && this.lp.id === e.pointerId ? this.lp : null;
+      if (lp) this.lp = null;
+      if (this.box === e.pointerId) { this.box = null; this.h.boxEnd(); if (this.ptrs.size < 2) this.pinch = null; return; }
+      // a left click (no drag) with nothing armed: select what is under it
+      if (lp && p.type === 'mouse' && !lp.drag && e.type === 'pointerup') this.h.click(e.clientX, e.clientY);
+      // a right click (no drag): put down an armed weapon or a placement; otherwise an order for the selected SEAF squad
+      if (p.type === 'mouse' && p.btn === 2 && e.type === 'pointerup' && Math.hypot(e.clientX - p.sx, e.clientY - p.sy) < 5) {
+        if (this.h.armed()) this.h.disarm(); else if (this.h.placing()) this.h.cancelPlace(); else this.h.command(e.clientX, e.clientY);
+      }
+      // a tap (no drag, short) on the map: select, place, or order (touch)
+      if (p.type !== 'mouse' && e.type === 'pointerup' && this.stroke !== e.pointerId && this.h.tap && Math.hypot(e.clientX - p.sx, e.clientY - p.sy) < 8 && performance.now() - p.t0 < 350 && this.ptrs.size === 0) this.h.tap(p.type, e.clientX, e.clientY);
+      if (this.stroke === e.pointerId) { this.stroke = null; if (e.type === 'pointercancel') this.h.drawCancel(); else this.h.drawEnd(); if (p.type !== 'mouse') { if (this.ptrs.size < 2) this.pinch = null; return; } }
+      if (p.type === 'mouse') { if (e.button === 0 || e.type === 'pointercancel') this.h.fire(false); if (this.panning === e.pointerId) this.panning = null; }
+      if (this.ptrs.size < 2) this.pinch = null;
+    };
+    cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+
+    // Fire button: independent pointer so a second finger can keep panning.
+    const fb = document.getElementById('fire-btn');
+    fb.addEventListener('pointerdown', (e) => { e.preventDefault(); try { fb.setPointerCapture(e.pointerId); } catch { /* not capturable */ } fb.classList.add('held'); this.setTouch(true); this.h.fire(true); });
+    const fup = () => { fb.classList.remove('held'); this.h.fire(false); };
+    fb.addEventListener('pointerup', fup); fb.addEventListener('pointercancel', fup);
+    document.getElementById('btn-follow').addEventListener('pointerdown', (e) => { e.preventDefault(); this.h.follow(); });
+    document.getElementById('btn-pause').addEventListener('click', () => this.h.soft());
+    document.getElementById('btn-shop').addEventListener('click', () => this.h.armory());
+
+    // Minimap: a tap opens the tactical map; a drag moves the camera.
+    const jump = (e) => {
+      const r = this.mini.getBoundingClientRect();
+      const a = this.cam.ao || { x0: 0, y0: 0, size: C.world.size }, q = 0.9, o = (1 - q) / 2;     // (the round minimap: render/renderer.js MINI_Q)
+      this.cam.x = a.x0 + (((e.clientX - r.left) / r.width - o) / q) * a.size; this.cam.y = a.y0 + (((e.clientY - r.top) / r.height - o) / q) * a.size;
+      this.cam.follow = false; this._clamp();
+    };
+    let press = null;
+    this.mini.addEventListener('pointerdown', (e) => { press = { x: e.clientX, y: e.clientY, drag: false }; this.mini.setPointerCapture(e.pointerId); });
+    this.mini.addEventListener('pointermove', (e) => {
+      if (!press) return;
+      if (!press.drag && Math.hypot(e.clientX - press.x, e.clientY - press.y) > 5) press.drag = true;
+      if (press.drag) jump(e);
+    });
+    this.mini.addEventListener('pointerup', () => { const p = press; press = null; if (p && !p.drag && this.active()) this.h.map(); });
+    this.mini.addEventListener('pointercancel', () => { press = null; });
+
+    window.addEventListener('keydown', (e) => {
+      if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT')) return;
+      this.keys.add(e.code);
+      if (e.repeat) return;
+      // Esc steps back one thing at a time (main.js): drawing, a placement, the tactical screen, an armed weapon, then the menu
+      if (e.code === 'Escape') { this.h.escape(); return; }
+      // (0.50.1) everything else by what the key does now (keys.js: the player can change them); the Shift / Alt / Ctrl ones are fixed
+      const act = actionOf(e.code), mod = e.ctrlKey || e.metaKey;
+      if (act === 'hideUi') { e.preventDefault(); if (this.h.hideUi) this.h.hideUi(); return; }     // hide the HUD, and back
+      if (act === 'debug') { e.preventDefault(); if (this.h.debug) this.h.debug(); return; }     // (0.62.3) the debug readout, and back
+      if (act === 'map' && !(mod && e.code !== 'Tab')) { if (this.h.map && this.h.map()) { e.preventDefault(); return; } }     // (0.20) the big map, and back (in a mission)
+      // (0.18) Space: the tactical screen (and its pause) on and off; Alt+1..9: the selected troopers join that squad
+      if (act === 'pause') { e.preventDefault(); if (this.h.supplyTap && this.h.supplyTap()) return; this.h.soft(); return; }   // (0.18) Space pauses (look around, no orders) and goes on
+      if (act === 'deploy' && this.h.deployNow) { this.h.deployNow(); return; }
+      if (e.code === 'KeyA' && mod && this.h.selectAll) { e.preventDefault(); this.keys.delete('KeyA'); this.h.selectAll(); return; }     // (0.31) Ctrl+A: every trooper on the map (A alone still pans)
+      { const ad = /^Digit([1-9])$/.exec(e.code); if (ad && e.altKey && this.h.toSquad) { e.preventDefault(); this.h.toSquad(Number(ad[1]) - 1); return; } }
+      if (act === 'softPause') { this.h.soft(); return; }            // the soft pause: the game stops, the menu stays shut
+      if (act === 'speed' && this.h.speed) { this.h.speed(); return; }   // half speed / normal speed
+      if (!this.active()) return;
+      // (0.36.1) the weapon keys always pick weapons, whatever tab of the command panel is open (builds are picked with a click)
+      const dig = /^Digit([0-9])$/.exec(e.code);
+      if (dig && e.shiftKey) { this.h.squad(Number(dig[1]) >= 1 ? Number(dig[1]) - 1 : -1); return; }   // Shift+1..9 pick a squad, Shift+0 all
+      if (mod) return;
+      const w = act && /^w([1-9])$/.exec(act);
+      if (w) this.h.weapon(Number(w[1]) - 1);
+      else if (act === 'allSquads') this.h.squad(-1);
+      else if (act === 'draw') this.h.squadAct('draw');
+      else if (act === 'follow') this.h.follow();
+      else if (act === 'disband') this.h.squadAct('disband');
+      else if (act === 'cyclePrev') this.h.cycle(-1);
+      else if (act === 'cycleNext') this.h.cycle(1);
+      else if (act === 'eagleRearm' && this.h.eagleRearm) this.h.eagleRearm();     // (0.53.2) the Eagle back to rearm, early
+      else if (act === 'seaf') this.h.order(e.shiftKey ? 'pickup' : 'seaf', true);     // (0.39) Shift+G: a pickup point
+      else if (act === 'auto' || act === 'move' || act === 'protect' || act === 'attack' || act === 'escort') this.h.order(act, true);
+      else if (act === 'build') this.h.ctx('build');
+      else if (act === 'armory') this.h.ctx('armory');
+      else if (act === 'thermal') this.h.polarity();
+      else if (act === 'relief') this.h.relief();
+      else if (act === 'info') this.h.info();
+      else if (act === 'radio' && this.h.radio) this.h.radio();     // (0.28) the command radio (tutorial and campaign)
+      else if (act === 'supply') this.h.supply();
+      else if (act === 'timeYes' && this.h.timeYes) this.h.timeYes();
+      else if (act === 'look') this.h.look();
+      else if (act === 'zoomIn') this.zoom(1 / 1.15);
+      else if (act === 'zoomOut') this.zoom(1.15);
+    });
+    window.addEventListener('keyup', (e) => this.keys.delete(e.code));
+    window.addEventListener('blur', () => { this.keys.clear(); this.h.fire(false); if (this.stroke !== null) this.h.drawCancel(); this.stroke = null; this.ptrs.clear(); this.pinch = null; this.panning = null; this.lp = null; if (this.box !== null) { this.box = null; this.h.boxEnd(); } });
+  }
+}
