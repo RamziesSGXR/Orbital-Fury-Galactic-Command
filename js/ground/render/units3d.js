@@ -179,6 +179,11 @@ export class Fx3D {
     this.bolt = inst(new THREE.BoxGeometry(1, 1, 1), add(), 600); this.orb = inst(new THREE.IcosahedronGeometry(1, 1), add(), 160);
     this.dome = inst(new THREE.SphereGeometry(1, 20, 8, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }), 48);
     this.bolt.renderOrder = this.orb.renderOrder = 4; this.dome.renderOrder = 6;
+    // smoke: soft grey puffs that face the eye, swell and climb. Four meshes, each fainter than the last: a puff moves down them as it thins.
+    { const cv = document.createElement('canvas'); cv.width = cv.height = 64; const c2 = cv.getContext('2d'), gr = c2.createRadialGradient(32, 32, 0, 32, 32, 32);
+      gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.55, 'rgba(255,255,255,0.55)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); c2.fillStyle = gr; c2.fillRect(0, 0, 64, 64);
+      const tex = new THREE.CanvasTexture(cv), quad = new THREE.PlaneGeometry(2, 2);
+      this.smoke = [0.36, 0.25, 0.15, 0.07].map((op) => { const im = inst(quad, new THREE.MeshBasicMaterial({ color: 0xffffff, map: tex, transparent: true, opacity: op, depthWrite: false }), 90); im.renderOrder = 3; return im; }); }
     this.blast = inst(new THREE.IcosahedronGeometry(1, 2), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }), 96); this.blast.renderOrder = 5;
     this.dir = new THREE.Vector3(); this.a = new THREE.Vector3(); this.b = new THREE.Vector3(); this.z = new THREE.Vector3(0, 0, 1); this.yv = new THREE.Vector3(0, 1, 0);
   }
@@ -232,6 +237,13 @@ export class Fx3D {
     let dn = 0;
     for (const s of o.domes || []) { if (dn >= 48) break; Q.identity(); P.set(s.x, ground(s.x, s.y) - 0.5, s.y); S.setScalar(s.r); this.dome.setMatrixAt(dn, M4.compose(P, Q, S)); COL.setRGB(0.3 * s.k, 0.42 * s.k, 0.55 * s.k); this.dome.setColorAt(dn++, COL); }
     this.dome.count = dn; if (dn) { this.dome.instanceMatrix.needsUpdate = true; if (this.dome.instanceColor) this.dome.instanceColor.needsUpdate = true; }
-    this.n = { drops: n, shells: k, strobes: j, blasts: w, bolts: bn, orbs: on, domes: dn };
+    // puffs: [{ x, y, r, up, p (0 new to 1 gone), col }]; o.eye: the camera's turn, so each puff faces it
+    const sn = [0, 0, 0, 0]; let st = 0;
+    if (o.eye) for (const s of o.puffs || []) {
+      const bi = Math.min(3, Math.floor(s.p * 4)), im = this.smoke[bi]; if (sn[bi] >= 90) continue;
+      P.set(s.x, ground(s.x, s.y) + (s.up || 0) + s.r * 0.45, s.y); S.set(s.r, s.r * 0.85, s.r); im.setMatrixAt(sn[bi], M4.compose(P, o.eye, S)); COL.set(s.col || '#4a4e4a'); im.setColorAt(sn[bi]++, COL); st++;
+    }
+    for (let i = 0; i < 4; i++) { const im = this.smoke[i]; im.count = sn[i]; if (sn[i]) { im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; } }
+    this.n = { drops: n, shells: k, strobes: j, blasts: w, bolts: bn, orbs: on, domes: dn, puffs: st };
   }
 }

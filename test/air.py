@@ -47,8 +47,9 @@ with sync_playwright() as pw:
     print('streaks and balls of fire in the air at once:', best)
     f.evaluate("(() => { const c = __game.cam, m = __game.mission, a = m.infantryAlive[0] || m.alive[0]; c.follow = false; c.x = a.x; c.y = a.y; c.view = 42; })()"); pg.wait_for_timeout(700); pg.screenshot(path=f'{out}/air-4-close.png')
     # the fallen: one that drops where it stood and one thrown by a blast, as their own models
-    f.evaluate("(() => { const r = __game.renderer, m = __game.mission, c = __game.cam, now = r.fxNow(m); r.launch.onEvent({ type: 'kill', x: c.x - 6, y: c.y + 3, kind: 'M', id: 901, face: 0.4, r: 2 }, now); r.launch.onEvent({ type: 'boom', x: c.x + 8, y: c.y + 2, r: 9 }, now); r.launch.onEvent({ type: 'kill', x: c.x + 10, y: c.y + 3, kind: 'L', id: 902, face: 1, r: 1.5 }, now); })()")
+    f.evaluate("(() => { const r = __game.renderer, m = __game.mission, c = __game.cam, now = r.fxNow(m); c.view = 85; r.launch.onEvent({ type: 'kill', x: c.x - 6, y: c.y + 3, kind: 'M', id: 901, face: 0.4, r: 2 }, now); r.launch.onEvent({ type: 'boom', x: c.x + 8, y: c.y + 2, r: 9 }, now); r.launch.onEvent({ type: 'kill', x: c.x + 10, y: c.y + 3, kind: 'L', id: 902, face: 1, r: 1.5 }, now); r.fx.push({ k: 'smoke', x: c.x - 14, y: c.y - 6, r: 6, t0: now - 1.5, life: 9, drift: 1 }); r.fx.push({ k: 'smoke', x: c.x - 10, y: c.y - 8, r: 4, t0: now - 5, life: 9, drift: -1 }); })()")
     pg.wait_for_timeout(350); pg.screenshot(path=f'{out}/air-5-fallen.png')
+    print('puffs of smoke:', f.evaluate('__game.renderer._g3.fx.n.puffs'))
     print('bodies:', f.evaluate("__game.renderer.launch.bodies.map(b => [b.kind, b.fell ? 'fell' : b.landed ? 'landed' : 'in the air', +b.z.toFixed(1)])"))
     print('a person has these frames:', f.evaluate("(() => { const u = __game.renderer._g3.units, o = {}; for (const k of ['van', 'inf', 'civ0', 'civ2']) { const K = u._kind(k); o[k] = K && K.frames ? Object.keys(K.frames).length : 0; } return o; })()"))
     print('\n'.join(errs) if errs else 'no page errors'); br.close()
