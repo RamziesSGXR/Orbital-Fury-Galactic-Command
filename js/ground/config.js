@@ -281,6 +281,13 @@ export const CONFIG = {
                 swarm: { callRadius: 130, rushMul: 1.25, rushN: 8, weave: 3.5, fan: 0.6, arc: 2.0, reach: 48 },
                 line:  { standoff: 0.62, spacing: 4.4, rank: 4.5, tankBack: 10, arm: 70 },
                 ring:  { radius: 0.66, arm: 95, slack: 5 },
+                // (GC 0.7) THE TALON FIGHT LIKE CAVALRY. A war party does not close a full ring: it opens into a crescent on its own
+                // side of the target (arc radians at most, perN for each rider, so a small party makes a short bow), stands off
+                // and throws for volleySec, then charges: the riders and the skirmishers run in at chargeMul times their pace
+                // and strike once with the lance (lanceMul times a thrown spear) inside hitR metres, then wheel away at wheelMul
+                // times their pace to wheelR times the crescent's distance and form up again. A charge that has not struck
+                // in chargeSec is called off. Slingers and war beasts hold the crescent and keep shooting throughout.
+                cav:   { arc: 2.9, perN: 0.34, volleySec: 7, chargeSec: 6, chargeMul: { M: 2.1, L: 1.5 }, hitR: 7, lanceMul: 2.5, wheelSec: 5, wheelMul: 1.7, wheelR: 1.25 },
                 // (0.62.2) An enemy shooting a building of the player's walks into that building's own reach x closeIn, so a gun
                 // it is chipping at can shoot back: standing outside a turret nest's range and plinking it was free damage.
                 closeIn: 0.8,

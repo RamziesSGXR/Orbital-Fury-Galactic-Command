@@ -675,29 +675,44 @@ function lineMove(m, g, e, tgt, dt, size) {
   moveToward(e, tgt.x - g.ux * stand + nx * (e.lane || 0), tgt.y - g.uy * stand + ny * (e.lane || 0), e.speed * 1.3, dt, size);
 }
 
-// Lizards: encirclement. Everything hunting one target spreads evenly round it (assignRings, twice a second); each one walks the
-// ring toward its own slot while it closes to its firing distance, shooting as it goes, and stops once it is in place.
+// Lizards: a crescent, a volley, a charge (GC 0.7; before it, a full ring). Each war party opens into a bow on its own side of
+// its target (assignRings, twice a second); each one walks the
+// bow toward its own slot while it closes to its firing distance, shooting as it goes, and stops once it is in place.
 // (0.54) a lizard leader (a medium that is not the herdbeast) keeps inside the ring instead of on it
 const midOf = (e) => e.kind === 'M' && !e.sub && !e.boss;
 // (0.62.2) The leaders get their own evenly spaced slots on the inner ring, as the lights do on the outer one. Before this they
 // only held their current bearing, so every leader hunting one target could end up on the same side of it, in a heap.
 function assignRings(m) {
-  const byT = new Map();
+  // (GC 0.7) A crescent for each war party, on its own side of the target: the bow faces the way the party came (g.cavA, held
+  // while it fights and taken again each time it forms up), the lights spread along it, the leaders along a shorter bow inside.
+  const K = C.enemies.tactics.cav;
   for (const g of m.groups) {
     if (g.state !== 'hunt' || !g.target || g.target.dead) continue;
-    let l = byT.get(g.target);
-    if (!l) byT.set(g.target, (l = [[], []]));
-    for (const e of g.members) { if (e.dead || e.kind === 'H') continue; l[midOf(e) ? 1 : 0].push(e); }
+    const tg = g.target, out = [], mid = []; let mx = 0, my = 0, n = 0;
+    for (const e of g.members) { if (e.dead || e.kind === 'H') continue; (midOf(e) ? mid : out).push(e); mx += e.x; my += e.y; n++; }
+    if (!n) continue;
+    if (g.cavA === undefined || (!g.engaged && g.cav !== 'charge')) g.cavA = Math.atan2(my / n - tg.y, mx / n - tg.x);
+    const bow = (l, k) => {
+      if (!l.length) return;
+      for (const e of l) e.ra = wrap(Math.atan2(e.y - tg.y, e.x - tg.x) - g.cavA);
+      l.sort((a, b) => a.ra - b.ra);
+      const arc = Math.min(K.arc, K.perN * n) * k;
+      l.forEach((e, i) => { e.slot = g.cavA + (l.length > 1 ? i / (l.length - 1) - 0.5 : 0) * arc; });
+    };
+    bow(out, 1); bow(mid, 0.5);
   }
-  const ring = (tg, l) => {
-    if (!l.length) return;
-    for (const e of l) e.ra = Math.atan2(e.y - tg.y, e.x - tg.x);
-    l.sort((a, b) => a.ra - b.ra);
-    const base = l[0].ra;
-    l.forEach((e, i) => { e.slot = base + (i / l.length) * TAU; });
-  };
-  for (const [tg, [out, mid]] of byT) { ring(tg, out); ring(tg, mid); }
 }
+// The party's drill: form the crescent and throw, charge, wheel away, form again.
+function cavStep(g, tgt, engaged, dt) {
+  const K = C.enemies.tactics.cav;
+  if (!tgt) { g.cav = 'form'; g.cavT = 0; return; }
+  g.cav ||= 'form'; g.cavT = g.cavT || 0;
+  if (g.cav === 'form') { if (engaged) { g.cavT += dt; if (g.cavT >= K.volleySec) { g.cav = 'charge'; g.cavT = 0; g.cavN = (g.cavN || 0) + 1; } } }
+  else if (g.cav === 'charge') { g.cavT += dt; if (g.cavT >= K.chargeSec || !g.members.some((e) => !e.dead && rides(e) && e.cavHit !== g.cavN)) { g.cav = 'wheel'; g.cavT = 0; } }
+  else { g.cavT += dt; if (g.cavT >= K.wheelSec) { g.cav = 'form'; g.cavT = 0; } }
+}
+// Who charges: the riders and the skirmishers. Slingers, herd beasts and war beasts do not.
+const rides = (e) => e.kind !== 'H' && !e.sub && e.v !== 'mort' && !e.boss;
 // To its own place in the school. (0.62.2) One that has fallen a long way behind it (a lake in the way, a wall, a place that
 // landed in deep water) swims back to the school itself first, instead of walking for ever at a place it cannot reach.
 function schoolTo(m, g, e, dt, size) {
@@ -722,6 +737,22 @@ function ringMove(m, g, e, tgt, dt, size, atk, engaged) {
     // is engaged, so the back rows of the arrowhead were left standing at their places a hundred metres off, for good. They
     // come in to the fight.
     if (engaged) moveToward(e, tgt.x, tgt.y, e.speed * 1.2, dt, size); else schoolTo(m, g, e, dt, size);
+    return;
+  }
+  // (GC 0.7) the charge, and the wheel away after it
+  if (rides(e) && g.cav && g.cav !== 'form') {
+    const K = C.enemies.tactics.cav, struck = e.cavHit === g.cavN;
+    if (g.cav === 'charge' && !struck) {
+      // it goes for whatever it was throwing at, or the party's quarry; the reach is from the edge of a thing, not its middle
+      const q = e.tgt && !e.tgt.dead ? e.tgt : tgt, reach = K.hitR + (q.r || 0);
+      if ((q.x - e.x) ** 2 + (q.y - e.y) ** 2 <= reach * reach) {
+        e.cavHit = g.cavN;
+        m.emit('tracer', { x: e.x, y: e.y, tx: q.x, ty: q.y, s: 'e', f: m.faction.id, k: e.kind, hit: true, melee: true, snd: m.faction.id + e.kind });
+        hurtTarget(m, q, profileOf(m.faction.id, e).dmg * K.lanceMul * m.dmgMul, 'enemy', e.kind, e.x, e.y);
+      } else { moveToward(e, q.x, q.y, e.speed * (e.kind === 'M' ? K.chargeMul.M : K.chargeMul.L), dt, size); return; }
+    }
+    const a = e.slot === undefined ? Math.atan2(e.y - tgt.y, e.x - tgt.x) : e.slot, Rw = Rr * K.wheelR;
+    moveToward(e, tgt.x + Math.cos(a) * Rw, tgt.y + Math.sin(a) * Rw, e.speed * K.wheelMul, dt, size);
     return;
   }
   // (0.54) a leader holds a little way in from the ring, behind its lights; (0.62.2) on a slot of its own, as the lights are
@@ -876,6 +907,7 @@ export function updateEnemies(m, dt) {
     if (engaged || g.members.some((e) => !e.dead && e.tgt)) g.alertT = Math.max(g.alertT, A.loseSec);
 
     const tgt = g.target && !g.target.dead ? g.target : null;
+    if (fac.id === 'lizards') cavStep(g, tgt, engaged, dt);
     if (!engaged && g.tp) {
       const o = g.mv || (g.mv = { x: 0, y: 0, nv: null, nvc: null }); o.x = g.cx; o.y = g.cy; o.nv = g.nv;
       moveToward(o, g.tp.x, g.tp.y, minSpeed * (fac.id === 'lizards' ? schoolPace(g) : 1), dt, size);
