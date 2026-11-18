@@ -408,3 +408,10 @@ button small { display: block; font: 9.5px var(--mono); letter-spacing: 0.5px; o
 .gains span { padding: 6px 12px; border: 1px solid currentColor; font-weight: 700; font-size: 15px; letter-spacing: 0.04em; }
 .gains span i { font-style: normal; font-weight: 400; font-size: 11px; opacity: 0.8; margin-left: 4px; }
 .gains .up { color: #7dff9b; } .gains .dn { color: #ff8a6a; }
+
+/* (0.28) inside a post: what it gives the war each round */
+#th-war { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding: 5px 10px; background: #0b1410; border-bottom: 1px solid var(--cyan-l); font: 12px var(--mono); letter-spacing: 0.5px; position: relative; z-index: 2; }
+#th-war.hidden { display: none; }
+#th-war .wl { color: var(--dim); font-size: 10px; letter-spacing: 1.5px; }
+#th-war .wc { color: #7dff9b; } #th-war .wc b { font-size: 14px; } #th-war .wc i { font-style: normal; color: var(--dim); font-size: 10px; }
+#th-war .wc.wait { color: var(--dim); } #th-war .wc.wait i { color: var(--amber); }

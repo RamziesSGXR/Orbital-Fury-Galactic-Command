@@ -472,6 +472,23 @@ export class Game {
     raw -= st >= L.threatAt[1] ? 2 : st >= L.threatAt[0] ? 1 : 0;                              // a station overhead
     return clamp(Math.round(raw), L.level.min, L.level.max);
   }
+  // (0.28) What a post gives the war each round, for showing inside the post while you run it.
+  //   kind: 'station' | 'base'; level and profit: how the post stands right now (it may have changed since you went in)
+  //   each: { k (what), v (how much a round), wait (true: only once the post is in profit), text (for what is not a number) }
+  postGives(pid, kind, level = 1, profit = false) {
+    const p = this.P[pid], pol = C.policy[this.policy], out = [], r1 = (n) => Math.round(n * 10) / 10;
+    if (kind === 'base') {
+      out.push({ k: N.army, v: r1(C.post.train.army * level * pol.troops) });
+      const d = this.deposit(p); if (d) out.push({ k: N[C.product[d]], v: r1(C.deposit.per + this.lv('b_rigs') + (profit ? C.deposit.profit : 0)) });
+      out.push({ k: 'CR', v: level * C.chest.post, wait: !profit });
+      out.push({ k: 'DEFENCE', v: level * C.support.baseFort, text: 'HERE' });
+    } else {
+      out.push({ k: N.ammo, v: r1(C.post.stationAmmo * level * pol.forge) });
+      out.push({ k: 'CR', v: level * (C.chest.post + 10 * this.lv('s_trade')), wait: !profit });
+      out.push({ k: 'SHIPS', text: 'BUILT HERE' }); out.push({ k: 'REPAIRS', v: C.fleet.repair.station, text: 'A FLEET HERE' });
+    }
+    return out;
+  }
   // What your posts and your ratings bring to a fight on the ground at this system: from the system itself and from
   // yours one link away.
   groundSupport(pid) {

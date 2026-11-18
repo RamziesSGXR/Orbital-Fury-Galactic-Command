@@ -245,7 +245,7 @@ async function enterTheatre(kind, args) {
 function leaveTheatre(out = {}) {
   const kind = state, args = frameUi.args; if (!mode) return;
   try { mode.leave(); } catch (err) { console.error(err); }
-  mode = null;
+  mode = null; clearInterval(frameUi._wt); frameUi.war(null);
   if (kind === 'ground') { camp.stats.ground++; if (out.win) camp.stats.groundWon++; if (!out.abandon) War.groundResult(!!out.win, out.left ?? 0.5, out.res || null); }
   else if (out.level != null) {
     const key = kind === 'orbit' ? 'station' : 'base', g = War.war(), p = args.system, rec = (camp.sites[p.id] ||= {}), cur = p[key] || 1;
@@ -264,12 +264,20 @@ export const frameUi = {
   args: null, paused: false, speed: 1, speeds: [1, 2, 4],
   reset(kind, args) {
     this.args = args; this.paused = false; this.speed = 1;
-    $('th-kind').textContent = { ground: 'FIRE SUPPORT', orbit: 'STATION COMMAND', base: 'BASE COMMAND' }[kind];
+    $('th-kind').textContent = { ground: 'FIRE SUPPORT', orbit: 'STATION COMMAND', base: 'BASE COMMAND' }[kind]; this.war(null); clearInterval(this._wt);
+    if (kind !== 'ground') this._wt = setInterval(() => { try { const g = War.war(); if (!mode || !mode.report || !g || (state !== 'orbit' && state !== 'base')) return; const r = mode.report(), key = state === 'orbit' ? 'station' : 'base'; this.war(g.postGives(args.system.id, key, Math.max(1, Math.min(r.level || 1, (args.system[key] || 0) + 1)), !!r.profit)); } catch (err) { /* the post is still opening */ } }, 700);
     $('th-where').textContent = args.system.name; $('th-stats').innerHTML = ''; $('th-bar').innerHTML = ''; $('th-tabs').innerHTML = '';
     $('th-feed').innerHTML = ''; $('th-desk').innerHTML = ''; $('th-msg').classList.remove('show'); $('th-side').classList.add('hidden'); $('th-sel').classList.add('hidden'); $('th-tip').classList.add('hidden');
     $('th-pause').textContent = 'II'; $('th-speed').textContent = '1×'; $('th-leave').textContent = kind === 'ground' ? 'ABORT' : 'TO THE MAP';
     $('th-speed').classList.toggle('hidden', kind === 'ground');
     app.crest($('crest-th'));
+  },
+  // (0.28) what this post gives the war each round, as it stands right now: shown under the bar while you are inside it
+  war(list) {
+    const el = $('th-war'); if (!list || !list.length) { el.classList.add('hidden'); this._wsig = ''; return; }
+    const sig = JSON.stringify(list); if (sig === this._wsig) return; this._wsig = sig;
+    el.innerHTML = '<span class="wl">THIS POST GIVES THE WAR, EACH ROUND</span>' + list.map((s) => `<span class="wc${s.wait ? ' wait' : ''}"><b>${s.v != null ? '+' + s.v : ''}</b> ${esc(s.k)}${s.text ? ` <i>${esc(s.text)}</i>` : ''}${s.wait ? ' <i>ONCE IN PROFIT</i>' : ''}</span>`).join('');
+    el.classList.remove('hidden');
   },
   stats(list) {     // [{ k: 'CREDITS', v: 120, tone: 'a' | '' | 'r' }]
     const sig = JSON.stringify(list); if (sig === this._sig) return; this._sig = sig;
