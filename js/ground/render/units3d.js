@@ -12,11 +12,11 @@ const CAP = 700;     // of one kind on screen at once
 const M4 = new THREE.Matrix4(), Q = new THREE.Quaternion(), UP = new THREE.Vector3(0, 1, 0), P = new THREE.Vector3(), S = new THREE.Vector3(), COL = new THREE.Color();
 
 // one shape, coloured at its corners, from a group of plain meshes; `tint` overrides every colour (a faction's own)
-function bake(group, tint = null) {
+export function bake(group, tint = null, raw = false) {
   group.updateMatrixWorld(true); const pos = [], nor = [], col = [];
   group.traverse((o) => {
     if (!o.isMesh || Array.isArray(o.material) || !o.geometry.attributes.normal) return;
-    if (o.material.map && !tint) return;     // (a crest on an arm: too small to see from up here)
+    if (o.material.map && !tint && !raw) return;     // (a crest on an arm: too small to see from up here)
     const g = (o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone()).applyMatrix4(o.matrixWorld), c = tint ? COL.set(tint).multiplyScalar(0.55 + 0.45 * ((pos.length * 7919) % 5) / 5) : o.material.color;
     const p = g.attributes.position.array, n = g.attributes.normal.array;
     for (let i = 0; i < p.length; i += 3) { pos.push(p[i], p[i + 1], p[i + 2]); nor.push(n[i], n[i + 1], n[i + 2]); col.push(c.r, c.g, c.b); }
@@ -26,6 +26,7 @@ function bake(group, tint = null) {
   out.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); out.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); out.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
   // stand it on the ground at the origin and size it to a footprint radius of one
   out.computeBoundingBox(); const b = out.boundingBox, cx = (b.min.x + b.max.x) / 2, cz = (b.min.z + b.max.z) / 2, r = Math.max(b.max.x - b.min.x, b.max.z - b.min.z, b.max.y - b.min.y) / 2 || 1;     // (its widest or its tallest, whichever is more)
+  if (raw) return out;     // (a prop is built to its own measure already)
   out.translate(-cx, -b.min.y, -cz); out.scale(1 / r, 1 / r, 1 / r); return out;
 }
 const mat = (c) => new THREE.MeshLambertMaterial({ color: c });

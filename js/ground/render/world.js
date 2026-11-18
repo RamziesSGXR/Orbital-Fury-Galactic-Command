@@ -384,7 +384,7 @@ export function drawAssets(ctx, m, now, px, labels, scale, pal) {
     if (s.dead) continue;
     const hit = t - s.hurtAt < 0.12;
     if (s.kind === 'turret') {
-      let r = 0; raise(ctx, s, s.x, s.y, Math.max(5, px(22)), 1.1, (c) => { r = autoturretArt(c, s, now, px, hit, ac); s._r = r; }, { wall: 0.56, live: true, sig: Math.round((s.face || 0) * 12) * 2 + (hit ? 1 : 0) }); r = r || s._r || Math.max(2, px(8));
+      let r = 0; if (VIEW.p3) r = Math.max(1.2, px(7)); else raise(ctx, s, s.x, s.y, Math.max(5, px(22)), 1.1, (c) => { r = autoturretArt(c, s, now, px, hit, ac); s._r = r; }, { wall: 0.56, live: true, sig: Math.round((s.face || 0) * 12) * 2 + (hit ? 1 : 0) }); r = r || s._r || Math.max(2, px(8));
       const f = s.hp / s.maxHp;
       if (f < 0.999) hpBar(ctx, s.x, s.y + r * 2 + px(2), r * 2.6, px(2.4), f, f > 0.35 ? '#7dff9b' : '#ff4a4a');
       labels.push({ x: s.x, y: s.y, dy: -r * 1.8 * scale - 8, text: tr(`callin.${s.sid}.tag`), col: ac , pri: 0 });

@@ -3,6 +3,7 @@
 // the enemy's banners, ruins and mushroom patches. Grass bends away from anyone walking through it and springs back; wading raises
 // ripples. The enemy also leaves its mark on the ground it holds and walks: the bugs an orange scent, the lizards a heat haze, the
 // bots a drift of black smoke, strongest where they gather (their bases) and fading where they have gone.
+import { VIEW } from './view.js';
 const TAU = Math.PI * 2;
 // (0.58.2) a banner or flag whose base, objective or side structure is destroyed lies on the ground
 const down = (o) => !!(o.own && (o.own.destroyed || o.own.done || o.own.dead));
@@ -11,7 +12,7 @@ const SH = { x: 0.55, y: 0.4 };          // where a shadow falls, per metre of h
 const CELL = 64;                          // the bucket size for finding what is on screen
 
 // Colours a biome's rocks take: [side, top, highlight]
-const ROCK = {
+export const ROCK = {
   grass: ['#4b4a42', '#77756a', '#a6a394'], jungle: ['#3c4637', '#5f6c55', '#8b9a7c'], ice: ['#6f8494', '#b3c7d4', '#eaf6ff'],
   desert: ['#7a5e3c', '#b08a5c', '#d8b886'], mars: ['#6a2f1e', '#9c4a30', '#c97a58'], moon: ['#4a4a4e', '#7b7b80', '#b3b3b8'], city: ['#4c4c50', '#7a7a7e', '#a8a8ac'],
 };
@@ -93,7 +94,7 @@ export function drawSceneryGround(ctx, m, now, px, scale, vb) {
   each(sc, vb, 'marks', (o) => { if (standing(o)) shadowPath(pa, o.x, o.y, (o.kind === 'pillar' ? 0.9 : 0.35) * o.s, (o.kind === 'pillar' ? 0.9 : 0.35) * o.s, (o.kind === 'banner' ? 7 : o.kind === 'flag' ? 5 : o.h) * o.s); });
   ctx.fillStyle = 'rgba(0,0,0,0.27)'; ctx.fill(pa, 'nonzero');
   // rocks: the side (dark, below), the top (lit), a highlight on the upper-left edge
-  each(sc, vb, 'rocks', (q) => {
+  if (!VIEW.p3) each(sc, vb, 'rocks', (q) => {
     if (q.broken) return;
     const lift = q.spire ? q.h : q.h * 0.45, poly = (dy, sc2) => { ctx.beginPath(); q.pts.forEach((f, i) => { const a = q.a + (i / q.pts.length) * TAU, r = q.r * f * sc2; const x = q.x + Math.cos(a) * r, y = q.y + Math.sin(a) * r * 0.82 + dy; if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }); ctx.closePath(); };
     ctx.fillStyle = RC[0]; poly(0, 1); ctx.fill();
@@ -114,6 +115,7 @@ export function drawSceneryHigh(ctx, m, now, px, scale, vb) {
   const sc = m.scenery;
   if (!sc) return;
   const fac = m.faction.id, under = (x, y, r) => m.alive.some((a) => !a.dead && (a.x - x) ** 2 + (a.y - y) ** 2 < r * r);
+  if (VIEW.p3) { each(sc, vb, 'marks', (o) => { if (!standing(o)) drawMark(ctx, o, fac, now, px, true); }); return; }     // (GC 0.23: the trees, banners and pillars stand up as models)
   if (scale < 3.2) {
     // zoomed well out: a trunk and a two-tone crown each, all of them in four paths
     const trunk = new Path2D(), dark = new Path2D(), lite = new Path2D(), pine = new Path2D();

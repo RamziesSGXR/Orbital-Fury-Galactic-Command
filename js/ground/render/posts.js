@@ -411,6 +411,7 @@ function useRing(ctx, x, y, R, px, now) {
   ring(ctx, x, y, R); ctx.stroke(); ctx.restore();
 }
 // (0.61) how tall each post stands, and how far its drawing reaches [height m, reach m, has its own shadows]
+export const P3_POST = { mg: ['post:mg', 2.4], sam: ['post:sam', 2.8], arty: ['post:arty', 3.0], tower: ['post:tower', 2.6], lookout: ['post:tower', 1.9] };     // (GC 0.23) which model, and its footprint in metres
 const POST_H = { mg: [1.1, 7], sam: [1.7, 11], arty: [1.6, 17], site: [1.8, 11] };
 export function drawPosts(ctx, m, now, px, labels, scale, sel) {
   const t = m.t;
@@ -419,7 +420,8 @@ export function drawPosts(ctx, m, now, px, labels, scale, sel) {
   for (const p of m.posts || []) {
     if (p.dead) continue;
     const ph = POST_H[p.what];
-    if (ph) raise(ctx, p, p.x, p.y, Math.max(ph[1], (p.r || 0) * 1.35 + 4), ph[0], (c) => art(c, p, now, px, t), { wall: 0.56, noShadow: !!ph[2], live: true, sig: Math.round((p.face || 0) * 12) * 8 + (t - p.hurtAt < 0.12 ? 1 : 0) + (p.manned ? 2 : 0) + (p.ghost ? 4 : 0) }); else art(ctx, p, now, px, t);
+    if (VIEW.p3 && P3_POST[p.what] && !p.ghost) { /* (GC 0.23) it stands up as a model */ }
+    else if (ph) raise(ctx, p, p.x, p.y, Math.max(ph[1], (p.r || 0) * 1.35 + 4), ph[0], (c) => art(c, p, now, px, t), { wall: 0.56, noShadow: !!ph[2], live: true, sig: Math.round((p.face || 0) * 12) * 8 + (t - p.hurtAt < 0.12 ? 1 : 0) + (p.manned ? 2 : 0) + (p.ghost ? 4 : 0) }); else art(ctx, p, now, px, t);
     if (p.what === 'lz') { labels.push({ x: p.x, y: p.y, dy: -p.r * scale - 8, text: `${tr('build.lz').toUpperCase()} · ${lzStatus(m, p)}`, col: '#8fe0ff', pri: 2 }); continue; }
     if (p.what === 'site') {     // (0.52) the work site: its name and how it stands, always shown
       if (p !== sel && !p.fallen) useRing(ctx, p.x, p.y, p.r + px(4), px, now);

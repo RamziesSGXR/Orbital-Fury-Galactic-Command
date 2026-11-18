@@ -2,7 +2,7 @@
 import { CONFIG as C } from '../config.js';
 import { SUBTYPES } from '../data/data.js';
 import { scorch, makeDecals, mark } from './terrain.js';
-import { drawSceneryGround, drawSceneryHigh, stirScenery, updatePresence, drawPresence } from './scenery.js';
+import { drawSceneryGround, drawSceneryHigh, stirScenery, updatePresence, drawPresence, ROCK } from './scenery.js';
 import { setShowBlasts, drawZones, drawMarkers, drawObjectives, drawAssets, drawEnemyExtras, drawPois, drawUavs, drawPings, drawGunSky } from './world.js';
 import { drawSquadOrders, drawInfantryMark, drawStroke, drawDropships, drawMiniInfantry, infantryTargets, squadsInUse, squadColor } from './squads.js';
 
@@ -19,7 +19,7 @@ import { beaconAt } from '../sim/sides.js';
 import { drawBossArrival, arriving } from './bossin.js';
 import { drawFlares, drawHoles, drawDrops, drawEvac, drawAcidPools, drawMotherGround, drawMotherSky, drawExtraction, drawExtractionDropship, critText, drawSupply } from './reinf.js';
 import { drawBaseArt, drawBaseRuin, drawCover, drawCitadelWalls, drawCannonArt, drawNodeArt } from './sites.js';
-import { drawPosts, postArt, lzArt, cone } from './posts.js';
+import { drawPosts, postArt, lzArt, cone, P3_POST } from './posts.js';
 const lzArtGhost = (ctx, x, y, R, now, px, ok) => lzArt(ctx, x, y, R, now, px, ok);
 import { foxReach, wireEnds, bastionWalls, wallShape, turns, onEnemy, buildFoot, lookoutReach, chains, chainPlan, planChain } from '../sim/posts.js';
 import { buildStats, uavStats, infantryStats, buildLevel } from '../data/kit.js';
@@ -361,21 +361,45 @@ export class Renderer {
   // r: how wide (to what is drawn), h: how tall, n: sides.
   _blocks(m, cx, cy, half) {
     const out = [], near = (o) => Math.abs(o.x - cx) < half && Math.abs(o.y - cy) < half, add = (o, r, h, n) => { if (r > 0.4 && near(o)) out.push({ x: o.x, y: o.y, r, h, n }); };
-    const sc = m.scenery;
-    if (sc) {
+    const sc = m.scenery, p3 = VIEW.p3;
+    if (sc && !p3) {
       for (const q of sc.rocks || []) if (!q.broken && q.r >= 1.5) add(q, q.r * 0.8, Math.min(9, q.r * 0.75), 6);
       for (const t of sc.trees || []) if (!t.down) add(t, Math.max(1.2, t.r * 0.7), 3.5 + Math.min(6, t.r * 0.9), 7);
     }
-    for (const p of m.posts || []) if (!p.dead && !p.ghost && p.what !== 'wire' && p.what !== 'mine') add(p, 2.6, 2.4, 4);
-    for (const b of m.bases || []) {
+    for (const p of m.posts || []) if (!p.dead && !p.ghost && p.what !== 'wire' && p.what !== 'mine' && p.what !== 'lz' && p.what !== 'bridge' && !(p3 && P3_POST[p.what])) add(p, 2.6, 2.4, 4);
+    for (const b of p3 ? [] : m.bases || []) {
       if (b.destroyed) continue;
       if (b.spawners && b.spawners.length) { for (const s of b.spawners) if (!s.dead) add(s, (s.r || 6) * 0.85, Math.min(8, (s.r || 6) * 0.6), 6); }
       else add(b, (b.r || 8) * 0.7, Math.min(9, (b.r || 8) * 0.5), 6);
       if (b.turrets) for (const t of b.turrets) if (!t.dead) add(t, Math.max(1.4, (t.r || 2) * 0.9), 3, 6);
     }
     for (const p of m.pois || []) if (!p.done) add(p, (p.r || 12) * 0.5, Math.min(7, (p.r || 12) * 0.35), 4);
-    for (const a of m.assets || []) if (a.kind === 'turret' && !a.dead) add(a, 1.6, 2.6, 6);
+    if (!p3) for (const a of m.assets || []) if (a.kind === 'turret' && !a.dead) add(a, 1.6, 2.6, 6);
     if (out.length > 400) { out.sort((a, b) => (a.x - cx) ** 2 + (a.y - cy) ** 2 - (b.x - cx) ** 2 - (b.y - cy) ** 2); out.length = 400; }
+    return out;
+  }
+  // (GC 0.23) What stands on the land as a model: trees, rocks, the enemy's buildings and guns, your guns and towers, banners.
+  _props(m, cx, cy, half, pal) {
+    const out = this._p3l || (this._p3l = []); out.length = 0; const t = m.t, near = (o) => Math.abs(o.x - cx) < half && Math.abs(o.y - cy) < half;
+    const sc = m.scenery, bio = m.biome.id, RC = (ROCK[bio] || ROCK.grass)[1], snow = bio === 'ice', face = (f) => Math.PI / 2 - (f || 0);
+    if (sc) {
+      for (const q of sc.rocks) if (!q.broken && near(q)) out.push({ k: q.spire ? 'rock:spire' : q.id % 2 ? 'rock' : 'rock:b', x: q.x, y: q.y, s: q.r * (q.spire ? 0.9 : 1), h: q.spire ? q.h : q.h * 1.15, rot: q.a, tint: RC, sink: q.r * 0.08 });
+      for (const tr2 of sc.trees) if (near(tr2)) { const k = tr2.kind === 'broad' ? 'tree:leaf' : 'tree:' + tr2.kind, v = 0.82 + 0.18 * ((tr2.seed % 7) / 7); out.push({ k, x: tr2.x, y: tr2.y, s: tr2.r, rot: tr2.a, tint: snow && tr2.kind === 'pine' ? '#dfe8ee' : null, dim: v }); }
+      for (const o of sc.marks) { if (!near(o)) continue; const dn = !!(o.own && (o.own.destroyed || o.own.done || o.own.dead));
+        if (o.kind === 'pillar') out.push({ k: 'pillar', x: o.x, y: o.y, s: 0.6 * o.s, h: (o.broken ? 0.45 : 1) * o.h * o.s, rot: o.a, tint: RC });
+        else if ((o.kind === 'banner' || o.kind === 'flag') && !dn) out.push({ k: o.kind, x: o.x, y: o.y, s: o.s, rot: o.a, tint: pal.enemy }); }
+    }
+    const fk = { bugs: 'hive', bots: 'fab', lizards: 'camp' }[m.faction.id] || 'fab', hit = (o, at) => (t - (at ?? -99) < 0.1 ? '#ffffff' : null);
+    for (const b of m.bases || []) {
+      if (b.destroyed || !near(b)) continue;
+      if (b.spawners) {
+        if (!b.seen) continue;     // (still under its smoke)
+        for (const sp of b.spawners) if (!sp.dead) out.push({ k: fk, x: sp.x, y: sp.y, s: Math.max(2.2, sp.r * 1.35), rot: (b.id * 1.7 + sp.x) % 6.28, tint: hit(sp, sp.hurtAt) });
+        for (const T of b.turrets || []) if (!T.dead) out.push({ k: 'turret', x: T.x, y: T.y, s: Math.max(1.3, T.r * 1.1), rot: face(T.face), tint: hit(T, T.hurtAt) || pal.enemy });
+      } else out.push({ k: b.cannon ? 'cannon' : b.node ? 'node' : fk, x: b.x, y: b.y, s: Math.max(2.2, (b.r || 8) * (b.cannon ? 0.8 : b.node ? 0.6 : 0.85)), rot: b.cannon ? face(b.face) : (b.id * 1.7) % 6.28, tint: hit(b, b.lastHit) });
+    }
+    for (const p of m.posts || []) { const d = P3_POST[p.what]; if (d && !p.dead && !p.ghost && near(p)) out.push({ k: d[0], x: p.x, y: p.y, s: d[1], rot: face(p.face), tint: hit(p, p.hurtAt) }); }
+    for (const a of m.assets || []) if (a.kind === 'turret' && !a.dead && near(a)) out.push({ k: 'aturret', x: a.x, y: a.y, s: 1.5, rot: face(a.face), tint: hit(a, a.hurtAt) });
     return out;
   }
   draw(m, cam, ui) {
@@ -383,7 +407,7 @@ export class Renderer {
     cam.yaw = cam.orbit ? (cam.yaw0 || 0) + m.t * cam.orbit : 0; this.yaw = cam.yaw;
     // (GC 0.18) the land in 3D, when the camera asks for it and the machine can do it; without it, the turned sheet of 0.16
     if (cam.g3d && this._g3 === undefined) { try { this._g3 = new Ground3D(cam.livery); } catch (err) { console.warn('3D ground unavailable', err); this._g3 = null; } }
-    const g3 = cam.g3d ? this._g3 : null; this._g3on = false;
+    const g3 = cam.g3d ? this._g3 : null; this._g3on = false; VIEW.p3 = !!(g3 && g3.props);
     const U3 = this._u3 || (this._u3 = []); U3.length = 0; const u3 = g3 && g3.units ? U3 : null;
     const D3 = this._d3 || (this._d3 = []), S3 = this._s3l || (this._s3l = []), B3 = this._b3 || (this._b3 = []); D3.length = S3.length = B3.length = 0; this._s3 = u3 ? S3 : null;     // (GC 0.22) what falls, the ship's shells, the strobes     // (GC 0.20) who stands up in 3D this frame, and is not drawn on the sheet
     let real = null;
@@ -408,7 +432,7 @@ export class Renderer {
     // (0.38) the hour's light (light.js): its wash baked into the ground, the lights in view, and the night on the ground with them
     // carved out of it (only the ground: every unit, building and label is drawn over it, so nothing is harder to see)
     const lit = this.settings.lighting !== false, lowFx = this.quality === 'low' || this.perf.low, hq = Math.round(todAt(m) * 4) / 4;
-    const amb = lit ? ambient(todAt(m)) : null;
+    const amb = lit ? ambient(todAt(m)) : null; this._dark = amb ? amb.dark || 0 : 0;
     this._sun = amb && amb.sun ? { lx: amb.sun.lx, ly: amb.sun.ly, k: Math.max(0.25, 1 - amb.dark * 1.7) } : null;     // (0.62.10) for what is lit on the ground afterwards (craters)
     this._layers(ctx, scale, W, H, tx, ty, skyTint(hq).col, lit ? washKey(hq) : null);   // the tint (and the wash) move in quarter-hour steps
     if (amb) this.light.collect(m, this.fx, this.fxNow(m), { x0: -tx / scale, y0: -ty / scale, x1: (W - tx) / scale, y1: (H - ty) / scale }, this.settings, amb);
@@ -465,7 +489,7 @@ export class Renderer {
           for (const sp of b.spawners) {
             const sb = { ...b, x: sp.x, y: sp.y, r: Math.max(sp.r * 1.5, px(6)), hp: sp.hp, maxHp: sp.maxHp, spawners: undefined };
             if (sp.dead) { drawBaseRuin(ctx, sb, now, px); continue; }
-            raise(ctx, sp, sb.x, sb.y, sb.r * 1.7, sb.r * 0.42, (c) => drawBaseArt(c, sb, m.faction.id, pal.enemy, inZ, now, px), { ...RAISE_B, live: true, sig: inZ ? 1 : 0 });
+            if (!VIEW.p3) raise(ctx, sp, sb.x, sb.y, sb.r * 1.7, sb.r * 0.42, (c) => drawBaseArt(c, sb, m.faction.id, pal.enemy, inZ, now, px), { ...RAISE_B, live: true, sig: inZ ? 1 : 0 });
             if (sp.hp < sp.maxHp && !hideUi) { const bw = sb.r * 2.2; ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(sp.x - bw / 2, sp.y + sb.r * 1.25, bw, px(3)); ctx.fillStyle = pal.enemy; ctx.fillRect(sp.x - bw / 2, sp.y + sb.r * 1.25, bw * Math.max(0, sp.hp / sp.maxHp), px(3)); }
             if (t - (sp.hurtAt ?? -99) < 0.12) { ctx.strokeStyle = '#fff'; ctx.lineWidth = px(2); ctx.beginPath(); ctx.arc(sp.x, sp.y, sb.r * 1.1, 0, TAU); ctx.stroke(); }
             if (sp.maxShield && sp.shield > 0) {      // (0.55) the lizards' light shield: a bubble that flares when hit
@@ -478,7 +502,7 @@ export class Renderer {
           for (const T of b.turrets || []) {      // (0.55) a bot base's turrets
             const R = Math.max(T.r, px(5));
             if (T.dead) { ctx.fillStyle = 'rgba(30,30,30,0.7)'; ctx.beginPath(); ctx.arc(T.x, T.y, R, 0, TAU); ctx.fill(); continue; }
-            raise(ctx, T, T.x, T.y, R * 2.6, R * 0.7, (c) => drawTurretArt(c, T.x, T.y, T.face || 0, R, pal.enemy, px, t - (T.hurtAt ?? -99) < 0.1, t - (T.firedAt ?? -9)), { ...RAISE_B, live: true, sig: Math.round((T.face || 0) * 12) * 4 + (t - (T.hurtAt ?? -99) < 0.1 ? 1 : 0) + (t - (T.firedAt ?? -9) < 0.12 ? 2 : 0) });
+            if (!VIEW.p3) raise(ctx, T, T.x, T.y, R * 2.6, R * 0.7, (c) => drawTurretArt(c, T.x, T.y, T.face || 0, R, pal.enemy, px, t - (T.hurtAt ?? -99) < 0.1, t - (T.firedAt ?? -9)), { ...RAISE_B, live: true, sig: Math.round((T.face || 0) * 12) * 4 + (t - (T.hurtAt ?? -99) < 0.1 ? 1 : 0) + (t - (T.firedAt ?? -9) < 0.12 ? 2 : 0) });
             if (T.hp < T.maxHp && !hideUi) { const bw = R * 2.4; ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(T.x - bw / 2, T.y + R * 1.5, bw, px(3)); ctx.fillStyle = pal.enemy; ctx.fillRect(T.x - bw / 2, T.y + R * 1.5, bw * T.hp / T.maxHp, px(3)); }
           }
         }
@@ -486,7 +510,8 @@ export class Renderer {
         if (b === sqBase && !b.fortress) labels.push({ x: b.x, y: b.y, dy: -r * scale * 1.3 - 16, text: tr('lab.base'), col: 'rgba(215,230,220,0.9)' });
         continue;
       }
-      if (b.cannon) raise(ctx, b, b.x, b.y, b.r * 2.4, b.r * 0.5, (c) => drawCannonArt(c, b, pal.enemy, now, px, t), { ...RAISE_B, live: true });
+      if (VIEW.p3) { /* (GC 0.23) the building stands up as a model */ }
+      else if (b.cannon) raise(ctx, b, b.x, b.y, b.r * 2.4, b.r * 0.5, (c) => drawCannonArt(c, b, pal.enemy, now, px, t), { ...RAISE_B, live: true });
       else if (b.node) raise(ctx, b, b.x, b.y, b.r * 1.8, b.r * 0.5, (c) => drawNodeArt(c, b, pal.enemy, now, px), { ...RAISE_B, live: true });
       else raise(ctx, b, b.x, b.y, b.r * 1.7, b.r * 0.42, (c) => drawBaseArt(c, b, m.faction.id, pal.enemy, inZ, now, px), { ...RAISE_B, live: true, sig: inZ ? 1 : 0 });
       if (t - (b.lastHit ?? -99) < 0.12) { ctx.strokeStyle = '#fff'; ctx.lineWidth = px(2); ctx.beginPath(); ctx.arc(b.x, b.y, r * 1.1, 0, TAU); ctx.stroke(); }
@@ -703,7 +728,7 @@ export class Renderer {
     if (real) {     // lay the turned world on the screen
       const wc = this._wc, S = this.W; this.ctx = real.ctx; this.W = real.W; this.H = real.H; this.focusY = real.focusY; this._real = null; ctx = this.ctx; W = this.W; H = this.H;
       ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
-      if (g3) { g3.frame({ sheet: wc, S, scale, camX: v.camX, camY: v.camY, yaw: cam.yaw, tilt: cam.tilt, W, H, fy: this.focusY || 0.5, sun: this._sun, height: (x, y) => m.terrain.height(x, y), blocks: this._blocks(m, v.camX, v.camY, S / scale / 2), units: U3, drops: D3, shells: S3, strobes: B3, hot: cam.sight === 'whot' || cam.sight === 'bhot' }); ctx.filter = cam.sight === 'whot' ? 'grayscale(1) contrast(1.25) brightness(0.82)' : cam.sight === 'bhot' ? 'grayscale(1) invert(1) contrast(1.2) brightness(0.9)' : 'none'; ctx.drawImage(g3.cv, 0, 0); ctx.filter = 'none'; this._g3on = true; }     // (the sight: infrared white-hot, black-hot, or plain colour)
+      if (g3) { g3.frame({ sheet: wc, S, scale, camX: v.camX, camY: v.camY, yaw: cam.yaw, tilt: cam.tilt, W, H, fy: this.focusY || 0.5, sun: this._sun, height: (x, y) => m.terrain.height(x, y), blocks: this._blocks(m, v.camX, v.camY, S / scale / 2), props: VIEW.p3 ? this._props(m, v.camX, v.camY, S / scale / 2, pal) : null, lit: 1 - Math.min(0.6, (this._dark || 0) * 0.75), units: U3, drops: D3, shells: S3, strobes: B3, hot: cam.sight === 'whot' || cam.sight === 'bhot' }); ctx.filter = cam.sight === 'whot' ? 'grayscale(1) contrast(1.25) brightness(0.82)' : cam.sight === 'bhot' ? 'grayscale(1) invert(1) contrast(1.2) brightness(0.9)' : 'none'; ctx.drawImage(g3.cv, 0, 0); ctx.filter = 'none'; this._g3on = true; }     // (the sight: infrared white-hot, black-hot, or plain colour)
       else { ctx.translate(v.px, v.py); ctx.rotate(cam.yaw); ctx.drawImage(wc, -S / 2, -S / 2); }
     }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
