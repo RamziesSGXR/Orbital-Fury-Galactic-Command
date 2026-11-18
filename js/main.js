@@ -240,7 +240,7 @@ function leaveTheatre(out = {}) {
     let level = Math.min(out.level, cur);
     if (out.level > cur) { if (rec[key + 'Up'] !== g.round) { level = cur + 1; rec[key + 'Up'] = g.round; app.toast(`${p.name}: ${key} raised to ${level} on the map.`); } else app.toast(`${p.name}: the map takes one new ${key === 'station' ? 'tier' : 'charter'} a round. The rest is waiting for next round.`, 4000); }
     else if (out.level < cur) level = out.level;
-    War.setSite(p.id, key, Math.max(1, level)); rec[kind] = out;
+    War.setSite(p.id, key, Math.max(1, level), !!out.profit); rec[kind] = out;
   }
   state = 'war'; show('s-war'); War.show(true); app.keep();
   if (kind === 'ground' && out.abandon) app.toast('The landing is called off. The fleets still face each other.');
@@ -273,30 +273,48 @@ $('th-pause').onclick = () => { frameUi.paused = !frameUi.paused; $('th-pause').
 $('th-speed').onclick = () => { const s = frameUi.speeds; frameUi.speed = s[(s.indexOf(frameUi.speed) + 1) % s.length]; $('th-speed').textContent = frameUi.speed + '×'; audio.click(); };
 $('th-leave').onclick = () => { audio.click(); if (mode && mode.askLeave) mode.askLeave(); else if (mode) leaveTheatre(mode.report ? mode.report() : {}); };
 
-// ---------------------------------------------------------------- the armoury: the ship's weapons, bought with what the ground earns
-// What it will sell is set by the war effort behind you: every station tier and every base charter you hold opens the
-// next rank of it. Lose them and the shelves close again (what you own, you keep).
+// ---------------------------------------------------------------- the armoury: one shop for the whole war
+// Everything is bought from the war chest. Four shelves: the ground (the ship's weapons, Orbital Fury's own list), the
+// stations, the bases and the fleet. What a shelf will sell is set by the armoury rank: one for every station tier and
+// base charter that is linked to the capital and running in profit. What you own, you keep.
 const SECTIONS = { orbitals: 'ORBITALS', eagles: 'EAGLES', defense: 'DEFENCES', utilities: 'UTILITIES', hangar: 'HANGAR', gun: 'SHIP GUN', uav: 'UAV', seaf: 'TROOPS', build: 'BUILDING', support: 'SUPPORT', classified: 'CLASSIFIED' };
-app.armouryTier = () => { const g = War.war(); let n = 0; if (g) for (const p of g.P) if (p.owner === 'fed') n += (p.station || 0) + (p.base || 0); return Math.min(TIER_MAX, n); };
+const SHELVES = { ground: 'GROUND', station: 'STATIONS', base: 'BASES', fleet: 'FLEET' };
+app.armouryTier = () => { const g = War.war(); return g ? Math.min(TIER_MAX, g.rank()) : 0; };
+app.grant = (id) => { const g = War.war(), it = g && g.shelfItem(id); return it ? g.lv(id) * it.per : 0; };
+let armTab = 'ground';
 app.armoury = (then, done = 'DONE') => {
-  const kit = camp.kit, wal = camp.wallet, tier = app.armouryTier();
+  const kit = camp.kit, wal = camp.wallet, g = War.war();
   const draw = (note = '') => {
-    const items = shopItems(kit), secs = [...new Set(items.map((i) => i.section))];
-    const slots = Array.from({ length: kit.slots }, (_, i) => { const id = kit.loadout[i], it = id && items.find((x) => x.orb === id); return `<button class="plate btn sm${id ? ' on' : ''}" data-un="${i}" ${id ? '' : 'disabled'}>${id ? esc((it && it.name) || id) + ' ×' : 'EMPTY'}</button>`; }).join('');
-    let h = `<h2>Armoury</h2><p><b class="am">${Math.floor(wal.bal)} CR</b> · rank ${tier} of ${TIER_MAX} open <span class="dim">(one for every station tier and base charter you hold)</span></p>
-      <h3>Loadout · tap to take one out</h3><div class="row" style="margin-bottom:10px">${slots}</div>${note ? `<p class="am">${esc(note)}</p>` : ''}`;
-    for (const sec of secs) {
-      h += `<h3>${SECTIONS[sec] || sec.toUpperCase()}</h3>`;
-      for (const it of items.filter((i) => i.section === sec)) {
-        const open = shownAt(it, tier), maxed = it.cost == null, can = open && !maxed && wal.bal >= it.cost, inLoad = it.orb && kit.loadout.includes(it.orb);
-        h += `<div class="mis"><div><b class="${open ? '' : 'dim'}">${esc(it.name || it.id)}</b> <span class="sm2 dim">${it.max > 1 ? `level ${it.level}/${it.max}` : it.level ? 'owned' : ''}${it.blurb ? ' · ' + esc(it.blurb) : ''}</span></div>
-          <span class="row" style="flex-wrap:nowrap">${it.orb && it.owned && !inLoad ? `<button class="plate btn sm" data-eq="${it.orb}">EQUIP</button>` : ''}<button class="plate amber btn sm" data-buy="${it.id}" ${can ? '' : 'disabled'}>${!open ? 'LOCKED' : maxed ? 'MAX' : it.cost + ' CR'}</button></span></div>`;
+    const tier = app.armouryTier(), pay = g.postsPay();
+    const mats = GC.fronts.map((fr) => `<span style="color:${GC.color[fr.f]}">${g.loot[fr.f]} ${fr.lootShort}${pay.mat[fr.f] ? ` <i class="dim">+${pay.mat[fr.f]}</i>` : ''}</span>`).join(' · ');
+    let h = `<h2>Armoury</h2><p><b class="am">${Math.floor(wal.bal)} CR</b>${pay.cr ? ` <span class="dim">+${pay.cr} a round</span>` : ''} · ${mats}</p>
+      <p class="sm2">RANK ${tier} OF ${TIER_MAX} <span class="dim">· one for every station tier and base charter in profit</span></p>
+      <div class="row" style="margin-bottom:10px">${Object.keys(SHELVES).map((k) => `<button class="plate btn sm grow${armTab === k ? ' on' : ''}" data-tab="${k}">${SHELVES[k]}</button>`).join('')}</div>${note ? `<p class="am">${esc(note)}</p>` : ''}`;
+    if (armTab === 'ground') {
+      const items = shopItems(kit), secs = [...new Set(items.map((i) => i.section))];
+      const slots = Array.from({ length: kit.slots }, (_, i) => { const id = kit.loadout[i], it = id && items.find((x) => x.orb === id); return `<button class="plate btn sm${id ? ' on' : ''}" data-un="${i}" ${id ? '' : 'disabled'}>${id ? esc((it && it.name) || id) + ' ×' : 'EMPTY'}</button>`; }).join('');
+      h += `<h3>Loadout · tap to take one out</h3><div class="row" style="margin-bottom:10px">${slots}</div>`;
+      for (const sec of secs) {
+        h += `<h3>${SECTIONS[sec] || sec.toUpperCase()}</h3>`;
+        for (const it of items.filter((i) => i.section === sec)) {
+          const open = shownAt(it, tier), maxed = it.cost == null, can = open && !maxed && wal.bal >= it.cost, inLoad = it.orb && kit.loadout.includes(it.orb);
+          h += `<div class="mis"><div><b class="${open ? '' : 'dim'}">${esc(it.name || it.id)}</b> <span class="sm2 dim">${it.max > 1 ? `level ${it.level}/${it.max}` : it.level ? 'owned' : ''}${it.blurb ? ' · ' + esc(it.blurb) : ''}</span></div>
+            <span class="row" style="flex-wrap:nowrap">${it.orb && it.owned && !inLoad ? `<button class="plate btn sm" data-eq="${it.orb}">EQUIP</button>` : ''}<button class="plate amber btn sm" data-buy="${it.id}" ${can ? '' : 'disabled'}>${!open ? 'LOCKED' : maxed ? 'MAX' : it.cost + ' CR'}</button></span></div>`;
+        }
+      }
+    } else {
+      for (const it of GC.shelf[armTab]) {
+        const lv = g.lv(it.id), n = g.nextLevel(it.id), fr = GC.fronts[GC.factions.indexOf(it.mat)], open = n && tier >= n.rank;
+        h += `<div class="mis"><div><b class="${!n || open ? '' : 'dim'}">${it.name}</b> <span class="sm2 dim">level ${lv}/${it.lv.length} · ${esc(it.text)}</span></div>
+          <button class="plate amber btn sm" data-up="${it.id}" ${n && g.canBuy(it.id, wal.bal) ? '' : 'disabled'}>${!n ? 'MAX' : !open ? 'RANK ' + n.rank : `${n.cr} CR · ${n.n} ${fr.lootShort}`}</button></div>`;
       }
     }
     War.modal(h + '<button class="plate btn go" data-x="close" style="margin-top:10px;position:sticky;bottom:0">' + done + '</button>');
     const box = $('modal');
-    box.querySelector('[data-x=close]').onclick = () => { box.hidden = true; audio.click(); app.keep(); if (then) then(); };
+    box.querySelector('[data-x=close]').onclick = () => { box.hidden = true; audio.click(); app.keep(); War.redraw(); if (then) then(); };
+    for (const b of box.querySelectorAll('[data-tab]')) b.onclick = () => { armTab = b.dataset.tab; audio.click(); draw(); };
     for (const b of box.querySelectorAll('[data-buy]')) b.onclick = () => { const r = buy(kit, wal, b.dataset.buy, false, tier); if (r.ok) { audio.coin(); draw(); } else { audio.deny(); draw('That cannot be bought yet.'); } };
+    for (const b of box.querySelectorAll('[data-up]')) b.onclick = () => { if (g.buy(b.dataset.up, wal)) { audio.coin(); draw(); } else { audio.deny(); draw('That cannot be bought yet.'); } };
     for (const b of box.querySelectorAll('[data-eq]')) b.onclick = () => { if (equip(kit, b.dataset.eq)) { audio.click(); draw(); } else { audio.deny(); draw('Every slot is full. Take one out first.'); } };
     for (const b of box.querySelectorAll('[data-un]')) b.onclick = () => { unequip(kit, +b.dataset.un); audio.click(); draw(); };
   };

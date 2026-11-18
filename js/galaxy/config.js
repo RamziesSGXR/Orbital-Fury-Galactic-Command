@@ -1,5 +1,5 @@
 // Every number and every name in the game lives here, so the prototype can be retuned or renamed in one place.
-export const VERSION = '0.4.0';
+export const VERSION = '0.5.0';
 
 export const C = {
   names: {
@@ -30,9 +30,9 @@ export const C = {
   // `deg` is where the front lies on the map (screen degrees: 0 is east, 90 is south).
   // `loot` is the front's own resource: you win some with every victory there, and spend it on special sites.
   fronts: [
-    { f: 'swarm',   name: 'EASTERN FRONT',  short: 'EAST',  deg: 330, loot: 'ICHOR', lootShort: 'ICHOR' },
-    { f: 'foundry', name: 'WESTERN FRONT',  short: 'WEST',  deg: 210, loot: 'SCRAP PARTS', lootShort: 'SCRAP' },
-    { f: 'veil',    name: 'SOUTHERN FRONT', short: 'SOUTH', deg: 90,  loot: 'CARBON PEARLS', lootShort: 'PEARLS' },
+    { f: 'swarm',   name: 'EASTERN FRONT',  short: 'EAST',  deg: 330, loot: 'OIL', lootShort: 'OIL' },
+    { f: 'foundry', name: 'WESTERN FRONT',  short: 'WEST',  deg: 210, loot: 'METALS', lootShort: 'METAL' },
+    { f: 'veil',    name: 'SOUTHERN FRONT', short: 'SOUTH', deg: 90,  loot: 'TECHNOLOGY PARTS', lootShort: 'TECH' },
   ],
   color: { fed: '#7fe9e0', swarm: '#ff9a3d', foundry: '#ff6a4d', veil: '#b58cff', amber: '#f5d547' },
 
@@ -96,6 +96,35 @@ export const C = {
   // `engage`: rounds in one engagement. If neither side is out of hit points by then, the fight for the system goes on next
   // round: the fleets stay where they are and the damage stays done. `press`: pay fuel to fight on for more rounds now.
   // `repair`: hit points a system's own defences win back each round.
+  // ---------------------------------------------------------------- THE WAR CHEST, DEPOSITS AND THE ARMOURY (0.5)
+  // One currency for the whole war: credits (CR), kept in the war chest. The ground pays into it; so does every station
+  // and base that is running in profit, every round; so does every sector held whole. It buys everything in the armoury.
+  chest: { post: 30, sector: 2 },             // CR a round: for each tier or charter of a post in profit; for each whole sector
+  // Deposits: about `share` of the systems on a front hold that front's material (oil on the east, metals on the west,
+  // technology parts in the south; every enemy home has one). A base on a deposit lifts `per` a round, `profit` more
+  // when it is running in profit.
+  deposit: { share: 0.3, per: 1, profit: 1 },
+  // Armoury rank: one for every tier of a station and every charter of a base that is linked AND running in profit.
+  rankMax: 9,
+  // The shelves that are not the ground's (the ground's is Orbital Fury's own list). Each level: credits, a material,
+  // and the rank that opens it. `mat` is the front whose material it takes.
+  shelf: {
+    station: [
+      { id: 's_grant', name: 'FOUNDING GRANT',  text: 'Every new station opens with more credits.',        mat: 'foundry', lv: [[400, 4, 0], [900, 10, 2], [1800, 20, 4]], per: 600 },
+      { id: 's_trade', name: 'TRADE CHARTER',   text: 'A station in profit pays more into the war chest.', mat: 'foundry', lv: [[600, 6, 1], [1400, 14, 3], [2800, 28, 6]], per: 10 },
+      { id: 's_guns',  name: 'DEFENCE GRID',    text: 'Each station tier adds one more hit point.',        mat: 'foundry', lv: [[1200, 12, 2], [3200, 30, 5]], per: 1 },
+    ],
+    base: [
+      { id: 'b_grant', name: 'FOUNDING STORES', text: 'Every new base lands with more supplies.',          mat: 'swarm', lv: [[400, 4, 0], [900, 10, 2], [1800, 20, 4]], per: 150 },
+      { id: 'b_rigs',  name: 'DEEP RIGS',       text: 'A base on a deposit lifts one more a round.',       mat: 'swarm', lv: [[700, 6, 1], [1600, 14, 3], [3000, 28, 6]], per: 1 },
+      { id: 'b_yard',  name: 'WORKS',           text: 'Each base charter adds more to its system\'s output.', mat: 'swarm', lv: [[1200, 12, 2], [3200, 30, 5]], per: 0.1 },
+    ],
+    fleet: [
+      { id: 'f_hold',  name: 'DEPOTS',          text: 'Hold more fuel, armies and drops.',                 mat: 'veil', lv: [[500, 4, 0], [1200, 10, 2], [2400, 20, 4]], per: 5 },
+      { id: 'f_range', name: 'LONG DRIVES',     text: 'Fleets reach one system further.',                  mat: 'veil', lv: [[1500, 12, 3], [4000, 30, 6]], per: 1 },
+      { id: 'f_hand',  name: 'BATTLE STAFF',    text: 'One more card in hand in every battle.',            mat: 'veil', lv: [[5000, 40, 7]], per: 1 },
+    ],
+  },
   battle: { hand: 3, maxRounds: 12, engage: 3, press: { fuel: 3, rounds: 2 }, repair: 1 },
   // A battle fought on the ground is one hard engagement, not the whole war for the system: winning it does the damage of a
   // full engagement and half again, and spares your own side by how many lives were left.
@@ -142,8 +171,8 @@ export const C = {
   // else has into your battle deck. A site is lost with its system.
   sites: {
     testing: { name: 'TESTING CENTRE', loot: 'foundry', cost: 6, card: 'railgun', text: 'Two PROTOTYPE RAILGUN cards.' },
-    biolab:  { name: 'ICHOR LAB',      loot: 'swarm',   cost: 6, card: 'acid',    text: 'Two ICHOR WARHEADS cards.' },
-    array:   { name: 'PEARL ARRAY',    loot: 'veil',    cost: 6, card: 'mirror',  text: 'Two PEARL MIRROR cards.' },
+    biolab:  { name: 'WARHEAD LAB',      loot: 'swarm',   cost: 6, card: 'acid',    text: 'Two ICHOR WARHEADS cards.' },
+    array:   { name: 'OPTICS ARRAY',    loot: 'veil',    cost: 6, card: 'mirror',  text: 'Two PEARL MIRROR cards.' },
   },
 
   // ---------- what the ministries can do (none of these use up your decision) ----------

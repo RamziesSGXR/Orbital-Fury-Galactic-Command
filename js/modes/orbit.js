@@ -133,11 +133,12 @@ const mode = {
     acc = 0; tool = null; hot = null; sel = null; barSig = ''; deskSig = ''; thumbs = {}; saveT = 20; group = 'structure';
     $('th-where').textContent = st.faction.station;
     tabs(); bar(true); stats(); desk(); selBar();
+    if (!loaded) { const gr = app.grant('s_grant'); if (gr) st.credits += gr; }
     if (!loaded) { ui.message('A NEW STATION', 2600); ui.feed('MINISTRY: Lay the station out, then let its people at it. Only trouble will reach your desk.', 'radio'); }
     else ui.feed(`MINISTRY: Welcome back, Commander. Week ${st.week()}, day ${st.dow()}.`, 'radio');
   },
   store() { if (st && args) app.siteSave('orbit', args.system.id, st.save()); },
-  report() { return { level: Math.min(4, st.tier + 1), tier: C.tiers[st.tier].name, cap: st.capability() }; },
+  report() { let net = 0; try { net = st.ledger().credits.net; } catch { /* no accounts yet */ } return { profit: net > 0.05, net, level: Math.min(4, st.tier + 1), tier: C.tiers[st.tier].name, cap: st.capability() }; },
   leave() { mode.store(); mode.off = true; view.showPorts(null); view.setGhost(null, null, 0); },
   frame(dt, now, real) {
     if (!st) return;

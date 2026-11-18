@@ -172,11 +172,12 @@ const mode = {
     acc = 0; tool = null; sel = 0; barSig = ''; deskSig = ''; thumbs = {}; saveT = 25; group = 'roads'; ui.speeds = [1, 2, 4];
     $('th-where').textContent = sim.faction.base;
     tabs(); bar(true); stats(); desk(); selBar();
+    if (!loaded) { const gr = app.grant('b_grant'); if (gr) sim.supplies += gr; }
     if (!loaded) { ui.message('A NEW BASE', 2600); ui.feed('BASE: The command post is down. Draw a road from it, then zone along the road.', 'radio'); }
     else ui.feed(`BASE: Welcome back, Commander. Day ${Math.floor((sim.time || { day: 1 }).day)}.`, 'radio');
   },
   store() { if (sim && args) { try { app.siteSave('base', args.system.id, sim.save()); } catch (err) { console.error(err); } } },
-  report() { const s = sim.stage || 0; return { level: Math.min(4, s + 1), charter: C.STAGES[s].name, troops: sim.troops.length }; },
+  report() { const s = sim.stage || 0, r = sim.rates(), net = r.crNet + r.supNet; return { profit: sim.flow.days.length > 0 && net > 0, net, level: Math.min(4, s + 1), charter: C.STAGES[s].name, troops: sim.troops.length }; },
   leave() { mode.store(); mode.off = true; held.clear(); if (view) { view.setGhost(null); view.showLine(null); view.showPlots(null); } },
   frame(dt, now, real) {
     if (!sim) return;

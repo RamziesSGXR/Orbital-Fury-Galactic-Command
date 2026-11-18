@@ -57,10 +57,11 @@ function step() {
 
 // ---------- the top strip ----------
 function top() {
+  if (app) { const d = g.takeDue(); if (d) { app.camp.wallet.bal += d; app.camp.wallet.earned = (app.camp.wallet.earned || 0) + d; } }
   const cap = g.resMax(), cell = (k, cls) => `<div class="${cls}"><b>${Math.floor(g.res[k])}<i style="color:var(--dim)">/${cap}</i></b><span>${RES[k]}</span></div>`;
   const loot = C.fronts.map(fr => `<div style="--lc:${C.color[fr.f]}" class="lt"><b>${g.loot[fr.f]}</b><span>${fr.lootShort}</span></div>`).join('');
   $('top').innerHTML = `<button class="crest" data-a="menu" aria-label="Menu"><canvas id="crest-war" width="64" height="64"></canvas></button><div class="ttl">${esc(N.fed.toUpperCase())}<small>HIGH COMMAND</small></div><div class="rd">ROUND ${g.round}</div>
-    <div class="ro">${cell('fuel', 'a')}${cell('drop', '')}${cell('army', '')}${loot}</div><button class="plate btn sm" data-a="menu">MENU</button>`;
+    <div class="ro">${cell('fuel', 'a')}${cell('drop', '')}${cell('army', '')}${loot}</div><button class="plate amber btn sm" data-a="armoury">ARMOURY · ${app ? Math.floor(app.camp.wallet.bal) : 0} CR</button><button class="plate btn sm" data-a="menu">MENU</button>`;
   if (app) app.crest($('crest-war'));
   const last = g.log[g.log.length - 1];
   $('bulletin').className = last.kind; $('bulletin').textContent = `R${last.r} › ${last.text}`;
@@ -101,12 +102,15 @@ function tabSys() {
   if (p.site) h += `<div class="sm2 am">${C.sites[p.site].name}: ${C.sites[p.site].text}</div>`;
   { const sc = g.sectorOf(p), own = g.sectorOwners().get(sc.id), mine = sc.sys.filter(id => g.P[id].owner === 'fed').length;
     h += `<div class="sm2 ${own === 'fed' ? 'cy' : 'dim'}">SECTOR: ${esc(sc.name.toUpperCase())} · ${mine} / ${sc.sys.length} HELD${own === 'fed' ? ` · WHOLE: +${Math.round(C.sector.yield * 100)}% OUTPUT, +${C.sector.fort} HP` : own ? ` · HELD WHOLE BY ${N.factions[own].toUpperCase()}` : ` · hold it all for +${Math.round(C.sector.yield * 100)}% output`}</div>`; }
+  { const d = g.deposit(p); if (d) { const fr = C.fronts[C.factions.indexOf(d)]; h += `<div class="sm2" style="color:${C.color[d]}">DEPOSIT: ${fr.loot}${fed ? (p.base ? '' : ' · needs a base') : ''}</div>`; } }
   if (th) h += threatLine(p, th);
   h += '<canvas id="sys"></canvas>';
   if (fed && p.id !== 0) {
     const ok = fl.has(p.id) && g.ready() && !busy(), L = C.link;
     const btn = (kind, key, have, what) => `<button class="plate amber btn pol" data-a="${key}" data-p="${p.id}" ${ok && (have || g.canFound(p.id, kind)) ? '' : 'disabled'}><b>${have ? what + ' ' + have : 'FOUND A ' + kind.toUpperCase() + ' · ' + costTxt(L.found[kind])}</b><span>${kind === 'station' ? `+${L.stationFort} HP a tier · eases the ground here` : `+${Math.round(L.baseYield * 100)}% output a charter · ships at ${L.shipAt}`}</span></button>`;
     h += `<div class="thr">${btn('station', 'orbit', p.station, 'STATION · TIER')}${btn('base', 'base', p.base, 'BASE · CHARTER')}</div>`;
+    const run = (have, on, what) => have ? `<span class="${on ? 'cy' : 'am'}">${what} ${on ? 'IN PROFIT' : 'NOT IN PROFIT'}</span>` : '';
+    if (p.station || p.base) h += `<div class="sm2">${[run(p.station, p.sp, 'STATION'), run(p.base, p.bp, 'BASE')].filter(Boolean).join(' · ')}</div>`;
   }
   if (fed && T.yard) h += `<div class="sm2 am">${T.name}: ${T.yard}</div>`;
   p.worlds.forEach((w, i) => {
@@ -340,6 +344,7 @@ document.addEventListener('click', e => {
   const d = el.dataset;
   switch (d.a) {
     case 'menu': return app.menu();
+    case 'armoury': return app.armoury();
     case 'totitle': $('modal').hidden = true; return app.endCampaign();
     case 'cards': ui.cards = true; break;
     case 'ground': { const a = { battle: g.battle, system: g.P[g.battle.pid], level: g.groundLevel(), round: g.round }; return app.theatre('ground', a); }
@@ -443,5 +448,6 @@ export function show(on) { active = on; if (on) { view.resize(); if (view.front 
 // A battle settled on the ground comes back here: the result goes on the map and the battle screen shows it.
 export function groundResult(win, left) { if (g && g.battle && !g.battle.done) { g.battleResolve(win, left); ui.fx = null; ui.cards = false; } }
 // A station or a base has changed: its tier or rank goes on the system.
-export function setSite(pid, kind, level) { if (g && g.P[pid]) { g.P[pid][kind] = level; g._sec = null; } }
+export function setSite(pid, kind, level, profit) { if (g && g.P[pid]) { g.P[pid][kind] = level; g.P[pid][kind === 'station' ? 'sp' : 'bp'] = profit ? 1 : 0; g._sec = null; } }
+export function redraw() { if (g && active) refresh(); }
 export function lostSites() { const l = (g && g.lostSites) || []; if (g) g.lostSites = []; return l; }

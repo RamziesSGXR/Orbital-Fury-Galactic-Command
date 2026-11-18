@@ -1,6 +1,6 @@
 # Orbital Fury: Galactic Command
 
-**Prototype 0.4.0.** One war, run from four posts, in one game.
+**Prototype 0.5.0.** One war, run from four posts, in one game.
 
 You found a command (a name, a crest, colours) and hold the centre of the galaxy against three enemies. Everything in
 the war is yours to run, and each part changes the others:
@@ -37,6 +37,13 @@ This is one application with one save, one faction and one interface, not four g
 - `js/core/logo.js` is the crest maker shared by every post. `css/gc.css` is the one stylesheet.
 - The theatres are loaded the first time they are entered, so the game opens quickly.
 
+## The war chest and the armoury
+
+- **One currency.** Credits (CR) sit in the war chest. Ground battles pay into it, and so does every station and base that is running in profit, every round.
+- **Deposits.** About three systems in ten hold their front's material: oil in the east, metals in the west, technology parts in the south. A base on a deposit lifts it every round.
+- **Armoury rank.** One for every station tier and base charter that is linked to the capital and in profit. Rank opens the shelves.
+- **Four shelves.** Ground (the ship's weapons), stations, bases and fleet. The last three cost credits and a material. The armoury opens from the top of the war room.
+
 ## Saving
 
 The campaign is kept in the browser (`ofgc.campaign`). Each station and base keeps its own state under
@@ -48,9 +55,12 @@ With `npm start` running: `python3 test/shell.py` plays from the title through a
 desktop size; `python3 test/sites.py orbit` and `python3 test/sites.py base` found a station and a base, leave, and
 come back to them.
 
+- `python3 test/armoury.py` checks the armoury, the chest and that they survive a reload (needs `npm start`).
+
 ## Not in this version
 
-- In the ground battle: drawing routes, formations, squad merging, the supply pod and the tactical pause. Saved loadouts.
+- One look across the posts: the ground battle still wears Orbital Fury's own style, and the galaxy map is flat.
+- Fleet mechanics beyond the three fleet upgrades; supply lines that change what a system pays.
 - Most of the station's and the base's deeper panels (rooms inside parts, the ledger, research, patrols, landscaping).
 - The tutorial for the theatres, music, French and Spanish.
 - The setting: names and wording still come from the four prototypes and have not been made into one original setting yet.

@@ -39,7 +39,8 @@ export class Game {
     this.last = null;                // what the enemy just did on this front, for the screen to announce
     this.log = [];
     this.stats = { taken: 0, fallen: 0, held: 0, repelled: 0 };
-    for (const p of this.P) { p.station = 0; p.base = 0; p.dmg = 0; }
+    for (const p of this.P) { p.station = 0; p.base = 0; p.dmg = 0; p.sp = 0; p.bp = 0; }
+    this.up = {}; this.due = 0;      // armoury upgrades bought; credits owed to the war chest
     if (saved) return this._restore(saved);
     this.say('info', `Every world on the map flies the ${N.fed} flag. Long may it last.`);
     this._arrivals(); this._startRound();
@@ -55,18 +56,19 @@ export class Game {
 
   // ---------- saving (only while you are deciding) ----------
   save() {
-    const k = ['seed', 'rs', 'round', 'fi', 'res', 'loot', 'truth', 'F', 'fleets', 'fid', 'policy', 'priority', 'capHit', 'stats', 'over', 'last'];
-    const d = { v: 9, log: this.log.slice(-80), P: this.P.map(p => [p.owner, p.dev, p.site, p.built ? 1 : 0, p.station || 0, p.base || 0, p.dmg || 0]) };
+    const k = ['seed', 'rs', 'round', 'fi', 'res', 'loot', 'truth', 'F', 'fleets', 'fid', 'policy', 'priority', 'capHit', 'stats', 'over', 'last', 'up', 'due'];
+    const d = { v: 10, log: this.log.slice(-80), P: this.P.map(p => [p.owner, p.dev, p.site, p.built ? 1 : 0, p.station || 0, p.base || 0, p.dmg || 0, p.sp || 0, p.bp || 0]) };
     for (const x of k) d[x] = this[x];
     return d;
   }
   _restore(d) {
     for (const k in d) if (k !== 'v' && k !== 'P') this[k] = d[k];
-    d.P.forEach(([o, dv, st, bu, sn, bs, dm], i) => Object.assign(this.P[i], { owner: o, dev: dv, site: st, built: !!bu, station: sn || 0, base: bs || 0, dmg: dm || 0 }));
+    d.P.forEach(([o, dv, st, bu, sn, bs, dm, sp, bp], i) => Object.assign(this.P[i], { owner: o, dev: dv, site: st, built: !!bu, station: sn || 0, base: bs || 0, dmg: dm || 0, sp: sp || 0, bp: bp || 0 }));
+    this.up ||= {}; this.due ||= 0;
     this.phase = this.over ? 'over' : 'plan'; this._sec = null;
     return this;
   }
-  static load(d) { return d && d.v === 9 ? new Game(d.seed, d) : null; }
+  static load(d) { return d && (d.v === 9 || d.v === 10) ? new Game(d.seed, d) : null; }
 
   // ---------- the board ----------
   linked(owner, root) {
@@ -88,7 +90,7 @@ export class Game {
   }
   sectorStation(p) { this.sectorOwners(); return this._stn[p.sector] || 0; }
   // How much of each resource you can hold: more with every station tier and base charter.
-  resMax() { let n = 0; for (const p of this.P) if (p.owner === 'fed') n += (p.station || 0) + (p.base || 0); return C.resMax + n * C.link.capPer; }
+  resMax() { let n = 0; for (const p of this.P) if (p.owner === 'fed') n += (p.station || 0) + (p.base || 0); return C.resMax + n * C.link.capPer + this.lv('f_hold') * 5; }
   sectorOf(p) { return this.map.sectors.find(sc => sc.id === p.sector); }
   sectorHeld(p) { return this.sectorOwners().get(p.sector) === p.owner; }
   keyWorld(p) { return p.worlds[p.key]; }
@@ -110,7 +112,7 @@ export class Game {
     if (p.owner !== 'fed') return Math.max(0, (p.kind === 'home' ? C.garr.home + Math.floor(((this.sectorOwners(), this._cnt)[p.owner] || 0) / C.homePer) : C.garr.sys) + p.worlds.filter(w => w.type === 'fortress').length * C.garr.fortress + (this.sectorHeld(p) ? C.sector.fort : 0) - (p.dmg || 0));
     let v = (p.id === 0 ? C.fort.capital : C.fort.sys) + (this.priority != null && p.front === this.priority ? C.priority.fort : 0);
     for (const w of p.worlds) v += C.worlds[w.type].fort || 0;
-    v += (p.station || 0) * C.link.stationFort + (this.sectorHeld(p) ? C.sector.fort : 0) + (this.sectorStation(p) >= C.link.sectorFortAt ? 1 : 0);
+    v += (p.station || 0) * (C.link.stationFort + this.lv('s_guns')) + (this.sectorHeld(p) ? C.sector.fort : 0) + (this.sectorStation(p) >= C.link.sectorFortAt ? 1 : 0);
     return Math.max(0, Math.round(v * (this.fedLinked().has(p.id) ? 1 : C.cut)) - (p.dmg || 0));
   }
   // Total hit points a system would fight with: its own, plus its owner's fleet there.
@@ -119,7 +121,7 @@ export class Game {
   reach(f) {
     const seen = new Set([f.at]); if (f.moved) return seen;
     let edge = [f.at];
-    for (let d = 0; d < C.fleetRange && edge.length; d++) { const next = []; for (const a of edge) for (const n of this.P[a].adj) if (!seen.has(n) && this.P[n].owner === f.owner) { seen.add(n); next.push(n); } edge = next; }
+    for (let d = 0; d < C.fleetRange + this.lv('f_range') && edge.length; d++) { const next = []; for (const a of edge) for (const n of this.P[a].adj) if (!seen.has(n) && this.P[n].owner === f.owner) { seen.add(n); next.push(n); } edge = next; }
     return seen;
   }
   // The enemy fleets beside one of your systems that could strike it, strongest first.
@@ -147,7 +149,7 @@ export class Game {
   }
   _hand(owner) {
     const d = this.deck(owner), h = [];
-    for (let i = 0; i < C.battle.hand && d.length; i++) h.push(d.splice(Math.floor(this.rnd() * d.length), 1)[0]);
+    for (let i = 0; i < C.battle.hand + (owner === 'fed' ? this.lv('f_hand') : 0) && d.length; i++) h.push(d.splice(Math.floor(this.rnd() * d.length), 1)[0]);
     return h;
   }
   _truth(owner, id, why) {
@@ -230,7 +232,7 @@ export class Game {
     const fl = this.fedLinked(), pol = C.policy[this.policy], r = { ...C.capitalYield };
     for (const p of this.P) {
       if (p.owner !== 'fed' || p.id === 0 || !fl.has(p.id)) continue;
-      const m = (1 + C.develop.mult * p.dev + C.link.baseYield * (p.base || 0) + (this.sectorHeld(p) ? C.sector.yield : 0)) * (this.priority != null && p.front === this.priority ? C.priority.yield : 1);
+      const m = (1 + C.develop.mult * p.dev + (C.link.baseYield + 0.1 * this.lv('b_yard')) * (p.base || 0) + (this.sectorHeld(p) ? C.sector.yield : 0)) * (this.priority != null && p.front === this.priority ? C.priority.yield : 1);
       for (const w of p.worlds) {
         const t = C.worlds[w.type]; if (!t.res) continue;
         r[t.res] += t.y * m * (t.res === 'drop' ? pol.drop : t.res === 'army' ? pol.forge : 1);
@@ -285,6 +287,7 @@ export class Game {
     const r = this.res, inc = this.income();
     const cap = this.resMax(); for (const k in inc) r[k] = clamp(r[k] + inc[k], 0, cap);
     if (this.round % C.link.shipEvery === 0) { const fl = this.fedLinked(); for (const p of this.P) if (p.owner === 'fed' && (p.base || 0) >= C.link.shipAt && fl.has(p.id)) this._put('fed', p.id, 1); }
+    this._posts();
     for (const f of this.fleets) f.moved = false;
     for (const p of this.P) { p.built = false; if (p.dmg) p.dmg = Math.max(0, p.dmg - C.battle.repair); }
     this.capHit = [];
@@ -307,7 +310,7 @@ export class Game {
       }
     }
   }
-  _capture(p, owner) { this._sec = null; p.owner = owner; p.dev = 0; p.dmg = 0; if (p.station || p.base) { if (owner !== 'fed') this.say('bad', `${p.station ? 'The station over' : 'The base on'} ${p.name} is lost.`); p.station = 0; p.base = 0; this.lostSites = (this.lostSites || []).concat(p.id); } if (p.site) { if (owner !== 'fed') this.say('bad', `The ${C.sites[p.site].name} at ${p.name} is lost.`); p.site = null; } }
+  _capture(p, owner) { this._sec = null; p.owner = owner; p.dev = 0; p.dmg = 0; p.sp = 0; p.bp = 0; if (p.station || p.base) { if (owner !== 'fed') this.say('bad', `${p.station ? 'The station over' : 'The base on'} ${p.name} is lost.`); p.station = 0; p.base = 0; this.lostSites = (this.lostSites || []).concat(p.id); } if (p.site) { if (owner !== 'fed') this.say('bad', `The ${C.sites[p.site].name} at ${p.name} is lost.`); p.site = null; } }
   // A beaten fleet falls back to a neighbouring system of its own side, or is lost if there is none.
   _retreat(f, pid) {
     const fl = f.owner === 'fed' ? this.fedLinked() : null;
@@ -427,6 +430,32 @@ export class Game {
     raw -= st >= L.threatAt[1] ? 2 : st >= L.threatAt[0] ? 1 : 0;                              // a station overhead
     return clamp(Math.round(raw), L.level.min, L.level.max);
   }
+  // ---------- the war chest, deposits and the armoury ----------
+  lv(id) { return (this.up && this.up[id]) || 0; }
+  // Which front's material lies under a system, if any: fixed by the map, about three systems in ten, and every enemy home.
+  deposit(p) { if (p.front < 0 || p.id === 0) return null; return p.kind === 'home' || (Math.imul(p.id + 7, 2654435761) >>> 0) % 100 < C.deposit.share * 100 ? C.fronts[p.front].f : null; }
+  // Armoury rank: every station tier and base charter that is linked and running in profit.
+  rank() { const fl = this.fedLinked(); let n = 0; for (const p of this.P) if (p.owner === 'fed' && fl.has(p.id)) n += (p.sp ? p.station || 0 : 0) + (p.bp ? p.base || 0 : 0); return Math.min(C.rankMax, n); }
+  // What the posts and sectors pay this round: credits owed to the chest, and material lifted by bases on deposits.
+  postsPay() {
+    const fl = this.fedLinked(), out = { cr: 0, mat: { swarm: 0, foundry: 0, veil: 0 } };
+    for (const p of this.P) {
+      if (p.owner !== 'fed' || !fl.has(p.id)) continue;
+      if (p.station && p.sp) out.cr += p.station * (C.chest.post + 10 * this.lv('s_trade'));
+      if (p.base && p.bp) out.cr += p.base * C.chest.post;
+      const d = p.base ? this.deposit(p) : null; if (d) out.mat[d] += C.deposit.per + (p.bp ? C.deposit.profit : 0) + this.lv('b_rigs');
+    }
+    for (const [id, o] of this.sectorOwners()) if (o === 'fed' && id !== 0) out.cr += C.chest.sector;
+    return out;
+  }
+  _posts() { const o = this.postsPay(); this.due += o.cr; for (const k in o.mat) this.loot[k] += o.mat[k]; }
+  // The shell empties this into the war chest whenever it looks.
+  takeDue() { const n = this.due || 0; this.due = 0; return n; }
+  shelfItem(id) { for (const k in C.shelf) for (const it of C.shelf[k]) if (it.id === id) return it; return null; }
+  // The next level of an upgrade: { cr, mat, n, rank }, or null when it is at its top.
+  nextLevel(id) { const it = this.shelfItem(id), l = it && it.lv[this.lv(id)]; return l ? { cr: l[0], mat: it.mat, n: l[1], rank: l[2] } : null; }
+  canBuy(id, bal) { const n = this.nextLevel(id); return !!n && bal >= n.cr && this.loot[n.mat] >= n.n && this.rank() >= n.rank; }
+  buy(id, wallet) { if (!this.canBuy(id, wallet.bal)) return false; const n = this.nextLevel(id); wallet.bal -= n.cr; wallet.spent = (wallet.spent || 0) + n.cr; this.loot[n.mat] -= n.n; this.up[id] = this.lv(id) + 1; return true; }
   // FOUND a station over, or a base on, a system of yours: paid for from the war's resources.
   canFound(pid, kind) { const p = this.P[pid]; return this.ready() && !!p && p.owner === 'fed' && p.id !== 0 && !p[kind] && this.fedLinked().has(pid) && this.canPay(C.link.found[kind]); }
   found(pid, kind) { if (!this.canFound(pid, kind)) return false; this._pay(C.link.found[kind]); this.P[pid][kind] = 1; this._sec = null; this.say('good', `A ${kind} is founded at ${this.P[pid].name}.`); return true; }
