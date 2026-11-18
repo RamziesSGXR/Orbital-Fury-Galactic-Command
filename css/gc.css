@@ -165,7 +165,7 @@ section { margin-bottom: 10px; }
 #modal h2 { font: 700 20px var(--head); letter-spacing: 2px; color: var(--amber); margin-bottom: 8px; text-transform: uppercase; }
 #modal p, #modal li { margin-bottom: 8px; font-size: 12.5px; }
 #modal ul { padding-left: 16px; margin-bottom: 10px; }
-@media (max-height: 760px) { .card { height: 112px; } .card .tx { display: none; } }
+@media (max-height: 640px) { .card { height: 150px; } .card .art { height: 40px; } }
 
 /* ---------- the tutorial coach: sits above the office tabs, so the map stays clear ---------- */
 #coach { flex: 0 0 auto; background: rgba(40, 36, 10, 0.9); border-top: 2px solid var(--amber); padding: 8px 10px; }
@@ -385,3 +385,20 @@ button small { display: block; font: 9.5px var(--mono); letter-spacing: 0.5px; o
 /* the ground theatre is Orbital Fury whole, over the full screen */
 #g-frame { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; z-index: 6; background: #050706; }
 #s-theatre.bare > * { visibility: hidden; }
+
+/* Cards a size you can read from a chair: a picture, a name, three numbers with their signs, one plain line. */
+.card { flex: 0 0 150px; width: 150px; height: 206px; padding: 8px 9px; gap: 4px; }
+.card .art { width: 100%; height: 64px; margin: 2px 0; }
+.card b { font-size: 13px; }
+.card .st { display: flex; gap: 9px; font: 600 13px var(--mono); }
+.card .st i { font-style: normal; display: inline-flex; align-items: center; gap: 3px; }
+.card .st svg { width: 13px; height: 13px; margin: 0; color: inherit; }
+.card .st .h { color: var(--amber); } .card .st .b { color: var(--cyan); } .card .st .r { color: #c8ff6a; }
+.card .tx { font-size: 11px; line-height: 1.3; color: var(--text, #e6eadc); }
+.offer .card { height: 206px; }
+.fhand .card { flex: 1 1 0; width: auto; max-width: 170px; height: 206px; }
+@media (max-width: 700px) {
+  .card { flex-basis: 112px; width: 112px; height: 170px; padding: 6px 7px; }
+  .card .art { height: 44px; } .card b { font-size: 11px; } .card .st { font-size: 11px; gap: 6px; } .card .tx { font-size: 9.5px; }
+  .offer .card, .fhand .card { height: 170px; }
+}

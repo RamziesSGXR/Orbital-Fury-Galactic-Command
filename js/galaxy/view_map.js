@@ -45,11 +45,13 @@ export class View {
   // Zoom by a factor, keeping the point under (x, y) where it is.
   zoomAt(f, x = this.cx0, y = this.cy0) {
     this.goal = null;
-    if (this.gl) { this.zoom *= f; this._apply(); return; }
+    if (this.gl) { const G = this.gl, a = G.ground(x, y); this.zoom *= f; this._apply(); const b = G.ground(x, y); if (a && b) { G.tx += a[0] - b[0]; G.tz += a[1] - b[1]; G.place(); } return; }     // what is under the pointer stays under it
     const z = Math.max(1, Math.min(4.5, this.zoom * f)), r = z / this.zoom;
     this.ox = x - this.cx0 - (x - this.cx) * r; this.oy = y - this.cy0 - (y - this.cy) * r;
     this.zoom = z; this._apply();
   }
+  // turn the board (3D only)
+  turn(da) { if (!this.gl) return; this.goal = null; this.rot += da; this._apply(); }
   pan(dx, dy) { this.goal = null; if (this.gl) { this.gl.pan(dx, dy); return; } this.ox += dx; this.oy += dy; this._apply(); }
   reset() { this.zoom = 1; this.ox = this.oy = 0; this.rot = 0; this.goal = null; if (this.gl) { this.gl.tx = this.gl.tz = 0; } this._apply(); }
   // Turn and close in on one war front, so that it fills the view with its enemy's home at the top.

@@ -88,14 +88,14 @@ $('b-settings').onclick = () => { audio.click(); openMenu('settings'); };
 $('b-credits').onclick = () => { audio.click(); credits(); };
 
 function how(then) {
-  War.modal(`<h2>One war, four posts</h2><p>You hold the centre of the map. Three enemies are coming for it. Every part of the war is yours to run, and each part changes the others.</p>
+  War.modal(`<h2>One war, four jobs</h2><p>You run a private fleet. Three enemies are coming for your worlds. Win the war, and look good doing it.</p>
     <div class="how">
-      <div><b>THE WAR ROOM</b>The galaxy map. One decision on each front a round: attack, defend or hold. This is where the war is won or lost.</div>
-      <div><b>THE GROUND</b>When fleets meet you can take the fight down to the planet and cover the landing from orbit with the ship's guns. Win there and the system is yours.</div>
-      <div><b>THE STATION</b>Found a station over a system you hold. Each tier it reaches makes the system harder to take and ships cheaper to build there.</div>
-      <div><b>THE BASE</b>Found a base on its key world. Each rank it earns raises what the system pays into the war.</div>
+      <div><b>THE WAR ROOM</b>The map. Each round you move your fleets, attack or defend. Battles are fought with cards.</div>
+      <div><b>THE GROUND</b>Or fight a battle yourself: cover your squad from orbit with the ship's guns. One fight a round is on camera.</div>
+      <div><b>THE STATION</b>Builds your ships and repairs them.</div>
+      <div><b>THE BASE</b>Trains your troops and digs up materials.</div>
     </div>
-    <p class="dim">A system that falls takes its station and its base with it.</p>
+    <p class="dim">Lose a system and the enemy takes its station and base too.</p>
     <button class="plate btn go" data-x="close">${then ? 'TO THE WAR ROOM' : 'CLOSE'}</button>`);
   $('modal').querySelector('[data-x=close]').onclick = () => { $('modal').hidden = true; audio.click(); if (then) then(); };
 }

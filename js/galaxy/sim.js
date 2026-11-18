@@ -290,8 +290,8 @@ export class Game {
     for (const f of mine) for (const t of this.targets(f)) { const r = f.ships * HP / this.strength(t); if (!best || r > best.r) best = { f, t, r }; }
     if (best && best.r >= 1.15) say('good', `Your fleet of ${best.f.ships} at ${this.P[best.f.at].name} can take ${this.P[best.t].name}: ${best.f.ships * HP} hit points against ${this.strength(best.t)}${this.P[best.t].kind === 'home' ? '. It is the enemy home' : ''}.`, best.t, best.f.id);
     else if (best) say('info', `No attack on this front is safe yet. The softest target is ${this.P[best.t].name} (${this.strength(best.t)} hit points); your strongest fleet in reach has ${best.f.ships * HP}.`, best.t);
-    if (this.P.some(p => this.canBuild(p.id))) say('info', 'You can afford a ship. Tap a system of yours on this front to build one.');
-    for (const k in C.sites) if (this.P.some(p => this.canSite(p.id, k))) say('good', `You have enough ${C.fronts[C.factions.indexOf(C.sites[k].loot)].loot.toLowerCase()} for a ${C.sites[k].name}: ${C.sites[k].text} Tap a system of yours to build it.`);
+    if (this.P.some(p => this.canBuild(p.id))) say('info', 'You can afford a ship. Pick your headquarters or a system with a station to build one.');
+    for (const k in C.sites) if (this.P.some(p => this.canSite(p.id, k))) say('good', `You have enough ${C.fronts[C.factions.indexOf(C.sites[k].loot)].loot.toLowerCase()} for a ${C.sites[k].name}: ${C.sites[k].text} Pick a system of yours to build it.`);
     if (!out.length) say('info', fr ? 'Nothing presses on this front. Build, bring a fleet across, or hold.' : 'No front is at war. Place a fleet or build a ship, then end the round.');
     return out.slice(0, 6);
   }

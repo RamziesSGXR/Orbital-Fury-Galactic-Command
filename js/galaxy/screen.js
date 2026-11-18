@@ -84,9 +84,35 @@ function threatLine(p, t) {
   return `<button class="ln lk" data-a="sel" data-p="${p.id}">${shieldSvg(cl)} <b>${esc(p.name)}</b> · ${N.factions[t.f]} ${ships(t.ships)} beside it (${t.hp} hit points), yours ${D} <span class="${cl}">${w}</span></button>`;
 }
 const threats = () => g.P.map(p => ({ p, t: g.threat(p.id) })).filter(x => x.t).sort((a, b) => a.p.ring - b.p.ring);
+// A picture for every card, so a card is known at a glance (line drawings for now; painted art replaces them one for one).
+const A = (d) => `<svg class="art" viewBox="0 0 64 40" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+const ART = {
+  volley: '<path d="M6 20l10-6v12zM22 12h34M22 20h38M22 28h34"/><path d="M52 8l5 4-5 4M56 16l5 4-5 4M52 24l5 4-5 4"/>',
+  brace: '<path d="M32 4l18 6v10c0 9-8 14-18 17C22 34 14 29 14 20V10z"/><path d="M24 22l8-8 8 8M24 29l8-8 8 8"/>',
+  burn: '<path d="M60 20L38 10l4 10-4 10z"/><path d="M36 14H18M36 20H6M36 26H18" stroke-dasharray="6 4"/>',
+  armour: '<path d="M8 28l8-18h22l14 9-14 9z"/><path d="M20 12v16M30 10v20M40 13v14M46 6l10 6-10 6"/>',
+  drop: '<path d="M32 4v6M24 10h16l-3 14H27z"/><path d="M32 24l-5 8M32 24l5 8M10 36h44"/><path d="M12 8v10M20 4v8M44 4v8M52 8v10" stroke-dasharray="3 3"/>',
+  bulwark: '<path d="M8 34V14h8v-6h8v6h16v-6h8v6h8v20z"/><path d="M8 22h48M22 14v8M42 14v8M32 22v12"/>',
+  railgun: '<path d="M4 16h34v8H4zM38 20h22"/><path d="M12 16V10h8v6M46 6c6 6 6 22 0 28" stroke-dasharray="1 0"/><path d="M52 14l8 6-8 6"/>',
+  acid: '<path d="M22 6c8 10 12 16 12 21a12 12 0 0 1-24 0c0-5 4-11 12-21z"/><path d="M44 12l10 4-2 6M46 26l8 2M16 26a6 6 0 0 0 6 6"/>',
+  mirror: '<ellipse cx="38" cy="20" rx="12" ry="16"/><path d="M4 12l22 8-22 8M10 9l-6 3 4 5M34 12l8 6M34 22l6 4"/>',
+  newsreel: '<rect x="8" y="6" width="48" height="28" rx="2"/><path d="M8 12h48M8 28h48M16 6v6M28 6v6M40 6v6M52 6v6M16 28v6M28 28v6M40 28v6M52 28v6M28 16l10 4-10 4z"/>',
+  heroes: '<path d="M22 4l6 12M42 4l-6 12"/><circle cx="32" cy="25" r="11"/><path d="M32 18l2 5h5l-4 3 2 5-5-3-5 3 2-5-4-3h5z"/>',
+  lastStand: '<path d="M6 36c8-10 44-10 52 0M30 30V6M30 6c8-3 12 5 22 1v12c-10 4-14-4-22-1"/>',
+  rush: '<path d="M6 10l8 5-8 5M20 6l8 5-8 5M20 22l8 5-8 5M34 12l8 5-8 5M48 16l10 4-10 4M6 26l8 5-8 5"/>',
+  frenzy: '<path d="M6 12l8 8 6-8 6 8 6-8 6 8 6-8 6 8 8-8M6 30l8-8 6 8 6-8 6 8 6-8 6 8 6-8 8 8"/>',
+  siege: '<circle cx="18" cy="28" r="8"/><path d="M14 20L44 6l6 10-26 14M50 8l10-4M52 14l10 0"/>',
+  plating: '<path d="M10 8h14l6 6v12l-6 6H10zM34 8h14l6 6v12l-6 6H34z"/><path d="M14 14h6M14 26h6M38 14h6M38 26h6"/>',
+  phase: '<path d="M36 4v32M42 4v32"/><path d="M4 20h24" /><path d="M46 20h14M54 14l6 6-6 6" stroke-dasharray="4 3"/>',
+  fog: '<path d="M8 14c6-6 12 6 18 0s12-6 18 0 8 2 12 0M8 22c6-6 12 6 18 0s12-6 18 0 8 2 12 0M8 30c6-6 12 6 18 0s12-6 18 0 8 2 12 0"/>',
+  dread: '<path d="M32 36V16M26 36l6-14 6 14"/><circle cx="32" cy="12" r="2.5"/><path d="M24 6a12 12 0 0 0 0 12M40 6a12 12 0 0 1 0 12M17 2a20 20 0 0 0 0 20M47 2a20 20 0 0 1 0 20"/>',
+  triumph: '<path d="M24 36l4-24 4-8 4 8 4 24zM28 20h8M27 28h10"/><path d="M12 12l6 4M52 12l-6 4M8 24h8M56 24h-8"/>',
+};
+const SI = { h: '<path d="M2 12L10 4M6 3h5v5M3 8l3 3"/>', b: '<path d="M7 1l5 2v4c0 3-2 5-5 6-3-1-5-3-5-6V3z"/>', r: '<path d="M7 2v10M2 7h10"/>' };
+const stat = (k, v) => `<i class="${k}"><svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${SI[k]}</svg>${v}</i>`;
 function cardHtml(id, attrs = '', cls = '') {
-  const c = C.bcards[id], stats = [c.atk && `+${c.atk} HIT`, c.block && `${c.block > 50 ? 'ALL' : c.block} BLOCK`, c.heal && `+${c.heal} REPAIR`].filter(Boolean).join(' · ');
-  return `<button class="card t-${c.kind}${cls}" ${attrs}><span class="ct"><em>${{ fleet: 'FLEET', world: 'WORLD', site: 'SITE', truth: 'TRUTH', foe: 'ENEMY' }[c.kind]}</em></span>${svg(ICON[c.kind])}<b>${c.name}</b><span class="st">${stats}</span><span class="tx">${c.text}</span></button>`;
+  const c = C.bcards[id], stats = [c.atk && stat('h', c.atk), c.block && stat('b', c.block > 50 ? 'ALL' : c.block), c.heal && stat('r', c.heal)].filter(Boolean).join('');
+  return `<button class="card t-${c.kind}${cls}" ${attrs}><span class="ct"><em>${{ fleet: 'FLEET', world: 'WORLD', site: 'SITE', truth: 'PUBLICITY', foe: 'ENEMY' }[c.kind]}</em></span>${A(ART[id] || '')}<b>${c.name}</b><span class="st">${stats}</span><span class="tx">${c.when || c.text}</span></button>`;
 }
 function deckList(owner) {
   const n = {}; for (const id of g.deck(owner)) n[id] = (n[id] || 0) + 1;
@@ -95,7 +121,7 @@ function deckList(owner) {
 
 function tabSys() {
   const p = g.P[ui.sel];
-  if (!p) return '<div class="sm2 dim">Tap a star system on the map.</div>';
+  if (!p) return '<div class="sm2 dim">Pick a star system on the map.</div>';
   const fed = p.owner === 'fed', fl = g.fedLinked(), th = g.threat(p.id), fr = p.front >= 0 ? C.fronts[p.front] : null, T = C.worlds[g.keyWorld(p).type], n = g.shipsAt(p.id, p.owner);
   let h = `<section class="plate"><div class="row"><span class="big grow">${esc(p.name)}</span><span class="sm2 dim">${p.kind === 'capital' ? 'THE CAPITAL' : p.kind === 'home' ? 'ENEMY HOME' : fr.name}</span></div>`;
   h += `<div class="sm2" style="color:${C.color[p.owner]}">${(fed ? N.fed : N.factions[p.owner]).toUpperCase()} · ${g.strength(p.id)} HIT POINTS (system ${g.fort(p)} + ${ships(n)})${fed && !fl.has(p.id) ? ' · <span class="rd2">CUT OFF</span>' : ''}${p.dev ? ` · DEVELOPED ${p.dev}` : ''}</div>`;
@@ -221,7 +247,7 @@ function side() {
   $('mins').innerHTML = TABS.map(k => `<button class="min${ui.open && ui.tab === k ? ' on' : ''}" data-a="tab" data-t="${k}">${svg(MICON[k])}<span>${C.offices[k].short}</span>${dot[k] ? `<i>${dot[k]}</i>` : ''}</button>`).join('');
   $('side').classList.toggle('open', ui.open);
   const p = g.P[ui.sel];
-  $('panel').innerHTML = `<div class="sh"><b>${ui.tab === 'sys' ? (p ? esc(p.name.toUpperCase()) : 'SYSTEM') : 'HEAD OFFICE OF ' + C.offices[ui.tab].name}</b><button class="plate btn sm" data-a="shut" aria-label="Close">×</button></div>` + TAB[ui.tab]();
+  $('panel').innerHTML = `<div class="sh"><b>${ui.tab === 'sys' ? (p ? esc(p.name.toUpperCase()) : 'SYSTEM') : C.offices[ui.tab].name + ' OFFICE'}</b><button class="plate btn sm" data-a="shut" aria-label="Close">×</button></div>` + TAB[ui.tab]();
 }
 
 // ---------- the decision bar ----------
@@ -294,12 +320,15 @@ function tutorial() {
     return;
   }
 }
+// On a mouse it is a click, on a touch screen a tap.
+const FINE = typeof matchMedia === 'function' && matchMedia('(pointer: fine)').matches;
+const words = (s) => (FINE ? s.replace(/\bTap\b/g, 'Click').replace(/\btap\b/g, 'click') : s);
 function coach() {
   const st = ui.tut == null ? null : STEPS[ui.tut], inFight = fighting(), show = st && (inFight || !busy());
   for (const el of [$('coach'), $('fcoach')]) el.hidden = true;
   if (!show) return;
   const el = inFight ? $('fcoach') : $('coach'); el.hidden = false;
-  el.innerHTML = `<div class="ctx"><em>TUTORIAL · ${ui.tut + 1} OF ${STEPS.length}</em><p>${st.text(g, ui)}</p></div><div class="cbt">` +
+  el.innerHTML = `<div class="ctx"><em>TUTORIAL · ${ui.tut + 1} OF ${STEPS.length}</em><p>${words(st.text(g, ui))}</p></div><div class="cbt">` +
     (st.next ? `<button class="plate btn go" data-a="tnext">${st.last ? 'FINISH' : 'NEXT'}</button>` : '') +
     (st.help ? `<button class="plate amber btn sm" data-a="thelp">${st.help}</button>` : '') +
     (st.next ? '' : '<button class="plate btn sm" data-a="tnext">SKIP STEP</button>') + '<button class="plate btn sm" data-a="tend">END TUTORIAL</button></div>';
@@ -312,7 +341,7 @@ function outline() {
 }
 
 // ---------- overlays ----------
-function modal(html) { $('modal').innerHTML = `<div class="plate amber box">${html}</div>`; $('modal').hidden = false; }
+function modal(html) { $('modal').innerHTML = `<div class="plate amber box">${words(html)}</div>`; $('modal').hidden = false; }
 export { modal };
 // THE FLEET OFFICE: every fleet, what it is made of, how worn it is and where it mends; what the yards are turning out;
 // and what the fleets will cost when the round ends.
@@ -352,7 +381,7 @@ function logModal() {
 function gameOver() {
   if (!$('modal').hidden) return;
   const s = g.stats, won = g.over.result === 'won';
-  modal(`<h2>${won ? 'Total victory' : 'The capital is lost'}</h2><p>${esc(g.over.why)}</p><p class="dim">Round ${g.over.round} · systems taken ${s.taken} · systems fallen ${s.fallen} · defences held ${s.held}</p><button class="plate btn go" data-a="totitle">MAIN MENU</button>`);
+  modal(`<h2>${won ? 'Total victory' : /replaced/.test(g.over.why) ? 'You have been replaced' : 'The capital is lost'}</h2><p>${esc(g.over.why)}</p><p class="dim">Round ${g.over.round} · systems taken ${s.taken} · systems fallen ${s.fallen} · defences held ${s.held}</p><button class="plate btn go" data-a="totitle">MAIN MENU</button>`);
 }
 
 // ---------- input ----------
@@ -430,7 +459,7 @@ map.addEventListener('pointerdown', e => { map.setPointerCapture(e.pointerId); p
 map.addEventListener('pointermove', e => {
   if (!ptr.has(e.pointerId)) return;
   const [x, y] = at(e), [px, py] = ptr.get(e.pointerId); ptr.set(e.pointerId, [x, y]);
-  if (ptr.size === 1) { moved += Math.abs(x - px) + Math.abs(y - py); if (moved > 8) view.pan(x - px, y - py); }
+  if (ptr.size === 1) { moved += Math.abs(x - px) + Math.abs(y - py); if (moved > 8) { if (e.buttons & 6 || e.shiftKey) view.turn((x - px) * 0.006); else view.pan(x - px, y - py); } }     // right or middle button, or Shift: turn the board
   else if (ptr.size === 2) {
     const [a, b] = [...ptr.values()], dist = Math.hypot(a[0] - b[0], a[1] - b[1]);
     if (pinch) view.zoomAt(dist / pinch, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2);
@@ -444,14 +473,27 @@ const up = e => {
   tapSystem(view.pick(g, x, y)); refresh();
 };
 map.addEventListener('pointerup', up); map.addEventListener('pointercancel', up);
+map.addEventListener('contextmenu', e => e.preventDefault());
+// The keyboard, for a desk: W A S D or the arrows slide the map, Q and E turn it, + and - zoom, F looks down the front in play.
+const held = new Set();
+addEventListener('keydown', e => { if (!active || e.target.closest('input, textarea') || !$('modal').hidden) return; const k = e.key.toLowerCase(); held.add(k);
+  if (k === '+' || k === '=') view.zoomAt(1.2); else if (k === '-') view.zoomAt(1 / 1.2); else if (k === 'f' && g) view.focus(g.fi >= 0 ? g.fi : null); });
+addEventListener('keyup', e => held.delete(e.key.toLowerCase())); addEventListener('blur', () => held.clear());
+function keys(dt) {
+  if (!held.size || fighting()) return; const v = 520 * dt, on = (...k) => k.some(x => held.has(x));
+  const dx = (on('a', 'arrowleft') ? 1 : 0) - (on('d', 'arrowright') ? 1 : 0), dy = (on('w', 'arrowup') ? 1 : 0) - (on('s', 'arrowdown') ? 1 : 0);
+  if (dx || dy) view.pan(dx * v, dy * v);
+  const r = (on('q') ? 1 : 0) - (on('e') ? 1 : 0); if (r) view.turn(r * 1.4 * dt);
+}
 map.addEventListener('wheel', e => { e.preventDefault(); const [x, y] = at(e); view.zoomAt(e.deltaY < 0 ? 1.15 : 1 / 1.15, x, y); }, { passive: false });
 new ResizeObserver(() => { view.resize(); if (view.front != null) view.focus(view.front); }).observe($('stage'));
 
 // ---------- the clock ----------
-let last = performance.now();
+let last = performance.now(), last0 = last;
 export function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000) * ui.speed; last = now;
   if (!active || !g) return;
+  keys(Math.min(0.1, (now - last0) / 1000)); last0 = now;
   const was = busy(), wasFight = fighting();
   if (ui.anims.length) { for (const a of ui.anims) a.t += dt; ui.anims = ui.anims.filter(a => a.t < 0.6); }
   else if (ui.show) { ui.show.t += dt; if (ui.show.t > (ui.show.arrived ? 2.4 : 1.5)) ui.show = null; }

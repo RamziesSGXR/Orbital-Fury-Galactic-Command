@@ -1,6 +1,6 @@
 # Orbital Fury: Galactic Command
 
-**Prototype 0.12.0.** One war, run from four posts, in one game.
+**Prototype 0.13.0.** One war, run from four posts, in one game.
 
 You found a command (a name, a crest, colours) and hold the centre of the galaxy against three enemies. Everything in
 the war is yours to run, and each part changes the others:
@@ -55,6 +55,8 @@ With `npm start` running: `python3 test/shell.py` plays from the title through a
 desktop size; `python3 test/sites.py orbit` and `python3 test/sites.py base` found a station and a base, leave, and
 come back to them.
 
+- `python3 test/tutorial.py` plays the guided opening from start to finish (about three minutes).
+- `python3 test/map.py` checks the map's desk controls.
 - `python3 test/fleets.py` checks the opening choices and the Fleet Office.
 - `python3 test/armoury.py` checks the armoury, the chest and that they survive a reload (needs `npm start`).
 

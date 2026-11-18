@@ -115,6 +115,12 @@ export class Galaxy3D {
     v.applyMatrix4(this.pv);
     return [(v.x + 1) / 2 * this.w, (1 - v.y) / 2 * this.h, this.h / 2 / Math.tan(FOV * Math.PI / 360) / Math.max(1, w)];
   }
+  // The point of the board under a screen point, or null if the ray misses it.
+  ground(x, y) {
+    const v = this.v.set(x / this.w * 2 - 1, 1 - y / this.h * 2, 0.5).unproject(this.cam), c = this.cam.position, dy = v.y - c.y;
+    if (Math.abs(dy) < 1e-6) return null; const t = -c.y / dy; if (t <= 0) return null;
+    return [c.x + (v.x - c.x) * t, c.z + (v.z - c.z) * t];
+  }
   // Slide the map under the finger.
   pan(dx, dy) { const fx = Math.cos(this.az), fz = Math.sin(this.az), k = 1 / this.ppu; this.tx += (fz * dx + fx * dy / Math.sin(EL)) * k; this.tz += (-fx * dx + fz * dy / Math.sin(EL)) * k; this.place(); }
   // Colours follow the war: who holds what, which front is in play.
