@@ -20,11 +20,11 @@ function lcg(seed) { let s = (seed >>> 0) || 1; return () => ((s = (s * 1664525 
 
 export function addSpawners(m, b, seed = 0) {
   if (S().off) return null;     // (a switch for tests and tuning: the old single structure)
-  // (0.55) each faction's bases differ: the bugs' have more holes (up to eight), the squids' spawners carry light shields, the
+  // (0.55) each faction's bases differ: the bugs' have more holes (up to eight), the lizards' spawners carry light shields, the
   // bots' have one or two turrets (S().fac)
   const fac = m.faction ? m.faction.id : 'bugs', F = (S().fac || {})[fac] || {}, K = { ...S(), ...F }, r = lcg((seed * 7919 + b.id * 104729) ^ 0x5eed);
   // (0.52) its size, and so how many: a small base has two, the biggest (a 380 barrage across) four; they stand round a ring wide
-  // enough that each is gap metres or more from the next, so one strike (even a precision strike at its top level) takes one
+  // enough that each is gap metres or more from the next, so one strike (even a aimed shot at its top level) takes one
   let R = K.size[0] + r() * (K.size[1] - K.size[0]);
   const f = (R - K.size[0]) / Math.max(1, K.size[1] - K.size[0]), n = Math.max(K.min, Math.min(K.max, K.min + Math.floor(f * (K.max - K.min + 1) * 0.999)));
   const ring = Math.max(K.gap / (2 * Math.sin(Math.PI / n)), R * 0.62);
@@ -58,7 +58,7 @@ export function hitSpawners(m, b, dmg, at) {
   const L0 = liveSpawners(b);
   if (!L0.length) return false;
   const L = b.turrets ? L0.concat(b.turrets.filter((q) => !q.dead)) : L0;     // (0.55) a turret takes hits like a spawner
-  // (0.52: no 'a big enough hit takes the lot' any more: a precision strike was enough for it. A Demolition Charge takes every spawner its
+  // (0.52: no 'a big enough hit takes the lot' any more: a aimed shot was enough for it. A Demolition Charge takes every spawner its
   // blast reaches, as any blast does.)
   let hit = [];
   if (at && at.rad !== undefined) hit = L.filter((s) => Math.hypot(s.x - at.x, s.y - at.y) <= at.rad + s.r);
@@ -68,7 +68,7 @@ export function hitSpawners(m, b, dmg, at) {
   }
   for (const s of hit) {
     let dd = dmg;
-    if (s.shield > 0) { const soak = Math.min(s.shield, dd); s.shield -= soak; dd -= soak; s.shieldAt = m.t; s.hurtAt = m.t; if (dd <= 0) continue; }     // (0.55) the squids' light shield
+    if (s.shield > 0) { const soak = Math.min(s.shield, dd); s.shield -= soak; dd -= soak; s.shieldAt = m.t; s.hurtAt = m.t; if (dd <= 0) continue; }     // (0.55) the lizards' light shield
     if (s.turret) { s.hp -= dd; s.hurtAt = m.t; if (s.hp <= 0 && !s.dead) { s.dead = true; s.hp = 0; m.emit('boom', { x: s.x, y: s.y, r: 5, dmg: 0, by: 'base', big: true }); m.notice(tr('n.turretDown'), 'good'); } continue; }
     const d = Math.min(dd, s.hp);
     s.hp -= dd; b.hp = Math.max(0, b.hp - d); s.hurtAt = m.t;
@@ -112,7 +112,7 @@ export function stepSpawners(m, b, dt) {
   }
   return true;
 }
-// (0.55) each tick, awake or not: the squids' shields come back, a bot base's turrets fire at allies in reach
+// (0.55) each tick, awake or not: the lizards' shields come back, a bot base's turrets fire at allies in reach
 export function stepDefences(m, b, dt) {
   if (!b.spawners || b.destroyed) return;
   const F = (S().fac || {})[m.faction.id] || {};

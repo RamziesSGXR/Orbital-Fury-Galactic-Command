@@ -4,7 +4,7 @@ import { B, ZONES, ZKEYS, UTIL, LAND } from './config.js';
 import { dims, wingOf, PLAZA } from './sim.js';
 import { BIOMES } from './site.js';
 import { SCRUB_COL, makeMats, mergeStatic, buildModel, makePerson, makeForklift, makeTruck, makeLRV, makeTank, makeCrate, makeDropship, wrap } from './models.js';
-const VMAKE = { lift: makeForklift, truck: makeTruck, frv: makeLRV, tank: makeTank };
+const VMAKE = { lift: makeForklift, truck: makeTruck, lrv: makeLRV, tank: makeTank };
 import { Noise } from './noise.js';
 import { WL } from './site.js';
 

@@ -6,11 +6,11 @@ import { VIEW } from './view.js';
 import { raise } from './relief.js';
 import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
-import { STRATS } from '../data/strat.js';
-import { seafTargets } from './squads.js';
+import { CALLINS } from '../data/callin.js';
+import { infantryTargets } from './squads.js';
 import { TEAM_COLOR } from '../data/names.js';
 import { drawPoiArt, drawNukeSite, drawCrash, drawPad, drawLootArt, drawOilSite, drawDome, drawDomeHit, drawDemoCharge } from './sites.js';
-import { pelicanBody, pelicanDetail } from './squads.js';
+import { dshipBody, dshipDetail } from './squads.js';
 import { sentryArt } from './posts.js';
 
 const TAU = Math.PI * 2;
@@ -28,7 +28,7 @@ function rgba(hex, a) {
   return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
 }
 
-// ---------- zones: fire, gas, EMS, smoke ----------
+// ---------- zones: fire, gas, Stun, smoke ----------
 // (0.53) The planetary defence gun: a round armoured base, a turret ring and a long barrel aimed up at the sky; while it charges,
 // coils glow along the barrel; a shot is a column of light. (0.53.5) The mothership over it is the Talon's jellyfish
 // (render/jelly.js), tipped toward the camera, its shadow across the city; it is drawn over everything else (drawGunSky), its
@@ -206,7 +206,7 @@ export function drawMarkers(ctx, m, now, px, labels, scale, outlines = true) {
     let mx = mk.x, my = mk.y;
     if (mk.lock && !mk.lock.dead) { mx = mk.lock.x; my = mk.lock.y; }
     const pulse = 0.5 + 0.5 * Math.sin(now * 12);
-    if (mk.type === 'strat' && mk.by !== 'player') {
+    if (mk.type === 'callin' && mk.by !== 'player') {
       // (0.26) the beacon stays where it landed (a locked strike's beacon rides on its target)
       const left = Math.max(0, (mk.impact ?? mk.end) - t), name = String(mk.id || '').toUpperCase();
       const lift = redBeacon(ctx, mx, my, now, px, scale, left > 0);
@@ -219,10 +219,10 @@ export function drawMarkers(ctx, m, now, px, labels, scale, outlines = true) {
       const lift = redBeacon(ctx, mx, my, now, px, scale, true);
       ctx.strokeStyle = `rgba(${RED},0.8)`; ctx.lineWidth = px(2); ctx.beginPath(); ctx.moveTo(mx, my - 120 * f); ctx.lineTo(mx, my - 120 * f + Math.max(6, px(16))); ctx.stroke();
       ctx.fillStyle = '#ff5a4a'; ctx.fillRect(mx - px(3), my - 120 * f - px(3), px(6), px(6));
-      callout(labels, mx, my, lift, `${(STRATS[mk.id]?.name || tr('lab.supplyDrop')).toUpperCase()} ${Math.max(0, mk.end - t).toFixed(0)}S`);
+      callout(labels, mx, my, lift, `${(CALLINS[mk.id]?.name || tr('lab.supplyDrop')).toUpperCase()} ${Math.max(0, mk.end - t).toFixed(0)}S`);
       continue;
     }
-    if (mk.type === 'strat') {
+    if (mk.type === 'callin') {
       const first = mk.impact ?? mk.end, left = Math.max(0, first - t);
       // a Vanguard's call is in his group's colour; the player's own strikes in yellow
       const tc = mk.team >= 0 ? TEAM_COLOR[mk.team] : null;
@@ -250,14 +250,14 @@ export function drawMarkers(ctx, m, now, px, labels, scale, outlines = true) {
         ring(ctx, mx, my, mk.r); ctx.fill(); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;     // (0.61.4: the player's own, always shown)
         ctx.lineWidth = px(2.5); ctx.beginPath(); ctx.moveTo(mx, my - 120 * f); ctx.lineTo(mx, my - 4); ctx.stroke();
         ctx.fillStyle = '#7fd8ff'; ctx.fillRect(mx - px(3), my - 120 * f - px(3), px(6), px(6));
-        labels.push({ x: mx, y: my, dy: mk.r * scale + 14, text: `${(STRATS[mk.id]?.name || tr('lab.utility')).toUpperCase()} ${Math.max(0, mk.end - t).toFixed(1)}S`, col: '#7fd8ff', pri: 2, own: true });
+        labels.push({ x: mx, y: my, dy: mk.r * scale + 14, text: `${(CALLINS[mk.id]?.name || tr('lab.utility')).toUpperCase()} ${Math.max(0, mk.end - t).toFixed(1)}S`, col: '#7fd8ff', pri: 2, own: true });
         continue;
       }
       ctx.strokeStyle = '#ffe600'; ctx.lineWidth = px(2); ctx.setLineDash([px(4), px(4)]);
       ring(ctx, mx, my, mk.r + 3); ctx.stroke(); ctx.setLineDash([]);
       ctx.lineWidth = px(2.5); ctx.beginPath(); ctx.moveTo(mx, my - 120 * f); ctx.lineTo(mx, my - 4); ctx.stroke();
       ctx.fillStyle = '#ffe600'; ctx.fillRect(mx - px(3), my - 120 * f - px(3), px(6), px(6));
-      labels.push({ x: mx, y: my, dy: 22, text: (STRATS[mk.id]?.name || tr('lab.supplyDrop')).toUpperCase(), col: '#ffe600' , pri: 1 });
+      labels.push({ x: mx, y: my, dy: 22, text: (CALLINS[mk.id]?.name || tr('lab.supplyDrop')).toUpperCase(), col: '#ffe600' , pri: 1 });
     } else if (mk.type === 'bridge') {
       // (0.22) a light bridge coming down from the ship: its span, dashed, filling in as it comes
       const sp = mk.span, f = Math.max(0, Math.min(1, (t - mk.start) / (mk.end - mk.start)));
@@ -331,9 +331,9 @@ export function drawObjectives(ctx, m, now, px, labels, scale, pal) {
       if (!o.done) labels.push({ x: v.x, y: v.y, dy: v.state === 'carried' ? -16 : -Math.max(O.vip.pickR * scale, 12) - 6, text: v.state === 'carried' || (v.state === 'down' && o.state !== 'travel') ? tr('lab.vip') : tr('lab.crash'), col: '#ffe600' , pri: 2 });
     } else if (o.type === 'fortress' && !o.done) {
       labels.push({ x: o.x, y: o.y, dy: -o.base.r * scale - 20, text: tr('lab.citadelOf', { base: m.faction.baseName }).toUpperCase(), col: pal.enemy , pri: 2 });
-      const hb = m.hellbomb;
+      const hb = m.democharge;
       if (hb && hb.o === o) {
-        drawDemoCharge(ctx, hb, O.hellbomb, now, px, m.t);
+        drawDemoCharge(ctx, hb, O.democharge, now, px, m.t);
         if (hb.state === 'landed') labels.push({ x: hb.x, y: hb.y, dy: -14, text: tr('lab.hbArm'), col: '#7dff9b', pri: 3 });
         if (hb.state === 'armed') labels.push({ x: hb.x, y: hb.y, dy: -14, text: tr('lab.hbRun', { n: Math.max(0, Math.ceil(hb.fuseAt - m.t)) }), col: '#ff6a4a', pri: 3 });
       }
@@ -361,10 +361,10 @@ export function drawObjectives(ctx, m, now, px, labels, scale, pal) {
         if (o.pel.state === 'in') { const u = Math.min(1, k / K.inSec), e = 1 - (1 - u) * (1 - u); x = sx + (o.px - sx) * e; y = sy + (o.py - sy) * e; alt = 1 - e; }
         else if (o.pel.state === 'out') { const u = Math.min(1, k / K.outSec), e = u * u; x = o.px + 160 * e; y = o.py - 110 * e; alt = e; }
         const s = 14 * (1 + 0.3 * alt), off = 4 + alt * 26, ang = Math.atan2(o.py - sy, o.px - sx);
-        ctx.fillStyle = 'rgba(0,0,0,0.38)'; pelicanBody(ctx, x + off * 1.05, y + off * 0.76, ang, s * 0.92); ctx.fill();
-        pelicanDetail(ctx, x, y, ang, s, now, 1, 1, null);
-        pelicanBody(ctx, x, y, ang, s); ctx.fillStyle = '#d8e8f2'; ctx.fill(); ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.lineWidth = px(2); ctx.stroke();
-        pelicanDetail(ctx, x, y, ang, s, now, 0, 1, null);
+        ctx.fillStyle = 'rgba(0,0,0,0.38)'; dshipBody(ctx, x + off * 1.05, y + off * 0.76, ang, s * 0.92); ctx.fill();
+        dshipDetail(ctx, x, y, ang, s, now, 1, 1, null);
+        dshipBody(ctx, x, y, ang, s); ctx.fillStyle = '#d8e8f2'; ctx.fill(); ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.lineWidth = px(2); ctx.stroke();
+        dshipDetail(ctx, x, y, ang, s, now, 0, 1, null);
       }
       const K = O.oil;
       const txt = o.done ? tr('lab.oilDone') : o.state === 'load' ? tr('lab.oilLoad', { n: o.trips + 1, of: K.trips }) : o.state === 'pump' ? tr('lab.oilPump', { p: Math.round(o.fill * 100), n: o.trips + 1, of: K.trips }) : tr('lab.oil');
@@ -387,7 +387,7 @@ export function drawAssets(ctx, m, now, px, labels, scale, pal) {
       let r = 0; raise(ctx, s, s.x, s.y, Math.max(5, px(22)), 1.1, (c) => { r = sentryArt(c, s, now, px, hit, ac); s._r = r; }, { wall: 0.56, live: true, sig: Math.round((s.face || 0) * 12) * 2 + (hit ? 1 : 0) }); r = r || s._r || Math.max(2, px(8));
       const f = s.hp / s.maxHp;
       if (f < 0.999) hpBar(ctx, s.x, s.y + r * 2 + px(2), r * 2.6, px(2.4), f, f > 0.35 ? '#7dff9b' : '#ff4a4a');
-      labels.push({ x: s.x, y: s.y, dy: -r * 1.8 * scale - 8, text: tr(`strat.${s.sid}.tag`), col: ac , pri: 0 });
+      labels.push({ x: s.x, y: s.y, dy: -r * 1.8 * scale - 8, text: tr(`callin.${s.sid}.tag`), col: ac , pri: 0 });
     } else if (s.kind === 'mines') {
       ctx.strokeStyle = 'rgba(61,169,255,0.55)'; ctx.lineWidth = px(1);
       for (const mn of s.mines) {
@@ -412,15 +412,15 @@ export function drawAssets(ctx, m, now, px, labels, scale, pal) {
       ctx.strokeStyle = '#e8f6ff'; ctx.lineWidth = px(2); ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(L * 0.7, 0); ctx.stroke();
       ctx.restore();
       hpBar(ctx, s.x, s.y + 6, 10, px(3), s.hp / s.maxHp, s.hp > s.maxHp * 0.3 ? '#7dff9b' : '#ff4a4a');
-      labels.push({ x: s.x, y: s.y, dy: -L * 0.5 * scale - 12, text: s.wreck ? tr('lab.burning') : tr('lab.frv', { n: s.seats.length }), col: ac , pri: 0 });
+      labels.push({ x: s.x, y: s.y, dy: -L * 0.5 * scale - 12, text: s.wreck ? tr('lab.burning') : tr('lab.lrv', { n: s.seats.length }), col: ac , pri: 0 });
     }
   }
-  // Support weapons and exosuits on the Vanguards
+  // Support weapons and walkers on the Vanguards
   for (const a of m.hdAlive) {
     if (a.mounted) continue;
     const r = Math.max(4, px(4.5));
     if (a.mech && a.mech.hp > 0) {
-      const mc = a.mech, c = C.strat.mech, R = Math.max(6.5, px(9));
+      const mc = a.mech, c = C.callin.mech, R = Math.max(6.5, px(9));
       ctx.strokeStyle = t - a.hurtAt < 0.12 ? '#fff' : '#ffb020'; ctx.lineWidth = px(2.2);
       ctx.strokeRect(a.x - R, a.y - R, R * 2, R * 2);
       ctx.fillStyle = 'rgba(255,176,32,0.18)'; ctx.fillRect(a.x - R, a.y - R, R * 2, R * 2);
@@ -499,7 +499,7 @@ export function drawEnemyExtras(ctx, m, now, px, labels, scale, pal, vb = null) 
     if (e.sub) { drawSpecialExtras(ctx, m, e, now, px, labels, scale, col); continue; }
     if (e.kind !== 'H') continue;
     const r = Math.max(e.r, px(9));
-    // speed streaks behind a running charger
+    // speed streaks behind a running rammer
     if (fac.id === 'bugs') {
       const sp = Math.hypot(e.vx || 0, e.vy || 0);
       if (sp > 4) {
@@ -510,7 +510,7 @@ export function drawEnemyExtras(ctx, m, now, px, labels, scale, pal, vb = null) 
     }
     // lizard charge: a thin line that tightens, then a hard lock line for the last moments
     if (e.ch) {
-      const c = e.ch, p = Math.max(0, Math.min(1, (t - c.t0) / c.dur)), pr = C.combat.atk.squids.H;
+      const c = e.ch, p = Math.max(0, Math.min(1, (t - c.t0) / c.dur)), pr = C.combat.atk.lizards.H;
       const dx = c.tx - e.x, dy = c.ty - e.y, d = Math.hypot(dx, dy) || 1, L = Math.max(pr.range, d);
       const locked = t >= c.t0 + c.dur - pr.lock;
       ctx.strokeStyle = locked ? 'rgba(255,255,255,0.95)' : rgba(col, 0.35 + 0.5 * p); ctx.lineWidth = locked ? Math.max(pr.width * 0.5, px(2)) : px(1 + 1.5 * p);
@@ -526,7 +526,7 @@ export function drawEnemyExtras(ctx, m, now, px, labels, scale, pal, vb = null) 
     // a lizard heavy's shield: a bubble that flares when hit
     if (e.maxShield && e.shield > 0) {
       const f = e.shield / e.maxShield, hit = t - (e.shieldAt || -9) < 0.15;
-      const R = e.bubR || r * 1.7;     // the harvester's bubble reaches out past it, over the lizards round it
+      const R = e.bubR || r * 1.7;     // the warbeast's bubble reaches out past it, over the lizards round it
       ctx.fillStyle = `rgba(150,200,255,${(hit ? 0.16 : 0.05) + 0.05 * f})`; ring(ctx, e.x, e.y, R); ctx.fill();
       ctx.strokeStyle = `rgba(190,225,255,${hit ? 0.95 : 0.3 + 0.4 * f})`; ctx.lineWidth = px(hit ? 2 : 1.2); ring(ctx, e.x, e.y, R); ctx.stroke();
     }
@@ -627,7 +627,7 @@ function drawBossExtras(ctx, m, e, now, px, labels, scale, col) {
 
 // ---------- points of interest: random targets worth credits, and the finds ----------
 export function drawPois(ctx, m, now, px, labels, scale, pal) {
-  const t = m.t, tgs = seafTargets(m);
+  const t = m.t, tgs = infantryTargets(m);
   for (const q of m.loot || []) {
     if (q.done && q.kind !== 'wreck') { if (t - q.at < 2) { const k = (t - q.at) / 2; ctx.strokeStyle = `rgba(255,230,0,${1 - k})`; ctx.lineWidth = px(2); ring(ctx, q.x, q.y, q.r * (1 + k)); ctx.stroke(); } continue; }
     raise(ctx, q, q.x, q.y, Math.max(q.r * 1.6, 8), q.kind === 'wreck' ? 1.3 : 0.8, (c) => drawLootArt(c, q, now, px), RAISE_L);

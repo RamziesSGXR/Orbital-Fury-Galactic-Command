@@ -1,12 +1,12 @@
 // What Infantry built (sim/posts.js), from above: each post has its own silhouette, a crew count under its name (orange when it needs
 // a crew and has none), its health when hurt, a wrench while it is being patched up, and, when selected, its reach and brackets.
-// Turrets the Vanguards called (sentries) show their reach only when selected too.
+// Turrets the Vanguards called (turrets) show their reach only when selected too.
 import { t as tr } from '../i18n.js';
 import { VIEW } from './view.js';
 import { raise, isFlat, LIGHT, baking } from './relief.js';
 import { siteGain } from '../sim/sites.js';
 import { postReach, foxholeSlots, demoRadius, wireEnds } from '../sim/posts.js';
-import { lzStatus } from '../sim/seaf.js';
+import { lzStatus } from '../sim/infantry.js';
 
 const TAU = Math.PI * 2;
 function ring(ctx, x, y, r) { ctx.beginPath(); ctx.arc(x, y, Math.max(0.01, r), 0, TAU); }
@@ -75,7 +75,7 @@ export function wireArt(ctx, a, b, f, k = 1, ghost = false) {
   for (const e of [a, b]) { ctx.beginPath(); ctx.arc(e.x, e.y, Math.max(0.28, 0.24 * f), 0, TAU); ctx.fill(); }
   ctx.restore();
 }
-// (0.39) A pickup point: a ring of blinking blue lights round the spot, chevrons pointing in, and the pelican's mark in the middle.
+// (0.39) A pickup point: a ring of blinking blue lights round the spot, chevrons pointing in, and the dship's mark in the middle.
 export function lzArt(ctx, x, y, R, now, px, busy = false) {
   ctx.save();
   ctx.strokeStyle = `rgba(95,208,255,${busy ? 0.9 : 0.7})`; ctx.lineWidth = px(1.6); ctx.setLineDash([px(6), px(5)]); ctx.lineDashOffset = -now * px(8);
@@ -349,7 +349,7 @@ function bridgeArt(ctx, p, now, px) {
   ctx.restore();
 }
 
-// A Vanguard sentry (the turret call-ins), from above: a tripod, the turret head and the gun of its kind; ammo as a thin
+// A Vanguard turret (the turret call-ins), from above: a tripod, the turret head and the gun of its kind; ammo as a thin
 // arc round it. Small and detailed, the size of a trooper or two.
 export function sentryArt(ctx, s, now, px, hit, col) {
   const r = Math.max(1.3, px(2.4)), id = s.sid || '', a = s.face || 0;

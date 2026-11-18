@@ -5,7 +5,7 @@
 // tut.<step>.b for both.
 import { t } from './i18n.js';
 import { CAST } from './data/story.js';
-import { seafStats } from './data/kit.js';
+import { infantryStats } from './data/kit.js';
 
 const $ = (id) => document.getElementById(id);
 const gone = (g) => !g || g.members.every((e) => e.dead);
@@ -23,26 +23,26 @@ export const STEPS = [
   { id: 'radio', hl: '#btn-radio', next: true },     // (0.42.1) the news goes in the radio log (on a phone, all of it): where it is
   // (0.53.6) nobody holds the base at the start: the first drop, S1 by the shelter. Done once they are down (the strike zone is
   // round people on the ground: with nobody there, the gun lesson next could not fire)
-  { id: 'troops', hl: '#tactical .tco.seaf', tab: 'units', start: (g) => g.lookBase && g.lookBase(), done: (g) => g.mission.stats.seafCalls >= 1 && g.mission.seafAlive.length > 0 },
+  { id: 'troops', hl: '#tactical .tco.infantry', tab: 'units', start: (g) => g.lookBase && g.lookBase(), done: (g) => g.mission.stats.infantryCalls >= 1 && g.mission.infantryAlive.length > 0 },
   { id: 'gun', hl: '#weapons .gun-w', start: (g, s) => { s.g = g.mission.lsSpawn('light', -Math.PI / 2); g.look(s.g); },
     done: (g, s) => gone(s.g) || g.mission.stats.killsPlayer >= 4 },
   { id: 'orbital', hl: '#weapons .orb-w', start: (g, s) => { s.g = g.mission.lsSpawn('medium', 0); g.look(s.g); }, done: (g) => g.mission.stats.orbCalls >= 1 },
   // (0.53.6) the second drop, S2 by the hangar, and what limits a drop (the numbers are the player's own, from the armory)
-  { id: 'seaf', hl: '#tactical .tco.seaf', tab: 'units', start: (g) => g.lookBase && g.lookBase(), done: (g) => g.mission.stats.seafCalls >= 2,
-    vars: (g) => { const st = seafStats(g.mission.kit); return { drop: st.drop, max: st.max, cool: Math.round(st.cool) }; } },
-  { id: 'select', hl: '#tactical #squads', tab: 'units', done: (g) => g.mission.seaf.sel !== -1 },
-  { id: 'order', hl: '#tactical .tac-ord', tab: 'units', done: (g, s) => s.ev.some((e) => e.type === 'seaf_order' && e.kind !== 'build') },
+  { id: 'infantry', hl: '#tactical .tco.infantry', tab: 'units', start: (g) => g.lookBase && g.lookBase(), done: (g) => g.mission.stats.infantryCalls >= 2,
+    vars: (g) => { const st = infantryStats(g.mission.kit); return { drop: st.drop, max: st.max, cool: Math.round(st.cool) }; } },
+  { id: 'select', hl: '#tactical #squads', tab: 'units', done: (g) => g.mission.infantry.sel !== -1 },
+  { id: 'order', hl: '#tactical .tac-ord', tab: 'units', done: (g, s) => s.ev.some((e) => e.type === 'infantry_order' && e.kind !== 'build') },
   // (0.37) a foxhole: free, and the squad digs it where it is put
-  { id: 'build', hl: '#tactical .bld[data-b="foxhole"]', tab: 'build', done: (g, s) => s.ev.some((e) => e.type === 'seaf_order' && e.kind === 'build') },
+  { id: 'build', hl: '#tactical .bld[data-b="foxhole"]', tab: 'build', done: (g, s) => s.ev.some((e) => e.type === 'infantry_order' && e.kind === 'build') },
   // (0.37) cover: the walls round the base, and troopers manning a post
-  { id: 'cover', start: (g) => g.lookBase && g.lookBase(), done: (g, s) => s.ev.some((e) => e.type === 'seaf_order' && (e.kind === 'post' || e.kind === 'protect')) },
+  { id: 'cover', start: (g) => g.lookBase && g.lookBase(), done: (g, s) => s.ev.some((e) => e.type === 'infantry_order' && (e.kind === 'post' || e.kind === 'protect')) },
   { id: 'deploy', hl: '#dropcd-go, #lives', done: (g, s) => g.mission.dropAt < s.drop0 - 1 || g.mission.t >= g.mission.dropAt },
   // (0.37) resupply: once they are down, one of them asks; it is done when a pod goes out
   { id: 'supply', hl: (g) => (g.mission.supply && g.mission.supply.state === 'fill' ? '#supgame' : '#co-sup'),
     tick: (g, s) => { const S = g.mission.supply; if (S && S.state === 'idle' && !(g.mission.stats.supplies > 0) && hdDown(g) && g.mission.t - (s.askAt ?? -99) > 4) { s.askAt = g.mission.t; g.mission.lsSupply(); } },
     done: (g) => g.mission.stats.supplies > 0 },
   // (0.37) the Demolition Charge: a cognitive disruptor comes down by the base; the squad clears round it and asks for one
-  { id: 'hellbomb', hl: (g) => (g.mission.hellbomb && g.mission.hellbomb.state === 'fill' ? '#hbgame' : null),
+  { id: 'democharge', hl: (g) => (g.mission.democharge && g.mission.democharge.state === 'fill' ? '#hbgame' : null),
     start: (g, s) => { s.j = g.mission.lsJammer(); if (s.j && g.lookAt) g.lookAt(s.j.x, s.j.y); },
     done: (g, s) => !!(s.j && s.j.done) },
   { id: 'run', next: true },

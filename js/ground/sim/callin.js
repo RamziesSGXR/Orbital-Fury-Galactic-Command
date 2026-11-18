@@ -1,18 +1,18 @@
 // Call-ins: the squad's 16 call-ins dealt into four groups (one per Vanguard), the AI that calls them, and everything
-// they put on the map (strikes, zones, sentries, mines, shields, support weapons, the recon vehicle, the exosuit, a guard dog).
+// they put on the map (strikes, zones, turrets, mines, shields, support weapons, the recon vehicle, the walker, a guard dog).
 // A Vanguard only calls the call-ins in its own group, from where it stands. Squad-wide items (the recon vehicle, jump
 // packs, resupply) can be called by whichever Vanguard is alive. The player's orbital strikes reuse strikeAt() below.
 import { siteFalls } from './sites.js';
 import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
-import { STRATS, dealGroups } from '../data/strat.js';
+import { CALLINS, dealGroups } from '../data/callin.js';
 import { LETTERS, TEAM_COLOR, shipNames } from '../data/names.js';
 import { COMMS } from '../data/data.js';
 import { fireShot, hurtEnemy, damageArea, blocker, jammedAt } from './combat.js';
 import { alertGroup, compass } from './enemies.js';
 import { bark } from './chatter.js';
 import { baseNear } from './pois.js';
-import { restock } from './helldiver.js';
+import { restock } from './vanguard.js';
 import { dropNear } from './reinforce.js';
 import { postDown, freeBuild } from './posts.js';
 
@@ -28,37 +28,37 @@ const LRV_MULT = M(1, 1, 0.95, 0.1);   // the manned gun is heavy-penetration
 const SND = { mg_sentry: 'mg', gat_sentry: 'gat', ac_sentry: 'ac', rk_sentry: 'rocket', mortar: 'mortar', tesla: 'zap',
   recoilless: 'rocket', autocannon: 'ac', flamethrower: 'flame', railgun: 'rail', mg43: 'mg', spear: 'missile', eat: 'rocket' };
 const FOCUS_R = 30;
-const mul = () => C.strat.dmgMul;
+const mul = () => C.callin.dmgMul;
 
 // ---------------------------------------------------------------- setup
-export function initStrat(m, loadout, keepOrder = false) {
+export function initCallin(m, loadout, keepOrder = false) {
   const rng = m.rng, groups = {}, order = [];
-  const ships = shipNames(m.crng, C.strat.groups);
+  const ships = shipNames(m.crng, C.callin.groups);
   const ids = dealGroups(loadout, m.seed, keepOrder);
   m.teams = ids.map((list, i) => ({ i, letter: LETTERS[i], color: TEAM_COLOR[i], ship: ships[i], ids: list, hd: null, n: 0,
     respawnAt: 0, pod: false, lastDeath: null, callAt: 0, deaths: 0 }));
   ids.forEach((list, ti) => list.forEach((id) => {
-    groups[id] = { id, def: STRATS[id], count: 1, slots: [], readyAt: rng.range(C.strat.startDelaySec[0], C.strat.startDelaySec[1]), assets: [], uses: 0, team: ti };
+    groups[id] = { id, def: CALLINS[id], count: 1, slots: [], readyAt: rng.range(C.callin.startDelaySec[0], C.callin.startDelaySec[1]), assets: [], uses: 0, team: ti };
     order.push(id);
   }));
   m.loadout = order.slice();
-  m.strat = { groups, order, callAt: 0, scanT: 1, rot: 0 };
+  m.callin = { groups, order, callAt: 0, scanT: 1, rot: 0 };
   m.queue = [];
   m.buff = { jumpUntil: 0 };
-  m.frv = null;
+  m.lrv = null;
 }
 
 // Who calls this call-in: the Vanguard who owns its group, or nobody if that Vanguard is down.
-export function stratOwner(m, g) { const t = m.teams[g.team]; return t && t.hd && !t.hd.dead ? t.hd : null; }
-export function stratOnline(m, id) {
-  const g = m.strat.groups[id];
+export function callinOwner(m, g) { const t = m.teams[g.team]; return t && t.hd && !t.hd.dead ? t.hd : null; }
+export function callinOnline(m, id) {
+  const g = m.callin.groups[id];
   if (!g) return false;
-  return g.def.shared ? m.hdAlive.length > 0 : !!stratOwner(m, g);
+  return g.def.shared ? m.hdAlive.length > 0 : !!callinOwner(m, g);
 }
 
 // Fraction of the way back to ready for HUD cells (1 = ready).
-export function stratReady(m, id) {
-  const g = m.strat.groups[id];
+export function callinReady(m, id) {
+  const g = m.callin.groups[id];
   if (!g) return 1;
   const cd = g.def.cd, left = g.readyAt - m.t;
   return left <= 0 ? 1 : Math.max(0, 1 - left / cd);
@@ -72,7 +72,7 @@ function safeSpot(m, x, y, r) {
 }
 // A call lands only inside the caller's own strike zone (not another Vanguard's, not a UAV circle).
 const inOwn = (ctx, x, y) => (x - ctx.cx) ** 2 + (y - ctx.cy) ** 2 <= ctx.zone * ctx.zone;
-// (0.47) An attack stratagem's beacon is thrown: it lands no farther than C.sight.throw from the Vanguard (less than his rifle
+// (0.47) An attack callin's beacon is thrown: it lands no farther than C.sight.throw from the Vanguard (less than his rifle
 // reaches, the vision ladder), and inside his own strike zone. Support weapons are not thrown (their pod lands by him).
 // (0.47.1) the throw is 20-40 m from the Vanguard who throws it (throwMin..throw); the space kept from everyone else is clearance's
 const inThrow = (ctx, x, y) => { const d2 = (x - ctx.cx) ** 2 + (y - ctx.cy) ** 2; return inOwn(ctx, x, y) && d2 <= C.sight.throw * C.sight.throw && d2 >= C.sight.throwMin * C.sight.throwMin; };
@@ -84,7 +84,7 @@ function buildCtx(m, owner) {
   // How far out a call can reach: a bit past what the caller can see, so a pack is hit on the way in and not on top of the squad,
   // and never past the caller's own strike zone.
   // (0.47) and never past a throw (plus the lead a pack on the move is given)
-  const reach = Math.min(190, zone, (owner ? owner.vision : C.sight.helldiver + C.sight.playerBonus) + 55, C.sight.throw + 12);
+  const reach = Math.min(190, zone, (owner ? owner.vision : C.sight.vanguard + C.sight.playerBonus) + 55, C.sight.throw + 12);
   const c = { owner, cx, cy, dir: sq.dir || 0, vis: [], heavies: [], hunt: 0, near: 0, centroid: null, reach, zone,
     engaged: owner ? !!m.eGrid.nearest(cx, cy, C.squad.engageRange) : !!sq.engaged, goalDist: sq.goalDist ?? 0, cl: null,
     panic: !!(owner && owner.retreat) };   // a Vanguard who is running for it calls whatever might save him
@@ -122,26 +122,26 @@ function clusters(m, ctx) {
 // spread plus half a shell's splash (or its own `safe`, if bigger), 9 to 45 m. Placed things (turrets, mines, shields, supply)
 // still go close.
 // (0.47) a throw is 20-40 m: never under C.sight.throwMin, and capped 4 m short of the throw so every attack call-in has somewhere
-// to land (the walking barrage was 45 m).
+// to land (the creeping barrage was 45 m).
 const clearance = (d) => Math.max(9, Math.min(C.sight.throw - 4, Math.max(d.safe || 0, blastOf(d) + (d.splash || 0) * 0.5)));     // (0.47.1: 9 m at least from any ally, as in 0.46; the 20 m is the thrower's)
 // (0.46) Another attack call-in already on its way to (or burning on) this ground: a second one there is a waste, so the
 // Vanguards spread their calls out. Defensive things don't count.
 function crowded(m, x, y, r) {
-  for (const k of m.markers) if (k.type === 'strat' && !k.smoke && m.t < k.end && (k.x - x) ** 2 + (k.y - y) ** 2 < r * r) return true;
+  for (const k of m.markers) if (k.type === 'callin' && !k.smoke && m.t < k.end && (k.x - x) ** 2 + (k.y - y) ** 2 < r * r) return true;
   for (const z of m.zones) if (z.kind !== 'smoke' && (z.x - x) ** 2 + (z.y - y) ** 2 < r * r) return true;
   return false;
 }
 const spreadR = (d) => Math.max(14, Math.min(40, blastOf(d)));
 
-// Where something moving at (vx, vy) will be after `lead` seconds: the call itself takes C.strat.callSec, then the stratagem's own
+// Where something moving at (vx, vy) will be after `lead` seconds: the call itself takes C.callin.callSec, then the callin's own
 // delay. Capped, so a strike is never thrown at a guess far from anything.
 function ahead(x, y, vx, vy, lead) {
   let dx = (vx || 0) * lead, dy = (vy || 0) * lead;
-  const L = Math.hypot(dx, dy), cap = C.strat.leadMax;
+  const L = Math.hypot(dx, dy), cap = C.callin.leadMax;
   if (L > cap) { dx *= cap / L; dy *= cap / L; }
   return { x: x + dx, y: y + dy };
 }
-const leadOf = (d) => (d.delay || 0) + C.strat.callSec;
+const leadOf = (d) => (d.delay || 0) + C.callin.callSec;
 
 // A strike that would reach the structure of a base that has not seen the squad would wake it: the Vanguards don't call those.
 export function wakesBase(m, x, y, reach) {
@@ -196,7 +196,7 @@ function placeSpot(m, ctx, aheadBy) {
 }
 
 function canCall(m, g) {
-  const d = g.def, t = m.t, owner = stratOwner(m, g);
+  const d = g.def, t = m.t, owner = callinOwner(m, g);
   g.assets = g.assets.filter((s) => !s.dead);
   if (!d.shared && !owner) return false;
   switch (d.k) {
@@ -208,7 +208,7 @@ function canCall(m, g) {
       }
       return true;
     }
-    case 'frv': return !m.frv && m.hdAlive.some((a) => !a.mounted);
+    case 'lrv': return !m.lrv && m.hdAlive.some((a) => !a.mounted);
     case 'mech': return !owner.mech && !owner.mounted;
     case 'jump': return t >= m.buff.jumpUntil;
     default: return true;
@@ -239,7 +239,7 @@ function choose(m, g, ctx) {
       return placeSpot(m, ctx, ahead);
     }
     case 'fight': {
-      if (d.k === 'weapon' && d.anti && ctx.heavies.length) return { x: ctx.cx, y: ctx.cy };   // the autocannon comes out for armor too
+      if (d.k === 'weapon' && d.anti && ctx.heavies.length) return { x: ctx.cx, y: ctx.cy };   // the light cannon comes out for armor too
       const need = ctx.panic ? 2 : d.threat || 4;
       if (!(ctx.engaged || ctx.hunt >= need) || ctx.hunt < need) return null;
       return placeSpot(m, ctx, 8);
@@ -252,7 +252,7 @@ function choose(m, g, ctx) {
       for (const a of m.hdAlive) {
         if (a.stims <= 1 || a.gren <= 0) return { x: ctx.cx, y: ctx.cy };
         if (a.sw && a.sw.left < a.sw.ammo * 0.3) return { x: ctx.cx, y: ctx.cy };
-        if (a.mech && a.mech.hp > 0 && (a.mech.gat < C.strat.mech.gatAmmo * 0.3 || a.mech.rkt <= 3)) return { x: ctx.cx, y: ctx.cy };
+        if (a.mech && a.mech.hp > 0 && (a.mech.gat < C.callin.mech.gatAmmo * 0.3 || a.mech.rkt <= 3)) return { x: ctx.cx, y: ctx.cy };
       }
       for (const s of m.assets) if (!s.dead && s.kind === 'turret' && s.ammo < s.maxAmmo * 0.35) return { x: ctx.cx, y: ctx.cy };
       return null;
@@ -264,25 +264,25 @@ function choose(m, g, ctx) {
 // ---------------------------------------------------------------- calling
 function execute(m, g, tgt, ctx) {
   const d = g.def, t = m.t, team = m.teams[g.team];
-  const caller = stratOwner(m, g) || m.hdAlive[0];
-  m.stats.stratCalls++; m.stats.stratBy[g.id] = (m.stats.stratBy[g.id] || 0) + 1;
-  m.radio(COMMS.stratCall(d.name), 'strat', 1.2);
-  bark(m, caller, 'strat', d.name, true);
-  const cs = C.strat.callSec;      // the beacon is thrown, then the ship lines up: the ground is marked for this long first
-  m.emit('strat_call', { id: g.id, x: tgt.x, y: tgt.y, delay: (d.delay || 4) + cs, team: team.i, cx: caller ? caller.x : ctx.cx, cy: caller ? caller.y : ctx.cy, base: tgt.base ? tgt.base.id : undefined });
+  const caller = callinOwner(m, g) || m.hdAlive[0];
+  m.stats.callinCalls++; m.stats.callinBy[g.id] = (m.stats.callinBy[g.id] || 0) + 1;
+  m.radio(COMMS.callinCall(d.name), 'callin', 1.2);
+  bark(m, caller, 'callin', d.name, true);
+  const cs = C.callin.callSec;      // the beacon is thrown, then the ship lines up: the ground is marked for this long first
+  m.emit('callin_call', { id: g.id, x: tgt.x, y: tgt.y, delay: (d.delay || 4) + cs, team: team.i, cx: caller ? caller.x : ctx.cx, cy: caller ? caller.y : ctx.cy, base: tgt.base ? tgt.base.id : undefined });
   switch (d.k) {
-    case 'strike': strikeAt(m, { ...d, id: g.id, delay: d.delay + cs }, tgt, { ox: ctx.cx, oy: ctx.cy, by: 'strat', friendly: false, dmgMul: mul(), team: team.i }); break;
-    case 'zone': queueZone(m, d.zone, tgt.x, tgt.y, t + d.delay + cs, d.delay + cs, d, 'strat', team.i); break;
-    case 'turret': case 'mines': case 'shield': case 'dog': case 'weapon': case 'mech': case 'frv': {
-      const drop = (d.k === 'frv' ? C.strat.frv.dropSec : d.k === 'mech' ? C.strat.mech.dropSec : 3.5) + cs;
+    case 'strike': strikeAt(m, { ...d, id: g.id, delay: d.delay + cs }, tgt, { ox: ctx.cx, oy: ctx.cy, by: 'callin', friendly: false, dmgMul: mul(), team: team.i }); break;
+    case 'zone': queueZone(m, d.zone, tgt.x, tgt.y, t + d.delay + cs, d.delay + cs, d, 'callin', team.i); break;
+    case 'turret': case 'mines': case 'shield': case 'dog': case 'weapon': case 'mech': case 'lrv': {
+      const drop = (d.k === 'lrv' ? C.callin.lrv.dropSec : d.k === 'mech' ? C.callin.mech.dropSec : 3.5) + cs;
       m.queue.push({ at: t + drop, type: d.k, sid: g.id, team: g.team, x: tgt.x, y: tgt.y });
       m.markers.push({ type: 'pod', x: tgt.x, y: tgt.y, r: 6, start: t, end: t + drop, id: g.id, team: g.team });
-      if (d.k === 'frv') m.radio(COMMS.frvIn, 'frvin', 5);
+      if (d.k === 'lrv') m.radio(COMMS.lrvIn, 'lrvin', 5);
       if (d.k === 'mech') m.radio(COMMS.mechIn, 'mechin', 5);
       break;
     }
     case 'jump':
-      m.buff.jumpUntil = t + C.strat.jump.sec; m.radio(COMMS.jump, 'jump', 5);
+      m.buff.jumpUntil = t + C.callin.jump.sec; m.radio(COMMS.jump, 'jump', 5);
       m.emit('jump', {});
       break;
     case 'resupply':
@@ -293,9 +293,9 @@ function execute(m, g, tgt, ctx) {
   }
 }
 
-export function queueZone(m, z, x, y, at, delay, d, by = 'strat', team = -1) {
+export function queueZone(m, z, x, y, at, delay, d, by = 'callin', team = -1) {
   m.queue.push({ at, type: 'zone', kind: z.kind, x, y, r: z.r, sec: z.sec, dps: z.dps || 0, sid: d.name, by });
-  if (delay > 0) m.markers.push({ type: 'strat', x, y, r: z.r, start: m.t, end: at, impact: at, id: d.name, cat: d.cat, by, team, smoke: z.kind === 'smoke' });
+  if (delay > 0) m.markers.push({ type: 'callin', x, y, r: z.r, start: m.t, end: at, impact: at, id: d.name, cat: d.cat, by, team, smoke: z.kind === 'smoke' });
 }
 
 // A strike on a point. d is the call-in entry (already scaled for the player when the player fires it).
@@ -316,7 +316,7 @@ export function strikeAt(m, d, tgt, o) {
   }
   const rr = d.pat === 'point' ? Math.max(d.splash, 6) : d.len || d.splash;
   // The marker also says which way the strike runs, so the ground shows where a Striker comes from and which strip it will hit.
-  m.markers.push({ type: 'strat', x: tgt.x, y: tgt.y, r: rr, start: t, end: at0 + d.span, impact: at0, id: d.name, cat: d.cat, lock: d.lock && tgt.e ? tgt.e : null, by: o.by,
+  m.markers.push({ type: 'callin', x: tgt.x, y: tgt.y, r: rr, start: t, end: at0 + d.span, impact: at0, id: d.name, cat: d.cat, lock: d.lock && tgt.e ? tgt.e : null, by: o.by,
     pat: d.pat, len: d.len || 0, rad: splash, ux, uy, fly: !!d.fly, span: d.span || 0, team: o.team ?? -1 });
   if (d.fly) {
     const L = 520;
@@ -326,7 +326,7 @@ export function strikeAt(m, d, tgt, o) {
 
 // ---------------------------------------------------------------- deliveries
 function placeAsset(m, sid, s) {
-  const g = m.strat.groups[sid];
+  const g = m.callin.groups[sid];
   g.assets = g.assets.filter((a) => !a.dead);
   while (g.assets.length >= g.count) destroyAsset(m, g.assets.shift(), 'replaced');
   g.assets.push(s); m.assets.push(s);
@@ -349,11 +349,11 @@ function runQueue(m) {
 function land(m, it) {
   const t = m.t, rng = m.rng;
   if (it.type === 'zone') {
-    m.zones.push({ kind: it.kind, x: it.x, y: it.y, r: it.r, until: t + it.sec, dps: it.dps, tick: 0, born: t, by: it.by || 'strat' });
+    m.zones.push({ kind: it.kind, x: it.x, y: it.y, r: it.r, until: t + it.sec, dps: it.dps, tick: 0, born: t, by: it.by || 'callin' });
     m.emit('zone', { kind: it.kind, x: it.x, y: it.y, r: it.r });
     return;
   }
-  const g = m.strat.groups[it.sid], d = g && g.def;
+  const g = m.callin.groups[it.sid], d = g && g.def;
   if (!d) return;
   if (it.type === 'turret') {
     const p = d.t;
@@ -367,7 +367,7 @@ function land(m, it) {
   } else if (it.type === 'shield') {
     placeAsset(m, it.sid, newAsset(m, 'shield', it.sid, it.x, it.y, { hp: 60, maxHp: 60, shield: d.shield, maxShield: d.shield, r: d.r, until: t + d.life, life: d.life, name: d.name }));
   } else if (it.type === 'dog') {
-    const D = C.strat.dog;
+    const D = C.callin.dog;
     placeAsset(m, it.sid, newAsset(m, 'dog', it.sid, it.x, it.y, { hp: D.hp, maxHp: D.hp, until: t + D.life, life: D.life, cool: 0.5, name: d.name, r: 2.2 }));
   } else if (it.type === 'weapon') {
     const owner = m.teams[it.team] && m.teams[it.team].hd;
@@ -395,38 +395,38 @@ function land(m, it) {
       }
     }
     if (best) {
-      const M_ = C.strat.mech;
+      const M_ = C.callin.mech;
       best.sw = null;
       best.mech = { hp: M_.hp, maxHp: M_.hp, gat: M_.gatAmmo, rkt: M_.rktAmmo, gatT: 0.5, rktT: 2 };
       m.emit('asset_new', { kind: 'mech', sid: it.sid, x: best.x, y: best.y });
       m.stats.mechs++;
       bark(m, best, 'mech', '', true);
     }
-  } else if (it.type === 'frv') {
-    const F = C.strat.frv;
+  } else if (it.type === 'lrv') {
+    const F = C.callin.lrv;
     const v = newAsset(m, 'vehicle', it.sid, it.x, it.y, { hp: F.hp, maxHp: F.hp, until: t + F.life, life: F.life, seats: [], cool: 0.5, name: d.name, r: 5, face: m.squad.dir || 0, wreck: false, gunner: null });
     placeAsset(m, it.sid, v);
-    // Nobody rides the vehicle and an exosuit at once: a pilot climbs out of the suit to board.
+    // Nobody rides the vehicle and an walker at once: a pilot climbs out of the suit to board.
     const near = m.hdAlive.filter((a) => !a.mounted && Math.hypot(a.x - it.x, a.y - it.y) <= 70).sort((p, q) => Math.hypot(p.x - it.x, p.y - it.y) - Math.hypot(q.x - it.x, q.y - it.y));
     for (const a of near) {
       if (v.seats.length >= F.seats) break;
       if (a.mech) {
         a.mech = null;
         m.emit('asset_down', { kind: 'mech', sid: 'mech', x: a.x, y: a.y, why: 'abandoned' });
-        m.notice(tr('n.exoToFrv', { who: m.tag(a) }), 'info');
+        m.notice(tr('n.exoToLrv', { who: m.tag(a) }), 'info');
       }
       a.mounted = v; v.seats.push(a);
     }
     if (!v.seats.length) { destroyAsset(m, v, 'spent'); return; }
     v.gunner = v.seats[0];
-    m.frv = v; m.stats.frvs++;
+    m.lrv = v; m.stats.lrvs++;
     m.emit('mount', { x: v.x, y: v.y, n: v.seats.length });
-    bark(m, v.seats[0], 'frv', '', true);
+    bark(m, v.seats[0], 'lrv', '', true);
   } else if (it.type === 'resupply') {
     restock(m);
     for (const a of m.hdAlive) {
       if (a.sw) a.sw.left = a.sw.ammo;
-      if (a.mech) { a.mech.gat = C.strat.mech.gatAmmo; a.mech.rkt = C.strat.mech.rktAmmo; a.mech.hp = Math.min(a.mech.maxHp, a.mech.hp + 250); }
+      if (a.mech) { a.mech.gat = C.callin.mech.gatAmmo; a.mech.rkt = C.callin.mech.rktAmmo; a.mech.hp = Math.min(a.mech.maxHp, a.mech.hp + 250); }
     }
     for (const s of m.assets) {
       if (s.dead) continue;
@@ -444,13 +444,13 @@ export function destroyAsset(m, s, why) {
   s.dead = true;
   if (s.kind === 'vehicle') {
     dismount(m, s, why === 'killed' ? 'bail' : why);
-    if (m.frv === s) m.frv = null;
+    if (m.lrv === s) m.lrv = null;
   }
   m.emit('asset_down', { kind: s.kind, sid: s.sid, x: s.x, y: s.y, why });
   const name = s.name || 'Asset';
   if (why === 'killed') { m.radio(COMMS.assetDown(name), 'adown', 2); m.emit('boom', { x: s.x, y: s.y, r: s.kind === 'vehicle' ? 8 : 4, dmg: 0, by: 'enemy' }); }
   else if (why === 'spent' && s.kind !== 'vehicle' && s.kind !== 'mines') m.radio(COMMS.assetSpent(name), 'aspent', 2);
-  const g = m.strat && m.strat.groups[s.sid];
+  const g = m.callin && m.callin.groups[s.sid];
   if (g) g.assets = g.assets.filter((a) => a !== s);
 }
 
@@ -461,7 +461,7 @@ function dismount(m, v, why) {
     a.x = v.x + dx; a.y = v.y + dy;
     if (m.terrain.blocked(a.x, a.y)) { const l = m.terrain.nearestLand(a.x, a.y); a.x = l.x; a.y = l.y; }   // not into deep water
   }
-  if (v.seats.length) { m.radio(why === 'bail' ? COMMS.frvBail : COMMS.frvOut, 'frvout', 3); m.emit('dismount', { x: v.x, y: v.y, why }); }
+  if (v.seats.length) { m.radio(why === 'bail' ? COMMS.lrvBail : COMMS.lrvOut, 'lrvout', 3); m.emit('dismount', { x: v.x, y: v.y, why }); }
   v.seats = [];
 }
 
@@ -506,12 +506,12 @@ export function turretStep(m, s, dt) {
       if (n >= p.chain) break;
       m.emit('tracer', { x: s.x, y: s.y, tx: o.x, ty: o.y, s: 't', hit: true, big: false, zap: true, snd: 'zap' });
       alertGroup(m, o.g);
-      hurtEnemy(m, o, p.dmg * k, 'strat', s.x, s.y, undefined, false, TMULT['arc-zap'][o.kind]);
+      hurtEnemy(m, o, p.dmg * k, 'callin', s.x, s.y, undefined, false, TMULT['arc-zap'][o.kind]);
       n++;
     }
   } else {
     const mult = p.prefer === 'H' ? RK_MULT : TMULT[p.style];
-    fireShot(m, s, e, { dmg: p.dmg * k, acc: p.acc, splash: p.splash, mult, flight: p.flight || 0 }, 'strat', 't', s.snd);
+    fireShot(m, s, e, { dmg: p.dmg * k, acc: p.acc, splash: p.splash, mult, flight: p.flight || 0 }, 'callin', 't', s.snd);
   }
   if (s.ammo !== Infinity) { s.ammo -= 1; if (s.ammo <= 0) destroyAsset(m, s, 'spent'); }
 }
@@ -529,15 +529,15 @@ function minesStep(m, s, dt) {
     if (!e) continue;
     mine.dead = true; s.left--;
     const mine1 = s.by === 'player';      // (0.23) the gunner's minefields: their numbers already carry the player's levels, and they hurt allies
-    damageArea(m, mine.x, mine.y, d.splash, d.dmg * (mine1 ? 1 : mul()), d.heavyOnly ? AT_MULT : MINE_MULT, mine1 ? 'player' : 'strat', mine1);
-    m.emit('boom', { x: mine.x, y: mine.y, r: d.splash, dmg: d.dmg, by: mine1 ? 'player' : 'strat', sid: s.sid, mine: true });
-    if (d.fire) { m.zones.push({ kind: 'fire', x: mine.x, y: mine.y, r: d.fire.r, until: m.t + d.fire.sec, dps: d.fire.dps * (mine1 ? 1 : mul()), tick: 0, born: m.t, by: mine1 ? 'player' : 'strat' }); m.emit('zone', { kind: 'fire', x: mine.x, y: mine.y, r: d.fire.r }); }
+    damageArea(m, mine.x, mine.y, d.splash, d.dmg * (mine1 ? 1 : mul()), d.heavyOnly ? AT_MULT : MINE_MULT, mine1 ? 'player' : 'callin', mine1);
+    m.emit('boom', { x: mine.x, y: mine.y, r: d.splash, dmg: d.dmg, by: mine1 ? 'player' : 'callin', sid: s.sid, mine: true });
+    if (d.fire) { m.zones.push({ kind: 'fire', x: mine.x, y: mine.y, r: d.fire.r, until: m.t + d.fire.sec, dps: d.fire.dps * (mine1 ? 1 : mul()), tick: 0, born: m.t, by: mine1 ? 'player' : 'callin' }); m.emit('zone', { kind: 'fire', x: mine.x, y: mine.y, r: d.fire.r }); }
   }
   if (s.left <= 0 || t >= s.until) destroyAsset(m, s, 'spent');
 }
 
 function dogStep(m, s, dt) {
-  const D = C.strat.dog, t = m.t;
+  const D = C.callin.dog, t = m.t;
   if (t >= s.until) { destroyAsset(m, s, 'spent'); return; }
   // Follow the nearest Vanguard at a short distance.
   let best = null, bd = Infinity;
@@ -551,16 +551,16 @@ function dogStep(m, s, dt) {
   const e = m.eGrid.nearest(s.x, s.y, D.range);
   if (!e) { s.cool = 0.2; return; }
   s.cool = D.every;
-  fireShot(m, s, e, { dmg: D.dmg * mul(), acc: 0.8, splash: 0, mult: DOG_MULT }, 'strat', 't', 'dog');
+  fireShot(m, s, e, { dmg: D.dmg * mul(), acc: 0.8, splash: 0, mult: DOG_MULT }, 'callin', 't', 'dog');
 }
 
 function vehicleStep(m, s, dt) {
-  const F = C.strat.frv, sq = m.squad, t = m.t;
+  const F = C.callin.lrv, sq = m.squad, t = m.t;
   if (s.wreck) {
     s.burn -= dt;
     if (s.burn <= 0) {
-      damageArea(m, s.x, s.y, 9, 320 * mul(), M(1, 1, 0.6, 0.1), 'strat', false);
-      m.emit('boom', { x: s.x, y: s.y, r: 9, dmg: 320, by: 'strat' });
+      damageArea(m, s.x, s.y, 9, 320 * mul(), M(1, 1, 0.6, 0.1), 'callin', false);
+      m.emit('boom', { x: s.x, y: s.y, r: 9, dmg: 320, by: 'callin' });
       destroyAsset(m, s, 'spent');
     }
     return;
@@ -572,7 +572,7 @@ function vehicleStep(m, s, dt) {
   // Bail out when it is nearly dead, run out of time, or arrive.
   if (!seats.length) { destroyAsset(m, s, 'spent'); return; }
   if (s.hp <= s.maxHp * F.ejectAt) {
-    dismount(m, s, 'bail'); s.wreck = true; s.burn = 4; if (m.frv === s) m.frv = null; return;
+    dismount(m, s, 'bail'); s.wreck = true; s.burn = 4; if (m.lrv === s) m.lrv = null; return;
   }
   if (t >= s.until || (sq.goalDist ?? 999) < 40 || m.phase === 'over') {
     dismount(m, s, 'arrive'); destroyAsset(m, s, 'spent'); return;
@@ -583,7 +583,7 @@ function vehicleStep(m, s, dt) {
   if (s.cool <= 0) {
     let best = dropNear(m, s.x, s.y, F.gunRange), bs = best ? Infinity : -Infinity;
     m.eGrid.near(s.x, s.y, F.gunRange, (e, d2) => { const sc = (e.kind === 'H' ? 60 : e.kind === 'M' ? 20 : 0) - Math.sqrt(d2); if (sc > bs) { bs = sc; best = e; } });
-    if (best) { s.cool = F.gunEvery; fireShot(m, s, best, { dmg: F.gunDmg * mul(), acc: 0.85, splash: 0, mult: LRV_MULT }, 'strat', 't', 'frvgun'); } else s.cool = 0.2;
+    if (best) { s.cool = F.gunEvery; fireShot(m, s, best, { dmg: F.gunDmg * mul(), acc: 0.85, splash: 0, mult: LRV_MULT }, 'callin', 't', 'lrvgun'); } else s.cool = 0.2;
   }
 }
 
@@ -615,7 +615,7 @@ function pickWeaponTarget(m, a, w) {
     if (w.kinds && !w.kinds.includes(e.kind)) return;
     let score = -Math.sqrt(d2);
     if (w.prefer && w.prefer.includes(e.kind)) score += 60;
-    if (w.crowd) { let n = 0; m.eGrid.near(e.x, e.y, 4, () => { n++; }); score += n * 6; }   // the autocannon likes a crowd
+    if (w.crowd) { let n = 0; m.eGrid.near(e.x, e.y, 4, () => { n++; }); score += n * 6; }   // the light cannon likes a crowd
     if (score > bs) { bs = score; best = e; }
   });
   return best;
@@ -630,7 +630,7 @@ function lockedOn(m, w, e, dt) {
 }
 
 function updateWeapons(m, dt) {
-  const sq = m.squad, k = C.strat.swMul ?? mul();      // (0.19: the support weapons have their own multiplier)
+  const sq = m.squad, k = C.callin.swMul ?? mul();      // (0.19: the support weapons have their own multiplier)
   for (const a of m.hdAlive) {
     if (a.mounted) continue;
     const ok = (e) => e.drop || sq.free || e.g.state === 'hunt';
@@ -646,9 +646,9 @@ function updateWeapons(m, dt) {
           else {
             w.t = w.every; w.lockE = null; w.lockT = 0;
             const dmg = w.dmg * k * (w.vary ? 1 + (m.rng.next() * 2 - 1) * w.vary : 1);
-            fireShot(m, a, e, { dmg, acc: w.acc, splash: w.splash, mult: w.mult, flight: w.splash > 0 && w.range > 40 ? 0.35 : 0 }, 'strat', 'a', w.snd);
+            fireShot(m, a, e, { dmg, acc: w.acc, splash: w.splash, mult: w.mult, flight: w.splash > 0 && w.range > 40 ? 0.35 : 0 }, 'callin', 'a', w.snd);
             w.left--;
-            if (w.left <= 0) { a.sw = null; m.radio(COMMS.assetSpent(STRATS[w.id].name), 'aspent', 2); m.emit('asset_down', { kind: 'weapon', sid: w.id, x: a.x, y: a.y, why: 'spent' }); }
+            if (w.left <= 0) { a.sw = null; m.radio(COMMS.assetSpent(CALLINS[w.id].name), 'aspent', 2); m.emit('asset_down', { kind: 'weapon', sid: w.id, x: a.x, y: a.y, why: 'spent' }); }
           }
         } else {
           w.lockE = null; w.lockT = 0;
@@ -659,10 +659,10 @@ function updateWeapons(m, dt) {
             w.t = w.every;
             const dx = a.x - bs.x, dy = a.y - bs.y, d = Math.hypot(dx, dy) || 1, kk = bs.r * 0.7 / d;
             m.emit('tracer', { x: a.x, y: a.y, tx: bs.x + dx * kk, ty: bs.y + dy * kk, s: 'a', hit: true, big: true, fl: w.splash > 0 && w.range > 40 ? 0.35 : 0, snd: w.snd });
-            m.damageBase(bs, w.dmg * k * w.mult.B * C.structure.stratMul, 'strat', a.x, a.y);
-            if (w.splash >= 3) m.emit('boom', { x: bs.x + dx * kk, y: bs.y + dy * kk, r: w.splash, dmg: w.dmg, by: 'strat' });
+            m.damageBase(bs, w.dmg * k * w.mult.B * C.structure.callinMul, 'callin', a.x, a.y);
+            if (w.splash >= 3) m.emit('boom', { x: bs.x + dx * kk, y: bs.y + dy * kk, r: w.splash, dmg: w.dmg, by: 'callin' });
             w.left--;
-            if (w.left <= 0) { a.sw = null; m.radio(COMMS.assetSpent(STRATS[w.id].name), 'aspent', 2); m.emit('asset_down', { kind: 'weapon', sid: w.id, x: a.x, y: a.y, why: 'spent' }); }
+            if (w.left <= 0) { a.sw = null; m.radio(COMMS.assetSpent(CALLINS[w.id].name), 'aspent', 2); m.emit('asset_down', { kind: 'weapon', sid: w.id, x: a.x, y: a.y, why: 'spent' }); }
           } else w.t = 0.2;
         }
       }
@@ -672,11 +672,11 @@ function updateWeapons(m, dt) {
       mc.gatT -= dt; mc.rktT -= dt;
       if (mc.gatT <= 0 && mc.gat > 0) {
         const e = m.eGrid.nearest(a.x, a.y, 42);
-        if (e && ok(e)) { mc.gatT = 0.15; mc.gat--; fireShot(m, a, e, { dmg: 6.5 * k, acc: 0.8, splash: 0, mult: MECH_GAT }, 'strat', 'a', 'mechgat'); } else mc.gatT = 0.2;
+        if (e && ok(e)) { mc.gatT = 0.15; mc.gat--; fireShot(m, a, e, { dmg: 6.5 * k, acc: 0.8, splash: 0, mult: MECH_GAT }, 'callin', 'a', 'mechgat'); } else mc.gatT = 0.2;
       }
       if (mc.rktT <= 0 && mc.rkt > 0) {
         const e = pickWeaponTarget(m, a, { range: 80, prefer: 'HM', mult: MECH_RKT });
-        if (e && ok(e)) { mc.rktT = 3.5; mc.rkt--; fireShot(m, a, e, { dmg: 260 * k, acc: 0.9, splash: 5, mult: MECH_RKT, flight: 0.45 }, 'strat', 'a', 'mechrkt'); } else mc.rktT = 0.3;
+        if (e && ok(e)) { mc.rktT = 3.5; mc.rkt--; fireShot(m, a, e, { dmg: 260 * k, acc: 0.9, splash: 5, mult: MECH_RKT, flight: 0.45 }, 'callin', 'a', 'mechrkt'); } else mc.rktT = 0.3;
       }
       if (mc.gat <= 0 && mc.rkt <= 0) mechOut(m, a, 'empty');
     }
@@ -692,13 +692,13 @@ function mechOut(m, a, why) {
 export function mechDown(m, a) {
   if (!a.mech) return;
   a.mech = null;
-  damageArea(m, a.x, a.y, 6, 260 * mul(), M(1, 1, 0.5, 0.1), 'strat', false);
+  damageArea(m, a.x, a.y, 6, 260 * mul(), M(1, 1, 0.5, 0.1), 'callin', false);
   m.radio(COMMS.mechDown, 'mechout', 3);
-  m.emit('boom', { x: a.x, y: a.y, r: 6, dmg: 260, by: 'strat' });
+  m.emit('boom', { x: a.x, y: a.y, r: 6, dmg: 260, by: 'callin' });
   m.emit('asset_down', { kind: 'mech', sid: 'mech', x: a.x, y: a.y, why: 'killed' });
 }
 
-// Fire, gas, EMS and smoke zones.
+// Fire, gas, Stun and smoke zones.
 function updateZones(m, dt) {
   const t = m.t, k = mul();
   for (let i = m.zones.length - 1; i >= 0; i--) {
@@ -709,7 +709,7 @@ function updateZones(m, dt) {
     z.tick += 0.25;
     if (z.kind === 'fire' || z.kind === 'gas') {
       const dm = z.by === 'player' ? 1 : k;   // the player's zones already carry the player's upgrades
-      m.eGrid.near(z.x, z.y, z.r, (e) => { alertGroup(m, e.g); hurtEnemy(m, e, z.dps * 0.25 * dm, z.by || 'strat', null, null, ''); });
+      m.eGrid.near(z.x, z.y, z.r, (e) => { alertGroup(m, e.g); hurtEnemy(m, e, z.dps * 0.25 * dm, z.by || 'callin', null, null, ''); });
     } else if (z.kind === 'ems') {
       m.eGrid.near(z.x, z.y, z.r, (e) => { e.stunUntil = t + 0.6; });
     }
@@ -717,8 +717,8 @@ function updateZones(m, dt) {
 }
 
 // ---------------------------------------------------------------- main update
-export function updateStrat(m, dt) {
-  const S = m.strat, t = m.t;
+export function updateCallin(m, dt) {
+  const S = m.callin, t = m.t;
   runQueue(m);
   updateAssets(m, dt);
   updateWeapons(m, dt);
@@ -743,12 +743,12 @@ export function updateStrat(m, dt) {
     const tgt = choose(m, g, ctx);
     if (!tgt) continue;
     // a commander's jammer: nothing can be called down inside it, and nobody standing in it can call at all
-    const caller = stratOwner(m, g);
+    const caller = callinOwner(m, g);
     if (jammedAt(m, tgt.x, tgt.y, 4) || (caller && jammedAt(m, caller.x, caller.y))) { m.stats.jammed = (m.stats.jammed || 0) + 1; continue; }
     if (!ctx.panic && m.rng.next() > 0.7) continue;   // not every opportunity gets taken the instant it appears (but a runner calls at once)
     execute(m, g, tgt, ctx);
-    g.readyAt = t + d.cd * (C.strat.cdMul ?? 1); g.uses++;
-    team.callAt = t + C.strat.callGapSec;
+    g.readyAt = t + d.cd * (C.callin.cdMul ?? 1); g.uses++;
+    team.callAt = t + C.callin.callGapSec;
     called.add(g.team);
     if (d.shared) { called.add('s'); S.sharedAt = t + 0.5; }
   }

@@ -1,4 +1,4 @@
-// Infantry: the troops the player directs. A troop dropship flies each drop in; the troops join a numbered squad (1 to 9, C.seaf.squads).
+// Infantry: the troops the player directs. A troop dropship flies each drop in; the troops join a numbered squad (1 to 9, C.infantry.squads).
 // A squad carries out one standing order: auto (clear the nearest objective), move, protect, attack, escort, a drawn route
 // (path), or a drawn formation (line, ring). Medics patch up anyone nearby.
 import { t as tr } from '../i18n.js';
@@ -6,20 +6,20 @@ import { CONFIG as C } from '../config.js';
 import { rockNear } from './scenery.js';
 import { aoX, aoY } from './ao.js';
 import { COMMS } from '../data/data.js';
-import { seafStats, buildStats, hangarStats } from '../data/kit.js';
+import { infantryStats, buildStats, hangarStats } from '../data/kit.js';
 import { fireShot } from './combat.js';
 import { nearestObjective } from './pois.js';
 import { bark } from './chatter.js';
 import { canStep } from './safety.js';
 import { runClear } from './ops.js';
 import { steer } from './terrain.js';
-import { speedMul } from './helldiver.js';
+import { speedMul } from './vanguard.js';
 import { shoreToward } from './enemies.js';
 import { siteAt, coverSlot } from './cover.js';
 import { makePost, removePost, GARRISON, INSIDE, crateSec } from './posts.js';
 
 const SIZE = C.world.size;
-const S = C.seaf;
+const S = C.infantry;
 export const SQUAD_COLOR = ['#5fa8ff', '#ff9d4a', '#c58bff', '#3fe0c4', '#ffd24a', '#ff6fa8', '#9dff6a', '#6ae0ff', '#e0a070'];
 const M4 = (L, Mm, H, B) => ({ L, M: Mm, H, B });
 const PEL_MULT = M4(1, 1, 0.4, 0.05);
@@ -44,7 +44,7 @@ function walk(m, a, tx, ty, speed, dt) {
       // (0.62.8) the dry ground on the side of where the squad was SENT, when the spot is a place in its formation there: by
       // the side of the trooper himself, a place that fell in a river on the far bank stood in as the near bank, and he
       // stopped at the water for good while the rest of the squad crossed ("I order them to move and they just stop")
-      const q = a.sq >= 0 && m.seaf.squads[a.sq], o = q && q.order;
+      const q = a.sq >= 0 && m.infantry.squads[a.sq], o = q && q.order;
       const an = o && (o.x || o.y) && (o.x - tx) ** 2 + (o.y - ty) ** 2 < 45 * 45 && !m.terrain.blocked(o.x, o.y) ? o : a;
       const l = shoreToward(m.terrain, tx, ty, an.x, an.y); a.nlc = { tx, ty, x: l.x, y: l.y }; tx = l.x; ty = l.y;
     }
@@ -53,7 +53,7 @@ function walk(m, a, tx, ty, speed, dt) {
   tx = w.x; ty = w.y;
   const dx = tx - a.x, dy = ty - a.y, d = Math.hypot(dx, dy);
   if (d < 0.05) return 0;
-  const brace = a.role === 'spec' && !a.forced && m.t < (a.braceUntil || 0) ? C.seaf.braceMul : 1;     // (0.26) a Specialist firing the MG-43 is braced (0.46: not on a forced move)
+  const brace = a.role === 'spec' && !a.forced && m.t < (a.braceUntil || 0) ? C.infantry.braceMul : 1;     // (0.26) a Specialist firing the MG-43 is braced (0.46: not on a forced move)
   const s = Math.min(speed * speedMul(m, a) * brace * dt, d), nx = a.x + (dx / d) * s, ny = a.y + (dy / d) * s;
   if (!canStep(m, a, nx, ny)) return 0;
   a.x = nx; a.y = ny;
@@ -67,12 +67,12 @@ export function newOrder(kind = 'auto', x = 0, y = 0, until = 0) {
 // (0.18) Troopers do not have to be in a squad: a disbanded squad's troopers are LOOSE (they hold where they stand). The player can
 // pick single troopers or a box of them (PICKED: sel is PICKED and pick lists them); an order to them forms them into a squad.
 export const LOOSE = -3, PICKED = -2;
-export function initSeaf() {
+export function initInfantry() {
   const sf = {
     sel: -1, pick: null, spotAt: 0, fid: 0,
     // (0.39) the hangar's dropships: when each is next ready (Infantry drops and pickups share them; fleet() grows this to the kit's
     // number), and the troopers a pickup has taken up to the destroyer (the next drops bring them back down first)
-    fleet: [C.seaf.firstDropSec], reserve: [],
+    fleet: [C.infantry.firstDropSec], reserve: [],
     squads: Array.from({ length: S.squads }, (_, i) => ({ i, order: newOrder(), tgt: null, tgtT: 0, clearT: 0, skip: new Map(), stand: null, ax: 0, ay: 0, n: 0, cx: 0, cy: 0 })),
   };
   // readyAt: when the first dropship is ready (setting it sets every dropship: the old single cooldown, kept for the bot and tests)
@@ -81,40 +81,40 @@ export function initSeaf() {
 }
 // (0.39) The hangar's dropships, as many as the kit has (one bought mid-mission is ready at once).
 export function fleet(m) {
-  const F = m.seaf.fleet, n = hangarStats(m.kit).fleet;
+  const F = m.infantry.fleet, n = hangarStats(m.kit).fleet;
   while (F.length < n) F.push(m.t);
   if (F.length > n) F.length = n;
   return F;
 }
-export const pelicansReady = (m) => fleet(m).filter((t) => t <= m.t).length;
+export const dshipsReady = (m) => fleet(m).filter((t) => t <= m.t).length;
 // the next one ready (or -1), sent out now: it is back and ready again after the Infantry drop cooldown (cut: the share of it taken off,
 // 0.40: a drop bringing picked-up troopers back down)
 export function takeDropship(m, cut = 0) {
   const F = fleet(m);
   let k = -1;
   for (let i = 0; i < F.length; i++) if (F[i] <= m.t && (k < 0 || F[i] < F[k])) k = i;
-  if (k >= 0) F[k] = m.t + seafStats(m.kit).cool * (1 - Math.max(0, Math.min(1, cut)));
+  if (k >= 0) F[k] = m.t + infantryStats(m.kit).cool * (1 - Math.max(0, Math.min(1, cut)));
   return k;
 }
 // (0.40) how much of a drop's cooldown n troopers brought back down take off it
-export const backCut = (m, n) => C.seaf.backCut * Math.min(1, n / Math.max(1, seafStats(m.kit).drop));
+export const backCut = (m, n) => C.infantry.backCut * Math.min(1, n / Math.max(1, infantryStats(m.kit).drop));
 // Infantry in the field, coming down and aboard the destroyer (a pickup): all of them count against the most you can have
-export const seafHeld = (m) => m.countAlly('S') + m.pendingPods('S') + m.seaf.reserve.length;
+export const infantryHeld = (m) => m.countAlly('S') + m.pendingPods('S') + m.infantry.reserve.length;
 // Squads an order applies to: the selected one, or every squad that has troops.
 function recount(m) {
-  for (const q of m.seaf.squads) q.n = 0;
-  for (const a of m.seafAlive) { if (a.sq === GARRISON || a.sq === LOOSE) continue; if (!(a.sq >= 0 && a.sq < m.seaf.squads.length)) a.sq = 0; m.seaf.squads[a.sq].n++; }
+  for (const q of m.infantry.squads) q.n = 0;
+  for (const a of m.infantryAlive) { if (a.sq === GARRISON || a.sq === LOOSE) continue; if (!(a.sq >= 0 && a.sq < m.infantry.squads.length)) a.sq = 0; m.infantry.squads[a.sq].n++; }
 }
 // (0.47) Each squad's size and middle, now. The step does this as it runs; in the soft pause troopers can change squads (picked into
 // one, merged, Alt+number) with no step to follow, so the planned orders' lines and the ghosts went from where the squads were
 // before. main.js calls this every frame of the pause.
 export function squadCentres(m) {
-  const sf = m.seaf, sx = sf.squads.map(() => 0), sy = sf.squads.map(() => 0), n = sf.squads.map(() => 0);
-  for (const a of m.seafAlive) { if (a.down || !(a.sq >= 0 && a.sq < n.length)) continue; n[a.sq]++; sx[a.sq] += a.x; sy[a.sq] += a.y; }
+  const sf = m.infantry, sx = sf.squads.map(() => 0), sy = sf.squads.map(() => 0), n = sf.squads.map(() => 0);
+  for (const a of m.infantryAlive) { if (a.down || !(a.sq >= 0 && a.sq < n.length)) continue; n[a.sq]++; sx[a.sq] += a.x; sy[a.sq] += a.y; }
   sf.squads.forEach((q, i) => { q.n = n[i]; if (n[i]) { q.cx = sx[i] / n[i]; q.cy = sy[i] / n[i]; } });
 }
 export function targetSquads(m) {
-  const sf = m.seaf;
+  const sf = m.infantry;
   recount(m);
   if (sf.sel === PICKED) { const q = adopt(m); return q ? [q] : []; }
   if (sf.sel >= 0) return [sf.squads[sf.sel]];
@@ -124,32 +124,32 @@ export function targetSquads(m) {
 // (0.22) Several squads picked (Shift+click, or a finger held on a squad's button): sel stays -1 (every squad) and multi lists the
 // ones meant, so an order goes to each of them, as itself. One left is a plain selection; none is every squad.
 export function selectSquads(m, list) {
-  const sf = m.seaf, L = [...new Set(list.filter((i) => i >= 0 && i < sf.squads.length))].sort((a, b) => a - b);
+  const sf = m.infantry, L = [...new Set(list.filter((i) => i >= 0 && i < sf.squads.length))].sort((a, b) => a - b);
   sf.pick = null;
   if (L.length === 1) { sf.sel = L[0]; sf.multi = null; } else { sf.sel = -1; sf.multi = L.length ? L : null; }
   return L;
 }
 // (0.22) MERGE: the troopers of every squad listed join the first of them (the lowest number), which keeps its order.
 export function mergeSquads(m, list) {
-  const sf = m.seaf; recount(m);
+  const sf = m.infantry; recount(m);
   const L = [...new Set(list)].filter((i) => i >= 0 && i < sf.squads.length && squadCount(m, i) > 0).sort((a, b) => a - b);
   if (L.length < 2) return { ok: false, reason: 'merge' };
-  const to = L[0], movers = m.seafAlive.filter((a) => L.includes(a.sq) && a.sq !== to);
+  const to = L[0], movers = m.infantryAlive.filter((a) => L.includes(a.sq) && a.sq !== to);
   for (const a of movers) a.sq = to;
-  for (const p of m.pelicans) if (L.includes(p.squad)) p.squad = to;     // troops still on their way join it too
+  for (const p of m.dships) if (L.includes(p.squad)) p.squad = to;     // troops still on their way join it too
   for (const i of L.slice(1)) { const q = sf.squads[i]; q.order = newOrder(); q.form = null; q.tgt = null; q.stand = null; }
   sf.sel = to; sf.pick = null; sf.multi = null;
   recount(m);
   return { ok: true, to, from: L.slice(1), n: movers.length };
 }
-export const squadCount = (m, i) => { let n = 0; for (const a of m.seafAlive) if (a.sq === i) n++; return n; };
-export function squadMembers(m, i) { return m.seafAlive.filter((a) => a.sq === i); }
+export const squadCount = (m, i) => { let n = 0; for (const a of m.infantryAlive) if (a.sq === i) n++; return n; };
+export function squadMembers(m, i) { return m.infantryAlive.filter((a) => a.sq === i); }
 
 // The squad a new drop joins. (0.46) Always a squad of its own while there is a free one, whatever squad is selected (it used to
 // join the selected squad and take on its orders, such as escorting the Vanguards, even when it landed across the map). With all
 // of them in use, the squad nearest the drop (x, y), so it doesn't run off across the map to join one.
 export function dropSquad(m, x = null, y = null) {
-  const sf = m.seaf;
+  const sf = m.infantry;
   const free = sf.squads.find((q) => squadCount(m, q.i) === 0 && pendingFor(m, q.i) === 0);
   if (free) { free.order = newOrder(); free.form = null; return free.i; }
   let best = 0, bd = Infinity;
@@ -162,8 +162,8 @@ export function dropSquad(m, x = null, y = null) {
   }
   return best;
 }
-function pendingFor(m, i) { let n = 0; for (const p of m.pelicans) if (p.squad === i) n += p.roles.length - p.dropped; return n; }
-export function pendingTroops(m) { let n = 0; for (const p of m.pelicans) n += p.roles.length - p.dropped; return n; }
+function pendingFor(m, i) { let n = 0; for (const p of m.dships) if (p.squad === i) n += p.roles.length - p.dropped; return n; }
+export function pendingTroops(m) { let n = 0; for (const p of m.dships) n += p.roles.length - p.dropped; return n; }
 
 // ---------------------------------------------------------------- orders
 // (0.54) an order of any kind, or this, counts as the squad being directed (the test bot uses it to stay sharp).
@@ -183,7 +183,7 @@ export function builtCount(m, what) { return (m.posts || []).filter((p) => !p.de
 // Done: the crate is deployed (it was paid for when ordered; a foxhole is dug), the post goes up (posts.js) and the squad that
 // built it stays on it. Upgrades from the armory decide how good it is (data/kit.js buildStats).
 function finishBuild(m, q, o) {
-  const cr = o.crate, crew = cr ? m.seaf.squads.filter((x) => x !== q && x.n && x.order.kind === 'build' && x.order.crate === cr) : [];     // (0.28: everyone who dug a trench mans it)
+  const cr = o.crate, crew = cr ? m.infantry.squads.filter((x) => x !== q && x.n && x.order.kind === 'build' && x.order.crate === cr) : [];     // (0.28: everyone who dug a trench mans it)
   if (cr) { cr.used = true; m.crates = m.crates.filter((c) => c !== cr); }
   const p = makePost(m, o.what, cr ? cr.x : o.x, cr ? cr.y : o.y, cr && cr.span ? { span: cr.span } : cr && cr.dig ? { size: cr.size, face: cr.face } : cr ? { face: cr.face, shape: cr.shape } : {});
   if (o.what === 'arty') m.radio(COMMS.artyUp, 'artyup', 0);
@@ -207,7 +207,7 @@ export function nextCrate(m, x, y, R = C.build.queueR) {
     if (c.used) continue;
     const d = Math.hypot(c.x - x, c.y - y);
     if (d > R) continue;
-    const taken = m.seaf.squads.some((q) => q.n && q.order.kind === 'build' && q.order.crate === c);
+    const taken = m.infantry.squads.some((q) => q.n && q.order.kind === 'build' && q.order.crate === c);
     const sc = d + (taken ? 1000 : 0);
     if (sc < bs) { bs = sc; best = c; }
   }
@@ -257,10 +257,10 @@ export function classifyStroke(pts) {
 // Apply a drawn play to the selected squad(s). Returns { ok, kind }.
 export function drawOrder(m, pts) {
   const sq = targetSquads(m);
-  if (!sq.length || !sq.some((q) => q.n > 0)) return { ok: false, reason: 'noseaf' };
+  if (!sq.length || !sq.some((q) => q.n > 0)) return { ok: false, reason: 'noinfantry' };
   const c = classifyStroke(pts.map((p) => ({ x: clamp(p.x, 20, SIZE - 20), y: clamp(p.y, 20, SIZE - 20) })));
   if (!c) return { ok: false, reason: 'short' };
-  const fid = ++m.seaf.fid;
+  const fid = ++m.infantry.fid;
   for (const q of sq) {
     if (!q.n) continue;
     if (c.kind === 'path') setSquadOrder(m, q, 'path', c.path[0].x, c.path[0].y, { path: c.path.slice(), pi: 0 });
@@ -299,7 +299,7 @@ function keepLeaders(m, by) {
       nu.role = 'leader';
       if (nu.name) nu.name = nu.name.replace(/^\S+/, 'SGT');
       m.notice(tr('n.newLeader', { sq: i + 1, who: nu.name || 'SGT' }), 'info');
-      m.emit('seaf_lead', { id: nu.id, sq: i });
+      m.emit('infantry_lead', { id: nu.id, sq: i });
     }
   });
 }
@@ -314,17 +314,17 @@ export function callCargo(m, x, y, crate) {
 function cargoNext(m) {
   const Q = m.cargoQ;
   if (!Q || !Q.length) return;
-  for (const p of m.pelicans) if (p.cargo && p.state !== 'out') return;     // one is still coming in or lowering its crate
+  for (const p of m.dships) if (p.cargo && p.state !== 'out') return;     // one is still coming in or lowering its crate
   const { x, y, crate } = Q.shift();
   if (crate.used || !m.crates.includes(crate)) return cargoNext(m);     // (called off, or dealt with, while it waited)
-  m.pelicans.push(newDropship(m, x, y, { cargo: crate }));
+  m.dships.push(newDropship(m, x, y, { cargo: crate }));
   m.emit('cargo_call', { x, y, what: crate.what });
 }
 // how many crates are still waiting for the cargo Dropship (for the build bar and the tests)
-// (0.39) A dropship on its way: it comes down from orbit to (x, y) in CONFIG.pelican.inSec, from behind the squad (or from `from`
+// (0.39) A dropship on its way: it comes down from orbit to (x, y) in CONFIG.dship.inSec, from behind the squad (or from `from`
 // radians), works there for workSec and climbs away (updateDropships).
 export function newDropship(m, x, y, o = {}) {
-  const P = C.pelican, base = o.from ?? (m.squad.dir || 0) + Math.PI + m.rng.range(-0.7, 0.7);
+  const P = C.dship, base = o.from ?? (m.squad.dir || 0) + Math.PI + m.rng.range(-0.7, 0.7);
   const dx = Math.cos(base + Math.PI), dy = Math.sin(base + Math.PI);     // heading: toward (x, y)
   const sx = x - dx * P.approach, sy = y - dy * P.approach;
   return { id: m.nextId++, x: sx, y: sy, sx, sy, tx: x, ty: y, dx, dy, t0: m.t, state: 'in', alt: 1.6, roles: [], dropped: 0, dropT: 0,
@@ -334,7 +334,7 @@ export function newDropship(m, x, y, o = {}) {
 // (0.27.3) A new squad down from a dropship waits for orders: it holds the drop (and fights whatever comes at it), unless there is
 // cover close by (a walled site, a bastion, a foxhole, a nest): then it goes straight to that and mans it.
 export function dropHold(m, q, x, y) {
-  const R = C.seaf.dropCover;
+  const R = C.infantry.dropCover;
   const site = siteAt(m, x, y, R);
   let post = null, pd = Infinity;
   for (const p of m.posts || []) {
@@ -348,28 +348,28 @@ export function dropHold(m, q, x, y) {
   else setSquadOrder(m, q, 'protect', x, y);
 }
 export function callDropship(m, x, y, n, squad, hold = false) {
-  const st = seafStats(m.kit);
+  const st = infantryStats(m.kit);
   // (0.39) troopers a pickup took up to the destroyer come back down first (the new ones make up the rest)
-  const back = m.seaf.reserve.splice(0, n).map((r) => r.role || 'rifle');
+  const back = m.infantry.reserve.splice(0, n).map((r) => r.role || 'rifle');
   const roles = back.length ? [...back, ...rollRoles(m, n - back.length, st).filter((r, k) => k > 0 || !back.includes('leader'))].slice(0, n) : rollRoles(m, n, st);
   while (roles.length < n) roles.push('rifle');
   const pel = newDropship(m, x, y, { roles, squad, hold, back: back.length });
-  m.pelicans.push(pel);
-  if (hold && m.seaf.squads[squad]) { setSquadOrder(m, m.seaf.squads[squad], 'protect', x, y); pel.holdOrder = m.seaf.squads[squad].order; }      // (the first ones down hold too)
+  m.dships.push(pel);
+  if (hold && m.infantry.squads[squad]) { setSquadOrder(m, m.infantry.squads[squad], 'protect', x, y); pel.holdOrder = m.infantry.squads[squad].order; }      // (the first ones down hold too)
 }
 
-export function pelicanGun(m, p, dt) {
-  const P = C.pelican;
+export function dshipGun(m, p, dt) {
+  const P = C.dship;
   p.gunT -= dt;
   if (p.gunT > 0) return;
   const e = m.eGrid.nearest(p.x, p.y, P.gunRange);
   if (!e) { p.gunT = 0.2; return; }
   p.gunT = P.gunEvery;
-  fireShot(m, p, e, { dmg: P.gunDmg * m.kitDmg, acc: P.gunAcc, splash: P.gunSplash, mult: PEL_MULT }, 'squad', 'a', 'pelican');
+  fireShot(m, p, e, { dmg: P.gunDmg * m.kitDmg, acc: P.gunAcc, splash: P.gunSplash, mult: PEL_MULT }, 'squad', 'a', 'dship');
 }
 
 export function updateDropships(m, dt) {
-  const P = C.pelican, ps = m.pelicans;
+  const P = C.dship, ps = m.dships;
   cargoNext(m);
   for (let i = ps.length - 1; i >= 0; i--) {
     const p = ps[i];
@@ -383,12 +383,12 @@ export function updateDropships(m, dt) {
         p.state = 'hover'; p.x = p.tx; p.y = p.ty; p.alt = 0.3; p.hoverT = P.workSec;
         const n = p.roles.length;
         p.dropT = p.cargo ? P.workSec * 0.45 : p.pick ? 0.25 : 0.3; p.dropEvery = n ? (P.workSec * 0.8) / n : 0.3;
-        m.emit('pelican_arrive', { x: p.x, y: p.y, evac: !!p.evac, pick: !!p.pick });
+        m.emit('dship_arrive', { x: p.x, y: p.y, evac: !!p.evac, pick: !!p.pick });
       }
-      if (Math.hypot(p.tx - p.x, p.ty - p.y) < P.gunRange * 1.2) pelicanGun(m, p, dt);
+      if (Math.hypot(p.tx - p.x, p.ty - p.y) < P.gunRange * 1.2) dshipGun(m, p, dt);
     } else if (p.state === 'hover') {
       p.hoverT -= dt; p.dropT -= dt;
-      pelicanGun(m, p, dt);
+      dshipGun(m, p, dt);
       if (p.pick) { if (pickStep(m, p) || p.hoverT <= 0) { pickDone(m, p); p.state = 'out'; p.outT = 0; } continue; }     // (0.39) a pickup
       if (p.cargo && !p.cargo.landed && p.dropT <= 0) {           // a cargo dropship lowers its crate
         p.cargo.landed = true; p.cargo.at = m.t;
@@ -398,24 +398,24 @@ export function updateDropships(m, dt) {
         if (p.cargo.landed && p.hoverT <= 0) { p.state = 'out'; p.outT = 0; }
         continue;
       }
-      // (0.46) the whole load gets off at once (it used to be one trooper at a time over the pelican's work time)
+      // (0.46) the whole load gets off at once (it used to be one trooper at a time over the dship's work time)
       while (p.dropped < p.roles.length && p.dropT <= 0) {
         const role = p.roles[p.dropped++], ang = m.rng.angle(), d = m.rng.range(4, 12);
         const a = m.addAlly('S', p.x + Math.cos(ang) * d, p.y + Math.sin(ang) * d, { role });
         a.sq = p.squad;
-        m.emit('pelican_drop', { x: a.x, y: a.y, role });
+        m.emit('dship_drop', { x: a.x, y: a.y, role });
       }
       if (p.dropped >= p.roles.length && p.hoverT <= 0) {
         p.state = 'out'; p.outT = 0;
         m._refreshAlive();
         const n = p.roles.length, c = (r) => p.roles.filter((q) => q === r).length;
         const extra = [c('spec') ? tr('n.pSpec') : '', c('medic') ? tr('n.pMedic') : ''].filter(Boolean).join(' ');
-        m.notice(tr('n.seafDown', { n, extra: extra ? ' ' + extra : '', sq: p.squad + 1 }), 'info');
-        m.radio(COMMS.seafLanded, 'land', 0);
+        m.notice(tr('n.infantryDown', { n, extra: extra ? ' ' + extra : '', sq: p.squad + 1 }), 'info');
+        m.radio(COMMS.infantryLanded, 'land', 0);
         // (0.62.8) only if the player has not ordered the squad somewhere since the Dropship was called: the landing order used
         // to replace his, so a squad told to move while its last troopers were still coming down set off and then stopped
-        if (p.hold && m.seaf.squads[p.squad] && (!p.holdOrder || m.seaf.squads[p.squad].order === p.holdOrder)) dropHold(m, m.seaf.squads[p.squad], p.tx, p.ty);
-        const s = m.seafAlive.filter((a) => a.sq === p.squad).pop();
+        if (p.hold && m.infantry.squads[p.squad] && (!p.holdOrder || m.infantry.squads[p.squad].order === p.holdOrder)) dropHold(m, m.infantry.squads[p.squad], p.tx, p.ty);
+        const s = m.infantryAlive.filter((a) => a.sq === p.squad).pop();
         if (s) bark(m, s, 'land', '');
       }
     } else {
@@ -423,7 +423,7 @@ export function updateDropships(m, dt) {
       const sp = P.speed * (0.5 + 0.9 * Math.min(1, p.outT / 2));
       p.x += p.dx * sp * dt; p.y += p.dy * sp * dt;
       p.alt = Math.min(1, 0.3 + p.outT * 0.4);
-      if (p.outT < 2.5) pelicanGun(m, p, dt);
+      if (p.outT < 2.5) dshipGun(m, p, dt);
       if (p.outT >= P.climb) ps.splice(i, 1);
     }
   }
@@ -432,12 +432,12 @@ export function updateDropships(m, dt) {
 // ---------------------------------------------------------------- (0.39) pickups
 // A pickup point (PICKUP, beside INFANTRY DROP) goes down anywhere in the strike zone. When Infantry are standing in it and one of the
 // hangar's dropships is ready, a dropship comes for them (once everyone sent to it is there, or the first have waited a while): it
-// takes (0.40) everyone standing in the zone aboard, however many, and they go up to the destroyer (m.seaf.reserve), for the
+// takes (0.40) everyone standing in the zone aboard, however many, and they go up to the destroyer (m.infantry.reserve), for the
 // next Infantry drops to bring back down anywhere. A point nobody is in waits like a building: select it and send troops to it. It goes
 // once a dropship has taken the last of them (or it is called off). Infantry drops and pickups share the hangar's dropships.
 const LZ_WAIT = 8;      // seconds the first troopers in a point wait for the rest before a dropship is sent anyway
 export function makeLz(m, x, y) {
-  const P = C.pelican, slots = [];
+  const P = C.dship, slots = [];
   // (0.40) three rings, a quarter, a third and the rest of the places, at 3, 6.5 and 10 m: well inside the zone
   const n = P.lzSlots, rings = [[Math.round(n / 4), 3], [Math.round(n / 3), 6.5]]; rings.push([n - rings[0][0] - rings[1][0], 10]);
   rings.forEach(([k, r], ri) => { for (let j = 0; j < k; j++) { const ang = (j / k) * Math.PI * 2 + ri * 0.4; slots.push({ x: x + Math.cos(ang) * r, y: y + Math.sin(ang) * r }); } });
@@ -451,17 +451,17 @@ export function makeLz(m, x, y) {
 }
 const canBoard = (a) => !a.dead && !a.down && !a.inside && a.sq !== GARRISON && !a.mounted;
 // who is in the point, and how many sent to it are still on their way
-export function lzCount(m, lz, R = C.pelican.pickR) {
+export function lzCount(m, lz, R = C.dship.pickR) {
   let n = 0;
-  for (const a of m.seafAlive) if (canBoard(a) && (a.x - lz.x) ** 2 + (a.y - lz.y) ** 2 <= R * R) n++;
+  for (const a of m.infantryAlive) if (canBoard(a) && (a.x - lz.x) ** 2 + (a.y - lz.y) ** 2 <= R * R) n++;
   return n;
 }
 function lzOwed(m, lz) {
-  const R2 = C.pelican.pickR ** 2;
+  const R2 = C.dship.pickR ** 2;
   let n = 0;
-  for (const q of m.seaf.squads) {
+  for (const q of m.infantry.squads) {
     if (!q.n || q.order.kind !== 'post' || q.order.post !== lz) continue;
-    for (const a of m.seafAlive) if (a.sq === q.i && canBoard(a) && (a.x - lz.x) ** 2 + (a.y - lz.y) ** 2 > R2) n++;
+    for (const a of m.infantryAlive) if (a.sq === q.i && canBoard(a) && (a.x - lz.x) ** 2 + (a.y - lz.y) ** 2 > R2) n++;
   }
   return n;
 }
@@ -477,12 +477,12 @@ export function updatePickups(m) {
     // (0.62.8) One Dropship at a time, a load each: it comes in, takes its load, climbs away, and the next is sent for whoever
     // is still waiting (0.47 sent as many as the crowd needed all at once). When the fleet has no second Dropship ready to
     // follow, the one that comes takes everyone, so nobody is stranded for want of a ship.
-    const load = Math.max(1, seafStats(m.kit).drop);
+    const load = Math.max(1, infantryStats(m.kit).drop);
     lz.pels = [];
     if (takeDropship(m) >= 0) {
-      const more = pelicansReady(m) > 0 && lz.waiting > load;
+      const more = dshipsReady(m) > 0 && lz.waiting > load;
       const p = newDropship(m, lz.x, lz.y, { pick: lz, aboard: 0, left: lz.waiting, cap: more ? load : Infinity });
-      m.pelicans.push(p); lz.pels.push(p);
+      m.dships.push(p); lz.pels.push(p);
     }
     if (!lz.pels.length) { lz.noPel = true; continue; }
     lz.noPel = false;
@@ -495,7 +495,7 @@ export function updatePickups(m) {
 // what a pickup point is doing, in a few words (its label on the map and its panel)
 export function lzStatus(m, lz) {
   const p = lz.pel;
-  if (p && p.state === 'in') return tr('lz.in', { n: Math.max(1, Math.ceil(C.pelican.inSec - (m.t - p.t0))) });
+  if (p && p.state === 'in') return tr('lz.in', { n: Math.max(1, Math.ceil(C.dship.inSec - (m.t - p.t0))) });
   if (p && p.state === 'hover') return tr('lz.boarding', { a: p.aboard, b: p.aboard + (p.left || 0) });
   if (lz.waiting && lz.noPel) return tr('lz.noPel', { n: lz.waiting, s: Math.max(1, Math.ceil(Math.min(...fleet(m)) - m.t)) });
   if (lz.waiting) return tr(lz.owed ? 'lz.inOwed' : 'lz.inN', { n: lz.waiting, k: lz.owed });
@@ -505,18 +505,18 @@ export function lzStatus(m, lz) {
 // a pickup dropship over its point: one trooper aboard every so often, nearest first. (0.40) It takes everyone in the zone, however
 // many (paced so the lot are aboard in its time there); true once nobody is left in it.
 function pickStep(m, p) {
-  const P = C.pelican, R2 = P.boardR * P.boardR;
+  const P = C.dship, R2 = P.boardR * P.boardR;
   let best = null, bd = R2, left = 0;
-  for (const a of m.seafAlive) { if (!canBoard(a)) continue; const d = (a.x - p.tx) ** 2 + (a.y - p.ty) ** 2; if (d < R2) left++; if (d < bd) { bd = d; best = a; } }
+  for (const a of m.infantryAlive) { if (!canBoard(a)) continue; const d = (a.x - p.tx) ** 2 + (a.y - p.ty) ** 2; if (d < R2) left++; if (d < bd) { bd = d; best = a; } }
   p.left = left;
   if (!p.paced) { p.paced = true; p.dropEvery = (P.workSec * 0.8) / Math.max(1, Math.min(left, p.cap ?? Infinity)); }
   if (p.aboard >= (p.cap ?? Infinity)) return true;          // (0.47) a full load: another dropship takes the rest
   if (p.dropT > 0 || !best) return false;
   best.dead = true; best.boarded = true; best.picked = true; m.dirtyA = true;
-  m.seaf.reserve.push({ role: best.role || 'rifle' });
+  m.infantry.reserve.push({ role: best.role || 'rifle' });
   p.aboard++; p.dropT = p.dropEvery;
-  m.stats.seafPicked = (m.stats.seafPicked || 0) + 1;
-  m.emit('seaf_pickup', { x: best.x, y: best.y, id: best.id, role: best.role });
+  m.stats.infantryPicked = (m.stats.infantryPicked || 0) + 1;
+  m.emit('infantry_pickup', { x: best.x, y: best.y, id: best.id, role: best.role });
   p.left = left - 1;
   return p.left <= 0;
 }
@@ -525,7 +525,7 @@ function pickDone(m, p) {
   const lz = p.pick;
   if (lz) { lz.pels = (lz.pels || []).filter((q) => q !== p); lz.pel = lz.pels[0] || null; }     // (0.47: one of several)
   m._refreshAlive();
-  if (p.aboard) { m.notice(tr('n.seafUp', { n: p.aboard }), 'good'); m.radio(COMMS.pickupUp(p.aboard), 'pickupup', 0); }
+  if (p.aboard) { m.notice(tr('n.infantryUp', { n: p.aboard }), 'good'); m.radio(COMMS.pickupUp(p.aboard), 'pickupup', 0); }
   if (lz && !lz.dead && !lzCount(m, lz) && !lzOwed(m, lz)) removePost(m, lz);
 }
 
@@ -535,7 +535,7 @@ function pickDone(m, p) {
 // the fight, until a Medic gets him up or the time runs out.
 export function medicNear(m, a) {
   const R2 = C.medic.reviveR * C.medic.reviveR;
-  for (const o of m.seafAlive) if (o !== a && o.role === 'medic' && !o.dead && !o.down && !o.inside && (o.x - a.x) ** 2 + (o.y - a.y) ** 2 <= R2) return o;
+  for (const o of m.infantryAlive) if (o !== a && o.role === 'medic' && !o.dead && !o.down && !o.inside && (o.x - a.x) ** 2 + (o.y - a.y) ** 2 <= R2) return o;
   return null;
 }
 export function goDown(m, a, by, src) {
@@ -543,24 +543,24 @@ export function goDown(m, a, by, src) {
   a.down = { until: m.t + K.downSec, by, src, rev: 0 }; a.hp = 1; a.engaged = false; a.vx = 0; a.vy = 0;
   m.dirtyA = true;
   m.stats.downs = (m.stats.downs || 0) + 1;
-  m.emit('seaf_down', { id: a.id, x: a.x, y: a.y });
+  m.emit('infantry_down', { id: a.id, x: a.x, y: a.y });
   if (m.crng.next() < 0.5) bark(m, a, 'down', '', true);
 }
 
 function updateSpecialists(m, dt) {
-  const st = seafStats(m.kit), t = m.t, K = C.medic;
+  const st = infantryStats(m.kit), t = m.t, K = C.medic;
   // the downed: bleeding out unless a Medic is on it
-  for (const a of m.seafAlive) {
+  for (const a of m.infantryAlive) {
     if (!a.down) continue;
     if (t >= a.down.until) { const d = a.down; a.down = null; m.killAlly(a, d.by, d.src); }
   }
-  for (const a of m.seafAlive) {
+  for (const a of m.infantryAlive) {
     if (a.down || a.inside) continue;
     if (a.role === 'medic') {
       // a downed trooper in reach comes first: the Medic works on him (a stim) until he is back up
       const R2 = K.reviveR * K.reviveR;
       let dn = null, dd = Infinity;
-      for (const o of m.seafAlive) if (o.down && !o.dead) { const d2 = (o.x - a.x) ** 2 + (o.y - a.y) ** 2; if (d2 <= R2 && d2 < dd) { dd = d2; dn = o; } }
+      for (const o of m.infantryAlive) if (o.down && !o.dead) { const d2 = (o.x - a.x) ** 2 + (o.y - a.y) ** 2; if (d2 <= R2 && d2 < dd) { dd = d2; dn = o; } }
       a.reviving = dn;
       if (dn) {
         if (dd > 2.5 * 2.5) walk(m, a, dn.x, dn.y, C.squad.chaseSpeed * 0.9, dt);     // to him, and kneel by him
@@ -570,7 +570,7 @@ function updateSpecialists(m, dt) {
           dn.down = null; a.reviving = null; dn.hp = Math.round(dn.maxHp * K.reviveHp); m.dirtyA = true;
           m.stats.revives = (m.stats.revives || 0) + 1;
           m.emit('heal', { x: a.x, y: a.y, tx: dn.x, ty: dn.y, id: dn.id });
-          m.emit('seaf_up', { id: dn.id, x: dn.x, y: dn.y });
+          m.emit('infantry_up', { id: dn.id, x: dn.x, y: dn.y });
           m.notice(tr('n.revived', { who: m.tag(a), what: m.tag(dn) }), 'good');
           bark(m, a, 'medic', '', true);
         }
@@ -600,20 +600,20 @@ function updateSpecialists(m, dt) {
       // (0.50) Leader Command (it was Leader Radios' Striker fire missions): the troopers round him fire faster and straighter
       // (enemies.js updateAllies reads a.cmdUntil), inside the ring a bot Commander has
       const R2 = st.auraR * st.auraR;
-      for (const o of m.seafAlive) if (!o.dead && !o.down && (o.x - a.x) ** 2 + (o.y - a.y) ** 2 <= R2) o.cmdUntil = t + 0.25;
+      for (const o of m.infantryAlive) if (!o.dead && !o.down && (o.x - a.x) ** 2 + (o.y - a.y) ** 2 <= R2) o.cmdUntil = t + 0.25;
       a.cmdLead = t + 0.25;
     }
   }
 }
 
 // ---------------------------------------------------------------- squads on the move
-export function updateSeaf(m, dt, speed, bm) {
-  const sf = m.seaf;
-  { const st = seafStats(m.kit); m.kitDmg = st.dmgMul; m.kitEat = st.eatMul; m.kitCmd = st.aura ? { rof: st.auraRof, acc: st.auraAcc, r: st.auraR } : null; }
+export function updateInfantry(m, dt, speed, bm) {
+  const sf = m.infantry;
+  { const st = infantryStats(m.kit); m.kitDmg = st.dmgMul; m.kitEat = st.eatMul; m.kitCmd = st.aura ? { rof: st.auraRof, acc: st.auraAcc, r: st.auraR } : null; }
   updateDropships(m, dt);
   updatePickups(m);
   const by = sf.squads.map(() => []), held = [];
-  for (const a of m.seafAlive) {
+  for (const a of m.infantryAlive) {
     if (a.down) continue;                    // (0.26) down: he lies where he fell until a Medic gets him up
     if (a.reviving && a.reviving.down && !a.reviving.dead) continue;     // (and the Medic working on him stays with him)
     if (a.sq === LOOSE) continue;            // in no squad: they hold where they stand (and fight from there)
@@ -621,9 +621,9 @@ export function updateSeaf(m, dt, speed, bm) {
     if (!(a.sq >= 0 && a.sq < by.length)) a.sq = 0;
     by[a.sq].push(a);
   }
-  // (0.54) stale orders: a squad nobody has given an order for a while fights worse (C.seaf.stale), so a big idle Infantry no longer
+  // (0.54) stale orders: a squad nobody has given an order for a while fights worse (C.infantry.stale), so a big idle Infantry no longer
   // wins on its own. A new order object (any way it comes) restarts the clock; the notice goes up once per squad per stale spell.
-  const SL = C.seaf.stale, dm0 = m.kitDmg;
+  const SL = C.infantry.stale, dm0 = m.kitDmg;
   sf.squads.forEach((q, i) => {
     q.n = by[i].length;
     if (q.order !== q.ordSeen) { q.ordSeen = q.order; q.ordT = m.t; q.staleSaid = false; }
@@ -631,7 +631,7 @@ export function updateSeaf(m, dt, speed, bm) {
     if (SL && !m.ls && q.n) {
       const x = Math.min(1, Math.max(0, (m.t - (q.ordT ?? m.t) - SL.sec) / SL.ramp));
       f = 1 - SL.max * x * x * (3 - 2 * x);
-      if (x > 0.05 && !q.staleSaid) { q.staleSaid = true; m.notice(tr('n.seafStale', { sq: i + 1 }), 'warn'); }
+      if (x > 0.05 && !q.staleSaid) { q.staleSaid = true; m.notice(tr('n.infantryStale', { sq: i + 1 }), 'warn'); }
     }
     q.stale = 1 - f;
     for (const a of by[i]) a.dmgMul = dm0 * f;
@@ -640,16 +640,16 @@ export function updateSeaf(m, dt, speed, bm) {
     for (const a of by[i]) { cx += a.x; cy += a.y; }
     q.cx = cx / q.n; q.cy = cy / q.n;
   });
-  if (!m.seafAlive.length) return;
+  if (!m.infantryAlive.length) return;
   // (0.38.1) a Demolition Charge armed: every trooper inside its blast (with a margin) runs straight out of it, whatever his orders were
-  const hb = m.hellbomb && m.hellbomb.state === 'armed' ? m.hellbomb : null, HB = C.objective.hellbomb, hbR = HB.blastR + HB.runPad;
-  const runs = hb ? m.seafAlive.filter((a) => !a.down && !a.inside && !a.mounted && (a.x - hb.x) ** 2 + (a.y - hb.y) ** 2 < hbR * hbR).map((a) => [a, a.x, a.y]) : null;
+  const hb = m.democharge && m.democharge.state === 'armed' ? m.democharge : null, HB = C.objective.democharge, hbR = HB.blastR + HB.runPad;
+  const runs = hb ? m.infantryAlive.filter((a) => !a.down && !a.inside && !a.mounted && (a.x - hb.x) ** 2 + (a.y - hb.y) ** 2 < hbR * hbR).map((a) => [a, a.x, a.y]) : null;
   keepLeaders(m, by);
   const claimed = new Set();
   for (const q of sf.squads) if (q.n && q.tgt && q.order.kind === 'auto') claimed.add(q.tgt.obj.id);
   for (const q of sf.squads) if (q.n) stepSquad(m, q, by[q.i], dt, speed, bm, claimed);
   buildSteps(m, by, dt);
-  if (!(m.phase === 'extract' && m.pelicans.some((p) => p.evac))) stepFormations(m, by, dt, bm);
+  if (!(m.phase === 'extract' && m.dships.some((p) => p.evac))) stepFormations(m, by, dt, bm);
   stepGarrisons(m, held, dt, speed);
   updateSpecialists(m, dt);
   if (runs) for (const [a, x, y] of runs) { a.x = x; a.y = y; runClear(m, a, hb, hbR, C.squad.chaseSpeed * bm * HB.runMul * dt); }
@@ -659,11 +659,11 @@ export function updateSeaf(m, dt, speed, bm) {
 // engaged one only stops himself). Every pair of hands adds to the speed (CONFIG.build.perHand, up to maxHands); Combat Engineers
 // add more. The progress is the crate's, so another squad, or the same one later, carries on from where it was.
 function buildSteps(m, by, dt) {
-  const K = C.build, sp = seafStats(m.kit).buildSpeed;
+  const K = C.build, sp = infantryStats(m.kit).buildSpeed;
   for (const c of m.crates) {
     if (c.used || !c.landed) { c.hands = 0; continue; }
     let hands = 0, best = null, bestN = 0;
-    for (const q of m.seaf.squads) {
+    for (const q of m.infantry.squads) {
       if (!q.n || q.order.kind !== 'build' || q.order.crate !== c) continue;
       let n = 0;
       for (const a of by[q.i]) if (!a.engaged && (a.x - c.x) ** 2 + (a.y - c.y) ** 2 <= K.builderR * K.builderR) n++;
@@ -675,14 +675,14 @@ function buildSteps(m, by, dt) {
     c.prog = (c.prog || 0) + dt * K.perHand * c.hands * sp;
     if (c.prog >= crateSec(m, c)) finishBuild(m, best, best.order);
   }
-  for (const q of m.seaf.squads) if (q.n && q.order.kind === 'build' && q.order.crate && !q.order.crate.landed) q.order.waiting = true;
+  for (const q of m.infantry.squads) if (q.n && q.order.kind === 'build' && q.order.crate && !q.order.crate.landed) q.order.waiting = true;
 }
 
 function stepSquad(m, q, list, dt, speed, bm, claimed) {
   const t = m.t, sq = m.squad, eg = m.eGrid;
   const chase = C.squad.chaseSpeed * bm;
   // Extraction: this squad's own dropship is down (or coming). Everyone heads for it.
-  const ride = m.phase === 'extract' && m.pelicans.find((p) => p.evac && p.squad === q.i && p.state !== 'out');
+  const ride = m.phase === 'extract' && m.dships.find((p) => p.evac && p.squad === q.i && p.state !== 'out');
   if (ride) {
     for (const a of list) walk(m, a, ride.tx, ride.ty, chase * 1.1, dt);
     return;
@@ -718,7 +718,7 @@ function stepSquad(m, q, list, dt, speed, bm, claimed) {
         q.tgt = best; q.clearT = 0; claimed.add(best.obj.id);
         const s = list[Math.floor(m.crng.next() * list.length)];
         bark(m, s, 'clear', best.name.toLowerCase());
-        m.emit('seaf_target', { x: best.x, y: best.y, kind: best.kind, sq: q.i });
+        m.emit('infantry_target', { x: best.x, y: best.y, kind: best.kind, sq: q.i });
       }
     }
     if (q.tgt) {
@@ -764,10 +764,10 @@ function stepSquad(m, q, list, dt, speed, bm, claimed) {
     // (nobody leaves cover to chase a target)
     if (en && !a.forced && o.kind !== 'post' && !holdSite) {
       // (0.26) Riflemen (and the Squad Leader) in a fight go for cover if there is some close by: a wall, a foxhole, a rock line
-      const cv = (a.role === 'rifle' || a.role === 'leader') ? siteAt(m, a.x, a.y, C.seaf.coverSeek) : null;
+      const cv = (a.role === 'rifle' || a.role === 'leader') ? siteAt(m, a.x, a.y, C.infantry.coverSeek) : null;
       if (!cv || !cv.pieces || !cv.pieces.length) {
         // (0.59) no walls near: a big rock will do. They get behind it, on the side away from the nearest enemy.
-        const rk = a.role === 'rifle' || a.role === 'leader' ? rockNear(m, a.x, a.y, C.seaf.coverSeek) : null, foe = rk && m.eGrid.nearest(a.x, a.y, 70);
+        const rk = a.role === 'rifle' || a.role === 'leader' ? rockNear(m, a.x, a.y, C.infantry.coverSeek) : null, foe = rk && m.eGrid.nearest(a.x, a.y, 70);
         if (!rk || !foe) continue;
         const dx = rk.x - foe.x, dy = rk.y - foe.y, d = Math.hypot(dx, dy) || 1, k = ((a.id % 3) - 1) * 0.5;
         const px2 = rk.x + (dx / d) * (rk.r + 1.3) - (dy / d) * k * rk.r, py2 = rk.y + (dy / d) * (rk.r + 1.3) + (dx / d) * k * rk.r;
@@ -794,7 +794,7 @@ function stepSquad(m, q, list, dt, speed, bm, claimed) {
       const pl = p && p.slots && p.what !== 'bastion' ? p.slots : null;
       // (0.28) several squads on one post: each takes the places after the squads before it
       let s, kk = ki;
-      if (pl) for (const o2 of m.seaf.squads) { if (o2.i >= q.i) break; if (o2.n && o2.order.kind === 'post' && o2.order.post === p) kk += o2.n; }
+      if (pl) for (const o2 of m.infantry.squads) { if (o2.i >= q.i) break; if (o2.n && o2.order.kind === 'post' && o2.order.post === p) kk += o2.n; }
       if (pl && kk < pl.length) s = pl[kk];
       else if (pl) { const k = kk - pl.length, n = Math.max(1, kn - pl.length), ang = (p.face || 0) + Math.PI + ((k + 0.5) / n - 0.5) * Math.PI * 1.4, rr = p.what === 'lz' ? p.r * 0.75 : p.r + 5; s = { x: p.x + Math.cos(ang) * rr, y: p.y + Math.sin(ang) * rr }; }     // (0.40: round a pickup point, still in it)
       else if (site && site.pieces && site.pieces.length) s = coverSlot(site, ki, kn, ((a.id % 3) - 1) * 1.8);
@@ -887,7 +887,7 @@ function stepGarrisons(m, held, dt, speed) {
 // ---- picking troopers (0.18, the way Age of Empires II does it): the troopers picked are selected as they are, squad or not. If
 // they are exactly one whole squad, that squad is selected. An order to a pick forms it into a squad (adopt).
 export function pickTroops(m, list) {
-  const sf = m.seaf;
+  const sf = m.infantry;
   list = list.filter((a) => a && !a.dead && a.type === 'S' && a.sq !== GARRISON);
   if (!list.length) { sf.pick = null; if (sf.sel === PICKED) sf.sel = -1; return { ok: false, reason: 'none' }; }
   recount(m);
@@ -896,18 +896,18 @@ export function pickTroops(m, list) {
   sf.pick = list.map((a) => a.id); sf.sel = PICKED; sf.multi = null;
   return { ok: true, to: PICKED, n: list.length };
 }
-export const picked = (m) => (m.seaf.sel === PICKED && m.seaf.pick ? m.seafAlive.filter((a) => m.seaf.pick.includes(a.id)) : []);
+export const picked = (m) => (m.infantry.sel === PICKED && m.infantry.pick ? m.infantryAlive.filter((a) => m.infantry.pick.includes(a.id)) : []);
 // The troopers the selection stands for: a pick, a squad, or (ALL) every one not in a building.
 export function selectedTroops(m) {
-  const sf = m.seaf;
+  const sf = m.infantry;
   if (sf.sel === PICKED) return picked(m);
   if (sf.sel >= 0) return squadMembers(m, sf.sel);
-  if (sf.multi && sf.multi.length) return m.seafAlive.filter((a) => sf.multi.includes(a.sq));
-  return m.seafAlive.filter((a) => a.sq !== GARRISON);
+  if (sf.multi && sf.multi.length) return m.infantryAlive.filter((a) => sf.multi.includes(a.sq));
+  return m.infantryAlive.filter((a) => a.sq !== GARRISON);
 }
 // A pick given an order becomes a squad: a free one (with the order its troopers' squad had), or the squad most of them are in.
 function adopt(m) {
-  const sf = m.seaf, list = picked(m);
+  const sf = m.infantry, list = picked(m);
   if (!list.length) { sf.sel = -1; sf.pick = null; return null; }
   const free = sf.squads.find((q) => squadCount(m, q.i) === 0 && pendingFor(m, q.i) === 0);
   let to;
@@ -917,7 +917,7 @@ function adopt(m) {
   return sf.squads[to];
 }
 function moveTo(m, list, to) {
-  const sf = m.seaf, dst = sf.squads[to], src = list.find((a) => a.sq >= 0 && a.sq !== to);
+  const sf = m.infantry, dst = sf.squads[to], src = list.find((a) => a.sq >= 0 && a.sq !== to);
   if (squadCount(m, to) === 0) {
     if (src) { const q = sf.squads[src.sq]; dst.order = { ...q.order, path: q.order.path ? q.order.path.slice() : null }; dst.ax = q.ax; dst.ay = q.ay; dst.form = q.form; }
     else { let x = 0, y = 0; for (const a of list) { x += a.x; y += a.y; } dst.order = newOrder('protect', x / list.length, y / list.length); }
@@ -929,7 +929,7 @@ function moveTo(m, list, to) {
 }
 // Alt+number, or a double tap on a squad's button: the selection joins squad `to` (0 to 8).
 export function toSquad(m, to) {
-  if (!(to >= 0 && to < m.seaf.squads.length)) return { ok: false, reason: 'unknown' };
+  if (!(to >= 0 && to < m.infantry.squads.length)) return { ok: false, reason: 'unknown' };
   const list = selectedTroops(m).filter((a) => a.sq !== to && a.sq !== GARRISON);
   if (!list.length) return { ok: false, reason: 'none' };
   moveTo(m, list, to);
@@ -937,7 +937,7 @@ export function toSquad(m, to) {
 }
 // Out of their squad: the selected troopers hold where they stand, in no squad.
 export function disband(m) {
-  const sf = m.seaf, list = sf.sel === -1 ? [] : selectedTroops(m);
+  const sf = m.infantry, list = sf.sel === -1 ? [] : selectedTroops(m);
   if (!list.length) return { ok: false, reason: 'none' };
   for (const a of list) { a.sq = LOOSE; a.forced = false; }
   sf.sel = -1; sf.pick = null; sf.multi = null;
@@ -947,14 +947,14 @@ export function disband(m) {
 
 // ---- box select: the troopers inside a box on the map are picked (0.18: they stay in their squads until they get an order).
 export function boxSelect(m, x0, y0, x1, y1) {
-  const inside = m.seafAlive.filter((a) => a.sq !== GARRISON && a.x >= x0 && a.x <= x1 && a.y >= y0 && a.y <= y1);
+  const inside = m.infantryAlive.filter((a) => a.sq !== GARRISON && a.x >= x0 && a.x <= x1 && a.y >= y0 && a.y <= y1);
   if (!inside.length) return { ok: false, reason: 'none' };
   return pickTroops(m, inside);
 }
 
 // Lines and rings: everyone sharing the formation takes a slot, and stays there to fight.
 function stepFormations(m, by, dt, bm) {
-  const sf = m.seaf, eg = m.eGrid, chase = C.squad.chaseSpeed * bm;
+  const sf = m.infantry, eg = m.eGrid, chase = C.squad.chaseSpeed * bm;
   const groups = new Map();
   for (const q of sf.squads) {
     const o = q.order;

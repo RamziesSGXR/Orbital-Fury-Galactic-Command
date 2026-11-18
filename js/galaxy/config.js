@@ -1,5 +1,5 @@
 // Every number and every name in the game lives here, so the prototype can be retuned or renamed in one place.
-export const VERSION = '0.6.0';
+export const VERSION = '0.6.1';
 
 export const C = {
   names: {
@@ -8,8 +8,8 @@ export const C = {
     capital: 'Aurelia',     // the default; the player names their own headquarters when founding the command
     capitals: ['Aurelia', 'Highmark', 'Port Meridian', 'Castellan', 'Ardent', 'Kestrel Station', 'Longwatch', 'Solace'],
     drop: 'VANGUARD', army: 'ARMY', fuel: 'FUEL',
-    factions: { swarm: 'The Swarm', foundry: 'The Foundry', veil: 'The Talon' },
-    homes: { swarm: 'Nest Prime', foundry: 'Anvil', veil: 'Sunstone Roost' },
+    factions: { molt: 'The Molt', foundry: 'The Foundry', talon: 'The Talon' },
+    homes: { molt: 'Nest Prime', foundry: 'Anvil', talon: 'Sunstone Roost' },
     planets: ['Tarsen', 'Okoro', 'Vell', 'Duskar', 'Imrie', 'Pallas', 'Korvan', 'Sable', 'Ythe', 'Marrow', 'Calder', 'Nimbus', 'Orrin', 'Brakk', 'Solen',
       'Vantage', 'Kessrin', 'Halcyon', 'Dray', 'Umber', 'Lyss', 'Penumbra', 'Garnet', 'Ostra', 'Javel', 'Quill', 'Rookfall', 'Stenn', 'Wend', 'Zorya',
       'Thane', 'Corvale', 'Isk', 'Meru', 'Aldous', 'Brine', 'Cassel', 'Dunmore', 'Eris Gap', 'Fenwick', 'Galt', 'Hollin', 'Ixion', 'Jorvik', 'Kael',
@@ -17,7 +17,7 @@ export const C = {
       'Ashby', 'Bexley', 'Corin', 'Dace', 'Elsin'],
   },
   // The offices, as in FOB Super Commander. Each is a button; `does` is the one line shown under its name.
-  ministries: {
+  offices: {
     int: { short: 'INTEL',    name: 'INTELLIGENCE', does: 'Reports, warnings and suggested actions.' },
     def: { short: 'OPS',      name: 'OPERATIONS',     does: 'Your fleets, and the battle deck they fight with.' },
     pro: { short: 'FINANCE',  name: 'FINANCE',      does: 'Manages what you have: stock, income, exchange.' },
@@ -31,11 +31,11 @@ export const C = {
   // `deg` is where the front lies on the map (screen degrees: 0 is east, 90 is south).
   // `loot` is the front's own resource: you win some with every victory there, and spend it on special sites.
   fronts: [
-    { f: 'swarm',   name: 'EASTERN FRONT',  short: 'EAST',  deg: 330, loot: 'BIOMASS', lootShort: 'BIOMASS' },
+    { f: 'molt',   name: 'EASTERN FRONT',  short: 'EAST',  deg: 330, loot: 'BIOMASS', lootShort: 'BIOMASS' },
     { f: 'foundry', name: 'WESTERN FRONT',  short: 'WEST',  deg: 210, loot: 'METALS', lootShort: 'METAL' },
-    { f: 'veil',    name: 'SOUTHERN FRONT', short: 'SOUTH', deg: 90,  loot: 'BIO-TECH', lootShort: 'BIOTECH' },
+    { f: 'talon',    name: 'SOUTHERN FRONT', short: 'SOUTH', deg: 90,  loot: 'BIO-TECH', lootShort: 'BIOTECH' },
   ],
-  color: { fed: '#7fe9e0', swarm: '#ff9a3d', foundry: '#ff6a4d', veil: '#b58cff', amber: '#f5d547' },
+  color: { fed: '#7fe9e0', molt: '#ff9a3d', foundry: '#ff6a4d', talon: '#b58cff', amber: '#f5d547' },
 
   // The map: rings of systems round the capital, more on each ring going out. `ring[i]` is systems per front on ring i+1.
   // Lanes are left out on purpose, so there are dead ends; where two fronts meet most rings are joined.
@@ -74,15 +74,15 @@ export const C = {
   cut: 0.5,                 // a system cut off from the capital defends at half and pays nothing
 
   // Arrival: round, plus or minus `vary`. The warning comes `warn` rounds before.
-  arrive: { swarm: { round: 2, vary: 0 }, foundry: { round: 4, vary: 1 }, veil: { round: 7, vary: 1 } },
+  arrive: { molt: { round: 2, vary: 0 }, foundry: { round: 4, vary: 1 }, talon: { round: 7, vary: 1 } },
   warn: 2,
   // Enemy behaviour. Ships gather at its home by themselves: build + per × systems held + ramp × round each turn.
   // Its one action a turn is to attack with a fleet, or to bring a fleet up to the line. `aggr` is how much more
   // than the defence it wants before it attacks; after `patience` turns of waiting it attacks anyway.
   enemy: {
-    swarm:   { init: [3, 2], build: 0.7, per: 0.014, ramp: 0.005, send: 2, aggr: 0.9,  text: 'Attacks often, with small fleets.' },
+    molt:   { init: [3, 2], build: 0.7, per: 0.014, ramp: 0.005, send: 2, aggr: 0.9,  text: 'Attacks often, with small fleets.' },
     foundry: { init: [5],    build: 0.7, per: 0.014, ramp: 0.005, send: 4, aggr: 1.3,  text: 'Gathers a heavy fleet before it strikes.' },
-    veil:    { init: [3, 2], build: 0.7, per: 0.014, ramp: 0.005, send: 3, aggr: 1.05, text: 'Its cards slip past your defences.' },
+    talon:    { init: [3, 2], build: 0.7, per: 0.014, ramp: 0.005, send: 3, aggr: 1.05, text: 'Its cards slip past your defences.' },
   },
   patience: 2,
   loot: { attack: 2, defend: 1, home: 4 },   // front resource won with each victory
@@ -116,14 +116,14 @@ export const C = {
       { id: 's_guns',  name: 'DEFENCE GRID',    text: 'Each station tier adds one more hit point.',        mat: 'foundry', lv: [[1200, 12, 2], [3200, 30, 5]], per: 1 },
     ],
     base: [
-      { id: 'b_grant', name: 'FOUNDING STORES', text: 'Every new base lands with more supplies.',          mat: 'swarm', lv: [[400, 4, 0], [900, 10, 2], [1800, 20, 4]], per: 150 },
-      { id: 'b_rigs',  name: 'DEEP RIGS',       text: 'A base on a deposit lifts one more a round.',       mat: 'swarm', lv: [[700, 6, 1], [1600, 14, 3], [3000, 28, 6]], per: 1 },
-      { id: 'b_yard',  name: 'WORKS',           text: 'Each base charter adds more to its system\'s output.', mat: 'swarm', lv: [[1200, 12, 2], [3200, 30, 5]], per: 0.1 },
+      { id: 'b_grant', name: 'FOUNDING STORES', text: 'Every new base lands with more supplies.',          mat: 'molt', lv: [[400, 4, 0], [900, 10, 2], [1800, 20, 4]], per: 150 },
+      { id: 'b_rigs',  name: 'DEEP RIGS',       text: 'A base on a deposit lifts one more a round.',       mat: 'molt', lv: [[700, 6, 1], [1600, 14, 3], [3000, 28, 6]], per: 1 },
+      { id: 'b_yard',  name: 'WORKS',           text: 'Each base charter adds more to its system\'s output.', mat: 'molt', lv: [[1200, 12, 2], [3200, 30, 5]], per: 0.1 },
     ],
     fleet: [
-      { id: 'f_hold',  name: 'DEPOTS',          text: 'Hold more fuel, armies and drops.',                 mat: 'veil', lv: [[500, 4, 0], [1200, 10, 2], [2400, 20, 4]], per: 5 },
-      { id: 'f_range', name: 'LONG DRIVES',     text: 'Fleets reach one system further.',                  mat: 'veil', lv: [[1500, 12, 3], [4000, 30, 6]], per: 1 },
-      { id: 'f_hand',  name: 'BATTLE STAFF',    text: 'One more card in hand in every battle.',            mat: 'veil', lv: [[5000, 40, 7]], per: 1 },
+      { id: 'f_hold',  name: 'DEPOTS',          text: 'Hold more fuel, armies and drops.',                 mat: 'talon', lv: [[500, 4, 0], [1200, 10, 2], [2400, 20, 4]], per: 5 },
+      { id: 'f_range', name: 'LONG DRIVES',     text: 'Fleets reach one system further.',                  mat: 'talon', lv: [[1500, 12, 3], [4000, 30, 6]], per: 1 },
+      { id: 'f_hand',  name: 'BATTLE STAFF',    text: 'One more card in hand in every battle.',            mat: 'talon', lv: [[5000, 40, 7]], per: 1 },
     ],
   },
   battle: { hand: 3, maxRounds: 12, engage: 3, press: { fuel: 3, rounds: 2 }, repair: 1 },
@@ -150,7 +150,7 @@ export const C = {
     heroes:  { name: 'HEROES OF THE LINE', kind: 'truth', power: 3, block: 3, atk: 2, text: 'System held' },
     lastStand: { name: 'NOT ONE STEP BACK', kind: 'truth', power: 4, block: 4, heal: 3, text: 'System lost' },
     // the enemies
-    rush:    { name: 'SWARM RUSH',      kind: 'foe', atk: 3, text: '' },
+    rush:    { name: 'MOLT RUSH',      kind: 'foe', atk: 3, text: '' },
     frenzy:  { name: 'FEEDING FRENZY',  kind: 'foe', atk: 2, heal: 2, text: '' },
     siege:   { name: 'SIEGE GUNS',      kind: 'foe', atk: 5, text: '' },
     plating: { name: 'IRON PLATING',    kind: 'foe', block: 4, text: '' },
@@ -160,10 +160,10 @@ export const C = {
     triumph: { name: 'HIVE TRIUMPHANT', kind: 'truth', power: 2, heal: 4, text: '' },
   },
   // What every side's deck starts from, before worlds, sites and propaganda are added.
-  baseDeck: { fed: ['volley', 'volley', 'volley', 'brace', 'brace'], swarm: ['volley', 'volley', 'rush', 'rush', 'frenzy'],
-    foundry: ['volley', 'volley', 'siege', 'plating', 'plating'], veil: ['volley', 'volley', 'phase', 'phase', 'fog'] },
+  baseDeck: { fed: ['volley', 'volley', 'volley', 'brace', 'brace'], molt: ['volley', 'volley', 'rush', 'rush', 'frenzy'],
+    foundry: ['volley', 'volley', 'siege', 'plating', 'plating'], talon: ['volley', 'volley', 'phase', 'phase', 'fog'] },
   // An enemy adds one of its own card for every `per` systems it holds, up to `max`.
-  foeGrow: { swarm: 'rush', foundry: 'siege', veil: 'phase', per: 3, max: 4 },
+  foeGrow: { molt: 'rush', foundry: 'siege', talon: 'phase', per: 3, max: 4 },
   worldCard: { per: 8, max: 3 },      // you add one world card for every `per` worlds of that kind you hold, up to `max`
   siteMax: 2,                         // sites of one kind you can have
   truthMax: 4,                        // propaganda cards a side can hold
@@ -172,8 +172,8 @@ export const C = {
   // else has into your battle deck. A site is lost with its system.
   sites: {
     testing: { name: 'TESTING CENTRE', loot: 'foundry', cost: 6, card: 'railgun', text: 'Two PROTOTYPE RAILGUN cards.' },
-    biolab:  { name: 'WARHEAD LAB',      loot: 'swarm',   cost: 6, card: 'acid',    text: 'Two ACID WARHEADS cards.' },
-    array:   { name: 'GROWTH VAT',    loot: 'veil',    cost: 6, card: 'mirror',  text: 'Two LIVING MIRROR cards.' },
+    biolab:  { name: 'WARHEAD LAB',      loot: 'molt',   cost: 6, card: 'acid',    text: 'Two ACID WARHEADS cards.' },
+    array:   { name: 'GROWTH VAT',    loot: 'talon',    cost: 6, card: 'mirror',  text: 'Two LIVING MIRROR cards.' },
   },
 
   // ---------- what the offices can do (none of these use up your decision) ----------
@@ -199,7 +199,7 @@ export const C = {
     // the ground gets harder the deeper into an enemy's rings you fight, and the more systems that enemy holds
     depthPer: 3, holdPer: 30,
     // a battle fought on the ground: which enemy and ground it is, and how hard, from the odds on the map
-    foe: { swarm: 'bugs', foundry: 'bots', veil: 'squids' },
+    foe: { molt: 'bugs', foundry: 'bots', talon: 'lizards' },
     biome: { refinery: 'desert', forge: 'moon', colony: 'grass', fortress: 'ice', barren: 'moon', capital: 'grass' },
     level: { min: 1, max: 8 } },        // Employment: the priority front defends better, pays more, and builds ships for 1 less fuel
 };

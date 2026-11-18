@@ -111,7 +111,7 @@ export class CastRadio {
       if (ev.type === 'objective_done') L('extract');
       else if (ev.type === 'supply_ask') L('supply');
       else if (ev.type === 'flare') L('flare');
-      else if (ev.type === 'hellbomb_fill') L('hellbomb');
+      else if (ev.type === 'democharge_fill') L('democharge');
       else if (ev.type === 'time_ask') L('time');
       else if (ev.type === 'task' && ev.kind && ev.kind !== 'base') L('sides');
       else if (ev.type === 'deny' && ev.reason === 'jamsite') L('jammer');
@@ -158,15 +158,15 @@ export class CastRadio {
   teachTick(m, t, since) {
     const L = (k) => this.lesson(k), T = this.teach, seen = (x, y) => m.visLevel(x, y) > 0;
     if (T.has('gun') && since > 6) L('gun');
-    if (T.has('seaf') && since > 12) L('seaf');
+    if (T.has('infantry') && since > 12) L('infantry');
     if (T.has('night') && since > 6) L('night');
     if (T.has('uav') && since > 20) L('uav');
     if (T.has('build') && since > 20 && m.hdAlive.length) L('build');
     if (T.has('orbital') && since > 18 && m.enemies.some((e) => !e.dead && e.kind !== 'L' && seen(e.x, e.y))) L('orbital');
     if (T.has('orbital') && since > 70) L('orbital');
-    if (!this.seen.drop && m.stats.seafCalls > 0) this.seen.drop = t;
+    if (!this.seen.drop && m.stats.infantryCalls > 0) this.seen.drop = t;
     if (T.has('orders') && this.seen.drop && t - this.seen.drop > 10) L('orders');
-    if (T.has('orders') && since > 60 && m.seafAlive.length) L('orders');
+    if (T.has('orders') && since > 60 && m.infantryAlive.length) L('orders');
     if (T.has('garrison') && this.seen.built && t - this.seen.built > 4) L('garrison');
     if (T.has('cover') && since > 120) L('cover');
     if (T.has('lives') && this.lives0 !== null && m.hd.lives < this.lives0) L('lives');
@@ -184,7 +184,7 @@ export class CastRadio {
     if (this.lives0 === null) this.lives0 = m.hd.lives;
     if (m.hd.lives < this.lives0) this.cue('hdLost', m);
     if (m.hd.lives <= 5 && m.hd.lives < this.lives0) this.cue('livesLow', m);
-    if ((m.stats.lostS || 0) >= 20) this.cue('seafLoss', m);
+    if ((m.stats.lostS || 0) >= 20) this.cue('infantryLoss', m);
     // a big hit from orbit: a dozen or more kills of the gunner's inside a second and a bit
     const kp = m.stats.killsPlayer || 0;
     this.kp.push([t, kp]); while (this.kp.length && t - this.kp[0][0] > 1.2) this.kp.shift();
@@ -217,7 +217,7 @@ export function aarMission(s, info, res) {
     `**Vanguards:** ${fmtNum(st.lostH)} lost · ${res.livesLeft}/${res.livesMax ?? '?'} lives left`,
     shipsLine(res.teams),
     `**Infantry:** ${fmtNum(st.lostS)} lost` + (res.civSaved ? ` · ${fmtNum(res.civSaved)} civilians saved` : ''),
-    res.share && res.share.player + res.share.squad + res.share.strat > 0 ? `**Damage:** gunner ${pct(res.share.player)} · Vanguards ${pct(res.share.squad)} · call-ins ${pct(res.share.strat)}` : '',
+    res.share && res.share.player + res.share.squad + res.share.callin > 0 ? `**Damage:** gunner ${pct(res.share.player)} · Vanguards ${pct(res.share.squad)} · call-ins ${pct(res.share.callin)}` : '',
     `**Score:** ${fmtNum(res.score)} · operation ${fmtNum(total)} after ${n} mission${n === 1 ? '' : 's'}`,
   ];
   if (ch) { const last = castLines(ch, carriesOn(res.outcome) ? 'win' : 'lose', res, true).pop(); if (last) L.push(`> ${CAST[last.who].tag}: "${last.text}"`); }
@@ -258,7 +258,7 @@ export function aarStand(res, callsign) {
     HEAD,
     '**THE LAST STAND AT THARSIS** · Mars, 20 May 2185',
     gunner(callsign),
-    `**Personnel off Mars:** ${fmtNum(res.civSaved)}${ls.pop ? ` of ${fmtNum(ls.pop)}` : ''} · ${fmtNum(ls.lifted)} pelican${ls.lifted === 1 ? '' : 's'} away · held ${fmtTime(ls.held)}`,
+    `**Personnel off Mars:** ${fmtNum(res.civSaved)}${ls.pop ? ` of ${fmtNum(ls.pop)}` : ''} · ${fmtNum(ls.lifted)} dship${ls.lifted === 1 ? '' : 's'} away · held ${fmtTime(ls.held)}`,
     `**Kills:** ${fmtNum(res.kills)}` + (k ? ` · Rank ${k}, ${tEn('rank.' + k)}` : ''),
     `**Result:** ${res.outcome === 'glassed' ? 'Mars is glass. The Great Host took it.' : 'Left before the end.'}`,
     foot(),

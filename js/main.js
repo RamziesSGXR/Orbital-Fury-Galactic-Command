@@ -73,7 +73,7 @@ function show(id) { for (const s of document.querySelectorAll('.scr')) s.classLi
 // ---------------------------------------------------------------- title
 function toTitle() {
   state = 'title'; mode = null; War.show(false); show('s-title');
-  const saved = read(KEY, null), ok = saved && saved.v === 1 && saved.faction;
+  const saved = read(KEY, null), ok = saved && saved.v === 2 && saved.faction;
   $('b-continue').classList.toggle('hidden', !ok);
   $('b-new').classList.toggle('go', !ok);
   if (ok && saved.faction.logo.img) ensureLogo(saved.faction.logo).then(() => { if (state === 'title') drawLogo($('t-crest').getContext('2d'), saved.faction.logo, 4, 4, 152); });
@@ -180,7 +180,7 @@ $('f-go').onclick = () => {
   audio.ready();
   draft.name = (draft.name || '').trim() || 'The Command'; draft.motto = (draft.motto || '').trim(); draft.capital = (draft.capital || '').replace(/[<>&]/g, '').trim() || GC.names.capital;
   app.endCampaignQuiet();
-  camp = { v: 1, faction: JSON.parse(JSON.stringify(draft)), war: null, kit: newKit(), wallet: newWallet(), sites: {}, stats: { ground: 0, groundWon: 0 }, at: Date.now() };
+  camp = { v: 2, faction: JSON.parse(JSON.stringify(draft)), war: null, kit: newKit(), wallet: newWallet(), sites: {}, stats: { ground: 0, groundWon: 0 }, at: Date.now() };
   how(() => {
     if (qs.has('seed')) return toWar({ seed: Number(qs.get('seed')) });
     War.modal(`<h2>Your first war</h2><p>The guided opening walks you through the first rounds in the war room, one step at a time: reading the map, moving a fleet, your first battle. It takes about three minutes, and the war carries on from there.</p>
@@ -279,7 +279,7 @@ $('th-leave').onclick = () => { audio.click(); if (mode && mode.askLeave) mode.a
 // Everything is bought from the war chest. Four shelves: the ground (the ship's weapons, Orbital Fury's own list), the
 // stations, the bases and the fleet. What a shelf will sell is set by the armoury rank: one for every station tier and
 // base charter that is linked to the capital and running in profit. What you own, you keep.
-const SECTIONS = { orbitals: 'ORBITALS', eagles: 'STRIKERS', defense: 'DEFENCES', utilities: 'UTILITIES', hangar: 'HANGAR', gun: 'SHIP GUN', uav: 'UAV', seaf: 'TROOPS', build: 'BUILDING', support: 'SUPPORT', classified: 'CLASSIFIED' };
+const SECTIONS = { orbitals: 'ORBITALS', strikers: 'STRIKERS', defense: 'DEFENCES', utilities: 'UTILITIES', hangar: 'HANGAR', gun: 'SHIP GUN', uav: 'UAV', infantry: 'TROOPS', build: 'BUILDING', support: 'SUPPORT', classified: 'CLASSIFIED' };
 const SHELVES = { ground: 'GROUND', station: 'STATIONS', base: 'BASES', fleet: 'FLEET' };
 app.armouryTier = () => { const g = War.war(); return g ? Math.min(TIER_MAX, g.rank()) : 0; };
 app.grant = (id) => { const g = War.war(), it = g && g.shelfItem(id); return it ? g.lv(id) * it.per : 0; };

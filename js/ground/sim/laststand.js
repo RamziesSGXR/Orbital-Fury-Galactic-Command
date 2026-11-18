@@ -7,8 +7,8 @@
 // MISSION COMPLETE, and the player fights on to the end or moves on (into the campaign, or to the main menu).
 import { CONFIG as C } from '../config.js';
 import { makePost } from './posts.js';
-import { rollRoles, setSquadOrder, pendingTroops } from './seaf.js';
-import { seafStats } from '../data/kit.js';
+import { rollRoles, setSquadOrder, pendingTroops } from './infantry.js';
+import { infantryStats } from '../data/kit.js';
 import { spawnGroup } from './director.js';
 import { damageArea } from './combat.js';
 import { COMMS } from '../data/data.js';
@@ -16,7 +16,7 @@ import { t as tr } from '../i18n.js';
 import { addJammer } from './sides.js';
 import { askSupply } from './supply.js';
 
-export const LAST_STAND = { seed: 20185052, faction: 'squids', biome: 'mars', level: 3, tod: 5.6 };     // (0.19.5: level 1, and it climbs; 0.36.1: it starts at 3)
+export const LAST_STAND = { seed: 20185052, faction: 'lizards', biome: 'mars', level: 3, tod: 5.6 };     // (0.19.5: level 1, and it climbs; 0.36.1: it starts at 3)
 const L = () => C.lastStand;
 
 const dryAt = (m, x, y) => m.terrain.isLand(x, y) && m.terrain.speedAt(x, y) > 0.9;
@@ -83,14 +83,14 @@ export function setupLastStand(m) {
 
 // A squad of Infantry already at its post (i: the squad, at x, y), holding it.
 function posted(m, i, x, y) {
-  const sq = m.seaf.squads[i], st = seafStats(m.kit);
+  const sq = m.infantry.squads[i], st = infantryStats(m.kit);
   for (const role of rollRoles(m, L().squad, st)) { const a = m.addAlly('S', x + m.rng.range(-8, 8), y + m.rng.range(-8, 8), { role }); a.sq = sq.i; }
   setSquadOrder(m, sq, 'protect', x, y);
   sq.n = L().squad;
 }
 
 // The lessons send small groups at the base, from where the camera can see them come: the north of the base, or bearing ang.
-// kind: 'light' (Voteless), 'medium' (Overseers), 'heavy' (a Harvester and its escort).
+// kind: 'light' (Thralls), 'medium' (War Chiefs), 'heavy' (a War Beast and its escort).
 export function lsSpawn(m, kind, ang) {
   const o = m.objectives.find((q) => q.lastStand);
   if (!o || m.over) return null;
@@ -132,10 +132,10 @@ export function lsBegin(m) {
   o.wait = false; o.state = 'run'; o.batchT = 1; o.open = false;
   // (0.36.1; 0.53.6 both squads) the Infantry lessons were skipped: the shelter's and the hangar's squads are at their posts now, as
   // far as there is room under the cap
-  const st = seafStats(m.kit);
+  const st = infantryStats(m.kit);
   for (const [i, x, y] of [[0, o.sx, o.sy], [1, o.hx, o.hy]]) {
-    if (m.seafAlive.some((a) => a.sq === i) || m.pelicans.some((p) => p.squad === i)) continue;
-    if (m.seafAlive.length + pendingTroops(m) + L().squad <= st.max) posted(m, i, x, y);
+    if (m.infantryAlive.some((a) => a.sq === i) || m.dships.some((p) => p.squad === i)) continue;
+    if (m.infantryAlive.length + pendingTroops(m) + L().squad <= st.max) posted(m, i, x, y);
   }
   m.radio(COMMS.lsBegin, 'lsbegin', 0);
   m.emit('ls_stage', { stage: 'hold' });

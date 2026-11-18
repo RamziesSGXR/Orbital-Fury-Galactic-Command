@@ -18,7 +18,7 @@ const ROMAN = ['I', 'II', 'III', 'IV', 'V'];
 const A = ['Ar', 'Bel', 'Cor', 'Dra', 'El', 'Fen', 'Gal', 'Hal', 'Is', 'Jor', 'Kal', 'Lor', 'Mar', 'Nor', 'Or', 'Per', 'Quen', 'Ros', 'Sal', 'Tor', 'Ul', 'Ves', 'Wyn', 'Yar', 'Zan', 'Ash', 'Bren', 'Cal', 'Dun', 'Eth'];
 const B = ['a', 'an', 'ar', 'en', 'eth', 'ia', 'is', 'on', 'or', 'us', 'yn', 'ax', 'el', 'ir', 'os', 'und', 'ara', 'ine', 'oth', 'ium'];
 const SECT = ['Reach', 'Marches', 'Expanse', 'Deep', 'Verge', 'Gate', 'Drift', 'Crown', 'Shoals', 'Veil', 'Span', 'Hollow'];
-const THEME = { swarm: 'refinery', foundry: 'forge', veil: 'colony' };   // what is common on each front
+const THEME = { molt: 'refinery', foundry: 'forge', talon: 'colony' };   // what is common on each front
 
 export function makeMap(seed = 1) {
   const rnd = rng32(seed * 2654435761 + 7), M = C.map;

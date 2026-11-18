@@ -31,7 +31,7 @@ export function makeMats(f) {
       gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.5, 'rgba(255,255,255,0.4)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = gr; x.fillRect(0, 0, 64, 64);
       return new THREE.MeshBasicMaterial({ color: '#fff3d0', map: new THREE.CanvasTexture(c), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }); })(),
     coat: std('#141414'), cap: std('#e9e9e9'), paper: std('#f2f2ea'),
-    pelican: std('#4c5550', { metalness: 0.35, roughness: 0.6 }), olive: std('#4d5638', { metalness: 0.3, roughness: 0.7 }), oliveDark: std('#33392a', { metalness: 0.3, roughness: 0.7 }), lift: std('#e0b21c'), crate: std('#5d6a3e'), scaffold: new THREE.LineBasicMaterial({ color: '#ffd21f', transparent: true, opacity: 0.8 }),
+    dship: std('#4c5550', { metalness: 0.35, roughness: 0.6 }), olive: std('#4d5638', { metalness: 0.3, roughness: 0.7 }), oliveDark: std('#33392a', { metalness: 0.3, roughness: 0.7 }), lift: std('#e0b21c'), crate: std('#5d6a3e'), scaffold: new THREE.LineBasicMaterial({ color: '#ffd21f', transparent: true, opacity: 0.8 }),
   };
   m.seflag = seFlagMat(); m.hdbanner = hdBannerMat();
   m.signBurger = signMat('BIG VICTORY BURGER', '#c0392b', '#ffe600'); m.signChicken = signMat('PATRIOT CLUCKS', '#1d3f8a', '#ffffff'); m.signCola = signMat('BUREAU COLA & FRIES', '#5a2a7a', '#ffd21f'); m.flag = flagMat(f, logo); m.banner = bannerMat(f); m.bill = billMat(f); m.tex = [logo, m.flag.map, m.banner.map, m.bill.map];
@@ -547,7 +547,7 @@ const MAKE = {
     for (let i = 0; i < 4; i++) box(g, 0.42, 0.7, 0.02, m.glowB, -1.35 + i * 0.9, 0.62, 0.79);
     for (const s of [-1, 1]) { cyl(g, 0.1, 0.12, 0.15, m.dark, s * 0.4, 0.2, 1.3, { seg: 10 }); ball(g, 0.06, m.glowY, s * 0.4, 0.3, 1.3, { seg: 8 }); }
   },
-  mart(g, m) {   // a bright store: glass front, a canopy and the DEMOCRA-MART sign
+  mart(g, m) {   // a bright store: glass front, a canopy and the BRAND-MART sign
     slab(g, m, 3, 3);
     block(g, m, 2.7, 1.0, 2.3, 0, 0.08, -0.25, m.hazard, 0);
     box(g, 2.4, 0.6, 0.04, m.glass, 0, 0.45, 0.92); for (let i = 0; i < 5; i++) box(g, 0.04, 0.62, 0.05, m.steel, -1.2 + i * 0.6, 0.45, 0.93);
@@ -1072,10 +1072,10 @@ export function makeCrate(m) {
 }
 export function makeDropship(m) {
   const g = new THREE.Group();
-  box(g, 0.8, 0.65, 2.3, m.pelican, 0, 0.75, 0); box(g, 0.7, 0.45, 0.5, m.glass, 0, 0.85, 1.25, { rx: 0.3 });
-  box(g, 0.35, 0.3, 1.4, m.pelican, 0, 0.95, -1.7); box(g, 0.06, 0.6, 0.6, m.pelican, 0, 1.3, -2.25);
-  box(g, 1.2, 0.05, 0.4, m.pelican, 0, 1.05, -2.25);
-  box(g, 3.0, 0.08, 0.6, m.pelican, 0, 1.05, -0.2);
+  box(g, 0.8, 0.65, 2.3, m.dship, 0, 0.75, 0); box(g, 0.7, 0.45, 0.5, m.glass, 0, 0.85, 1.25, { rx: 0.3 });
+  box(g, 0.35, 0.3, 1.4, m.dship, 0, 0.95, -1.7); box(g, 0.06, 0.6, 0.6, m.dship, 0, 1.3, -2.25);
+  box(g, 1.2, 0.05, 0.4, m.dship, 0, 1.05, -2.25);
+  box(g, 3.0, 0.08, 0.6, m.dship, 0, 1.05, -0.2);
   const engines = [];
   for (const x of [-1.5, 1.5]) { const e = cyl(g, 0.22, 0.22, 0.7, m.steel, x, 1.0, -0.2, { rx: Math.PI / 2 }); engines.push(e); box(g, 0.3, 0.06, 0.3, m.glowB, x, 0.78, -0.2); }
   for (const x of [-0.35, 0.35]) box(g, 0.05, 0.4, 1.5, m.steel, x, 0.22, 0);

@@ -33,7 +33,7 @@ export function updateGun(m, o, dt, fns) {
   }
   // Infantry at the gun patch it up while nothing is shooting at it (as any post)
   if (g.hp < g.maxHp && t - g.hurtAt > 4 && !m.eGrid.nearest(g.x, g.y, 30)) {
-    let n = 0; for (const a of m.seafAlive) if (!a.down && (a.x - g.x) ** 2 + (a.y - g.y) ** 2 <= (g.r + 8) ** 2) n++;
+    let n = 0; for (const a of m.infantryAlive) if (!a.down && (a.x - g.x) ** 2 + (a.y - g.y) ** 2 <= (g.r + 8) ** 2) n++;
     if (n) g.hp = Math.min(g.maxHp, g.hp + G.repair * Math.min(4, n) * dt);
   }
   // the siege of a held site, and drops straight at the gun, more often with every shot it fires

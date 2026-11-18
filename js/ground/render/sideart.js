@@ -21,7 +21,7 @@ const blink = (now, id, hz = 2) => Math.floor(now * hz + id) % 2 === 0;
 const P = {
   bots: (k) => ({ a: `rgba(${150 * k | 0},${152 * k | 0},${148 * k | 0},1)`, b: `rgba(${104 * k | 0},${108 * k | 0},${106 * k | 0},1)`, d: `rgba(${52 * k | 0},${54 * k | 0},${56 * k | 0},1)`, hot: '#ff5a3a' }),
   bugs: (k) => ({ a: `rgba(${156 * k | 0},${112 * k | 0},${62 * k | 0},1)`, b: `rgba(${112 * k | 0},${76 * k | 0},${42 * k | 0},1)`, d: `rgba(${58 * k | 0},${38 * k | 0},${22 * k | 0},1)`, hot: '#d8f070' }),
-  squids: (k) => ({ a: `rgba(${196 * k | 0},${184 * k | 0},${222 * k | 0},1)`, b: `rgba(${132 * k | 0},${118 * k | 0},${170 * k | 0},1)`, d: `rgba(${56 * k | 0},${46 * k | 0},${84 * k | 0},1)`, hot: '#8fe9ff' }),
+  lizards: (k) => ({ a: `rgba(${196 * k | 0},${184 * k | 0},${222 * k | 0},1)`, b: `rgba(${132 * k | 0},${118 * k | 0},${170 * k | 0},1)`, d: `rgba(${56 * k | 0},${46 * k | 0},${84 * k | 0},1)`, hot: '#8fe9ff' }),
   se: (k) => ({ a: `rgba(${176 * k | 0},${186 * k | 0},${192 * k | 0},1)`, b: `rgba(${112 * k | 0},${124 * k | 0},${134 * k | 0},1)`, d: `rgba(${46 * k | 0},${54 * k | 0},${62 * k | 0},1)`, hot: '#7fd8ff' }),
 };
 const pal = (fac, seen) => (P[fac] || P.bots)(seen ? 1 : 0.72);
@@ -109,7 +109,7 @@ function battery(c, fac, col, r, id, now, px, q) {
     c.fillStyle = 'rgba(210,180,90,1)'; for (let i = 0; i < 5; i++) { circ(c, -r * 0.52, (i - 2) * r * 0.11, r * 0.045); c.fill(); }
     c.fillStyle = q.hot; c.fillRect(-r * 0.2, -r * 0.05, r * 0.1, r * 0.1);
   } else if (fac === 'bugs') {
-    // a bile nest: a crusted mound round a pool of bile, three spouts aimed out of it
+    // a acid nest: a crusted mound round a pool of acid, three spouts aimed out of it
     c.fillStyle = q.b; for (let i = 0; i < 7; i++) { const a = a0 + i * 0.898; ell(c, Math.cos(a) * r * 0.55, Math.sin(a) * r * 0.55, r * 0.44, r * 0.34, a); c.fill(); }
     c.fillStyle = q.a; circ(c, 0, 0, r * 0.62); c.fill();
     c.fillStyle = q.d; circ(c, 0, 0, r * 0.44); c.fill();
@@ -139,7 +139,7 @@ function broadcast(c, fac, col, r, id, now, px, q) {
     c.fillStyle = q.a; for (let i = 0; i < 5; i++) { const a = a0 + i * 1.257; poly(c, [[Math.cos(a - 0.3) * r * 0.3, Math.sin(a - 0.3) * r * 0.3], [Math.cos(a - 0.12) * r * 1.0, Math.sin(a - 0.12) * r * 1.0], [Math.cos(a + 0.12) * r * 1.0, Math.sin(a + 0.12) * r * 1.0], [Math.cos(a + 0.3) * r * 0.3, Math.sin(a + 0.3) * r * 0.3]]); c.fill(); c.strokeStyle = q.d; c.lineWidth = px(0.9); c.stroke(); }
     c.fillStyle = q.d; circ(c, 0, 0, r * 0.34); c.fill();
     c.fillStyle = rgba(col, 0.9); circ(c, 0, 0, r * 0.2); c.fill();
-  } else if (fac === 'squids') {
+  } else if (fac === 'lizards') {
     c.strokeStyle = q.a; c.lineWidth = r * 0.16; circ(c, 0, 0, r * 0.78); c.stroke();
     c.strokeStyle = 'rgba(30,20,50,0.7)'; c.lineWidth = px(0.9); circ(c, 0, 0, r * 0.86); c.stroke();
     for (let i = 0; i < 4; i++) { const a = a0 + i * 1.571; c.fillStyle = q.b; poly(c, [[Math.cos(a) * r * 1.02, Math.sin(a) * r * 1.02], [Math.cos(a + 0.2) * r * 0.66, Math.sin(a + 0.2) * r * 0.66], [Math.cos(a - 0.2) * r * 0.66, Math.sin(a - 0.2) * r * 0.66]]); c.fill(); }

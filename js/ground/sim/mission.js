@@ -11,12 +11,12 @@ import { CONFIG as C } from '../config.js';
 import { RNG } from '../util/rng.js';
 import { Grid } from '../util/grid.js';
 import { FACTIONS, SUBTYPES, ALLY, BIOMES, NUKE, COMMS } from '../data/data.js';
-import { rollLoadout } from '../data/strat.js';
-import { newKit, newWallet, seafStats, maxLives, zoneExtra, buy, equip, loadoutIds, buildStats, buildLevel, shopItems, payToward } from '../data/kit.js';
-import { seafName } from '../data/names.js';
+import { rollLoadout } from '../data/callin.js';
+import { newKit, newWallet, infantryStats, maxLives, zoneExtra, buy, equip, loadoutIds, buildStats, buildLevel, shopItems, payToward } from '../data/kit.js';
+import { infantryName } from '../data/names.js';
 import { updateSquad } from './squad.js';
 import { setupDefenders } from './defenders.js';
-import { initSeaf, busyWith, targetSquads, setSquadOrder, drawOrder, callDropship, pendingTroops, dropSquad, callCargo, boxSelect, setForm, pickTroops, toSquad, disband, PICKED, LOOSE, takeDropship, backCut, seafHeld, makeLz, lzCount, selectSquads as seafSelectSquads, mergeSquads as seafMergeSquads } from './seaf.js';
+import { initInfantry, busyWith, targetSquads, setSquadOrder, drawOrder, callDropship, pendingTroops, dropSquad, callCargo, boxSelect, setForm, pickTroops, toSquad, disband, PICKED, LOOSE, takeDropship, backCut, infantryHeld, makeLz, lzCount, selectSquads as infantrySelectSquads, mergeSquads as infantryMergeSquads } from './infantry.js';
 import { updatePosts, updateSam, garrisonPost, releaseGarrison, POSTS, makePost, INSIDE, foxSize, GARRISON, demolish, chains, chainPlan, wallShape, removePost, onEnemy, buildFoot, inCone } from './posts.js';
 import { updateEnemies, updateAllies } from './enemies.js';
 import { updateDirector, alertBase, detectR } from './director.js';
@@ -25,15 +25,15 @@ import { setupSides, updateSides, beaconAt, sporeMul } from './sides.js';
 import { noise } from './enemies.js';
 import { locked } from './combat.js';
 import { initPlan, updatePlan, noteWipe } from './planner.js';
-import { initPlayer, updatePlayer, syncSlots, slotStats, eagleRearm } from './player.js';
-import { initStrat, updateStrat, destroyAsset, mechDown } from './strat.js';
+import { initPlayer, updatePlayer, syncSlots, slotStats, strikerRearm } from './player.js';
+import { initCallin, updateCallin, destroyAsset, mechDown } from './callin.js';
 import { setupObjectives, updateObjectives, completeObjective, startSetup } from './objectives.js';
 import { placeBase, setupLastStand, updateLastStand, lsBegin, lsSpawn, lsJammer, lsSupply } from './laststand.js';
 import { setupPois, updatePois, damagePoi, damageBreach } from './pois.js';
 import { setupCover } from './cover.js';
 import { setupScenery, placeMarks } from './scenery.js';
 import { updateChatter } from './chatter.js';
-import { initKit, updateVanguards } from './helldiver.js';
+import { initKit, updateVanguards } from './vanguard.js';
 import { buildDanger, updateEvade, inDanger } from './safety.js';
 import { getTerrain } from './terrain.js';
 import { domeBlocks } from './ops.js';
@@ -48,7 +48,7 @@ import { applyDifficulty, appliedLevel, clampAny, reward, warMinutes, LEVELS } f
 
 const SIZE = C.world.size;
 const ORDER_KINDS = ['auto', 'move', 'protect', 'attack', 'escort'];
-const ORDER_RADIO = { auto: 'seafAuto', move: 'seafMove', protect: 'seafProtect', attack: 'seafAttack', escort: 'seafEscort', path: 'seafPath', line: 'seafLine', ring: 'seafRing' };
+const ORDER_RADIO = { auto: 'infantryAuto', move: 'infantryMove', protect: 'infantryProtect', attack: 'infantryAttack', escort: 'infantryEscort', path: 'infantryPath', line: 'infantryLine', ring: 'infantryRing' };
 // What killed an ally, by faction and size, for the death report.
 
 // n points inside the area of operations, margin in from its edge, spaced apart and clear of avoids ({x, y, r}). Both relax when
@@ -89,13 +89,13 @@ const STAGES = [
   ['bridges', (m) => { if (m.bridgeQ.length) m._bridges(); }],
   ['plan', updatePlan],
   ['squad', updateSquad],
-  ['helldivers', updateVanguards],
+  ['vanguards', updateVanguards],
   ['evade', updateEvade],
   ['allies', updateAllies],
   ['enemies', updateEnemies],
   ['lockScan', (m, dt) => m._lockScan(dt)],
   ['radar', (m) => m._radar()],
-  ['strat', updateStrat],
+  ['callin', updateCallin],
   ['supply', updateSupply],
   ['boss', updateBoss],
   ['pois', updatePois],
@@ -119,7 +119,7 @@ export class Mission {
     this.difficulty = clampAny(opts.difficulty ?? LEVELS);
     this.noDefenders = opts.defenders === false;      // (0.18: tests turn the Infantry already at the site off)
     this.forceJam = opts.jammer === true;              // (0.38) a campaign chapter wants a jammer site on the map
-    this.noHbSides = opts.hellbombSides === false;     // (0.38) ...or none of the Demolition Charge's side jobs yet (no jammer; towers fall to guns)
+    this.noHbSides = opts.demochargeSides === false;     // (0.38) ...or none of the Demolition Charge's side jobs yet (no jammer; towers fall to guns)
     applyDifficulty(this.difficulty);
     this.reward = reward(this.difficulty);     // credits and score multiplier
     this.opDone = Math.max(0, opts.opDone || 0);                                // (0.40) missions already done in this operation
@@ -163,8 +163,8 @@ export class Mission {
 
     this.stats = {
       kills: { L: 0, M: 0, H: 0 }, killsPlayer: 0, killsAlly: 0, bases: 0, lostH: 0, lostS: 0, ff: 0, shots: 0, orbCalls: 0, uavs: 0,
-      hdCalls: 0, seafCalls: 0, despawned: 0, pois: 0, breaches: 0,
-      dmg: { player: 0, squad: 0, strat: 0, enemy: 0 }, stratCalls: 0, stratBy: {}, mechs: 0, frvs: 0, wipes: 0, objectives: 0, podKills: 0,
+      hdCalls: 0, infantryCalls: 0, despawned: 0, pois: 0, breaches: 0,
+      dmg: { player: 0, squad: 0, callin: 0, enemy: 0 }, callinCalls: 0, callinBy: {}, mechs: 0, lrvs: 0, wipes: 0, objectives: 0, podKills: 0,
     };
     this.sc = { kills: 0, allyKills: 0, bases: 0, pois: 0, breaches: 0, objective: 0, timeBonus: 0, extraction: 0, lives: 0, survivor: 0, ff: 0, deaths: 0, wipes: 0, drops: 0, civ: 0, boss: 0, sides: 0, clear: 0 };
     // Credits earned this mission. They go straight into the wallet so the armory can spend them mid-mission.
@@ -172,8 +172,8 @@ export class Mission {
     this.combo = { mult: 1, last: -99 };
     this.deaths = [];     // the death report: every Vanguard and Infantry who fell, in order
 
-    this.enemies = []; this.groups = []; this.allies = []; this.alive = []; this.hdAlive = []; this.seafAlive = [];
-    this.shells = []; this.beams = []; this.bridgeQ = []; this.markers = []; this.pods = []; this.pelicans = []; this.incoming = []; this.uavs = []; this.relays = []; this.spotters = []; this.bubbles = []; this.evading = false; this.hellbomb = null;
+    this.enemies = []; this.groups = []; this.allies = []; this.alive = []; this.hdAlive = []; this.infantryAlive = [];
+    this.shells = []; this.beams = []; this.bridgeQ = []; this.markers = []; this.pods = []; this.dships = []; this.incoming = []; this.uavs = []; this.relays = []; this.spotters = []; this.bubbles = []; this.evading = false; this.democharge = null;
     this.assets = []; this.zones = []; this.civs = [];
     this.crates = []; this.arty = []; this.posts = []; this.trenches = [];   // supply crates Infantry deploy into defences; artillery cannons; everything Infantry built (posts.js)
     this.pois = []; this.breaches = [];
@@ -196,10 +196,10 @@ export class Mission {
     this.bag = [];
     this.hd = { lives: maxLives(), max: maxLives() };    // a full set of lives every mission
     this.wiped = false;
-    this.seaf = initSeaf();
+    this.infantry = initInfantry();
     this.support = { spawnT: 0, lastSpawn: -99, scanT: 0, near: 0 };
-    this.chat = { t: 0, hd: 0, seaf: 0, moveAt: -99, heavyAt: -99, seafAt: -99, wasEngaged: false, lastState: '' };
-    this.noticeAt = { seaf: -99 };
+    this.chat = { t: 0, hd: 0, infantry: 0, moveAt: -99, heavyAt: -99, infantryAt: -99, wasEngaged: false, lastState: '' };
+    this.noticeAt = { infantry: -99 };
     this.nuke = null;
     // The hour of the drop (cosmetic: it sets the light and the tint of the map, see render/sky.js). opts.tod forces it.
     this.tod0 = opts.tod ?? this.crng.range(0, 24);
@@ -305,7 +305,7 @@ export class Mission {
       setupT: 0, setupCool: 4, free: true, spotG: null, attackT: 0, formed: false, dir: 0, goalDist: 999 };
 
     // Four groups of three call-ins and a ship for each. Typed ship names win over the random ones.
-    initStrat(this, opts.loadout || rollLoadout(this.seed), !!opts.keepOrder);
+    initCallin(this, opts.loadout || rollLoadout(this.seed), !!opts.keepOrder);
     this.teams.forEach((tm, i) => { if (this.names.ships[i]) tm.ship = this.names.ships[i]; });
 
     // The player's kit: UAV, orbital slots and the nuke.
@@ -315,7 +315,7 @@ export class Mission {
     this.teams.forEach((tm, i) => {
       const ang = (i / this.teams.length) * Math.PI * 2 + Math.PI / 4;
       tm.pod = true;
-      this.pods.push({ type: 'H', team: i, n: 1, landAt: (opts.countdown || 0) + C.helldivers.initialDropSec + 0.5 * i, x: this.lz.x + Math.cos(ang) * 11, y: this.lz.y + Math.sin(ang) * 11, start: true });
+      this.pods.push({ type: 'H', team: i, n: 1, landAt: (opts.countdown || 0) + C.vanguards.initialDropSec + 0.5 * i, x: this.lz.x + Math.cos(ang) * 11, y: this.lz.y + Math.sin(ang) * 11, start: true });
     });
 
     // Side missions and Infantry drop beacons.
@@ -327,7 +327,7 @@ export class Mission {
     initPlan(this);
     // (0.18) now and then Infantry are already holding the site the Vanguards are heading for
     setupDefenders(this);
-    this.countdown = opts.countdown || 0; this.dropAt = this.countdown + C.helldivers.initialDropSec;    // (0.18) the drop countdown
+    this.countdown = opts.countdown || 0; this.dropAt = this.countdown + C.vanguards.initialDropSec;    // (0.18) the drop countdown
     if (opts.lastStand) setupLastStand(this);
     placeMarks(this);     // (0.58.2) the enemy's banners, ruins and mushrooms, once everything they belong to is placed
     this._refreshAlive();               // (the mission starts paused on the tactical screen: who is on the ground already shows)
@@ -338,9 +338,9 @@ export class Mission {
   setFiring(b) { this.player.firing = !!b; }
   fire() { this.player.firePress = true; }   // one press, even if the button is released again before the next tick
   // (0.53.2) STRIKER REARM: the Striker flies back to rearm now, every Striker call-in coming back full ({ ok } or { ok: false, reason })
-  eagleRearm() {
+  strikerRearm() {
     if (this.over) return { ok: false, reason: 'over' };
-    const r = eagleRearm(this);
+    const r = strikerRearm(this);
     if (!r.ok) this.emit('deny', { reason: r.reason });
     return r;
   }
@@ -364,8 +364,8 @@ export class Mission {
   // Call an Infantry drop. A troop dropship flies it in; it has to land inside the strike zone. The troops join the selected squad.
   // (0.27.3) opts.hold: a squad of its own waits for orders where it lands (see dropHold); false keeps the old way (it goes
   // straight off to clear the nearest objective: the test bot plays like that)
-  callSeaf(x, y, opts = {}) {
-    const sf = this.seaf, st = seafStats(this.kit);
+  callInfantry(x, y, opts = {}) {
+    const sf = this.infantry, st = infantryStats(this.kit);
     if (this.over) return { ok: false, reason: 'over' };
     // (0.18) before the Vanguards are down (the start, on the tactical screen) the landing zone takes a drop
     const atLz = this.earlyLz(x, y);
@@ -376,34 +376,34 @@ export class Mission {
     else if (bc) { /* where it was called */ }
     else if (!atLz && !this.inZone(x, y, -5)) return this._deny('nocoverage', COMMS.noCoverage);
     // (0.39) troopers aboard the destroyer (picked up) come down first; new ones only as far as there is room
-    const room = Math.max(0, st.max - seafHeld(this)) + sf.reserve.length;
+    const room = Math.max(0, st.max - infantryHeld(this)) + sf.reserve.length;
     if (room <= 0) return this._deny('full');
     const n = Math.min(st.drop, room), back = Math.min(n, sf.reserve.length);
     // (0.39: one of the hangar's dropships, shared with pickups; 0.40: troopers coming back down make its turnaround shorter, and
     // those it cannot carry stay aboard for the next one)
     if (takeDropship(this, backCut(this, back)) < 0) return this._deny('cooldown');
     const squad = dropSquad(this, x, y);
-    const fresh = !this.seafAlive.some((a) => a.sq === squad) && !this.pelicans.some((p) => p.squad === squad);
+    const fresh = !this.infantryAlive.some((a) => a.sq === squad) && !this.dships.some((p) => p.squad === squad);
     callDropship(this, x, y, n, squad, fresh && opts.hold !== false);
-    this.stats.seafCalls++;
-    this.radio(COMMS.seafDrop, 'seafDrop', 0);
+    this.stats.infantryCalls++;
+    this.radio(COMMS.infantryDrop, 'infantryDrop', 0);
     this.emit('pod_call', { type: 'S', x, y, n, back });
     return { ok: true, n, squad, back };
   }
 
   // (0.39) PICKUP: a pickup point at (x, y), anywhere in the strike zone (or at a lit drop beacon). If Infantry are already standing
   // there a dropship comes for them as soon as one is ready; if not, it waits like a building for troops to be sent to it
-  // (seafMan). One already close by is used instead of a second.
+  // (infantryMan). One already close by is used instead of a second.
   callPickup(x, y) {
     if (this.over) return { ok: false, reason: 'over' };
-    if (!this.seafAlive.length) return this._deny('noseaf');
+    if (!this.infantryAlive.length) return this._deny('noinfantry');
     const bc = beaconAt(this, x, y);
     if (bc && !bc.post) { x = bc.x; y = bc.y; }
     else if (bc) { /* (0.61.3) by a Propaganda Tower: where it was called */ }
     else if (!this.inZone(x, y, -5)) return this._deny('nocoverage', COMMS.noCoverage);
     ({ x, y } = aoClamp(this.ao, x, y, 20));
     if (!this.terrain.isLand(x, y) || this.terrain.blocked(x, y)) return this._deny('water', COMMS.noWater);
-    const P = C.pelican;
+    const P = C.dship;
     const lz = this.posts.find((p) => p.what === 'lz' && !p.dead && Math.hypot(p.x - x, p.y - y) < P.pickR * 1.5) || makeLz(this, x, y);
     const n = lzCount(this, lz);
     this.radio(COMMS.lzDown, 'lzdown', 1);
@@ -412,27 +412,27 @@ export class Mission {
     return { ok: true, lz, n };
   }
   // (0.39) The squads picked (every one of them) go to a pickup point and wait in it for the dropship.
-  seafToLz(lz) {
+  infantryToLz(lz) {
     if (this.over || !lz || lz.dead) return { ok: false, reason: 'over' };
     const sq = targetSquads(this).filter((q) => q.n > 0);
-    if (!sq.length) return this._deny('noseaf');
+    if (!sq.length) return this._deny('noinfantry');
     for (const q of sq) setSquadOrder(this, q, 'post', lz.x, lz.y, { post: lz, site: lz.site });
-    this.radio(COMMS.seafToLz, 'seaftolz', 1);
-    this.emit('seaf_order', { kind: 'post', x: lz.x, y: lz.y, sq: sq[0].i, lz: true });
+    this.radio(COMMS.infantryToLz, 'infantrytolz', 1);
+    this.emit('infantry_order', { kind: 'post', x: lz.x, y: lz.y, sq: sq[0].i, lz: true });
     return { ok: true, squad: sq[0].i, n: sq.reduce((k, q) => k + q.n, 0) };
   }
 
   // Give the selected squad (or every squad) an order: auto (clear the nearest objective), move, protect, attack or escort.
-  seafOrder(kind, x = this.cx, y = this.cy) {
+  infantryOrder(kind, x = this.cx, y = this.cy) {
     if (this.over) return { ok: false, reason: 'over' };
     if (!ORDER_KINDS.includes(kind)) return { ok: false, reason: 'kind' };
     const sq = targetSquads(this).filter((q) => q.n > 0);
-    if (!sq.length) return this._deny('noseaf');
+    if (!sq.length) return this._deny('noinfantry');
     if (kind === 'escort' && !this.hdAlive.length) return this._deny('nohd');
     x = aoX(this, x, 20); y = aoY(this, y, 20);
     for (const q of sq) setSquadOrder(this, q, kind, x, y);
-    this.radio(COMMS[ORDER_RADIO[kind]], 'seaf' + kind, 1);
-    this.emit('seaf_order', { kind, x, y, sq: this.seaf.sel });
+    this.radio(COMMS[ORDER_RADIO[kind]], 'infantry' + kind, 1);
+    this.emit('infantry_order', { kind, x, y, sq: this.infantry.sel });
     return { ok: true };
   }
   // Send the selected squad (one squad: the selected one, or the nearest to the spot when all are selected) to build at (x, y)
@@ -455,7 +455,7 @@ export class Mission {
     if (!(base > 0)) return 0;
     return Math.round(base * buildCostMul(this.kit) * costSiteMul(this) * (1 + C.build.moreEach * this.buildsOf(what)));
   }
-  seafBuild(what, x, y, opts = {}) {
+  infantryBuild(what, x, y, opts = {}) {
     if (this.over) return { ok: false, reason: 'over' };
     const B = C.build[what];
     if (!B || !POSTS.includes(what)) return { ok: false, reason: 'kind' };
@@ -463,7 +463,7 @@ export class Mission {
     if (!lvl) return this._deny('locked');                       // (the SAM site and the cannon have to be unlocked in the armory first)
     const st = { ...buildStats(what, lvl) }; st.cost = this.buildPrice(what, lvl);     // (0.51: the Engineering Corps commendation; 0.52: a worked salvage yard; 0.62.13: 10% more for each one)
     const sq = targetSquads(this).filter((q) => q.n > 0);
-    if (!sq.length) return this._deny('noseaf');
+    if (!sq.length) return this._deny('noinfantry');
     if (what === 'bridge') return this.bridgeDrop(x, y);     // (0.22) a light bridge comes down from the ship: nobody builds it
     let span = null;
     if (what === 'bridge') {
@@ -504,23 +504,23 @@ export class Mission {
     }
     const q = diggers ? diggers[0] : sq.slice().sort((a, b) => Math.hypot(a.cx - x, a.cy - y) - Math.hypot(b.cx - x, b.cy - y))[0];
     if (span && !crate.span) crate.span = span;
-    // (0.47) the build queue: a squad already building something nearby finishes it first and comes to this one after (seaf.js
+    // (0.47) the build queue: a squad already building something nearby finishes it first and comes to this one after (infantry.js
     // nextCrate); it is only sent straight here when it has nothing to build close by
     for (const d of diggers || [q]) if (!busyWith(this, d, crate.x, crate.y)) setSquadOrder(this, d, 'build', crate.x, crate.y, { what, crate });
-    this.radio(COMMS.seafBuild(what), 'seafbuild', 1);
-    this.emit('seaf_order', { kind: 'build', what, x, y, sq: q.i });
+    this.radio(COMMS.infantryBuild(what), 'infantrybuild', 1);
+    this.emit('infantry_order', { kind: 'build', what, x, y, sq: q.i });
     return { ok: true, squad: q.i };
   }
   // (0.28) Who digs a foxhole at (x, y): every squad picked (one, several, or troopers picked as a group), nearest first; with every
   // squad picked (nothing chosen), just the nearest one. Its size is theirs: a trooper to a place.
   diggers(sq = targetSquads(this).filter((q) => q.n > 0), x = 0, y = 0) {
     const L = sq.slice().sort((a, b) => Math.hypot(a.cx - x, a.cy - y) - Math.hypot(b.cx - x, b.cy - y));
-    const all = this.seaf.sel === -1 && !(this.seaf.multi && this.seaf.multi.length);
+    const all = this.infantry.sel === -1 && !(this.infantry.multi && this.infantry.multi.length);
     return all ? L.slice(0, 1) : L;
   }
   // how many places a foxhole dug at (x, y) now would have, and which squads would dig it (for the ghost: nothing is changed)
   digPlan(x = 0, y = 0) {
-    const sf = this.seaf;
+    const sf = this.infantry;
     if (sf.sel === -2) return { size: foxSize((sf.pick || []).filter((a) => !a.dead).length), sq: [] };
     let L = sf.sel >= 0 ? [sf.squads[sf.sel]] : sf.multi && sf.multi.length ? sf.multi.map((i) => sf.squads[i]) : sf.squads;
     L = L.filter((q) => q && q.n > 0).sort((a, b) => Math.hypot(a.cx - x, a.cy - y) - Math.hypot(b.cx - x, b.cy - y));
@@ -566,35 +566,35 @@ export class Mission {
   }
   // A crate on the ground (or a foxhole being dug): the selected squad (or the nearest) goes and builds it. Its progress is the crate's,
   // so it carries on where the last squad left off.
-  seafBuildCrate(crate) {
+  infantryBuildCrate(crate) {
     if (this.over || !crate || crate.used) return { ok: false, reason: 'over' };
     const sq = targetSquads(this).filter((q) => q.n > 0);
-    if (!sq.length) return this._deny('noseaf');
+    if (!sq.length) return this._deny('noinfantry');
     const q = sq.slice().sort((a, b) => Math.hypot(a.cx - crate.x, a.cy - crate.y) - Math.hypot(b.cx - crate.x, b.cy - crate.y))[0];
     setSquadOrder(this, q, 'build', crate.x, crate.y, { what: crate.what, crate });
-    this.radio(COMMS.seafBuild(crate.what), 'seafbuild', 1);
-    this.emit('seaf_order', { kind: 'build', what: crate.what, x: crate.x, y: crate.y, sq: q.i });
+    this.radio(COMMS.infantryBuild(crate.what), 'infantrybuild', 1);
+    this.emit('infantry_order', { kind: 'build', what: crate.what, x: crate.x, y: crate.y, sq: q.i });
     return { ok: true, squad: q.i };
   }
   // A freehand stroke on the map becomes a route, a line or a ring for the selected squad(s).
-  seafDraw(pts) {
+  infantryDraw(pts) {
     if (this.over) return { ok: false, reason: 'over' };
     const r = drawOrder(this, pts);
-    if (!r.ok) return r.reason === 'noseaf' ? this._deny('noseaf') : this._deny('short');
-    this.radio(COMMS[ORDER_RADIO[r.kind]], 'seaf' + r.kind, 1);
-    this.emit('seaf_order', { kind: r.kind, x: pts[pts.length - 1].x, y: pts[pts.length - 1].y, sq: this.seaf.sel });
+    if (!r.ok) return r.reason === 'noinfantry' ? this._deny('noinfantry') : this._deny('short');
+    this.radio(COMMS[ORDER_RADIO[r.kind]], 'infantry' + r.kind, 1);
+    this.emit('infantry_order', { kind: r.kind, x: pts[pts.length - 1].x, y: pts[pts.length - 1].y, sq: this.infantry.sel });
     return r;
   }
   // ----- posts (posts.js): send the selected squad (or the nearest, with every squad selected) to man a post or a defence site
   // (one of the walled sites a defence is held at): they take its places and stay there.
-  seafMan(target) {
+  infantryMan(target) {
     if (this.over || !target) return { ok: false, reason: 'over' };
-    if (target.what === 'lz') return this.seafToLz(target);     // (0.39) a pickup point: everyone picked goes
+    if (target.what === 'lz') return this.infantryToLz(target);     // (0.39) a pickup point: everyone picked goes
     // (0.62.3) a post or a defence site, nothing else: handed an enemy (a right-click on one), the squad's order had no
     // places to take and every step threw
     if (target.kind !== 'post' && !this.coverSites.includes(target)) return { ok: false, reason: 'kind' };
     const sq = targetSquads(this).filter((q) => q.n > 0);
-    if (!sq.length) return this._deny('noseaf');
+    if (!sq.length) return this._deny('noinfantry');
     // (0.53.1) where they go: a post's defence site, or the post itself when it has none (the work site: right-clicking it threw)
     const post = target.kind === 'post' ? target : null, site = post ? post.site || post : target;
     const q = sq.slice().sort((a, b) => Math.hypot(a.cx - site.x, a.cy - site.y) - Math.hypot(b.cx - site.x, b.cy - site.y))[0];
@@ -602,8 +602,8 @@ export class Mission {
     // of their squad, so that only happens through its door (the game offers it: see main.js commandAt).
     const room = !!(post && INSIDE.has(post.what) && post.cap);
     setSquadOrder(this, q, 'post', site.x, site.y, { post, site: post ? post.site : site, garrison: room ? false : undefined });
-    this.radio(COMMS.seafMan, 'seafman', 1);
-    this.emit('seaf_order', { kind: 'post', x: site.x, y: site.y, sq: q.i });
+    this.radio(COMMS.infantryMan, 'infantryman', 1);
+    this.emit('infantry_order', { kind: 'post', x: site.x, y: site.y, sq: q.i });
     return { ok: true, squad: q.i, canGarrison: room && post.garrison < post.cap };
   }
   // The door on a selected post: the selected squad (or the nearest) goes there and as many as fit go in for good: they leave
@@ -611,16 +611,16 @@ export class Mission {
   garrisonGo(p) {
     if (this.over || !p || p.dead || p.kind !== 'post') return { ok: false, reason: 'over' };
     if (!p.cap) return this._deny('nogarrison');
-    if (!INSIDE.has(p.what)) return this.seafMan(p);      // (0.27.3) a foxhole or a bastion has no inside: they just man it
+    if (!INSIDE.has(p.what)) return this.infantryMan(p);      // (0.27.3) a foxhole or a bastion has no inside: they just man it
     if (p.garrison >= p.cap) return this._deny('postfull');
     const sq = targetSquads(this).filter((q) => q.n > 0);
-    if (!sq.length) return this._deny('noseaf');
+    if (!sq.length) return this._deny('noinfantry');
     const q = sq.slice().sort((a, b) => Math.hypot(a.cx - p.x, a.cy - p.y) - Math.hypot(b.cx - p.x, b.cy - p.y))[0];
     const at = p.site || p;     // (0.52: the work site has no cover of its own)
     setSquadOrder(this, q, 'post', at.x, at.y, { post: p, site: p.site, garrison: true });
     const now = garrisonPost(this, p, q.i);
-    this.radio(COMMS.seafMan, 'seafman', 1);
-    this.emit('seaf_order', { kind: 'post', x: p.x, y: p.y, sq: q.i });
+    this.radio(COMMS.infantryMan, 'infantryman', 1);
+    this.emit('infantry_order', { kind: 'post', x: p.x, y: p.y, sq: q.i });
     if (now) this.notice(tr('n.garrison', { n: now, what: p.name.toUpperCase() }), 'info');
     return { ok: true, squad: q.i, now };
   }
@@ -635,71 +635,71 @@ export class Mission {
   }
   ungarrison(p) {
     if (!p) return { ok: false, reason: 'over' };
-    for (const q of this.seaf.squads) if (q.order.post === p) q.order.garrison = false;     // (or they would walk straight back in)
-    const n = releaseGarrison(this, p, this.seaf.sel);
+    for (const q of this.infantry.squads) if (q.order.post === p) q.order.garrison = false;     // (or they would walk straight back in)
+    const n = releaseGarrison(this, p, this.infantry.sel);
     if (!n) return this._deny('nogarrison');
     this.notice(tr('n.ungarrison', { n, what: p.name.toUpperCase() }), 'info');
     return { ok: true, n };
   }
   // A box dragged on the map: the troopers inside it become a squad of their own (or join one, if they are all of it), and it is
   // selected, so the next order is theirs. (x0, y0)-(x1, y1) in world metres.
-  seafBox(x0, y0, x1, y1) {
+  infantryBox(x0, y0, x1, y1) {
     if (this.over) return { ok: false, reason: 'over' };
     const r = boxSelect(this, Math.min(x0, x1), Math.min(y0, y1), Math.max(x0, x1), Math.max(y0, y1));
     if (!r.ok) return this._deny('box' + r.reason);
     if (r.to >= 0) this.notice(tr('n.boxSel', { n: r.n, a: r.to + 1 }), 'info');
-    this.emit('squad_select', { sel: this.seaf.sel });
+    this.emit('squad_select', { sel: this.infantry.sel });
     return r;
   }
   // A formation for squad i (the tactical menu): loose, line, wedge, column or ring.
-  setForm(i, f) { const q = this.seaf.squads[i]; if (q) setForm(this, q, f); }
+  setForm(i, f) { const q = this.infantry.squads[i]; if (q) setForm(this, q, f); }
   // -1 selects every squad.
-  selectSquad(i) { this.seaf.sel = i >= 0 && i < this.seaf.squads.length ? i : -1; this.seaf.pick = null; this.seaf.multi = null; this.emit('squad_select', { sel: this.seaf.sel }); }
+  selectSquad(i) { this.infantry.sel = i >= 0 && i < this.infantry.squads.length ? i : -1; this.infantry.pick = null; this.infantry.multi = null; this.emit('squad_select', { sel: this.infantry.sel }); }
   // (0.22) several squads at once (Shift+click, a finger held on a squad's button): orders go to each of them
-  selectSquads(list) { const L = seafSelectSquads(this, list); this.emit('squad_select', { sel: this.seaf.sel, multi: L }); return L; }
+  selectSquads(list) { const L = infantrySelectSquads(this, list); this.emit('squad_select', { sel: this.infantry.sel, multi: L }); return L; }
   // (0.22) MERGE: the squads listed become one (the lowest number keeps its order)
   mergeSquads(list) {
-    const r = seafMergeSquads(this, list);
+    const r = infantryMergeSquads(this, list);
     if (!r.ok) return this._deny('merge');
     this.notice(tr('n.merged', { from: r.from.map((i) => 'S' + (i + 1)).join(' + '), to: 'S' + (r.to + 1) }), 'info');
-    this.emit('squad_select', { sel: this.seaf.sel });
+    this.emit('squad_select', { sel: this.infantry.sel });
     return r;
   }
   // (0.31) Ctrl+A: every trooper on the map (not those inside a building). Their squads are picked together, each taking an order as
   // itself; troopers in no squad are picked with everyone else (an order then forms them all into one squad).
   selectAllTroops() {
-    const all = this.seafAlive.filter((a) => a.sq !== GARRISON && !a.inside);
-    if (!all.length) return { ok: false, reason: 'noseaf' };
-    if (all.some((a) => a.sq === LOOSE)) { const r = this.pickSeaf(all); return { ...r, ok: r.ok !== false, n: all.length, k: 0 }; }
+    const all = this.infantryAlive.filter((a) => a.sq !== GARRISON && !a.inside);
+    if (!all.length) return { ok: false, reason: 'noinfantry' };
+    if (all.some((a) => a.sq === LOOSE)) { const r = this.pickInfantry(all); return { ...r, ok: r.ok !== false, n: all.length, k: 0 }; }
     const L = [...new Set(all.map((a) => a.sq))].filter((i) => i >= 0).sort((a, b) => a - b);
     if (L.length === 1) this.selectSquad(L[0]); else this.selectSquads(L);
     return { ok: true, n: all.length, k: L.length };
   }
-  // (0.18) pick troopers (a click on one, a box): see seaf.js pickTroops
-  pickSeaf(list) { const r = pickTroops(this, list); this.emit('squad_select', { sel: this.seaf.sel }); return r; }
+  // (0.18) pick troopers (a click on one, a box): see infantry.js pickTroops
+  pickInfantry(list) { const r = pickTroops(this, list); this.emit('squad_select', { sel: this.infantry.sel }); return r; }
   // the selection joins squad i (Alt+number, a double tap on a squad button)
   toSquad(i) {
     const r = toSquad(this, i);
     if (!r.ok) return this._deny('tosquad');
     this.notice(tr('n.toSquad', { n: r.n, a: i + 1 }), 'info');
-    this.emit('squad_select', { sel: this.seaf.sel });
+    this.emit('squad_select', { sel: this.infantry.sel });
     return r;
   }
   // out of their squad: they hold where they are
-  disbandSeaf() {
+  disbandInfantry() {
     const r = disband(this);
     if (!r.ok) return this._deny('disband');
     this.notice(tr('n.disband', { n: r.n }), 'info');
-    this.emit('squad_select', { sel: this.seaf.sel });
+    this.emit('squad_select', { sel: this.infantry.sel });
     return r;
   }
-  get seafPicked() { return this.seaf.sel === PICKED; }
+  get infantryPicked() { return this.infantry.sel === PICKED; }
   // (0.18) DEPLOY NOW: the Vanguards drop at once instead of when the countdown runs out
   deployNow() {
-    if (this.over || !(this.t < this.dropAt - C.helldivers.initialDropSec)) return { ok: false, reason: 'dropping' };
+    if (this.over || !(this.t < this.dropAt - C.vanguards.initialDropSec)) return { ok: false, reason: 'dropping' };
     let k = 0;
-    for (const p of this.pods) if (p.start) p.landAt = this.t + C.helldivers.initialDropSec + 0.5 * k++;
-    this.dropAt = this.t + C.helldivers.initialDropSec;
+    for (const p of this.pods) if (p.start) p.landAt = this.t + C.vanguards.initialDropSec + 0.5 * k++;
+    this.dropAt = this.t + C.vanguards.initialDropSec;
     this.emit('deploy_now', {});
     return { ok: true };
   }
@@ -708,8 +708,8 @@ export class Mission {
   lsSpawn(kind, ang) { return lsSpawn(this, kind, ang); }
   lsJammer() { return lsJammer(this); }     // (0.37) the tutorial's Demolition Charge and resupply lessons
   lsSupply() { return lsSupply(this); }
-  get dropIn() { return Math.max(0, this.dropAt - C.helldivers.initialDropSec - this.t); }
-  seafTargets() { return targetSquads(this).filter((q) => q.n > 0); }
+  get dropIn() { return Math.max(0, this.dropAt - C.vanguards.initialDropSec - this.t); }
+  infantryTargets() { return targetSquads(this).filter((q) => q.n > 0); }
 
   // ----- the armory: upgrades can be bought mid-mission, new orbitals and slots only between missions -----
   spend(id, tier) {
@@ -725,8 +725,8 @@ export class Mission {
       const was = before[i], now = s.readyAt !== undefined ? slotStats(this, i)?.cd || 0 : 0;
       if (was > 0 && now > 0 && now < was && s.readyAt > this.t) s.readyAt = this.t + (s.readyAt - this.t) * (now / was);
     });
-    const st = seafStats(this.kit);
-    for (const a of this.seafAlive) {
+    const st = infantryStats(this.kit);
+    for (const a of this.infantryAlive) {
       const nm = Math.round(ALLY.S.hp * st.hpMul);
       a.hp = Math.min(nm, a.hp + (nm - a.maxHp)); a.maxHp = nm; a.dmgMul = st.dmgMul;
     }
@@ -857,7 +857,7 @@ export class Mission {
   damageBreach(b, dmg, by) { damageBreach(this, b, dmg, by); }
 
   addAlly(type, x, y, o = {}) {
-    const rng = this.rng, [ox, oy] = rng.inDisc(C.squad.clusterRadius), [jx, jy] = rng.inDisc(6), [fx, fy] = rng.inDisc(C.seaf.followSpread);
+    const rng = this.rng, [ox, oy] = rng.inDisc(C.squad.clusterRadius), [jx, jy] = rng.inDisc(6), [fx, fy] = rng.inDisc(C.infantry.followSpread);
     const base = ALLY[type];
     let ax = x + jx, ay = y + jy;
     if (this.terrain.blocked(ax, ay)) { const l = this.terrain.nearestLand(ax, ay); ax = l.x; ay = l.y; }   // never lands in deep water
@@ -878,13 +878,13 @@ export class Mission {
       a.team = ti; a.code = `${tm.letter}${tm.n}`; a.name = this.names.hd[ti] || '';
       initKit(this, a);
     } else {
-      const st = seafStats(this.kit);
+      const st = infantryStats(this.kit);
       a.hp = a.maxHp = Math.round(base.hp * st.hpMul); a.dmgMul = st.dmgMul;
       a.gren = st.grenades;            // (0.26) G-12 grenades, every role
-      a.name = seafName(this.crng, a.role);
+      a.name = infantryName(this.crng, a.role);
     }
     a.sight0 = base.sight * this.biome.ping;   // flat-ground sight; a rise adds to it (see _refreshAlive)
-    a.zone0 = (C.sight.zoneBase[type === 'H' ? 'helldiver' : 'seaf'] || base.sight) * this.biome.ping;   // the strike zone does not grow with sight
+    a.zone0 = (C.sight.zoneBase[type === 'H' ? 'vanguard' : 'infantry'] || base.sight) * this.biome.ping;   // the strike zone does not grow with sight
     const sm = this.terrain.sightMul(a.x, a.y);
     a.sight = a.sight0 * sm; a.vision = a.sight + C.sight.playerBonus + zoneExtra(this.kit);     // (0.47) strike range upgrades widen the view too
     a.zone = Math.min(a.vision, a.zone0 * sm + C.sight.playerBonus + C.sight.strikeBonus + zoneExtra(this.kit));     // (0.47) never past what the player sees
@@ -921,7 +921,7 @@ export class Mission {
     return n < max;
   }
   _refreshAlive() {
-    this.alive.length = 0; this.hdAlive.length = 0; this.seafAlive.length = 0;
+    this.alive.length = 0; this.hdAlive.length = 0; this.infantryAlive.length = 0;
     let sx = 0, sy = 0, hx = 0, hy = 0;
     const zx = C.sight.strikeBonus + zoneExtra(this.kit), vx = zoneExtra(this.kit);
     const tr = this.terrain;
@@ -936,7 +936,7 @@ export class Mission {
         a.zone = Math.min(a.vision, (a.zone0 ?? a.sight0) * sm + C.sight.playerBonus + zx);     // (0.47) the strike zone sits inside the view
       }
       this.alive.push(a); sx += a.x; sy += a.y;
-      if (a.type === 'H') { this.hdAlive.push(a); hx += a.x; hy += a.y; } else if (!a.pinned) this.seafAlive.push(a);   // pinned Infantry are not the player's (yet)
+      if (a.type === 'H') { this.hdAlive.push(a); hx += a.x; hy += a.y; } else if (!a.pinned) this.infantryAlive.push(a);   // pinned Infantry are not the player's (yet)
     }
     if (this.hdAlive.length) { this.hx = hx / this.hdAlive.length; this.hy = hy / this.hdAlive.length; this.cx = this.hx; this.cy = this.hy; }
     else if (this.alive.length) { this.cx = sx / this.alive.length; this.cy = sy / this.alive.length; }
@@ -980,8 +980,8 @@ export class Mission {
   // wider than what anyone can see. UAV circles count as well. extra shrinks (negative) or grows the zone.
   // (0.18; 0.53.6 one place for it, the drop ghost and the button use it too) until startSec after the Vanguards' drop, an Infantry
   // drop can go anywhere within startR of the landing zone, with nobody on the ground yet
-  earlyDrop() { return this.t < (this.dropAt || 0) + C.seaf.startSec; }
-  earlyLz(x, y) { return this.earlyDrop() && Math.hypot(x - this.lz.x, y - this.lz.y) <= C.seaf.startR; }
+  earlyDrop() { return this.t < (this.dropAt || 0) + C.infantry.startSec; }
+  earlyLz(x, y) { return this.earlyDrop() && Math.hypot(x - this.lz.x, y - this.lz.y) <= C.infantry.startR; }
   inZone(x, y, extra = 0) {
     for (const a of this.alive) {
       const r = a.zone + extra, dx = a.x - x, dy = a.y - y;
@@ -1079,7 +1079,7 @@ export class Mission {
     const isH = a.type === 'H', t = this.t, tm = isH ? this.teams[a.team] : null;
     if (isH) {
       this.stats.lostH++; this.sc.deaths += C.score.hdDeath;
-      if (tm) { if (tm.hd === a) tm.hd = null; tm.deaths++; tm.lastDeath = { x: a.x, y: a.y }; tm.respawnAt = t + C.helldivers.reinforceSec; }
+      if (tm) { if (tm.hd === a) tm.hd = null; tm.deaths++; tm.lastDeath = { x: a.x, y: a.y }; tm.respawnAt = t + C.vanguards.reinforceSec; }
     } else this.stats.lostS++;
     if (a.sw) a.sw = null;
     if (a.mech) a.mech = null;
@@ -1087,16 +1087,16 @@ export class Mission {
     this.deaths.push({ t, type: a.type, team: a.team, code: a.code, name: a.name, tag: this.tag(a), ship: tm ? tm.ship : '', by, cause, x: a.x, y: a.y });
     if (by === 'player') {
       this.stats.ff++;
-      this.sc.ff += isH ? C.score.ffVanguard : C.score.ffSeaf;
+      this.sc.ff += isH ? C.score.ffVanguard : C.score.ffInfantry;
       this.radio(COMMS.friendly, 'ff', 3);
     } else if (isH) {
       this.radio(COMMS.hdDown, 'downH', 1);
-    } else this.radio(COMMS.seafDown, 'downS', 6);
+    } else this.radio(COMMS.infantryDown, 'downS', 6);
     if (isH) {
       this.notice(tr('n.kia', { who: this.tag(a), cause }) + (tm ? '  ' + tm.ship : ''), 'bad');
       if (this.hd.lives <= 0) this.radio(COMMS.noLives, 'nolives', 8);
-    } else if (t - this.noticeAt.seaf > 1.2) {
-      this.noticeAt.seaf = t;
+    } else if (t - this.noticeAt.infantry > 1.2) {
+      this.noticeAt.infantry = t;
       this.notice(tr('n.kia', { who: this.tag(a), cause }), 'dim');
     }
     this.emit('ally_down', { x: a.x, y: a.y, type: a.type, unit: a.type, by, id: a.id, face: a.face || 0, role: a.role, team: a.team });
@@ -1183,7 +1183,7 @@ export class Mission {
   }
   _reinforce() {
     if (this.over) return;
-    const t = this.t, hd = this.hd, H = C.helldivers;
+    const t = this.t, hd = this.hd, H = C.vanguards;
     if (boardingNow(this)) return;    // nobody drops in while the dropship is loading
     if (!this.hdAlive.length) {
       if (!this.wiped && !this.pods.some((p) => p.type === 'H' && p.start)) {
@@ -1218,20 +1218,20 @@ export class Mission {
     }
     // (0.39) the destroyer leaves orbit (the Vanguards away, or the time up): Infantry still on the ground are left behind, lost like
     // any other (and replaced at a cost); those taken up by a pickup are safe aboard
-    const aboardS = this.seaf.reserve.length;
+    const aboardS = this.infantry.reserve.length;
     if (!this.ls && (outcome === 'victory' || outcome === 'timeout')) {
-      const left = this.seafAlive.filter((a) => !a.dead).length;
-      if (left) { this.stats.lostS = (this.stats.lostS || 0) + left; this.stats.leftS = left; this.notice(tr('n.leftBehind', { n: left }), 'bad'); this.emit('seaf_left', { n: left }); }
+      const left = this.infantryAlive.filter((a) => !a.dead).length;
+      if (left) { this.stats.lostS = (this.stats.lostS || 0) + left; this.stats.leftS = left; this.notice(tr('n.leftBehind', { n: left }), 'bad'); this.emit('infantry_left', { n: left }); }
     }
     if (outcome === 'victory' || outcome === 'timeout' || outcome === 'complete') {
       const ex = this.extraction, groundS = !this.ls && (outcome === 'victory' || outcome === 'timeout') ? 0 : this.countAlly('S');
-      this.sc.survivor = (this.countAlly('H') + (ex.boardedH || 0)) * s.survivorVanguard + (groundS + aboardS + (ex.boardedS || 0)) * s.survivorSeaf;
+      this.sc.survivor = (this.countAlly('H') + (ex.boardedH || 0)) * s.survivorVanguard + (groundS + aboardS + (ex.boardedS || 0)) * s.survivorInfantry;
     }
     // every Infantry trooper lost is replaced for the next mission, each one dearer than the last
-    const lost = this.stats.lostS || 0, L = C.seaf;
+    const lost = this.stats.lostS || 0, L = C.infantry;
     const rep = Math.round(lost * L.lifeCost + (L.lifeStep * lost * (lost - 1)) / 2), paid = Math.min(rep, Math.max(0, this.wallet.bal));
-    this.wallet.bal -= paid; this.cr.seafLives = paid;
-    if (paid) this.notice(tr('n.seafLives', { n: lost, cr: paid }), 'warn');
+    this.wallet.bal -= paid; this.cr.infantryLives = paid;
+    if (paid) this.notice(tr('n.infantryLives', { n: lost, cr: paid }), 'warn');
     this.radio(outcome === 'victory' ? COMMS.victory : outcome === 'complete' ? COMMS.complete : outcome === 'timeout' ? COMMS.timeout : COMMS.defeat, 'end', 0);
     this.emit('end', { outcome });
   }
@@ -1250,21 +1250,21 @@ export class Mission {
   result() {
     const sc = this.sc;
     const raw = this._rawScore();
-    const d = this.stats.dmg, tot = d.player + d.squad + d.strat || 1;
+    const d = this.stats.dmg, tot = d.player + d.squad + d.callin || 1;
     const cr = this.cr;
     return {
       outcome: this.outcome, t: this.t, minutes: this.t / 60,
       score: Math.max(0, Math.round(raw)), raw: Math.round(raw), breakdown: { ...sc }, base: Math.round(this._baseScore()), difficulty: this.difficulty, reward: this.reward, opBonus: this.opBonus, bump: this.bump, bumpPay: this.bumpPay,
       kills: this.stats.killsPlayer + this.stats.killsAlly, stats: { ...this.stats }, bossName: this.boss ? this.boss.name : null,
       bases: this.stats.bases, baseTotal: this.baseTotal, pois: this.stats.pois, poiTotal: this.pois.length, breaches: this.stats.breaches, sides: (this.sides || []).filter((q) => q.done).length, sideTotal: (this.sides || []).length, fullClear: !!(this.plan && this.plan.full),
-      livesLeft: this.hd.lives, livesMax: this.hd.max, survivorsH: this.countAlly('H') + (this.extraction.boardedH || 0), survivorsS: (this.stats.leftS !== undefined || ((this.outcome === 'victory' || this.outcome === 'timeout') && !this.ls) ? 0 : this.countAlly('S')) + this.seaf.reserve.length + (this.extraction.boardedS || 0), leftS: this.stats.leftS || 0,
+      livesLeft: this.hd.lives, livesMax: this.hd.max, survivorsH: this.countAlly('H') + (this.extraction.boardedH || 0), survivorsS: (this.stats.leftS !== undefined || ((this.outcome === 'victory' || this.outcome === 'timeout') && !this.ls) ? 0 : this.countAlly('S')) + this.infantry.reserve.length + (this.extraction.boardedS || 0), leftS: this.stats.leftS || 0,
       civSaved: this.stats.civSaved || 0, civLost: this.stats.civLost || 0,
       lastStand: this.ls ? { lifted: this.ls.lifted, held: Math.round(this.ls.holdT), fallen: this.ls.fallen, pop: this.ls.pop } : null,
       objectives: this.objectives.map((o) => ({ type: o.type, done: o.done })), objDone: this.objDone, extracted: this.extracted,
-      share: { player: d.player / tot, squad: d.squad / tot, strat: d.strat / tot },
+      share: { player: d.player / tot, squad: d.squad / tot, callin: d.callin / tot },
       loadout: this.loadout.slice(), orbitals: loadoutIds(this.kit),
       credits: { kills: cr.kills, bases: cr.bases, pois: cr.pois, breaches: cr.breaches, objective: cr.objective, extraction: cr.extraction, drops: cr.drops, civ: cr.civ, boss: cr.boss, sides: cr.sides, site: cr.site || 0,
-        total: cr.total, spent: this.wallet.spent - cr.spent0, start: cr.start, balance: this.wallet.bal, seafLives: cr.seafLives || 0, seafLost: this.stats.lostS || 0 },
+        total: cr.total, spent: this.wallet.spent - cr.spent0, start: cr.start, balance: this.wallet.bal, infantryLives: cr.infantryLives || 0, infantryLost: this.stats.lostS || 0 },
       deaths: this.deaths.map((x) => ({ ...x })),
       teams: this.teams.map((tm) => ({ letter: tm.letter, ship: tm.ship, deaths: tm.deaths, ids: tm.ids.slice() })),
     };
@@ -1279,7 +1279,7 @@ export class Mission {
     for (const a of this.alive) { a.px = a.x; a.py = a.y; }
     for (const g of this.groups) { g.pcx = g.cx; g.pcy = g.cy; }
     const sq = this.squad; sq.pax = sq.ax; sq.pay = sq.ay;
-    for (const q of this.seaf.squads) { q.pax = q.ax; q.pay = q.ay; }
+    for (const q of this.infantry.squads) { q.pax = q.ax; q.pay = q.ay; }
   }
   // Turn every unit toward where it is shooting, or else where it is going, at its own turning speed (heavies turn slowly).
   _turn(o, rate, dt) {
@@ -1313,7 +1313,7 @@ export class Mission {
     let big = 0;
     for (const e of this.enemies) if (!e.dead && !e.boss && !e.air) { const b = (e.r || 2.2) * body; if (b > big) big = b; }
     big = Math.min(Math.max(big, room * 0.5), S.max);
-    const school = this.faction.id === 'squids';
+    const school = this.faction.id === 'lizards';
     for (const e of this.enemies) {
       if (e.dead || e.boss || e.air || e.lp || e.inAir) continue;
       const er = (e.r || 2.2) * body, rm = tight(e) ? roomM : room;
@@ -1382,11 +1382,11 @@ export class Mission {
     const solid = C.solids.on && solids(this);
     for (const e of this.enemies) if (!e.dead) { go(e.px, e.py, e.x, e.y, 1); if (solid && !e.boss && !e.air) { if (keepOut(this, e, e.px, e.py, R, null, e.kind === 'H') && tr.blocked(R.x, R.y)) { R.x = e.px; R.y = e.py; } } e.x = inX(R.x); e.y = inY(R.y); }
     // (allies keep to the square: a way round water can cut through a corner of it, outside the round area; 0.40: holding them to
-    // the circle there left squads stuck against its edge, so a Vanguard pulling back is kept off the edge instead: helldiver.js)
+    // the circle there left squads stuck against its edge, so a Vanguard pulling back is kept off the edge instead: vanguard.js)
     for (const a of this.alive) if (!a.mounted) {
       go(a.px, a.py, a.x, a.y, a.type === 'H' && jump ? 0 : 1);
       if (solid && !(a.type === 'H' && jump) && !a.inside && !inDanger(this, a.px, a.py)) {     // (0.62.8: nobody is held at a wall with a blast coming: he runs straight out)
-        const own = a.post || (a.type === 'S' && a.sq >= 0 && this.seaf.squads[a.sq] && this.seaf.squads[a.sq].order.post) || null;
+        const own = a.post || (a.type === 'S' && a.sq >= 0 && this.infantry.squads[a.sq] && this.infantry.squads[a.sq].order.post) || null;
         if (keepOut(this, a, a.px, a.py, R, own) && tr.blocked(R.x, R.y)) { R.x = a.px; R.y = a.py; }
       }
       a.x = inX(R.x); a.y = inY(R.y);
@@ -1394,7 +1394,7 @@ export class Mission {
     for (const g of this.groups) { go(g.pcx, g.pcy, g.cx, g.cy, 1); g.cx = inX(R.x); g.cy = inY(R.y); }
     const sq = this.squad;
     go(sq.pax, sq.pay, sq.ax, sq.ay, jump ? 0 : sq.mounted ? 0.5 : 1); sq.ax = inX(R.x); sq.ay = inY(R.y);
-    for (const q of this.seaf.squads) { go(q.pax, q.pay, q.ax, q.ay, 1); q.ax = inX(R.x); q.ay = inY(R.y); }
+    for (const q of this.infantry.squads) { go(q.pax, q.pay, q.ax, q.ay, 1); q.ax = inX(R.x); q.ay = inY(R.y); }
     const T = C.combat.turn, hr = T.H[this.faction.id] || 2;
     for (const e of this.enemies) if (!e.dead) this._turn(e, e.kind === 'H' ? hr : T[e.kind], dt);
     for (const a of this.alive) if (!a.mounted) this._turn(a, T.ally, dt); else a.face = a.mounted.face;

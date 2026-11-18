@@ -2,7 +2,7 @@
 // player is drawing. Every function draws in world space (meters).
 import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
-import { SQUAD_COLOR, classifyStroke } from '../sim/seaf.js';
+import { SQUAD_COLOR, classifyStroke } from '../sim/infantry.js';
 
 const TAU = Math.PI * 2;
 
@@ -19,18 +19,18 @@ function arrowHead(ctx, x, y, ux, uy, s) {
   ctx.closePath(); ctx.fill();
 }
 
-export const squadsInUse = (m) => { let n = 0; for (const q of m.seaf.squads) if (q.n) n++; return n; };
+export const squadsInUse = (m) => { let n = 0; for (const q of m.infantry.squads) if (q.n) n++; return n; };
 // Objectives the squads are heading for (so the base / breach / POI draws a bracket around them).
-export function seafTargets(m) {
+export function infantryTargets(m) {
   const s = new Set();
-  for (const q of m.seaf.squads) if (q.n && q.tgt && q.order.kind === 'auto') s.add(q.tgt.obj);
+  for (const q of m.infantry.squads) if (q.n && q.tgt && q.order.kind === 'auto') s.add(q.tgt.obj);
   return s;
 }
 export const squadColor = (i) => SQUAD_COLOR[i] || '#9dd8ff';
 
 // ---------- the ring and the role mark drawn on every Infantry trooper ----------
-export function drawSeafMark(ctx, m, a, r, px, multi, on) {
-  const sel = m.seaf.sel, pk = sel === -2 && m.seaf.pick ? m.seaf.pick.includes(a.id) : false;
+export function drawInfantryMark(ctx, m, a, r, px, multi, on) {
+  const sel = m.infantry.sel, pk = sel === -2 && m.infantry.pick ? m.infantry.pick.includes(a.id) : false;
   if (multi && a.sq >= 0) {
     const col = squadColor(a.sq), lit = sel === -1 || sel === a.sq || pk;
     ctx.strokeStyle = col; ctx.globalAlpha = lit ? 0.95 : 0.4; ctx.lineWidth = px(lit ? 1.7 : 1.1);
@@ -62,7 +62,7 @@ export function drawSeafMark(ctx, m, a, r, px, multi, on) {
 // the colour of each order on the map
 export const ORDER_COL = { move: '#5ec4ff', attack: '#ff5050', protect: '#7dff9b', build: '#ffd24a' };
 export function drawSquadOrders(ctx, m, now, px, labels, scale, pal) {
-  const sf = m.seaf, multi = squadsInUse(m) > 1 || sf.sel >= 0, seen = new Set();
+  const sf = m.infantry, multi = squadsInUse(m) > 1 || sf.sel >= 0, seen = new Set();
   for (const q of sf.squads) {
     if (!q.n) continue;
     const col = multi ? squadColor(q.i) : pal.ally, lit = sf.sel < 0 || sf.sel === q.i, o = q.order, nm = multi ? `S${q.i + 1}` : 'Infantry';
@@ -145,7 +145,7 @@ export function drawSquadOrders(ctx, m, now, px, labels, scale, pal) {
 // ---------- the stroke the player is drawing, with what it will become ----------
 export function drawStroke(ctx, m, now, px, labels, scale, dr) {
   if (!dr || !dr.pts || !dr.pts.length) return;
-  const sel = m.seaf.sel, col = sel >= 0 ? squadColor(sel) : '#ffffff', pts = dr.pts;
+  const sel = m.infantry.sel, col = sel >= 0 ? squadColor(sel) : '#ffffff', pts = dr.pts;
   ctx.lineJoin = 'round'; ctx.lineCap = 'round';
   ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.lineWidth = px(5);
   ctx.beginPath(); pts.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y))); ctx.stroke();
@@ -175,11 +175,11 @@ export function drawStroke(ctx, m, now, px, labels, scale, dr) {
 
 // ---------- the troop dropship ----------
 // (0.39.1) The heavy dropship from above, nose along +x: a wide armoured troop bay with a ramp at the back, broad wings with a big
-// jet pod slung under each (they swivel down to hover and back to fly), and a tall tail with its stabilisers. pelicanBody lays its
-// outline as one path (for the shadow and the body); pelicanDetail adds the jets' flames, the pods' nozzles, the cockpit and the
+// jet pod slung under each (they swivel down to hover and back to fly), and a tall tail with its stabilisers. dshipBody lays its
+// outline as one path (for the shadow and the body); dshipDetail adds the jets' flames, the pods' nozzles, the cockpit and the
 // panel lines. thrust: how hard the jets burn (0: details only); down: 1 hovering (the jets point down), 0 flying (they push it on).
 const POD = { x: -0.04, y: 0.58, hl: 0.26, hw: 0.13 };     // the jet pods, as fractions of s
-export function pelicanBody(ctx, x, y, ang, s) {
+export function dshipBody(ctx, x, y, ang, s) {
   ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
   ctx.beginPath();
   // the troop bay
@@ -200,7 +200,7 @@ export function pelicanBody(ctx, x, y, ang, s) {
   }
   ctx.restore();
 }
-export function pelicanDetail(ctx, x, y, ang, s, now, thrust = 1, down = 1, col = null) {
+export function dshipDetail(ctx, x, y, ang, s, now, thrust = 1, down = 1, col = null) {
   ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
   const nx = (POD.x - POD.hl * 0.85) * s;     // where each pod's nozzle is
   if (thrust > 0) for (const g of [-1, 1]) {
@@ -229,8 +229,8 @@ export function pelicanDetail(ctx, x, y, ang, s, now, thrust = 1, down = 1, col 
   ctx.restore();
 }
 export function drawDropships(ctx, m, now, px, labels, scale, pal) {
-  const P = C.pelican, multi = squadsInUse(m) > 1 || m.seaf.sel >= 0;
-  for (const p of m.pelicans) {
+  const P = C.dship, multi = squadsInUse(m) > 1 || m.infantry.sel >= 0;
+  for (const p of m.dships) {
     // (0.39) it comes down from orbit: big and high to start with (its shadow far off), settling to its working height
     const ang = Math.atan2(p.dy, p.dx), alt = p.alt, s = Math.max(8, px(14)) * (1 + 0.4 * alt), col = p.pick ? '#5fd0ff' : multi ? squadColor(p.squad) : pal.ally;
     // where it is going to land
@@ -242,19 +242,19 @@ export function drawDropships(ctx, m, now, px, labels, scale, pal) {
     }
     // shadow on the ground, further from the craft the higher it is
     const off = 4 + alt * 26;
-    ctx.fillStyle = 'rgba(0,0,0,0.18)'; pelicanBody(ctx, p.x + off * 1.05, p.y + off * 0.76, ang, s * 1.08); ctx.fill();
-    ctx.fillStyle = 'rgba(0,0,0,0.42)'; pelicanBody(ctx, p.x + off * 1.05, p.y + off * 0.76, ang, s * 0.92); ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,0.18)'; dshipBody(ctx, p.x + off * 1.05, p.y + off * 0.76, ang, s * 1.08); ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,0.42)'; dshipBody(ctx, p.x + off * 1.05, p.y + off * 0.76, ang, s * 0.92); ctx.fill();
     // the craft: dark halo, then a bright thermal body, its rockets burning (pushing it along on the way in and out, straight down
     // over the spot)
     const fx = Math.cos(ang), fy = Math.sin(ang);
     const kIn = p.state === 'in' ? Math.min(1, (m.t - (p.t0 ?? m.t)) / P.inSec) : 1;
     const down = p.state === 'hover' ? 1 : p.state === 'in' ? Math.max(0, (kIn - 0.55) / 0.45) : Math.max(0, 1 - p.outT / 1.2);
-    pelicanDetail(ctx, p.x, p.y, ang, s, now, 1, down, null);
-    pelicanBody(ctx, p.x, p.y, ang, s);
+    dshipDetail(ctx, p.x, p.y, ang, s, now, 1, down, null);
+    dshipBody(ctx, p.x, p.y, ang, s);
     ctx.lineJoin = 'round'; ctx.strokeStyle = 'rgba(0,0,0,0.7)'; ctx.lineWidth = px(4); ctx.stroke();
     ctx.fillStyle = 'rgba(205,232,255,0.92)'; ctx.fill();
     ctx.strokeStyle = col; ctx.lineWidth = px(1.6); ctx.stroke();
-    pelicanDetail(ctx, p.x, p.y, ang, s, now, 0, down, col);
+    dshipDetail(ctx, p.x, p.y, ang, s, now, 0, down, col);
     // the belly cannon
     ctx.fillStyle = '#ffd24a'; ring(ctx, p.x + fx * s * 0.35, p.y + fy * s * 0.35, Math.max(px(2.2), 1.2)); ctx.fill();
     // a cargo dropship carries its crate slung underneath until it is down
@@ -275,21 +275,21 @@ export function drawDropships(ctx, m, now, px, labels, scale, pal) {
     }
     const left = p.roles.length - p.dropped;
     if (p.cargo) {
-      const text = p.state === 'in' ? tr('lab.cargoSec', { n: Math.max(1, Math.ceil(P.inSec - (m.t - (p.t0 ?? m.t)))) }) : p.cargo.landed ? tr('lab.pelicanOut') : tr('lab.cargoDrop');
+      const text = p.state === 'in' ? tr('lab.cargoSec', { n: Math.max(1, Math.ceil(P.inSec - (m.t - (p.t0 ?? m.t)))) }) : p.cargo.landed ? tr('lab.dshipOut') : tr('lab.cargoDrop');
       labels.push({ x: p.x, y: p.y, dy: -s * scale - 8, text, col: '#ffd27a', pri: 1 });
       continue;
     }
-    let text = tr('lab.pelican');
-    if (p.state === 'in') text = tr('lab.pelicanSec', { n: Math.max(1, Math.ceil(P.inSec - (m.t - (p.t0 ?? m.t)))) });
+    let text = tr('lab.dship');
+    if (p.state === 'in') text = tr('lab.dshipSec', { n: Math.max(1, Math.ceil(P.inSec - (m.t - (p.t0 ?? m.t)))) });
     else if (p.state === 'hover') text = tr('lab.deploying', { a: p.dropped, b: p.roles.length });
-    else if (left <= 0) text = tr('lab.pelicanOut');
+    else if (left <= 0) text = tr('lab.dshipOut');
     labels.push({ x: p.x, y: p.y, dy: -s * scale - 8, text: multi ? `${text}  S${p.squad + 1}` : text, col , pri: 1 });
   }
 }
 
 // ---------- minimap ----------
-export function drawMiniSeaf(c, m, k, ac) {
-  const multi = squadsInUse(m) > 1 || m.seaf.sel >= 0, sf = m.seaf;
+export function drawMiniInfantry(c, m, k, ac) {
+  const multi = squadsInUse(m) > 1 || m.infantry.sel >= 0, sf = m.infantry;
   for (const q of sf.squads) {
     if (!q.n) continue;
     const col = multi ? squadColor(q.i) : ac, o = q.order;
@@ -309,7 +309,7 @@ export function drawMiniSeaf(c, m, k, ac) {
   }
   // troopers: dark-edged dots, and a ring in the squad colour around each squad
   const ctr = new Map();
-  for (const a of m.seafAlive) {
+  for (const a of m.infantryAlive) {
     if (a.inside) continue;
     const r = a.role === 'medic' || a.role === 'leader' ? 3.4 : 2.8;
     c.fillStyle = 'rgba(0,0,0,0.8)'; c.beginPath(); c.arc(a.x * k, a.y * k, r + 1.3, 0, TAU); c.fill();
@@ -322,6 +322,6 @@ export function drawMiniSeaf(c, m, k, ac) {
     c.beginPath(); c.arc((q.x / q.n) * k, (q.y / q.n) * k, 8, 0, TAU); c.stroke(); c.globalAlpha = 1;
   }
   c.fillStyle = ac;
-  for (const p of m.pelicans) { c.beginPath(); c.moveTo(p.x * k + 5, p.y * k); c.lineTo(p.x * k - 4, p.y * k - 3.5); c.lineTo(p.x * k - 4, p.y * k + 3.5); c.closePath(); c.fill(); }
+  for (const p of m.dships) { c.beginPath(); c.moveTo(p.x * k + 5, p.y * k); c.lineTo(p.x * k - 4, p.y * k - 3.5); c.lineTo(p.x * k - 4, p.y * k + 3.5); c.closePath(); c.fill(); }
 
 }

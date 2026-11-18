@@ -773,7 +773,7 @@ export class Sim {
     for (const b of this.b) {
       if (!b.done) continue;
       const d = B[b.type], w = b.wreck || {};
-      const want = [['lift', d.lifts || 0], ['truck', (d.trucks || 0) + (d.trucks && this.hasTech('trucks') ? 1 : 0)], ['frv', d.armour && !w.frv ? 1 : 0], ['tank', d.armour && !w.tank && this.hasTech('tank') ? 1 : 0]];
+      const want = [['lift', d.lifts || 0], ['truck', (d.trucks || 0) + (d.trucks && this.hasTech('trucks') ? 1 : 0)], ['lrv', d.armour && !w.lrv ? 1 : 0], ['tank', d.armour && !w.tank && this.hasTech('tank') ? 1 : 0]];
       for (const [kind, n] of want) {
         const have = this.veh.filter(v => v.home === b.id && v.kind === kind).length;
         for (let i = have; i < n; i++) { const [x, z] = this.door(b); this.veh.push({ id: this.nid++, kind, home: b.id, x: x + 0.5, z: z + 0.5, yaw: 0, path: [], job: null, load: 0, wait: 0 }); }
@@ -1089,7 +1089,7 @@ export class Sim {
     const p = { ...o, id: this.nid++, t: 0, veh: vs.map(v => v.kind), vids: vs.map(v => v.id), members: squad.map(t => t.id) };
     p.chance = this.chance(p, squad);
     // the LRV gets there and back in two thirds of the time; the right vehicle for the job pays a quarter more
-    if (p.veh.includes('frv')) p.dur = Math.round(p.dur * 0.67);
+    if (p.veh.includes('lrv')) p.dur = Math.round(p.dur * 0.67);
     if (p.wants && p.veh.includes(p.wants)) p.sup = Math.round(p.sup * 1.25);
     for (const v of vs) { v.mission = p.id; v.parked = false; const h = this.byId(v.home); h.stock.fuel -= VEHICLES[v.kind].fuel; }
     this.offers = this.offers.filter(x => x !== o);
@@ -1120,8 +1120,8 @@ export class Sim {
       const t = this.troop(id); if (!t) continue;
       if (!this.rng.chance((win ? 0.05 * p.diff : 0.13 * p.diff) * guard)) { back.push(t); continue; }
       // hit: a free bed in a Medical Bay (or a LRV to carry them) saves most; otherwise some are flown off planet
-      const beds = this.wardBeds - this.troops.filter(o => o.hurt > 0).length, frv = vs.some(v => v.kind === 'frv');
-      if (this.rng.chance(beds > 0 ? (frv ? 0.9 : 0.75) : 0.25)) { t.hurt = C.HEAL; hurt.push(t); back.push(t); }
+      const beds = this.wardBeds - this.troops.filter(o => o.hurt > 0).length, lrv = vs.some(v => v.kind === 'lrv');
+      if (this.rng.chance(beds > 0 ? (lrv ? 0.9 : 0.75) : 0.25)) { t.hurt = C.HEAL; hurt.push(t); back.push(t); }
       else if (this.rng.chance(0.4)) evac.push(t); else dead.push(t);
     }
     for (const t of evac) this.troops = this.troops.filter(x => x !== t);

@@ -36,7 +36,7 @@ function arrive(m, n) {
 // Each tick: bring the next mothership(s) when it is time (called from updateReinf).
 export function updateMother(m, dt) {
   const K = C.mother, S = m.mom;
-  if (!K || !S || m.ls || m.over || m.faction.id !== 'squids') return;
+  if (!K || !S || m.ls || m.over || m.faction.id !== 'lizards') return;
   const alive = m.drops.some((d) => d.mom && !d.dead);
   if (S.done) return;      // (0.55) the third set down: no more this mission
   if (alive || S.next < Infinity) { if (!alive && m.t >= S.next) arrive(m, Math.min(K.maxShips, S.downs + 1)); return; }
@@ -72,10 +72,10 @@ export function stepMother(m, d, dt) {
     d.fallT += dt; d.alt = Math.max(0, d.alt - dt / K.crashSec);
     if (d.cx != null) { const k = Math.min(1, dt / Math.max(0.1, K.crashSec - d.fallT + dt)); d.x += (d.cx - d.x) * k; d.y += (d.cy - d.y) * k; }     // drifts to where it lands
     d.low = false;
-    if (d.fallT % 0.6 < dt) m.emit('boom', { x: d.x + (m.rng.next() - 0.5) * d.r * 1.6, y: d.y + (m.rng.next() - 0.5) * d.r * 1.6, r: 8, dmg: 0, by: 'strat', big: true });
+    if (d.fallT % 0.6 < dt) m.emit('boom', { x: d.x + (m.rng.next() - 0.5) * d.r * 1.6, y: d.y + (m.rng.next() - 0.5) * d.r * 1.6, r: 8, dmg: 0, by: 'callin', big: true });
     if (d.fallT >= K.crashSec) {
-      damageArea(m, d.x, d.y, K.crashR, K.crashDmg, ALL, 'strat', 'none', '');
-      m.emit('boom', { x: d.x, y: d.y, r: K.crashR, dmg: K.crashDmg, by: 'strat', big: true });
+      damageArea(m, d.x, d.y, K.crashR, K.crashDmg, ALL, 'callin', 'none', '');
+      m.emit('boom', { x: d.x, y: d.y, r: K.crashR, dmg: K.crashDmg, by: 'callin', big: true });
       m.motherWrecks.push({ x: d.x, y: d.y, yaw: d.yaw, born: t, r: K.r });
       d.dead = true;
       return true;

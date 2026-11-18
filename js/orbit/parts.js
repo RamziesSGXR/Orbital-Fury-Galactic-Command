@@ -38,8 +38,8 @@ export const SLOTS = {
   blister: [{ p: [1.4, -0.4, 0], ry: 0, w: 1.4, d: 1.4 }],
   // In a bay the pads and the back room open onto the cross passage between the rooms and the pads (door, out), not onto each other.
   hangar: [{ ...at(5.2, -1.58, -0.3, 4.4, 4.0), door: '-x', out: 0.24 }, { ...at(1.55, -1.58, -1.55, 2.3, 1.9), door: '+x', out: 0.2 }, at(1.55, -1.58, 0.45, 2.3, 1.9)],
-  pelicanbay: [{ ...at(5.2, -1.58, -0.3, 4.4, 4.0), door: '-x', out: 0.24 }, { ...at(1.55, -1.58, -1.55, 2.3, 1.9), door: '+x', out: 0.2 }, at(1.55, -1.58, 0.45, 2.3, 1.9)],
-  eaglehangar: [{ ...at(4.7, -1.38, -1.25, 3.8, 1.9), door: '-x', out: 0.23 }, { ...at(4.7, -1.38, 0.75, 3.8, 1.9), door: '-x', out: 0.23 }, at(1.45, -1.38, -0.3, 2.1, 3.6)],
+  dshipbay: [{ ...at(5.2, -1.58, -0.3, 4.4, 4.0), door: '-x', out: 0.24 }, { ...at(1.55, -1.58, -1.55, 2.3, 1.9), door: '+x', out: 0.2 }, at(1.55, -1.58, 0.45, 2.3, 1.9)],
+  strikerhangar: [{ ...at(4.7, -1.38, -1.25, 3.8, 1.9), door: '-x', out: 0.23 }, { ...at(4.7, -1.38, 0.75, 3.8, 1.9), door: '-x', out: 0.23 }, at(1.45, -1.38, -0.3, 2.1, 3.6)],
   drydock: row([0.62, 1.5], -0.4, 0.8, 1.4, -0.3),
   refinery: row([1.17, 2.82], -0.4, 1.5, 1.15, -0.3),
   gunmount: row([1.05, 2.5], -0.4, 1.2, 1.15, -0.28),
@@ -385,8 +385,8 @@ export function buildPart(type, raw = false) {      // raw: the pieces as built,
       put(new THREE.SphereGeometry(0.14, 8, 6), 'glow', 5, 5.05, 0);
       break;
     }
-    case 'hangar': case 'pelicanbay': { bay(8, 1.7, 2.7); break; }
-    case 'eaglehangar': { bay(7, 1.5, 2.4); break; }
+    case 'hangar': case 'dshipbay': { bay(8, 1.7, 2.7); break; }
+    case 'strikerhangar': { bay(7, 1.5, 2.4); break; }
     case 'drydock': {
       box(2, 1.8, 2.4, 'hull', 1, 0, 0);
       for (let i = 0; i < 4; i++) box(0.5, 0.18, 0.04, 'glow', 1, 0.45, i < 2 ? 1.22 : -1.22);
@@ -666,7 +666,7 @@ export function buildPart(type, raw = false) {      // raw: the pieces as built,
     gunmount: [[0.03, 0.45], [0.2, 0.45], [0.2, 0.95], [3.58, 0.95]], battery: [[0.03, 0.45], [0.2, 0.45], [0.2, 0.95], [4.78, 0.95]], dronebay: [[0.03, 0.45], [0.2, 0.45], [0.2, 0.95], [3.18, 0.95]],
     barracks: [[0.03, 0.45], [0.1, 0.45], [0.1, 1.05], [5.1, 1.05], [5.1, 0.45], [5.17, 0.45]], fabshop: [[0.03, 0.45], [0.1, 0.45], [0.1, 1.05], [4.3, 1.05], [4.3, 0.45], [4.37, 0.45]],
     lance: [[0.03, 0.5], [0.2, 0.5], [0.2, 1.15], [6.18, 1.15]], refinery: [[0.03, 0.45], [0.2, 0.45], [0.2, 0.95], [3.8, 0.95], [3.8, 0.45], [3.97, 0.45]],
-    drydock: [[0.02, 1.15], [1.98, 1.15]], hangar: [[0.2, 2.58], [7.9, 2.58]], pelicanbay: [[0.2, 2.58], [7.9, 2.58]], eaglehangar: [[0.2, 2.28], [6.9, 2.28]],
+    drydock: [[0.02, 1.15], [1.98, 1.15]], hangar: [[0.2, 2.58], [7.9, 2.58]], dshipbay: [[0.2, 2.58], [7.9, 2.58]], strikerhangar: [[0.2, 2.28], [6.9, 2.28]],
     tube: [[0.06, 0.26], [3.94, 0.26]], truss: [[0, 0.26], [5, 0.26]], dockport: [[0.02, 0.45], [2.18, 0.45]], blister: [[0.02, 0.3], [0.5, 0.3]], node: [[0.04, 0.24], [1.76, 0.24]],
   };
   if (W && W.k === 'hall') {
@@ -771,13 +771,13 @@ export function buildRoom(room, w, d, door = null, variant = 0) {
     for (const x of [-a, a]) add(g, new THREE.BoxGeometry(0.03, 0.008, b * 2), 'lane', x, 0.044, 0);
     for (const x of [-a * 0.6, 0, a * 0.6]) add(g, new THREE.BoxGeometry(0.2, 0.008, 0.03), 'alarm', x, 0.044, 0);
     for (const [x, z] of [[a * 0.85, b * 0.8], [-a * 0.85, b * 0.8]]) { add(g, new THREE.BoxGeometry(0.12, 0.09, 0.08), 'locker', x, 0.085, z); add(g, new THREE.BoxGeometry(0.1, 0.05, 0.06), 'alarm', x, 0.155, z); }
-    if (room === 'eaglepad') { const eg = buildStriker(); eg.scale.setScalar(C.shipScale.eagle); eg.position.set(-0.1, 0.045, 0); g.add(eg); add(g, new THREE.CylinderGeometry(0.025, 0.025, 0.2, 8).rotateZ(Math.PI / 2), 'shell', a * 0.85, 0.2, b * 0.8); }
-    if (room === 'pelicanpad') { const pg = buildShip('shuttle'); pg.scale.setScalar(C.shipScale.shuttle); pg.position.set(0, 0.32, 0); g.add(pg); }
+    if (room === 'strikerpad') { const eg = buildStriker(); eg.scale.setScalar(C.shipScale.striker); eg.position.set(-0.1, 0.045, 0); g.add(eg); add(g, new THREE.CylinderGeometry(0.025, 0.025, 0.2, 8).rotateZ(Math.PI / 2), 'shell', a * 0.85, 0.2, b * 0.8); }
+    if (room === 'dshippad') { const pg = buildShip('shuttle'); pg.scale.setScalar(C.shipScale.shuttle); pg.position.set(0, 0.32, 0); g.add(pg); }
     if (room === 'fighterbay') for (const z of [-d * 0.2, d * 0.2]) { const c = new THREE.ConeGeometry(0.18, 0.8, 3); c.rotateZ(-Math.PI / 2); add(g, c, 'hull', 0, 0.2, z); }
   }
   return bake(g);
 }
-// A Striker on its pad: a wedge of a fuselage, swept wings, twin tails and bombs under the wings. Drawn at C.shipScale.eagle: about 15 m.
+// A Striker on its pad: a wedge of a fuselage, swept wings, twin tails and bombs under the wings. Drawn at C.shipScale.striker: about 15 m.
 export function buildStriker() {
   const g = new THREE.Group();
   const put = (geom, role, x = 0, y = 0, z = 0) => { geom.translate(x, y, z); const m = new THREE.Mesh(geom); m.userData.role = role; g.add(m); return m; };
@@ -971,8 +971,8 @@ export function partIcon(type) {
     case 'dronebay': return s('<rect x="3" y="4" width="18" height="8" rx="1"/><path d="M6 15h12M7 18l3-1.5-3-1.5zM13 18l3-1.5-3-1.5z"/>');
     case 'relay': return s('<path d="M2 8h8M5 13q7 8 14 0zM12 13v-5M12 19v2"/>');
     case 'barracks': return s('<rect x="2" y="7" width="20" height="10" rx="2"/><path d="M6 10v4M10 10v4M14 10v4M18 10v4"/>');
-    case 'eaglehangar': return s('<path d="M2 6h18v12H2zM20 6v12"/><path d="M15 12l-8-3v2l-2 1 2 1v2z"/>');
-    case 'pelicanbay': return s('<path d="M2 6h18v12H2zM20 6v12"/><path d="M6 10h8l2 2-2 2H6zM9 8v8"/>');
+    case 'strikerhangar': return s('<path d="M2 6h18v12H2zM20 6v12"/><path d="M15 12l-8-3v2l-2 1 2 1v2z"/>');
+    case 'dshipbay': return s('<path d="M2 6h18v12H2zM20 6v12"/><path d="M6 10h8l2 2-2 2H6zM9 8v8"/>');
     case 'fabshop': return s('<rect x="2" y="8" width="20" height="10" rx="1"/><path d="M6 8V4h3v4M12 11h6v4h-6z"/>');
     case 'lance': return s('<rect x="2" y="2" width="20" height="6" rx="1"/><path d="M9 8h6l-1 14h-4zM8 12h8M8.5 16h7"/>');
     case 'billboard': return s('<path d="M2 12h4M6 4h16v14H6zM9 9h10M9 13h7"/>');

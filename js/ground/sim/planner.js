@@ -10,7 +10,7 @@ import { alertRaise } from './alert.js';
 import { CONFIG as C } from '../config.js';
 import { COMMS } from '../data/data.js';
 import { activeObjective, objectiveGoal, startExtract } from './objectives.js';
-import { hellbombGoal } from './ops.js';
+import { demochargeGoal } from './ops.js';
 import { aoScale, inAO } from './ao.js';
 import { t as tr } from '../i18n.js';
 import { RNG } from '../util/rng.js';
@@ -83,7 +83,7 @@ function mainBusy(m) {
   const o = activeObjective(m);
   if (!o) return false;
   // a VIP once picked up stays the job until delivered, even when dropped: nobody wanders off to a base and leaves them lying there
-  return (o.type === 'nuke' && o.state !== 'travel') || (o.type === 'vip' && (o.state !== 'travel' || o.picked)) || (o.type === 'evac' && o.state !== 'travel') || (o.type === 'oil' && o.state !== 'travel') || (o.type === 'gun' && o.state !== 'travel') || (o.type === 'fortress' && !!m.hellbomb && m.hellbomb.o === o);
+  return (o.type === 'nuke' && o.state !== 'travel') || (o.type === 'vip' && (o.state !== 'travel' || o.picked)) || (o.type === 'evac' && o.state !== 'travel') || (o.type === 'oil' && o.state !== 'travel') || (o.type === 'gun' && o.state !== 'travel') || (o.type === 'fortress' && !!m.democharge && m.democharge.o === o);
 }
 
 // A rough tour of the open tasks from p, nearest first: total seconds and where it ends.
@@ -232,7 +232,7 @@ function recentDeaths(m) {
 function canBreak(m) {
   if (m.ls || m.over || m.phase === 'extract' || !m.hdAlive.length) return false;
   if (m.phase === 'objective' && mainBusy(m)) return false;
-  const hb = m.hellbomb;
+  const hb = m.democharge;
   if (hb && ['fill', 'inbound', 'landed', 'armed'].includes(hb.state)) return false;
   return m.t - m.plan.breakAt >= PL().breakOff.cool;
 }
@@ -264,7 +264,7 @@ export function fallPoint(m, D, R = PL().breakOff.fallD) {
     const a = (k / 16) * Math.PI * 2, x = sq.ax + Math.cos(a) * R, y = sq.ay + Math.sin(a) * R;
     if (!inAO(m, x, y, E) || !m.terrain.isLand(x, y) || m.terrain.blocked(x, y)) continue;
     let n = 0; m.eGrid.near(x, y, 70, (e) => { n += e.kind === 'H' ? 4 : e.kind === 'M' ? 2 : 1; });
-    let f = 0; for (const s of m.seafAlive) if ((s.x - x) ** 2 + (s.y - y) ** 2 < 3600) f++;
+    let f = 0; for (const s of m.infantryAlive) if ((s.x - x) ** 2 + (s.y - y) ** 2 < 3600) f++;
     for (const p of m.posts || []) if (!p.dead && p.what !== 'wire' && p.what !== 'lz' && (p.x - x) ** 2 + (p.y - y) ** 2 < 3600) f += 3;
     const gap = AR - Math.hypot(x - A.cx, y - A.cy);
     const sc = Math.hypot(x - D.x, y - D.y) - n * 18 + Math.min(12, f) * 6 - Math.max(0, 120 - gap) * 1.5 - 0.04 * Math.hypot(x - m.hx, y - m.hy);
@@ -379,7 +379,7 @@ export function updatePlan(m, dt) {
   const abort = m.phase === 'clear' && !!cur && m.hd.lives <= PL().clearLives;
   // (0.37) a Demolition Charge under way for a side objective: that is the task (even if they were passing it on the way somewhere else),
   // and nobody leaves it until it has gone off (or been called off)
-  const hb = m.hellbomb;
+  const hb = m.democharge;
   if (hb && hb.o && hb.o.side && ['fill', 'inbound', 'landed', 'armed'].includes(hb.state)) {
     if (!cur || cur.ref !== hb.o) pl.task = { kind: hb.o.kind, ref: hb.o, x: hb.o.x, y: hb.o.y };
     pl.t = PL().every; return;
@@ -421,7 +421,7 @@ export function planGoal(m) {
   const k = m.plan && m.plan.task;
   if (!k || !taskOpen(k)) return null;
   if (k.kind === 'base') return { base: k.ref };
-  const hg = hellbombGoal(m, k.ref);       // (0.37) a Demolition Charge for it: at the bomb to arm it, then well clear
+  const hg = demochargeGoal(m, k.ref);       // (0.37) a Demolition Charge for it: at the bomb to arm it, then well clear
   if (hg) return { ...hg, side: k.ref };
   if (k.kind === 'jammer') return { x: k.x, y: k.y, stop: 14, side: k.ref };
   if (k.kind === 'propaganda' || k.kind === 'spore') return { x: k.x, y: k.y, stop: 20, side: k.ref };

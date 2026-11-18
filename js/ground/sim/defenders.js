@@ -3,18 +3,18 @@
 // the site still needs the Vanguards to get there and start the work. The briefing says so (mission.defenders).
 import { CONFIG as C } from '../config.js';
 import { RNG } from '../util/rng.js';
-import { rollRoles, setSquadOrder } from './seaf.js';
-import { seafStats } from '../data/kit.js';
+import { rollRoles, setSquadOrder } from './infantry.js';
+import { infantryStats } from '../data/kit.js';
 
 const SITE = { nuke: (o) => ({ x: o.x, y: o.y }), evac: (o) => ({ x: o.x, y: o.y }), oil: (o) => ({ x: o.x, y: o.y }), vip: (o) => ({ x: o.dx, y: o.dy }) };
 
 export function setupDefenders(m) {
   m.defenders = null;
-  const S = C.seaf, rng = new RNG((m.seed ^ 0x3d1f2a77) >>> 0);       // (a stream of its own: the rest of the map is the same)
+  const S = C.infantry, rng = new RNG((m.seed ^ 0x3d1f2a77) >>> 0);       // (a stream of its own: the rest of the map is the same)
   const o = m.objectives.find((q) => SITE[q.type]);
   if (!o || m.noDefenders || rng.next() >= S.defendChance) return;
-  const p = SITE[o.type](o), st = seafStats(m.kit), n = Math.min(S.defendN, st.max);
-  const sq = m.seaf.squads[0];
+  const p = SITE[o.type](o), st = infantryStats(m.kit), n = Math.min(S.defendN, st.max);
+  const sq = m.infantry.squads[0];
   for (const role of rollRoles(m, n, st)) {
     let x = p.x + rng.range(-10, 10), y = p.y + rng.range(-10, 10);
     if (!m.terrain.isLand(x, y)) { const l = m.terrain.nearestLand(x, y, 40) || p; x = l.x; y = l.y; }

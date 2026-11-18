@@ -187,7 +187,7 @@ export function rollOffers(s, rng = Math.random, enemy = 'random', story = false
     if (out.some((o) => o.biome === m.biome)) { const b = left(Object.keys(BIOMES).filter((q) => BIOMES[q].pool !== false && (!prev || q !== prev.biome)), 'biome'); if (b.length) m.biome = b[Math.floor(rng() * b.length)]; }
     if (!Object.keys(FACTIONS).includes(enemy) && out.some((o) => o.faction === m.faction)) { const f = left(Object.keys(FACTIONS), 'faction'); if (f.length) m.faction = f[Math.floor(rng() * f.length)]; }
     // (0.53) against lizards, the defence gun can be offered too: half the time in the capital's outskirts
-    const pool = [...OBJ_TYPES, OP_OF[m.faction], ...(m.faction === 'squids' ? ['gun'] : [])].filter(Boolean);
+    const pool = [...OBJ_TYPES, OP_OF[m.faction], ...(m.faction === 'lizards' ? ['gun'] : [])].filter(Boolean);
     const obj = pool[Math.floor(rng() * pool.length)];
     out.push({ ...m, obj, bump, ...(obj === 'gun' && rng() < 0.5 && !out.some((o) => o.biome === 'city') ? { biome: 'city' } : {}) });
   }

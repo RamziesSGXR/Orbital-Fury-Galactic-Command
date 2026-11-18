@@ -23,7 +23,7 @@ export const CONFIG = {
   // (0.62.8) The score is switched off for now: the game is to be heard from the field (see audio.js, the sounds placed where
   // they are made). Set to true and the music, its volume and its style come back as they were.
   musicOn:  false,
-  solids:   { on: true, rock: 0.82, rockMin: 1.5, trunk: 0.2, trunkMin: 0.45, trunkMax: 0.9, base: 0.5, baseBy: { bugs: 0.85, bots: 0.85, squids: 0.5 }, spawner: 1, cannon: 0.95, node: 0.9, turret: 1, poi: 0.5, poiBy: { propaganda: 0.55, spore: 0.6 }, side: 0.8, sideBy: { rescue: 0, arty: 0.6 }, loot: 0.3, lootBy: { vault: 0.36, wreck: 0.5 }, oil: 0.36, nuke: 0.38, crash: 6, sentry: 1.3, pad: 0.45, padMax: 1.1, giveTicks: 45, giveDist: 1.5, thruSec: 3 },
+  solids:   { on: true, rock: 0.82, rockMin: 1.5, trunk: 0.2, trunkMin: 0.45, trunkMax: 0.9, base: 0.5, baseBy: { bugs: 0.85, bots: 0.85, lizards: 0.5 }, spawner: 1, cannon: 0.95, node: 0.9, turret: 1, poi: 0.5, poiBy: { propaganda: 0.55, spore: 0.6 }, side: 0.8, sideBy: { rescue: 0, arty: 0.6 }, loot: 0.3, lootBy: { vault: 0.36, wreck: 0.5 }, oil: 0.36, nuke: 0.38, crash: 6, sentry: 1.3, pad: 0.45, padMax: 1.1, giveTicks: 45, giveDist: 1.5, thruSec: 3 },
   // The area of operations: each mission is fought in a square of the map, start metres across on the first mission and perMission
   // more on each one after, up to max. The first maps are small enough to clear completely.
   ao:       { start: 760, perMission: 110, max: 1500, margin: 40, tries: 14 },
@@ -33,8 +33,8 @@ export const CONFIG = {
   // Four Vanguards, one per call-in group. When one dies a replacement pod is called in by itself and costs one life.
   // When the last one falls with no lives left the mission is lost: there is no free recall.
   // countdown (0.18): seconds of real time the player gets before the Vanguards drop (the game runs; DEPLOY NOW sends them early)
-  helldivers: { start: 4, max: 4, lives: 20, reinforceSec: 8, dropDelaySec: 5, initialDropSec: 3, podRadius: 10, podDmg: 500, countdown: 30 },
-  // The Vanguard kit. Primary: the Liberator (CONFIG.combat.helldiver). Secondary: the Ultimatum, a slow-loading, short-range,
+  vanguards: { start: 4, max: 4, lives: 20, reinforceSec: 8, dropDelaySec: 5, initialDropSec: 3, podRadius: 10, podDmg: 500, countdown: 30 },
+  // The Vanguard kit. Primary: the Liberator (CONFIG.combat.vanguard). Secondary: the Ultimatum, a slow-loading, short-range,
   // heavy-penetration pistol that hits very hard. Four stims (heal over a few seconds and a burst of speed), three
   // heavy-penetration grenades (six to kill a medium), and a dodge that comes round every so often. A resupply restocks all of it.
   hd:       { stims: 4, stimHeal: 0.5, stimSec: 3.5, stimBoostSec: 8, stimSpeed: 1.4, stimCool: 3.5, stimAt: 0.5, stimRunAt: 0.8,
@@ -52,11 +52,11 @@ export const CONFIG = {
               // (0.40) the squad shares its targets out: a target another Vanguard has a grenade (claimSec after the throw) or the
               // Ultimatum (until it lands) on is left to him, and the squad's Ultimatums go at least ultGap seconds apart; only one of
               // them empties his pouch at a time
-              // Infantry too: a spot another trooper (or a Vanguard) has just put a grenade on is left alone for seafGren seconds, and a
-              // target another Specialist has just fired an EAT-17 at for seafRocket seconds (they go for something else, or wait)
-              stagger: { claimSec: 2.5, ultGap: 2.5, seafGren: 2, seafRocket: 1.5 },
+              // Infantry too: a spot another trooper (or a Vanguard) has just put a grenade on is left alone for infantryGren seconds, and a
+              // target another Specialist has just fired an EAT-17 at for infantryRocket seconds (they go for something else, or wait)
+              stagger: { claimSec: 2.5, ultGap: 2.5, infantryGren: 2, infantryRocket: 1.5 },
               dodge: { cool: 10, chance: 0.65, minHit: 9, dist: 3.6, sec: 0.35 },
-              seafDodge: { cool: 14, chance: 0.12 },     // Infantry dodge too, far less often (a UAV overhead helps both)
+              infantryDodge: { cool: 14, chance: 0.12 },     // Infantry dodge too, far less often (a UAV overhead helps both)
               // no single enemy hit takes more than maxHit of a Vanguard's health: however late in the war, it takes two
               maxHit: 0.7,
               retreat: { at: 0.36, resume: 0.7, speed: 1.3, enemyR: 46, calmSec: 3, minSec: 2.5, maxSec: 10, cool: 8 },
@@ -78,14 +78,14 @@ export const CONFIG = {
   // share, except a rocket or a blast that lands in a unit's back from right behind it (within backR of it): that is the full hit.
   // A blast hurts everyone in it by the weapon's own table against their armour (allyArmor: Vanguards medium, Infantry light).
   // react: how long an ally takes to see a blast coming (a grenade on the ground, a shell in the air) before running from it.
-  ff: { own: 0.5, backR: 2.2, react: 0.5, ultDmg: 500, allyArmor: { H: 'M', S: 'L' }, strayMul: 0.5, enemy: { lane: 1.6, collateral: 0.06, ffMul: 0.5, splashMul: 0.5 }, flee: { hd: 7.5, seaf: 6 } },
+  ff: { own: 0.5, backR: 2.2, react: 0.5, ultDmg: 500, allyArmor: { H: 'M', S: 'L' }, strayMul: 0.5, enemy: { lane: 1.6, collateral: 0.06, ffMul: 0.5, splashMul: 0.5 }, flee: { hd: 7.5, infantry: 6 } },
   // Infantry arrive when the player calls a pod. By default they go and clear the nearest objective on their own.
   // (0.18) the first drop is ready at once (the mission starts on the tactical screen); until startSec a drop can go anywhere
   // within startR of the landing zone, before the Vanguards are down.
   // (0.40) backCut: troopers a pickup took up come back down on a shorter turnaround: each of them in a drop takes backCut / (a
-  // full load) off that pelican's cooldown, so a full load of them comes round in 40% of the time. What one drop cannot carry
+  // full load) off that dship's cooldown, so a full load of them comes round in 40% of the time. What one drop cannot carry
   // stays aboard, and cuts the next drop's cooldown the same way.
-  seaf:     { max: 12, dropSize: 5,
+  infantry:     { max: 12, dropSize: 5,
             // (0.54) stale orders: after `sec` seconds with no new order a squad's damage fades over `ramp` seconds, down to 1 - `max`
             stale: { sec: 100, ramp: 130, max: 0.5 }, dropCooldownSec: 45, firstDropSec: 0, backCut: 0.6, startSec: 25, startR: 140, dropDelaySec: 6, patrolRadius: 30, patrolSpeed: 2.5,
               followSpread: 28, protectR: 36, protectLeash: 80, clearR: 55, clearMaxSec: 70,
@@ -103,13 +103,13 @@ export const CONFIG = {
               // (0.18) now and then an Infantry squad of defend troopers is already holding the site the Vanguards are heading for (a
               // launch site, an evacuation site, an oil pump, a VIP's pickup point), under your orders from the start
               defendChance: 0.4, defendN: 5 },
-  // The troop dropship: flies in, hovers a moment while the troops fast-rope down, then climbs away. Its belly autocannon
+  // The troop dropship: flies in, hovers a moment while the troops fast-rope down, then climbs away. Its belly light cannon
   // shoots any enemy it can see while it is on station.
   // (0.39) Every dropship (Infantry drops, pickups, cargo) comes down from orbit to where it is going in inSec, takes workSec there to set
   // its load down (or take it aboard) and climbs away. A pickup point takes in whoever is within pickR of it; the dropship boards
   // them from boardR. (0.40) The zone is more than twice as big (9 m before), and a pickup takes everyone standing in it, however
   // many (not just a drop's load); troops sent to it stand on its lzSlots places, in three rings.
-  pelican:  { speed: 92, approach: 330, inSec: 5, workSec: 3, climb: 4.5, gunRange: 66, gunEvery: 0.3, gunDmg: 30, gunSplash: 2.4, gunAcc: 0.85,
+  dship:  { speed: 92, approach: 330, inSec: 5, workSec: 3, climb: 4.5, gunRange: 66, gunEvery: 0.3, gunDmg: 30, gunSplash: 2.4, gunAcc: 0.85,
               pickR: 20, boardR: 23, lzSlots: 24 },
   // Infantry specialists. A medic patches up anyone near it.
   // (0.26) a Medic heals anyone hurt within 20 m with the stim pistol (a full stim when close), and revives downed Infantry: a trooper
@@ -121,7 +121,7 @@ export const CONFIG = {
   // (0.51) Commendations (data/perks.js): at most max an operation, offer to pick from after each mission; per stack: orbital
   // recharge -cd (never under min of it), Striker rearm and dropship turnaround -rearm, ship gun damage and regeneration +dmg, Infantry
   // health and damage +hp, build costs -cost (never under min of the price)
-  perks:    { max: 10, offer: 3, orb: { cd: 0.06, min: 0.5 }, eagle: { rearm: 0.08, min: 0.5 }, ship: { dmg: 0.08 }, seaf: { hp: 0.06 }, build: { cost: 0.08, min: 0.4 } },
+  perks:    { max: 10, offer: 3, orb: { cd: 0.06, min: 0.5 }, striker: { rearm: 0.08, min: 0.5 }, ship: { dmg: 0.08 }, infantry: { hp: 0.06 }, build: { cost: 0.08, min: 0.4 } },
   // (0.51) Choosing the next mission: offers to pick from, each a bump of bump[0] to bump[1] levels for that mission only (it pays
   // more, as any higher level does: difficulty.js reward, and payPer a level more on top)
   offers:   { n: 3, bump: [1, 3], payPer: 0.15 },     // (payPer: every credit of a bumped mission x (1 + payPer x bump), on top)
@@ -144,8 +144,8 @@ export const CONFIG = {
   squad:    { speed: 6, chaseSpeed: 8.5, engageRange: 38, pushAfterSec: 45,
               clusterRadius: 15, setupSec: 5, setupCooldownSec: 15, carrySlow: 0.85, fightOnSec: 12, fightOnSpeed: 0.5, spotRange: 95 },
   // Bases and the citadel. The Vanguards destroy them with rifles, support weapons and call-ins, exactly as the destroyer
-  // can: rifle fire counts for a fraction of its normal damage, and anything the squad calls hits structures harder (stratMul).
-  structure: { range: 48, standOff: 26, push: 14, rifleH: 0.8, rifleS: 0.3, stratMul: 2.6, weaponTry: 0.4, breakR: 12 },     // (0.53.4: breakR, a stalemate's)
+  // can: rifle fire counts for a fraction of its normal damage, and anything the squad calls hits structures harder (callinMul).
+  structure: { range: 48, standOff: 26, push: 14, rifleH: 0.8, rifleS: 0.3, callinMul: 2.6, weaponTry: 0.4, breakR: 12 },     // (0.53.4: breakR, a stalemate's)
 
   // Terrain: a height map, a water depth map and a surface map on an 8 m grid, different for every mission. Deep water cannot be
   // crossed on foot; shallows, mud and soft ground (snow, sand, dust) slow everyone. A rise gives whoever stands on it more sight and
@@ -221,17 +221,17 @@ export const CONFIG = {
   // Relays: a side mission the Vanguards or Infantry win (a radio tower powered, a pinned Infantry squad freed, a broadcast tower destroyed)
   // keeps the ground around it in view for the rest of the mission, and strikes can be called there: r metres round it.
   relay:    { r: 200 },
-  // (0.47) The vision ladder: an ally sees farthest (more from a rise), shoots less far than he sees, and throws a stratagem's beacon
+  // (0.47) The vision ladder: an ally sees farthest (more from a rise), shoots less far than he sees, and throws a callin's beacon
   // less far than he shoots: 20-40 m from him (`throwMin`..`throw`; 0.47.1: the 20 m is from the thrower, other allies keep the
-  // stratagem's own clearance, 9 m at least; support weapons are not thrown). The strike zone sits inside the player's view: it
+  // callin's own clearance, 9 m at least; support weapons are not thrown). The strike zone sits inside the player's view: it
   // is capped at each ally's vision, and the strike range upgrades (kit.zonePer) widen the view with it.
-  sight:    { helldiver: 125, seaf: 90, zoneBase: { helldiver: 92, seaf: 60 }, playerBonus: 26, strikeBonus: 76, despawnMargin: 35, spawnMin: 6, spawnMax: 34, throw: 40, throwMin: 20 },
+  sight:    { vanguard: 125, infantry: 90, zoneBase: { vanguard: 92, infantry: 60 }, playerBonus: 26, strikeBonus: 76, despawnMargin: 35, spawnMin: 6, spawnMax: 34, throw: 40, throwMin: 20 },
 
   // Damage model. Allies have hit points. Enemies hurt them by their own attack profile, so light
   // enemies do light damage and heavies do heavy damage. armor scales incoming damage.
   combat: {
-    helldiver: { hp: 420, armor: 0.55, dps: 36, burst: 0.4, acc: 0.88, range: 56, mult: { L: 1, M: 0.45, H: 0.12 } },   // the Liberator
-    seaf:      { hp: 100, armor: 1.0, dps: 12, burst: 0.6, acc: 0.7,  range: 46, mult: { L: 1, M: 0.5, H: 0.15 } },
+    vanguard: { hp: 420, armor: 0.55, dps: 36, burst: 0.4, acc: 0.88, range: 56, mult: { L: 1, M: 0.45, H: 0.12 } },   // the Liberator
+    infantry:      { hp: 100, armor: 1.0, dps: 12, burst: 0.6, acc: 0.7,  range: 46, mult: { L: 1, M: 0.5, H: 0.15 } },
     // Effective range. Every direct-fire weapon, ally or enemy, has a reach: inside the first `short` of it a shot is at full accuracy
     // and a little extra damage, out to `medium` it is a little worse, and at long range (out to the reach) it is clearly worse.
     bands: { short: 0.4, medium: 0.75, acc: [1, 0.85, 0.65], dmg: [1.1, 0.9, 0.75] },
@@ -239,18 +239,18 @@ export const CONFIG = {
     grenadier: { dmg: 55, splash: 5.2, near: 7.5, every: 7, range: 40, flight: 0.85, fuse: 2, acc: 0.8, minR: 9, group: 3, mult: { L: 1, M: 0.9, H: 0.3, B: 0.25 } },     // (0.26) the G-12 every trooper throws
     rocketeer: { dmg: 300, splash: 5, every: 5.2, range: 78, flight: 0.55, acc: 0.85, mult: { L: 1, M: 1, H: 0.8, B: 0.3 } },     // (0.26) the Specialist's EAT-17
     // (0.26) the Specialist's MG-43 (braced, a steady stream) and the Medic's SMG-37 Defender (short and quick)
-    seafMg:  { dps: 21, burst: 0.25, acc: 0.62, range: 54, mult: { L: 1, M: 0.55, H: 0.16 } },
-    seafSmg: { dps: 11, burst: 0.3, acc: 0.78, range: 30, mult: { L: 1, M: 0.45, H: 0.1 } },
+    infantryMg:  { dps: 21, burst: 0.25, acc: 0.62, range: 54, mult: { L: 1, M: 0.55, H: 0.16 } },
+    infantrySmg: { dps: 11, burst: 0.3, acc: 0.78, range: 30, mult: { L: 1, M: 0.45, H: 0.1 } },
     // Hits from behind and critical hits, for every side. A unit's back is the arc behind it (cos of the angle between where it faces
     // and where the hit comes from below back.cos). Heavies carry their weak spot on the back (back.heavy). Every hit can crit; the
     // destroyer's own strikes crit most often. Turning: how fast units swing round (rad/s), so a slow heavy can be caught from behind.
     back: { cos: -0.4, mul: 1.5, heavy: 2.2 },
     crit: { mul: 2, player: 0.14, gun: 0.10, ally: 0.06, enemy: 0.04 },
-    turn: { ally: 9, L: 9, M: 5, H: { bugs: 2.2, bots: 1.2, squids: 1.6 } },
+    turn: { ally: 9, L: 9, M: 5, H: { bugs: 2.2, bots: 1.2, lizards: 1.6 } },
     // Enemy attacks by faction and size: range (m), damage per hit, seconds between attacks, accuracy. (0.40) Every enemy can miss:
-    // nothing is above 0.9, the melee heavies, the specials and the harvester's beam included (a beam that misses goes wide).
+    // nothing is above 0.9, the melee heavies, the specials and the warbeast's beam included (a beam that misses goes wide).
     atk: {
-      // (0.53.8) bugs: lighter hits all round, and a charger that no longer outruns a Vanguard or takes him in two blows (they
+      // (0.53.8) bugs: lighter hits all round, and a rammer that no longer outruns a Vanguard or takes him in two blows (they
       // made bugs the hardest enemy at every level by far: at level 6 the bot lost half its missions to them, none to bots)
       bugs:   { L: { range: 5,  dmg: 4,  every: 0.8, acc: 0.9 },
                 M: { range: 18, dmg: 13, every: 1.5, acc: 0.8 },
@@ -258,8 +258,8 @@ export const CONFIG = {
       bots:   { L: { range: 38, dmg: 5,  every: 0.7, acc: 0.55 },
                 M: { range: 42, dmg: 17, every: 1.0, acc: 0.65 },
                 H: { range: 58, dmg: 50, every: 1.6, acc: 0.75, speed: 3.2, splash: 3.5 } },   // medium range cannon
-      squids: { L: { range: 30, dmg: 6,  every: 0.9, acc: 0.7 },
-                M: { range: 36, dmg: 9,  every: 0.5, acc: 0.75 },     // (0.40) an overseer's rifle: quick shots (0.53.8: 7 -> 9)
+      lizards: { L: { range: 30, dmg: 6,  every: 0.9, acc: 0.7 },
+                M: { range: 36, dmg: 9,  every: 0.5, acc: 0.75 },     // (0.40) an warchief's rifle: quick shots (0.53.8: 7 -> 9)
                 H: { range: 62, dmg: 120, every: 6, acc: 0.85, speed: 2.4, charge: 2.6, lock: 0.7, width: 3.2 } }, // the longest reach of any enemy: a charged beam (0.53.8: every 7 -> 6)
     },
   },
@@ -269,7 +269,7 @@ export const CONFIG = {
   // Mostly light enemies: the bag is 36 light, 3 medium and 1 heavy per forty, so a heavy is an event and not a habit.
   // Each faction has a way of fighting. Bugs swarm in loose packs that rush the squad from every side (0.53.8: packs of 9, were 14). Bots stop at a standoff
   // distance and form a firing line across the approach. Lizards spread out and surround whoever they hunt.
-  enemies:  { liveCap: 90, capPerMissionMin: 5, capPerSessionMin: 0.6, maxLive: 190, hardCap: 230, groupSize: 7, group: { bugs: 9, bots: 10, squids: 10 },     // (0.53.8: bugs 14 -> 9)
+  enemies:  { liveCap: 90, capPerMissionMin: 5, capPerSessionMin: 0.6, maxLive: 190, hardCap: 230, groupSize: 7, group: { bugs: 9, bots: 10, lizards: 10 },     // (0.53.8: bugs 14 -> 9)
               // (0.40) the heavy draws include the specials (C.special.share of them), so heavies and specials scale together: the
               // difficulty's heavy factor, the war's heavy ramp (ramp.heavyEvery) and the heavy cap below are theirs together
               bag: { light: 32, medium: 4.5, heavy: 3 },
@@ -288,8 +288,8 @@ export const CONFIG = {
               // (0.62.2) Bodies keep their distance: two enemies closer than (their drawn radii added) x body are eased apart,
               // at most step metres a second each, so a pack stands as a crowd of bodies and not one blob. by faction, since a
               // bug swarm should still press in. Bosses, super heavies and anything in the air are left alone.
-              spread: { transit: 3, transitMul: 0.2, on: true, body: { bugs: 0.72, bots: 0.95, squids: 1.05 }, step: 6, rate: 20, max: 18,
-                        room: { bugs: 4.4, bots: 6, squids: 6.5 }, roomMelee: 3.4 },     // (0.62.5) room: metres two of them keep between their centres whatever their size (a body's own width still counts when it is wider); roomMelee: what one that fights hand to hand keeps while it has someone to hit, so a swarm can still close
+              spread: { transit: 3, transitMul: 0.2, on: true, body: { bugs: 0.72, bots: 0.95, lizards: 1.05 }, step: 6, rate: 20, max: 18,
+                        room: { bugs: 4.4, bots: 6, lizards: 6.5 }, roomMelee: 3.4 },     // (0.62.5) room: metres two of them keep between their centres whatever their size (a body's own width still counts when it is wider); roomMelee: what one that fights hand to hand keeps while it has someone to hit, so a swarm can still close
               hp: { light: 30, medium: 200, heavy: 1000 },
               speed: { light: 4.0, medium: 3.2, heavy: 2.4 },
               // Enemies notice allies at their own (shorter) sight. Fire, noise or a neighbor's call alerts a group.
@@ -298,13 +298,13 @@ export const CONFIG = {
   // Heavies by faction: a bug heavy's armoured front lets through only `front` of a hit from ahead (within the arc cos > frontCos);
   // a bot heavy has hp x the health but weak points that crit more often (crit, added to the attacker's chance); a lizard heavy
   // carries a shield (shield x its health) that soaks hits first and comes back at regen a second once it has not been hit for
-  // regenDelay seconds. The harvester's shield is a bubble bubR metres round it, like the commander's jammer ring: any hit from
+  // regenDelay seconds. The warbeast's shield is a bubble bubR metres round it, like the commander's jammer ring: any hit from
   // outside on a lizard inside it (strikes from above too) hits the shield first. The Ultimatum's round goes through plates and shields alike.
-  heavies:  { bugs: { front: 0.62, frontCos: 0.6 }, bots: { hp: 1.5, crit: 0.14 }, squids: { shield: 0.8, regen: 70, regenDelay: 6, bubR: 17 } },
+  heavies:  { bugs: { front: 0.62, frontCos: 0.6 }, bots: { hp: 1.5, crit: 0.14 }, lizards: { shield: 0.8, regen: 70, regenDelay: 6, bubR: 17 } },
   // Special mediums, alongside the others: `share` of the medium draws come out as the faction's own, no more than cap alive
   // (plus perMin a session minute, up to max). hp, speed and r scale or set the medium's; atk is its own attack. reward: kill
   // credits and score times this.
-  //   bugs: the Hive Guard, an armoured melee blocker that leads the swarm straight in (front: like the charger's plate).
+  //   bugs: the Hive Guard, an armoured melee blocker that leads the swarm straight in (front: like the rammer's plate).
   //   bots: the Commander, who hangs back behind the line. Within jamR of it no call-in, orbital, UAV, Ship Gun round or
   //         artillery shot can be called.
   //   lizards: the Fleshmob, a slow melee mass that soaks damage (soak: the share of each hit it takes).
@@ -314,7 +314,7 @@ export const CONFIG = {
               bugs:   { id: 'guard', hp: 1.7, speed: 1.25, r: 4.8, front: 0.55, frontCos: 0.5, atk: { range: 5.5, dmg: 22, every: 1.2, acc: 0.85 } },
               // (0.40) the commander jams in bursts: jamSec on, then jamCool off (it shows when the next burst is coming)
               bots:   { id: 'cmd',   hp: 1.4, speed: 0.9,  r: 4.3, jamR: 22, jamSec: 10, jamCool: 20, atk: { range: 44, dmg: 14, every: 1.1, acc: 0.65 } },
-              squids: { id: 'soak',  hp: 3,   speed: 1.1,  r: 5.2, soak: 0.6, atk: { range: 5.5, dmg: 38, every: 1.5, acc: 0.85 } } },
+              lizards: { id: 'soak',  hp: 3,   speed: 1.1,  r: 5.2, soak: 0.6, atk: { range: 5.5, dmg: 38, every: 1.5, acc: 0.85 } } },
   // (0.54) One new enemy for each faction, rolled when a light (bugs) or a medium (bots, lizards) is drawn and kept in e.v (a stream of
   // its own, m.vrng, so the map and the specials do not change).
   //   bugs   LEAPER: a light bug that jumps the last stretch to its prey (minD..maxD metres, `sec` in the air at most, `cool` between
@@ -327,12 +327,12 @@ export const CONFIG = {
   variants: {
     bugs:   { id: 'leap', share: 0.22, hp: 1.15, speed: 1.0, minD: 12, maxD: 38, sec: 0.55, cool: 3.2 },
     bots:   { id: 'rkt',  share: 0.3, hp: 1.15, speed: 0.8, n: 6, gap: 0.14, flight: 0.9, scatter: 4.5, atk: { range: 64, dmg: 7, splash: 4, every: 8, acc: 0.7 } },
-    squids: { id: 'mort', share: 0.2, hp: 1.2, speed: 0.8, flight: 1.6, scatter: 3, atk: { range: 62, dmg: 22, splash: 6, every: 6, acc: 0.7 } },
+    lizards: { id: 'mort', share: 0.2, hp: 1.2, speed: 0.8, flight: 1.6, scatter: 3, atk: { range: 62, dmg: 22, splash: 6, every: 6, acc: 0.7 } },
   },
   // (0.54) How a group moves while it is not yet in the fight (the fight itself is C.enemies.tactics). Each group draws one at spawn.
   //   bots   LINE (one long rank abreast of the way they face) or SQUARE (a block, ranks one behind the other); the mediums (the
   //          leaders) are always at the back.
-  //   bugs   TRAIL (ants: each follows the one ahead, `gap` metres behind it, the leaders in front) or SWARM (loose, as before).
+  //   bugs   TRAIL (ants: each follows the one ahead, `gap` metres behind it, the leaders in front) or MOLT (loose, as before).
   //   lizards SCHOOL: (0.62.4) an arrowhead (`wedge`), the leaders in its middle; one more than `lost` metres from it swims
   //          back to it first. In a fight its leaders keep `hold` of the ring's distance (1: on it). Like fish it startles: when one of it is hit or lost it bursts outward to `startle.mul` times
   //          its size at `startle.speed` times its pace, and closes up again over `startle.sec` seconds; it cannot be startled again
@@ -340,7 +340,7 @@ export const CONFIG = {
   formations: {
     bots:   { square: 0.45, line: { spacing: 8 }, block: { spacing: 6.5 }, rank: 8 },     // (0.62.5: 6.5 / 5.2 / 7; they stood shoulder to shoulder)
     bugs:   { trail: 0.5, gap: 4.5 },     // (0.62.5: 3.2)
-    squids: { hold: 1.0, startle: { mul: 1.6, sec: 4, speed: 1.6, rest: 5 }, lost: 42,
+    lizards: { hold: 1.0, startle: { mul: 1.6, sec: 4, speed: 1.6, rest: 5 }, lost: 42,
               wedge: { gap: 8.5, row: 7.5, turn: 0.3, flip: 1.3, flipSec: 2.5, slack: 2.5, leash: 7, wait: 0.12 } },     // (0.62.4) the school is an arrowhead: metres between places across and front to back, how fast it turns (rad/s); a turn over `flip` radians re-forms it facing the new way; its point slows once the school is `slack` m behind its places on average and all but stops (`wait`) at slack + `leash`     // (0.62.2) lost: this far from its school and it swims back to the school itself, not to its own place in it
   },
   // Patrols: every base keeps perBase (more later in the session and the mission, up to maxPerBase) out on a route of its own, radius
@@ -427,13 +427,13 @@ export const CONFIG = {
               // 1 + (maxSize - 1) x q bases, and is a lone base anyway with chance single x (1 - q); its bases stand from far down to
               // near metres apart as q rises, never closer than gap.
               cluster: { base: 0, perMin: 240, perLevel: 0.05, maxSize: 4, single: 0.45, far: 140, near: 85, gap: 62 },
-              // (0.49) each base is min..max small spawners (sim/spawners.js), hp each (one precision strike), r across; (0.52) the base is
+              // (0.49) each base is min..max small spawners (sim/spawners.js), hp each (one aimed shot), r across; (0.52) the base is
               // size[0] to size[1] m across its middle (the biggest a 380 barrage), more spawners the bigger, gap apart; troops: every trickleSec; a heavy may already be in its garrison when
               // it is first seen: heavy[0] at level 1 to heavy[1] at level 10, never over heavyMax
               spawners: { min: 2, max: 4, hp: 500, r: 4, size: [16, 28], gap: 26, trickleSec: 0.6, heavy: [0.08, 0.45], heavyMax: 0.6,
-                // (0.55) by faction: the bugs' bases have 3 to 8 holes (smaller, closer); the squids' spawners a light shield (shield hp,
+                // (0.55) by faction: the bugs' bases have 3 to 8 holes (smaller, closer); the lizards' spawners a light shield (shield hp,
                 // regen a second once regenDelay s unhit); the bots' bases turrets[0] turret(s), turrets[1] in a big one, turretHp each
-                fac: { bugs: { min: 3, max: 8, hp: 360, gap: 17, size: [18, 40] }, squids: { shield: 240, regen: 50, regenDelay: 5 }, bots: { turrets: [1, 2], turretHp: 650 } } } },
+                fac: { bugs: { min: 3, max: 8, hp: 360, gap: 17, size: [18, 40] }, lizards: { shield: 240, regen: 50, regenDelay: 5 }, bots: { turrets: [1, 2], turretHp: 650 } } } },
   // (0.55) enemy turrets (sim/eturret.js): a bot base's and those on a Siege Walker's back
   eturret:  { range: 58, every: 1.25, dmg: 10, acc: 0.55, r: 3.2, turn: 3 },
   // The big base for the destroy-the-citadel objective.
@@ -483,7 +483,7 @@ export const CONFIG = {
   // (0.40) truthAt: at this many off Mars Tharsis Control stops the game to say it plainly: not everyone is getting off
   // (0.53) winAt: this many off Mars and the tutorial is complete (MISSION COMPLETE: fight on, or move on)
   // (0.53.8) war, fac: the tutorial keeps the war minutes and enemy damage it was tuned on when the levels were re-spaced and the
-  // squids' damage raised (the lizard factor 0.75 with the overseer's and the beam's old rates comes to about 0.65 now)
+  // lizards' damage raised (the lizard factor 0.75 with the warchief's and the beam's old rates comes to about 0.65 now)
   lastStand: { war: 37, fac: 0.65, personnel: 160, truthAt: 100, winAt: 70, squad: 6, lzOff: 46, lives: 10, breakAt: 3, waveFirst: 5,
                hpGrow: 0.6, dmgGrow: 0.9, levelEvery: 25, maxHold: 480, glassSec: 10, beamEvery: 0.09, beamR: 13, waveR: 230, lessonR: 160, countdown: 900,
                jamOff: 115, jamR: 55 },     // (0.37) the Demolition Charge lesson's disruptor: how far from the base, and the ground it jams
@@ -518,7 +518,7 @@ export const CONFIG = {
   // (0.53.8) fac: bugs 1.2 -> 1.0, bots 0.8 -> 1.45, lizards 0.75 -> 1.45, so each enemy is about as hard as the others at a level
   // (0.62.8) fac: bots and lizards were 1.45. Standing wider (0.62.5) they are hit by fewer blasts and more of them have a clear shot;
   // at level 6 the squad's losses against bots doubled and one lizard mission in three more was lost. Their fire is turned down to pay for it.
-  ramp:     { base: 4.0, fac: { bugs: 1.0, bots: 1.2, squids: 1.25 }, hp: 0.02, dmg: 0.015, missionDmg: 0.06, mediumEvery: 25, heavyEvery: 45, hpCap: 7, dmgCap: 6 },
+  ramp:     { base: 4.0, fac: { bugs: 1.0, bots: 1.2, lizards: 1.25 }, hp: 0.02, dmg: 0.015, missionDmg: 0.06, mediumEvery: 25, heavyEvery: 45, hpCap: 7, dmgCap: 6 },
   // Enemy reinforcements. A patrol that finds the squad, or is shot at, may fire a flare (callChance, once per group); if the one
   // holding it is still alive when it has burned (flareSec), reinforcements arrive near it. They also come in waves at objective
   // sites (siteEvery) and at the extraction point once extraction is called (extractEvery). Each faction has its own way in:
@@ -534,7 +534,7 @@ export const CONFIG = {
   // bugs: a hole spits a pack (pack x a group) every `every` seconds, packs packs for every group, so it spills more bugs over a
   //   longer time; it cannot be shot closed before it has been open minOpen seconds (its health stops at floor until then).
   // bots: a dropship shot down still lets `survive` of the groups aboard out of the wreck (rounded up), hurt (survHp of their health).
-  // lizards: a warp ship has a shield like a harvester's: it soaks hits first and comes back regen a second after regenDelay quiet.
+  // lizards: a warp ship has a shield like a warbeast's: it soaks hits first and comes back regen a second after regenDelay quiet.
   reinf:    { callChance: 0.55, cooldownSec: 20, flareSec: 4, maxActive: 5, groups: 3, perPressure: 0.5, maxGroups: 4,
               dist: [28, 60], minAlly: 26, siteEvery: 30, extractEvery: 24, extractPMax: 1.6, siteDist: [70, 120],
               multi: { perExtra: 1, perCap: 2, flareMin: 6, flareChance: 0.2, flarePerMin: 0.025, flareMax: 0.55, siteMin: 10, siteChance: 0.4,
@@ -543,7 +543,7 @@ export const CONFIG = {
                        levelFrom: 5, levelPer: 0.25, levelMax: 4 },
               bugs:   { warnSec: 2.5, every: 2.2, pack: 0.5, packs: 3, hp: 2400, minOpen: 10, floor: 0.25, r: 8, lingerSec: 6, reward: 90, rifle: 0.35 },
               bots:   { speed: 75, approach: 460, hover: 1.2, every: 0.9, hp: 1100, r: 9, lowR: 110, reward: 160, crash: 380, survive: 0.5, survHp: 0.7 },
-              squids: { speed: 55, approach: 420, hover: 1.6, every: 1.1, hp: 1700, r: 12, lowR: 90, reward: 260, crash: 420, shield: 1400, regen: 70, regenDelay: 5 } },
+              lizards: { speed: 55, approach: 420, hover: 1.6, every: 1.1, hp: 1700, r: 12, lowR: 90, reward: 260, crash: 420, shield: 1400, regen: 70, regenDelay: 5 } },
   // (0.54.1) The lizard mothership (sim/mother.js): comes after `after` warp ships have been shot down by SAM sites (and not before minT s),
   // hangs `dist` metres from the squad and drops `groups` groups every waveEvery s. hp and shield are huge, it heals `heal` hp/s, and a
   // SAM hit is cut to samMul (about 20 sites to bring it down). When every one is down, the next set comes after respawnSec, one more
@@ -590,18 +590,18 @@ export const CONFIG = {
   uav:      { r: [95, 120, 145, 175, 205], sec: [24, 28, 32, 36, 40], cd: [42, 38, 34, 30, 26],
               speed: [0.05, 0.1, 0.15, 0.2], dodge: [0.05, 0.1, 0.15, 0.2], buffMax: 3, buffPrice: 300, liftCalm: 3 },
   // (0.50) every orbital slot open from the start; the Barracks a little dearer (barracks: base x (level + 1)^pow)
-  kit:      { slotsStart: 5, slotsMax: 5, barracks: { base: 320, pow: 1.45 }, seafCap: 3, seafDropEvery: 2, seafHp: 0.18, seafDmg: 0.12, seafGren: 1, seafRocket: 0.07, seafMedic: 0.14, medicRate: 0.25, seafBuild: 0.25,
+  kit:      { slotsStart: 5, slotsMax: 5, barracks: { base: 320, pow: 1.45 }, infantryCap: 3, infantryDropEvery: 2, infantryHp: 0.18, infantryDmg: 0.12, infantryGren: 1, infantryRocket: 0.07, infantryMedic: 0.14, medicRate: 0.25, infantryBuild: 0.25,
               zonePer: 18, startLoadout: ['orb_airburst', 'orb_120', 'orb_precision'] },
   // Credits: earned from kills, bases, POIs, breaches and the objective, with a bonus at extraction. Spent in the armory.
   // One multiplier on every armory price. Bot sessions earn about 520 credits a minute, so three hours earns roughly what the whole
   // armory costs at 0.9 (about 97,000 credits). test/r7.mjs checks the two stay together.
   // (0.23) The Hangar (armory): level 1 lets the gunner buy Strikers. The Striker has `uses` calls (usesBase, +1 every two levels), each
   // callCd apart; when they are spent it flies back to rearm for rearm[level] seconds. Every level also makes dropships quicker:
-  // pelican[level] scales their flight time (Infantry drops, cargo), seafCool[level] the Infantry drop's recharge.
+  // dship[level] scales their flight time (Infantry drops, cargo), infantryCool[level] the Infantry drop's recharge.
   // (0.39) The Hangar is open from the start (it is no longer bought; a save that bought levels keeps them). fleet: the dropships in
   // it (one to start, max with the armory's Dropship Fleet, each one dearer): Infantry drops and pickups share them, each dropship
   // turning round in the Infantry drop cooldown. The Vanguards' extraction dropship is not one of them.
-  hangar:   { levels: 5, usesBase: 2, callCd: 8, rearm: [0, 110, 98, 86, 75, 64], seafCool: [1, 0.95, 0.9, 0.85, 0.8, 0.75],
+  hangar:   { levels: 5, usesBase: 2, callCd: 8, rearm: [0, 110, 98, 86, 75, 64], infantryCool: [1, 0.95, 0.9, 0.85, 0.8, 0.75],
               fleet: { start: 1, max: 6, price: [1100, 1400, 1800, 2300, 2900] } },
   // (0.24) Ranks (0.25: they were milestones): missions done in a session raise your rank, which opens more of the armory and
   // pays a level bonus. Everything shows in the armory from the start; what your rank has not reached is locked. Ranks 6 to 9
@@ -655,26 +655,26 @@ export const CONFIG = {
     //   the order they light up, cells taps each, fillSec of real time in slow motion), it comes down beside the keep (dropSec), a
     //   Vanguard arms it (armSec within armR), and everyone runs: after fuseSec it goes off (blastR, everything in it).
     //   Not put together in time: a dud; another can be called after retrySec.
-    hellbomb: { cells: 2, fillSec: 12, slowmo: 0.3, wrongSec: 0.6, dropSec: 3, armSec: 5, armR: 6, fuseSec: 10, blastR: 48, dmg: 30000, retrySec: 15,
+    democharge: { cells: 2, fillSec: 12, slowmo: 0.3, wrongSec: 0.6, dropSec: 3, armSec: 5, armR: 6, fuseSec: 10, blastR: 48, dmg: 30000, retrySec: 15,
                 clearR: 45, clearN: 4, off: 18,
                 // (0.38.1) armed, everyone in the blast (and runPad more) sprints out of it at runMul x the chase speed, fighting or
                 // not; anyone still in it when it goes off may dive clear: dodge.edge at the rim, dodge.mid at the centre (an Infantry
                 // trooper at infantry x that), and a dive that clears it still costs dodge.graze of his health
-                runMul: 1.3, runPad: 10, dodge: { edge: 0.85, mid: 0.2, seaf: 0.5, graze: 0.35 } },
+                runMul: 1.3, runPad: 10, dodge: { edge: 0.85, mid: 0.2, infantry: 0.5, graze: 0.35 } },
   },
 
   // Call-ins. Sixteen distinct picks, dealt into four groups of four. Each group belongs to one Vanguard.
   // dmgMul scales every call-in the squad calls, swMul the support weapons they carry, cdMul their cooldowns. (0.19: cut back,
   // from 0.4, 0.4 and 1: on their own the Vanguards cannot hold from level 3 up; the gunner's orbitals, stronger and quicker,
   // carry the fight. test/difficulty.mjs checks it.)
-  strat: {
-    // callSec: every call takes this long on top of the stratagem's own delay (the beacon is thrown and the ship lines up), so the
+  callin: {
+    // callSec: every call takes this long on top of the callin's own delay (the beacon is thrown and the ship lines up), so the
     // marked ground shows for longer; the Vanguards aim where the enemy will be by then, and only inside their own strike zone.
     slots: 16, groups: 4, perGroup: 4, dmgMul: 0.2, swMul: 0.37, cdMul: 1.5, callGapSec: 1.2, startDelaySec: [8, 30], callSec: 2.2, leadMax: 45,
     // (0.26) heavy weapons in the draw: each Vanguard gets one this often, and in the rest of the draw one is this many times as
     // likely as anything else (about 1.2 each on average)
     heavyW: { each: 0.9, weight: 3 },
-    frv:   { hp: 800, speed: 14, life: 160, seats: 4, gunRange: 70, gunDmg: 62, gunEvery: 0.42, ejectAt: 0.25, dropSec: 4 },
+    lrv:   { hp: 800, speed: 14, life: 160, seats: 4, gunRange: 70, gunDmg: 62, gunEvery: 0.42, ejectAt: 0.25, dropSec: 4 },
     mech:  { hp: 850, armor: 0.5, gatAmmo: 500, rktAmmo: 12, dropSec: 5 },
     dog:   { hp: 140, life: 150, range: 38, every: 0.45, dmg: 9 },
     jump:  { sec: 40, speedMul: 1.7 },
@@ -689,11 +689,11 @@ export const CONFIG = {
   boss: { minLevel: 8, chance: 0.12, perSessionMin: 0.003, maxChance: 0.5, window: [170, 450], dist: [190, 240], reward: 700, score: 3000, giveUpSec: 210,
           // (0.55) super heavies brought by reinforcements (boss.js reinfHeavyChance): per call, (level - from) x perLevel, and for the bots
           // perDown more for each dropship shot down this mission past botsAfter; at most max, maxPer a mission, gapSec apart, not before minT
-          // (0.55) every super heavy reaches as far as the allies see (C.sight.helldiver x the biome x reachMul), stops at standOff of
+          // (0.55) every super heavy reaches as far as the allies see (C.sight.vanguard x the biome x reachMul), stops at standOff of
           // that, and backs away from anyone inside backOff of it
           reachMul: 1, standOff: 0.85, backOff: 0.5,
           // (0.55.1) arrivals: sec long, the impact at `hit` of the way (render/bossin.js draws them)
-          arrive: { bugs: { sec: 3.2, hit: 0.45 }, bots: { sec: 2.8, hit: 0.55 }, squids: { sec: 3.4, hit: 0.7 } },
+          arrive: { bugs: { sec: 3.2, hit: 0.45 }, bots: { sec: 2.8, hit: 0.55 }, lizards: { sec: 3.4, hit: 0.7 } },
           reinf: { from: 10, perLevel: 0.012, max: 0.35, botsAfter: 4, perDown: 0.04, maxPer: 3, gapSec: 100, minT: 120 },
           // (0.59) all three about 20,000 to kill (3x what the old 600-round heavy-penetrating gun could do to one); the colossus's
           // shield counts toward it
@@ -706,7 +706,7 @@ export const CONFIG = {
                     cannon: { range: 62, dmg: 26, splash: 4, every: 1.6, acc: 0.7 }, deploy: { every: 30 },
                     // (0.55) turrets on its back (x, y in its radii, +x forward), as a bot base's (C.eturret), damage x turretMul
                     turrets: [[-0.45, -0.42], [-0.45, 0.42]], turretMul: 1.2 },
-          squids: { hp: 14000, shield: 6000, regen: 120, regenDelay: 7, r: 12, speed: 1.9, stop: 48,
+          lizards: { hp: 14000, shield: 6000, regen: 120, regenDelay: 7, r: 12, speed: 1.9, stop: 48,
                     // (0.55) walk: its beam walks the ground like the orbital laser (enemies.js colossusBeam): charge s, then dur s
                     // burning width across at dps, starting lead m short of the target and steering at follow m/s; every s between
                     walk: { range: 78, charge: 2.2, lock: 0.6, dur: 5, dps: 60, width: 6, follow: 7, lead: 16, every: 7 } } },
@@ -716,13 +716,13 @@ export const CONFIG = {
               boostSec: 45, boostDmg: 0.15, boostSpeed: 1.1 },
 
   // Chatter: speech bubbles over Vanguards and Infantry, on cooldowns so they stay readable.
-  chatter:  { hdCool: 11, seafCool: 20, hdSec: 4.2, seafSec: 3.2, seafGlobalGap: 3.5, hdGlobalGap: 1.6 },
+  chatter:  { hdCool: 11, infantryCool: 20, hdSec: 4.2, infantrySec: 3.2, infantryGlobalGap: 3.5, hdGlobalGap: 1.6 },
 
   score:    { light: 10, medium: 50, heavy: 200, allyKillShare: 0.2, base: 1000,
-              objective: 2500, perMinuteLeft: 100, extraction: 1500, perLifeLeft: 25, survivorVanguard: 100, survivorSeaf: 25,
+              objective: 2500, perMinuteLeft: 100, extraction: 1500, perLifeLeft: 25, survivorVanguard: 100, survivorInfantry: 25,
               poi: 250, breach: 150, dropDown: 300, side: 600, fullClear: 1500, civSaved: 40, civLost: -30, ffCiv: -60,
               hdDeath: -75, wipe: -250,
-              ffVanguard: -200, ffSeaf: -50,
+              ffVanguard: -200, ffInfantry: -50,
               comboStep: 0.1, comboMax: 3.0, comboWindowSec: 2, comboResetSec: 3 },
   // Loading screens always last at least this long, then wait for a click.
   ui:       { minLoadSec: 5, tipSec: 8 },

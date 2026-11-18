@@ -1,7 +1,7 @@
 // The Vanguard's own kit, on top of the Liberator rifle (see enemies.js): four stims, four grenades (for groups and for heavies),
 // the Ultimatum (a one-round launcher that kills almost anything it hits square; a supply pod reloads it), a dodge that comes
 // round every so often (see combat.js), and the sense to pull back when badly hurt. A target worth a grenade or the Ultimatum is
-// marked on the map first, so the gunner sees it too. A Vanguard who is running calls call-ins as he goes (see strat.js).
+// marked on the map first, so the gunner sees it too. A Vanguard who is running calls call-ins as he goes (see callin.js).
 // Every number is in CONFIG.hd.
 import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
@@ -9,7 +9,7 @@ import { uavBuff } from '../data/kit.js';
 import { aoX, aoY, offEdge, aoClamp } from './ao.js';
 import { fireShot, blocker } from './combat.js';
 import { bark } from './chatter.js';
-import { wakesBase } from './strat.js';
+import { wakesBase } from './callin.js';
 
 const K = C.hd, R = K.retreat;
 const EH = C.enemies.hp;

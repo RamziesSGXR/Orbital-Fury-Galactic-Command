@@ -5,7 +5,7 @@ import { ALLY } from '../data/data.js';
 import { uavBuff } from '../data/kit.js';
 import { coverMul } from './cover.js';
 import { alertGroup, noise } from './enemies.js';
-import { medicNear, goDown } from './seaf.js';
+import { medicNear, goDown } from './infantry.js';
 
 // ---------- hits from behind and critical hits ----------
 // The multiplier for one hit on tgt coming from (fx, fy): more from behind (the back of every unit is its weak side, and a heavy's
@@ -51,7 +51,7 @@ export function ffBlast(m, x, y, rad, dmg, mult, by, fx, fy) {
 }
 
 // ---------- enemies ----------
-// by: 'player' (the destroyer), 'squad' (rifles) or 'strat' (call-ins, turrets, vehicles, support weapons).
+// by: 'player' (the destroyer), 'squad' (rifles) or 'callin' (call-ins, turrets, vehicles, support weapons).
 // (fx, fy): where the hit comes from, for the back bonus. cs: whose crit chance (defaults to the attacker's side; '' for none).
 // Troops still under the dropship or warp ship that brought them cannot be hurt until it has pulled away (or they have walked out
 // from under it): the ship covers them.
@@ -80,7 +80,7 @@ export function covered(e) {
   return true;
 }
 
-// Shield bubbles (a harvester's, or a shield generator's dome): the one that keeps a hit from (fx, fy) off a target at (x, y), or
+// Shield bubbles (a warbeast's, or a shield generator's dome): the one that keeps a hit from (fx, fy) off a target at (x, y), or
 // null. A hit with no source point comes from above (a strike) and is outside every bubble.
 export function bubbleFor(m, x, y, fx, fy) {
   const B = m.bubbles;
@@ -93,7 +93,7 @@ export function bubbleFor(m, x, y, fx, fy) {
   }
   return null;
 }
-// A hit on a bubble: a harvester's shield soaks it (what is left goes through); a dome takes it all. Returns what gets through.
+// A hit on a bubble: a warbeast's shield soaks it (what is left goes through); a dome takes it all. Returns what gets through.
 export function soakBubble(m, b, dmg) {
   if (b.dome) { b.dome.hitAt = m.t; return 0; }
   const h = b.src, soak = Math.min(h.shield, dmg);
@@ -103,7 +103,7 @@ export function soakBubble(m, b, dmg) {
 
 // pierce: the hit goes through armour and shields (the Ultimatum's round).
 // armor: the share of the hit the body takes (a light round on a heavy: very little). (0.26) Shields do not care about armour:
-// a harvester's bubble, a lizard heavy's or the Colossus's own shield soak the hit at full strength (light penetration strips them
+// a warbeast's bubble, a lizard heavy's or the Colossus's own shield soak the hit at full strength (light penetration strips them
 // as well as anything), and only what gets through meets the armour.
 export function hurtEnemy(m, e, dmg, by, fx, fy, cs, pierce = false, armor = 1) {
   if (e.dead || !(dmg > 0)) return 0;
@@ -174,7 +174,7 @@ export function damageArea(m, x, y, rad, dmg, mult, by = 'player', friendly = tr
       for (const c of m.civs) if (!c.dead && (c.x - x) ** 2 + (c.y - y) ** 2 <= rad * rad) m.hurtCiv(c, dmg, by);
     } else ffBlast(m, x, y, rad, dmg, mult, by, above ? undefined : fx, above ? undefined : fy);
   }
-  const sm = by === 'strat' || by === 'squad' ? C.structure.stratMul : 1;   // anything the squad calls hits structures harder
+  const sm = by === 'callin' || by === 'squad' ? C.structure.callinMul : 1;   // anything the squad calls hits structures harder
   for (const b of m.bases) {
     if (b.destroyed) continue;
     if (Math.hypot(b.x - x, b.y - y) <= rad + b.r) m.damageBase(b, dmg * mult.B * sm, by, above ? undefined : fx, above ? undefined : fy, { x, y, rad });     // (0.49: where it hit, for a cluster's spawners)
@@ -202,7 +202,7 @@ function absorb(m, x, y, dmg) {
 // hit (not a nibble), and the dodge has to have come round again. Friendly fire and falling pods cannot be dodged.
 // Infantry troopers dodge too, far less often. A UAV overhead adds to either chance (its threat-warning upgrade adds more).
 function tryDodge(m, a, dmg) {
-  const H = a.type === 'H', D = C.hd.dodge, SD = C.hd.seafDodge, t = m.t;
+  const H = a.type === 'H', D = C.hd.dodge, SD = C.hd.infantryDodge, t = m.t;
   if (a.mounted || (a.mech && a.mech.hp > 0) || t < (a.dodgeAt || 0) || dmg < D.minHit) return false;
   const uav = a.uavAt !== undefined && t - a.uavAt < 0.25 ? uavBuff(m.kit).dodge : 0;
   if (m.rng.next() >= (H ? D.chance : SD.chance) + uav) return false;
@@ -227,7 +227,7 @@ export function hurtAlly(m, a, rawDmg, by, raw = false, src = null, fx, fy) {
   a.hurtAt = m.t;
   a.lastSrc = src || (by === 'player' ? 'friendly' : 'enemy');
   if (a.mech && a.mech.hp > 0) {
-    a.mech.hp -= absorb(m, a.x, a.y, rawDmg) * (raw ? 1 : C.strat.mech.armor);
+    a.mech.hp -= absorb(m, a.x, a.y, rawDmg) * (raw ? 1 : C.callin.mech.armor);
     if (a.mech.hp <= 0) m.mechDown(a);
     return;
   }
@@ -237,7 +237,7 @@ export function hurtAlly(m, a, rawDmg, by, raw = false, src = null, fx, fy) {
   a.hp -= dmg;
   if (a.hp <= 0) {
     const who = by === 'player' ? 'player' : 'enemy';
-    // (0.26) an Infantry trooper with a Medic in reach goes down instead (seaf.js); hit again while down, he is gone
+    // (0.26) an Infantry trooper with a Medic in reach goes down instead (infantry.js); hit again while down, he is gone
     if (a.type === 'S' && !a.down && medicNear(m, a)) { goDown(m, a, who, a.lastSrc); return; }
     if (a.down) a.down = null;
     m.killAlly(a, who, a.lastSrc);

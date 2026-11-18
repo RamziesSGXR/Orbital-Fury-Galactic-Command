@@ -22,7 +22,7 @@ import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
 import { COMMS } from '../data/data.js';
 import { buildStats, buildLevel, uavStats, FLAT_BUILDS } from '../data/kit.js';
-import { turretStep } from './strat.js';
+import { turretStep } from './callin.js';
 import { damageDrop } from './reinforce.js';
 import { damageArea } from './combat.js';
 
@@ -146,12 +146,12 @@ export function postReach(m, p) {
 const towerReach = (m, p) => Math.round(uavStats(m.kit.uav).r * (p.what === 'tower' ? 1 + 0.05 * (p.lvl - 1) : p.what === 'lookout' ? buildStats('lookout', p.lvl).reach : 1));
 // How far out a lookout spots for the fire support (enemies there, inside the strike zone, are shown).
 // (0.47) How far a lookout sees down its cone: twice a Vanguard's sight (on this biome) at level 1, 8% more a level.
-export const lookoutReach = (m, p) => Math.round(C.build.lookout.coneMul * C.sight.helldiver * ((m.biome && m.biome.ping) || 1) * (buildStats('lookout', p.lvl || 1).reach / C.build.lookout.reach));
+export const lookoutReach = (m, p) => Math.round(C.build.lookout.coneMul * C.sight.vanguard * ((m.biome && m.biome.ping) || 1) * (buildStats('lookout', p.lvl || 1).reach / C.build.lookout.reach));
 // (0.47) A lookout's view as relay circles: one all round it (an ally's sight) and a fan along its face. Each fan circle has the
 // tower and the point R out along its own bearing as its diameter, so together the bearings -72..72 cover the half disc toward the
 // face out to R (95% of R at the cone's sides).
 export function lookoutFan(m, p, R) {
-  const L = [{ x: p.x, y: p.y, r: Math.round(C.sight.helldiver * ((m.biome && m.biome.ping) || 1)), kind: 'lookout', tower: true }];
+  const L = [{ x: p.x, y: p.y, r: Math.round(C.sight.vanguard * ((m.biome && m.biome.ping) || 1)), kind: 'lookout', tower: true }];
   for (let k = -3; k <= 3; k++) {
     const a = p.face + k * 0.4189;          // 24 degrees
     L.push({ x: p.x + Math.cos(a) * R / 2, y: p.y + Math.sin(a) * R / 2, r: R / 2, kind: 'lookout', tower: true, fan: true });
@@ -201,7 +201,7 @@ export function makePost(m, what, x, y, opts = {}) {
   if (site.pieces.length) { m.coverSites.push(site); m.cover.push(...site.pieces); }
   if (what === 'mg') { const g = C.build.mg.gun; p.p = { ...g, dmg: g.dmg * S.dmg }; p.cool = 0.6; p.scan = 0; p.tgt = null; p.focus = null; p.ammo = Infinity; p.maxAmmo = Infinity; p.snd = 'ac'; p.rate = 0; }
   if (what === 'bridge') {
-    // the span was found when it was ordered (mission.js seafBuild); the deck goes down now
+    // the span was found when it was ordered (mission.js infantryBuild); the deck goes down now
     const sp = opts.span || m.terrain.findSpan(x, y, S.span);
     if (sp) { p.span = sp; p.w = S.w; p.x = (sp.x1 + sp.x2) / 2; p.y = (sp.y1 + sp.y2) / 2; p.face = Math.atan2(sp.y2 - sp.y1, sp.x2 - sp.x1); m.terrain.addDeck(sp, S.w); }
   }
@@ -295,7 +295,7 @@ export function removePost(m, p) {
   if (p.what === 'arty') m.arty = m.arty.filter((g) => g !== p);
   if (p.what === 'tower') m.beacons = m.beacons.filter((b) => b.post !== p);
   releaseGarrison(m, p);
-  for (const q of m.seaf.squads) if (q.order.kind === 'post' && q.order.post === p) q.order = { ...q.order, kind: 'protect', post: null };
+  for (const q of m.infantry.squads) if (q.order.kind === 'post' && q.order.post === p) q.order = { ...q.order, kind: 'protect', post: null };
   // (0.36) a light bridge taken down: its deck comes off the water (the others are laid again), and anyone standing on it ends up on
   // the nearest bank
   if (p.what === 'bridge' && p.span && m.terrain.clearDecks) {
@@ -325,7 +325,7 @@ export function demolish(m, p) {
   if (p.demo) { p.demo = null; m.notice(tr('n.demoOff', { what: p.name.toUpperCase() }), 'info'); m.emit('demo_off', { id: p.id, x: p.x, y: p.y }); return { ok: true, cancelled: true }; }
   p.demo = { at: m.t + C.demolish.fuseSec, set: m.t };
   releaseGarrison(m, p);
-  for (const q of m.seaf.squads) if (q.order.kind === 'post' && q.order.post === p) q.order = { ...q.order, kind: 'protect', post: null };     // (they stop manning it)
+  for (const q of m.infantry.squads) if (q.order.kind === 'post' && q.order.post === p) q.order = { ...q.order, kind: 'protect', post: null };     // (they stop manning it)
   m.notice(tr('n.demoSet', { what: p.name.toUpperCase(), n: C.demolish.fuseSec }), 'warn');
   m.emit('demo_set', { id: p.id, x: p.x, y: p.y, at: p.demo.at });
   return { ok: true, at: p.demo.at };
@@ -347,7 +347,7 @@ function blowPost(m, p) {
 // sq: only troopers of that squad (a squad sent in through the post's door).
 export function garrisonPost(m, p, sq = null) {
   let n = 0;
-  const crew = m.seafAlive.filter((a) => a.inPost === p && a.sq !== GARRISON && (sq === null || a.sq === sq)).sort((a, b) => a.id - b.id);
+  const crew = m.infantryAlive.filter((a) => a.inPost === p && a.sq !== GARRISON && (sq === null || a.sq === sq)).sort((a, b) => a.id - b.id);
   const room = Math.max(0, (p.cap || 4) - p.garrison);
   for (const a of crew.slice(0, room)) { a.sqWas = a.sq; a.sq = GARRISON; a.post = p; n++; }
   p.garrison += n;
@@ -388,24 +388,24 @@ export function updatePosts(m, dt) {
       else if (n >= p.cap) continue;
       a.inPost = p; n++; if (a.type === 'H') nh++; else ns++;
     }
-    if (inside) for (const a of m.seafAlive) if (a.post === p) a.inside = p;      // hidden in the building
+    if (inside) for (const a of m.infantryAlive) if (a.post === p) a.inside = p;      // hidden in the building
     p.crew = n; p.crewH = nh; p.crewS = ns;
-    p.garrison = 0; for (const a of m.seafAlive) if (a.post === p) p.garrison++;
+    p.garrison = 0; for (const a of m.infantryAlive) if (a.post === p) p.garrison++;
     // a squad sent in through the door: whoever of it has got there goes in, until the post is full
     if (inside) {
       // a building: troopers sent to man it go in as they reach it (leaving their squad), until it is full
-      if (p.garrison < (p.cap || 0) && !p.fallen) for (const q of m.seaf.squads) {     // (0.52: a fallen work site takes nobody in)
+      if (p.garrison < (p.cap || 0) && !p.fallen) for (const q of m.infantry.squads) {     // (0.52: a fallen work site takes nobody in)
         if (!q.n || q.order.kind !== 'post' || q.order.post !== p || q.order.garrison === false) continue;
-        for (const a of m.seafAlive) {
+        for (const a of m.infantryAlive) {
           if (p.garrison >= p.cap) break;
           if (a.sq !== q.i || (a.x - p.x) ** 2 + (a.y - p.y) ** 2 > (R + 2) ** 2) continue;
           a.sqWas = a.sq; a.sq = GARRISON; a.post = p; a.inside = p; p.garrison++;
           m.emit('garrison_in', { id: a.id, post: p.id });
         }
       }
-    } else if (ns && p.garrison < (p.cap || 0)) for (const q of m.seaf.squads) if (q.n && q.order.kind === 'post' && q.order.post === p && q.order.garrison) garrisonPost(m, p, q.i);   // (it counts them in)
+    } else if (ns && p.garrison < (p.cap || 0)) for (const q of m.infantry.squads) if (q.n && q.order.kind === 'post' && q.order.post === p && q.order.garrison) garrisonPost(m, p, q.i);   // (it counts them in)
     p.manned = true;                   // (0.18: everything works on its own; a crew makes it better)
-    // (0.54) a turret nest and a cannon see a little way on their own (an ally's sight is C.sight.helldiver; this is C.build.nestSight metres), crew or none
+    // (0.54) a turret nest and a cannon see a little way on their own (an ally's sight is C.sight.vanguard; this is C.build.nestSight metres), crew or none
     if ((p.what === 'mg' || p.what === 'arty') && !p.fallen) m.relays.push({ x: p.x, y: p.y, r: Math.round(C.build.nestSight * ((m.biome && m.biome.ping) || 1)), kind: 'nest', nest: true });
     p.crewed = n > 0;
     if (p.what === 'mg') {
@@ -432,7 +432,7 @@ export function updatePosts(m, dt) {
     p.repairing = false;
     if (p.maxHp > 0 && p.hp < p.maxHp && t - p.hurtAt > B().repairQuiet && !m.eGrid.nearest(p.x, p.y, B().repairClear)) {
       let fixers = 0;
-      for (const a of m.seafAlive) if ((a.x - p.x) ** 2 + (a.y - p.y) ** 2 <= (p.r + 6) ** 2) fixers++;
+      for (const a of m.infantryAlive) if ((a.x - p.x) ** 2 + (a.y - p.y) ** 2 <= (p.r + 6) ** 2) fixers++;
       if (fixers) { p.hp = Math.min(p.maxHp, p.hp + B().repair * Math.min(4, fixers) * dt); p.repairing = true; }
     }
   }
@@ -467,11 +467,11 @@ export function updateSam(m) {
     const s = m.samQ[i];
     if (m.t < s.at) continue;
     m.samQ.splice(i, 1);
-    if (!s.d.dead && s.d.state !== 'down') { damageDrop(m, s.d, s.dmg, 'strat', true); m.emit('boom', { x: s.d.x, y: s.d.y, r: 4, dmg: s.dmg, by: 'strat' }); }
+    if (!s.d.dead && s.d.state !== 'down') { damageDrop(m, s.d, s.dmg, 'callin', true); m.emit('boom', { x: s.d.x, y: s.d.y, r: 4, dmg: s.dmg, by: 'callin' }); }
   }
 }
 
-// A post took a killing blow (strat.js destroyAsset sends it here).
+// A post took a killing blow (callin.js destroyAsset sends it here).
 export function postDown(m, p) {
   removePost(m, p);
   m.radio(COMMS.postDown(p.name), 'postdown', 2);

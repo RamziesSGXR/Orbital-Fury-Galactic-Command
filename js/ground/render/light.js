@@ -17,7 +17,7 @@ import { sunAt } from './sky.js';
 
 const TAU = Math.PI * 2;
 const MAX = 260;                  // lights a frame at most (the oldest effects drop out first)
-const FAC = { bugs: [190, 255, 110], bots: [255, 70, 50], squids: [190, 130, 255] };
+const FAC = { bugs: [190, 255, 110], bots: [255, 70, 50], lizards: [190, 130, 255] };
 const WARM = [255, 214, 150], WHITE = [236, 242, 255], TORCH = [255, 244, 214];
 const POST = {     // what a building gives off: radius (m), colour, strength; blink: on and off; flick: firelight
   foxhole: { r: 7, c: [255, 190, 110], k: 0.7, flick: true },
@@ -91,7 +91,7 @@ export class Lighting {
     }
     // the laser strikes
     for (const bm of m.beams) if (t >= bm.start && t < bm.end) this.add(bm.cx, bm.cy, 24, [255, 236, 170], fl(bm.cx, 23), 0.6);
-    // fire, gas and EMS on the ground
+    // fire, gas and Stun on the ground
     for (const z of m.zones) {
       const a = Math.min(1, (z.until - t) / 2.5) * Math.min(1, (t - z.born) / 0.6);
       if (z.kind === 'fire') this.add(z.x, z.y, z.r * 1.5, [255, 150, 60], a * fl(z.x), 0.4);
@@ -108,7 +108,7 @@ export class Lighting {
       const ang = t < (u.aimUntil || 0) && u.aimA !== undefined ? u.aimA : u.face || 0;
       this.add(u.x, u.y, H ? 46 : 32, TORCH, H ? 0.85 : 0.75, 0.09, { a: ang, half: H ? 0.34 : 0.3 });
     }
-    // what they have put down: sentries and the like
+    // what they have put down: turrets and the like
     for (const s of m.assets || []) if (!s.dead) this.add(s.x, s.y, s.kind === 'supply' ? 9 : 6, s.kind === 'supply' ? [150, 255, 180] : WARM, 0.6, 0.3);
     // buildings, by what they are
     for (const p of m.posts || []) {
@@ -146,8 +146,8 @@ export class Lighting {
     for (const p of m.pods) { const left = p.landAt - t; if (left > 0 && left < 3) this.add(p.x, p.y, 12, [255, 170, 80], 1 - left / 3, 0.5); }
     const S = m.supply;
     if (S && S.drop) this.add(S.drop.x, S.drop.y, 10, [150, 255, 180], 0.75, 0.45);
-    for (const p of m.pelicans || []) this.add(p.x, p.y, 18, WHITE, 0.6, 0.15);
-    const hb = m.hellbomb;
+    for (const p of m.dships || []) this.add(p.x, p.y, 18, WHITE, 0.6, 0.15);
+    const hb = m.democharge;
     if (hb && (hb.state === 'landed' || hb.state === 'armed')) this.add(hb.x, hb.y, hb.state === 'armed' ? 12 : 7, hb.state === 'armed' ? [255, 60, 40] : [255, 230, 90], Math.floor(now * (hb.state === 'armed' ? 4 : 1.5)) % 2 ? 0.95 : 0.3, 0.6);
     // the enemy: a flare overhead lights up the ground; Talon and Foundry carry lights of their own
     for (const g of m.groups) { const f = g.flare; if (f && f.caller && !f.caller.dead && f.caller.vis > 0) this.add(f.caller.x + 3, f.caller.y - 8, 34, [255, 80, 50], 0.8 * fl(f.caller.id, 19), 0.35); }

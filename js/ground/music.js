@@ -9,18 +9,18 @@
 //   BATTLE (a match, Dynamic): a theme for each enemy, each with two sections that take turns, so it doesn't go round the same
 //     sixteen seconds. It follows the fight: drone and pad when it's quiet, a pulse when the enemy closes on the squad, the theme's
 //     own colour and drums in a firefight, and in a heavy one everything, with a braam on each chord change.
-//       BUG HUNT (Swarm): 120 BPM, A minor. Tribal drums and toms, a skittering hat.
+//       BUG HUNT (Molt): 120 BPM, A minor. Tribal drums and toms, a skittering hat.
 //       IRON FRONT (Foundry): 128 BPM, C minor. A square-wave bass line, metal clanks, four on the floor.
 //       COLD LIGHT (Talon): 112 BPM, F# minor. A shimmering arpeggio, rim clicks, a deep sine pulse.
-//   SWARM (a ton of enemies on screen): 140 BPM, E Phrygian, two sections. A 16th-note ostinato, double-time drums, a braam every
+//   MOLT (a ton of enemies on screen): 140 BPM, E Phrygian, two sections. A 16th-note ostinato, double-time drums, a braam every
 //     bar and a fill every four. In when the screen fills up, back to BATTLE once it has thinned out for a while.
 //   VICTORY (a win, and its debrief): 96 BPM, A major. A braam and rising bells, then an anthem on a bright lead.
 //   FALLEN (a loss, the end of a session, Mars glassed): 64 BPM, D minor. A low braam, a slow horn line, a funeral drum.
 // (0.33) Transitions are smooth: every cue plays on its own deck. A change waits for the end of the bar (or the beat, when the
 // bar is long or the moment is urgent), then the old deck plays on a little while it fades and the new one fades in. Going into
-// SWARM, the old bar ends on a riser. In BATTLE a change of level lands on the bar too, with a snare fill when it goes up, and the
+// MOLT, the old bar ends on a riser. In BATTLE a change of level lands on the bar too, with a snare fill when it goes up, and the
 // layers fade in and out over a second or two; after DROP the battle music keeps up its drums for four bars before it settles.
-// Ambient keeps a match calm (BATTLE's quiet layers only: no DROP, no SWARM). A super heavy arriving gets a braam of its own.
+// Ambient keeps a match calm (BATTLE's quiet layers only: no DROP, no MOLT). A super heavy arriving gets a braam of its own.
 // Cinematics and the pause turn the music down. Notes are scheduled a little ahead on the audio clock (a 90 ms timer fills the
 // next 0.3 s), so a busy frame doesn't make it stumble.
 export const MUSIC_STYLES = ['dynamic', 'ambient', 'off'];
@@ -97,7 +97,7 @@ const THEMES = {
       fillUp(D, i, t);
     },
   },
-  squids: {   // COLD LIGHT
+  lizards: {   // COLD LIGHT
     bpm: 112, sections: [sec(32, [CH(30, [57, 61, 66]), CH(38, [57, 62, 66]), CH(35, [59, 62, 66]), CH(37, [56, 61, 65])]),     // F#m D Bm C#
       sec(32, [CH(35, [59, 62, 66]), CH(31, [55, 59, 62]), CH(28, [52, 55, 59]), CH(30, [54, 58, 61])])],                         // Bm G Em F#
     mix: (D) => battleMix(D, { color1: 0.6 }),
@@ -133,7 +133,7 @@ const THEMES = {
         else if (lv >= 2 && (bar === 7 || bar === 15)) D.taiko(t, 0.5);
         if (bar === 4 || bar === 12) D.snare(t, lv >= 2 ? 0.9 : 0.6);
       }
-      if (g.color > 0) D.shimmer(t, ch.pad[[0, 1, 2, 1][i % 4]] * 4, bar % 4 === 0 ? 0.028 : 0.016);     // the squids' glitter, over it all
+      if (g.color > 0) D.shimmer(t, ch.pad[[0, 1, 2, 1][i % 4]] * 4, bar % 4 === 0 ? 0.028 : 0.016);     // the lizards' glitter, over it all
       if (g.hats > 0 && bar % 2 === 1) D.hat(t, bar % 4 === 3 ? 0.85 : 0.55);
       if (bar === 0 && i % 32 === 16) D.bell(t, ch.pad[2] * 2, 0.05);     // the gun's charge chime
       fillUp(D, i, t);

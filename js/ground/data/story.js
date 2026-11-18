@@ -13,7 +13,7 @@ export const CAST = {
   mota: { name: 'MOTA', unit: 'cast.u.mota', tag: 'MOTA', col: '#c9b8ff' },
   // (0.28) the tutorial's voices on the command radio: Base Tharsis, Mars
   tharsis: { name: 'THARSIS CONTROL', unit: 'cast.u.tharsis', tag: 'THARSIS', col: '#ffd24a' },
-  pelican: { name: 'DROPSHIP LEAD', unit: 'cast.u.pelican', tag: 'DROPSHIP', col: '#9fd3ff' },
+  dship: { name: 'DROPSHIP LEAD', unit: 'cast.u.dship', tag: 'DROPSHIP', col: '#9fd3ff' },
   sarge: { name: 'INFANTRY SERGEANT', unit: 'cast.u.sarge', tag: 'INFANTRY SGT', col: '#7dffb0' },
 };
 export const CAST_ORDER = ['ramzies', 'ktl', 'rudolph', 'neonboot', 'mota'];
@@ -22,23 +22,23 @@ export const CAST_ORDER = ['ramzies', 'ktl', 'rudolph', 'neonboot', 'mota'];
 // cp.<id>.c<n>.<part><k> in the language files), and night for a scene on the planet's dark side.
 // (0.53) Operation Sweet Victory: the Talon close in on Head Office, and the one answer is a planetary defence gun on the
 // outskirts of the capital. Ten chapters in three arcs and a finale, each arc on one world (named by its ground, not by name):
-// Biofuel fuel from the bugs on the dunes, scrap parts from the bots on the glaciers, and the squids' vanguard broken in the jungle
+// Biofuel fuel from the bugs on the dunes, scrap parts from the bots on the glaciers, and the lizards' vanguard broken in the jungle
 // on the road to the capital; then the gun is held in the capital while it brings down the mothership. The tutorial teaches the
 // basics, so the chapters teach only what is new in them (teach).
 const B5 = ['ramzies', 'ktl', 'neonboot', 'mota', 'ramzies'], W3 = ['rudolph', 'neonboot', 'ramzies'], L2 = ['rudolph', 'ramzies'];
 export const STORY = {
-  id: 'liberty',
+  id: 'victoryop',
   chapters: [
     { n: 1, arc: 'desert', play: { faction: 'bugs', biome: 'desert', seed: 7301, objective: 'oil', tod: 9, boss: false }, teach: ['build', 'supply'], brief: B5, win: W3, lose: L2 },
     { n: 2, arc: 'desert', play: { faction: 'bugs', biome: 'desert', seed: 7333, objective: 'vip', tod: 17 }, teach: ['uav', 'escort'], brief: B5, win: W3, lose: L2 },
-    { n: 3, arc: 'desert', play: { faction: 'bugs', biome: 'desert', seed: 7367, objective: 'fortress', tod: 12, jammer: true }, teach: ['bases', 'sides', 'jammer', 'hellbomb'], brief: B5, win: W3, lose: L2 },
+    { n: 3, arc: 'desert', play: { faction: 'bugs', biome: 'desert', seed: 7367, objective: 'fortress', tod: 12, jammer: true }, teach: ['bases', 'sides', 'jammer', 'democharge'], brief: B5, win: W3, lose: L2 },
     { n: 4, arc: 'ice', play: { faction: 'bots', biome: 'ice', seed: 7401, objective: 'cannon', tod: 10 }, teach: ['cover', 'garrison'], brief: B5, win: W3, lose: L2 },
     { n: 5, arc: 'ice', play: { faction: 'bots', biome: 'ice', seed: 7433, objective: 'evac', tod: 15 }, teach: ['demolish'], brief: B5, win: W3, lose: L2 },
     { n: 6, arc: 'ice', play: { faction: 'bots', biome: 'ice', seed: 7469, objective: 'nuke', tod: 19 }, teach: ['hold', 'time'], brief: B5, win: W3, lose: L2 },
-    { n: 7, arc: 'jungle', play: { faction: 'squids', biome: 'jungle', seed: 7503, objective: 'dome', tod: 8 }, teach: [], brief: B5, win: W3, lose: L2 },
-    { n: 8, arc: 'jungle', play: { faction: 'squids', biome: 'jungle', seed: 7537, objective: 'vip', tod: 22 }, night: true, teach: ['night', 'flare'], brief: B5, win: W3, lose: L2 },
-    { n: 9, arc: 'jungle', play: { faction: 'squids', biome: 'jungle', seed: 7571, objective: 'fortress', tod: 13 }, teach: [], brief: B5, win: W3, lose: L2 },
-    { n: 10, arc: 'city', play: { faction: 'squids', biome: 'city', seed: 7601, objective: 'gun', tod: 18, boss: false }, teach: [], brief: B5, win: W3, lose: L2, finale: true },
+    { n: 7, arc: 'jungle', play: { faction: 'lizards', biome: 'jungle', seed: 7503, objective: 'dome', tod: 8 }, teach: [], brief: B5, win: W3, lose: L2 },
+    { n: 8, arc: 'jungle', play: { faction: 'lizards', biome: 'jungle', seed: 7537, objective: 'vip', tod: 22 }, night: true, teach: ['night', 'flare'], brief: B5, win: W3, lose: L2 },
+    { n: 9, arc: 'jungle', play: { faction: 'lizards', biome: 'jungle', seed: 7571, objective: 'fortress', tod: 13 }, teach: [], brief: B5, win: W3, lose: L2 },
+    { n: 10, arc: 'city', play: { faction: 'lizards', biome: 'city', seed: 7601, objective: 'gun', tod: 18, boss: false }, teach: [], brief: B5, win: W3, lose: L2, finale: true },
   ],
 };
 

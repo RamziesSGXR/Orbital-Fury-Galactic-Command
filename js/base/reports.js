@@ -5,7 +5,7 @@ const pick = (r, a) => a[Math.floor(r() * a.length)];
 
 const APPROACH = {
   'Recon sweep': ['The squad moved out light and quiet toward PLACE.', 'Recon element advanced on PLACE in two bounds.'],
-  'Bug hole closure': ['The squad advanced on the nest at PLACE with grenades ready.', 'Swarm activity was confirmed at PLACE. The squad went in.'],
+  'Bug hole closure': ['The squad advanced on the nest at PLACE with grenades ready.', 'Molt activity was confirmed at PLACE. The squad went in.'],
   'Convoy escort': ['The squad met the supply convoy short of PLACE and took the flanks.', 'Escort formed up on the convoy and rolled for PLACE.'],
   'Bot outpost raid': ['The squad approached the Foundry outpost at PLACE from downwind.', 'Assembler smoke was sighted over PLACE. The squad closed in.'],
   'Civilian evacuation': ['The squad reached the settlers sheltering at PLACE.', 'Citizens were reported trapped at PLACE. The squad went to bring them in.'],
@@ -39,9 +39,9 @@ const NOVEH = ['They went on foot the whole way.', 'No vehicle was free; boots i
 export function writeReport(r, p, out) {
   const kind = p.office ? 'Standing patrol' : p.kind, place = p.place ? `the ${p.place}` : 'the objective';
   const lines = [pick(r, APPROACH[kind] || APPROACH['Standing patrol']).replace('PLACE', place)];
-  if (!p.office) lines.push(p.veh?.length ? p.veh.map(k => pick(r, k === 'frv' ? LRV : TANK)).join(' ') : pick(r, NOVEH));
+  if (!p.office) lines.push(p.veh?.length ? p.veh.map(k => pick(r, k === 'lrv' ? LRV : TANK)).join(' ') : pick(r, NOVEH));
   lines.push(pick(r, (out.win ? WIN : LOSS)[kind] || (out.win ? WIN : LOSS)['Standing patrol']));
-  if (p.wants && !p.office) lines.push(p.veh?.includes(p.wants) ? `Command notes that bringing the ${p.wants === 'frv' ? 'LRV' : 'tank'} was the right call.` : `Command notes that ${p.wants === 'frv' ? 'a LRV' : 'a tank'} would have helped.`);
+  if (p.wants && !p.office) lines.push(p.veh?.includes(p.wants) ? `Command notes that bringing the ${p.wants === 'lrv' ? 'LRV' : 'tank'} was the right call.` : `Command notes that ${p.wants === 'lrv' ? 'a LRV' : 'a tank'} would have helped.`);
   if (out.dead.length) lines.push(`Killed in action: ${out.dead.join(', ')}.`);
   if (out.hurt.length) lines.push(`Wounded: ${out.hurt.join(', ')}.`);
   if (out.evac.length) lines.push(`Evacuated off planet: ${out.evac.join(', ')}.`);

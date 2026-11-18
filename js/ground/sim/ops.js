@@ -13,7 +13,7 @@ import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
 import { damageArea, hurtAlly } from './combat.js';
 import { steer } from './terrain.js';
-import { speedMul } from './helldiver.js';
+import { speedMul } from './vanguard.js';
 import { canStep } from './safety.js';
 
 const O = () => C.objective;
@@ -21,7 +21,7 @@ const TAU = Math.PI * 2;
 const ALL = { L: 1, M: 1, H: 1, B: 1 };
 
 // Which operation of its own each faction has.
-export const OP_OF = { bugs: 'oil', bots: 'cannon', squids: 'dome' };
+export const OP_OF = { bugs: 'oil', bots: 'cannon', lizards: 'dome' };
 export const OP_TYPES = ['oil', 'cannon', 'dome', 'gun'];     // (0.53: the defence gun is only ever asked for: the campaign, or an offer)
 const squadAt = (m, x, y, r) => m.hdAlive.some((a) => !a.mounted && (a.x - x) ** 2 + (a.y - y) ** 2 <= r * r);
 const land = (m, x, y) => m.terrain.isLand(x, y) && !m.terrain.blocked(x, y);
@@ -193,10 +193,10 @@ export function domeBlocks(m, b, fx, fy) {
 // Demolition Charge brings down (sides.js: the spore spewer, the call-in jammer, the cognitive disruptor; the enemy broadcast tower takes
 // one too). owner: the objective or side it is for; tg: what it lands beside ({ x, y, r }). The job: fill (the gunner assembles it,
 // in slow motion) -> inbound -> landed (the nearest Vanguard arms it) -> armed (everyone runs) -> done (it goes off).
-const HB = () => O().hellbomb;
+const HB = () => O().democharge;
 export const HB_PARTS = ['casing', 'core', 'detonator', 'fuse'];
-export const hbFilling = (m) => !!(m.hellbomb && m.hellbomb.state === 'fill');
-export const hbFree = (m) => !m.hellbomb || m.hellbomb.state === 'idle' || m.hellbomb.state === 'done';
+export const hbFilling = (m) => !!(m.democharge && m.democharge.state === 'fill');
+export const hbFree = (m) => !m.democharge || m.democharge.state === 'idle' || m.democharge.state === 'done';
 // Is the ground round tg clear enough to call one in (fewer than clearN enemies within clearR of it)?
 export function hbClear(m, tg) {
   const K = HB();
@@ -231,12 +231,12 @@ export function runClear(m, a, hb, R, step) {
 }
 
 // (0.38.1) The Demolition Charge goes off: who is still inside its blast and dives clear. The nearer the rim, the likelier (dodge.mid at the
-// centre to dodge.edge at the rim; an Infantry trooper at dodge.seaf x that); a mech, or anyone mounted or inside a building, does not.
+// centre to dodge.edge at the rim; an Infantry trooper at dodge.infantry x that); a mech, or anyone mounted or inside a building, does not.
 export function hbDives(m, hb) {
-  const K = C.objective.hellbomb, D = K.dodge, t = m.t, dived = new Set();
+  const K = C.objective.democharge, D = K.dodge, t = m.t, dived = new Set();
   m.aGrid.near(hb.x, hb.y, K.blastR, (a) => {
     if (a.dead || a.inside || a.mounted || (a.mech && a.mech.hp > 0)) return;
-    const f = Math.min(1, Math.hypot(a.x - hb.x, a.y - hb.y) / K.blastR), p = (D.mid + (D.edge - D.mid) * f) * (a.type === 'H' ? 1 : D.seaf);
+    const f = Math.min(1, Math.hypot(a.x - hb.x, a.y - hb.y) / K.blastR), p = (D.mid + (D.edge - D.mid) * f) * (a.type === 'H' ? 1 : D.infantry);
     if (m.rng.next() >= p) return;
     dived.add(a);
     const ang = Math.atan2(a.y - hb.y, a.x - hb.x), dv = C.hd.dodge;
@@ -248,7 +248,7 @@ export function hbDives(m, hb) {
   return dived;
 }
 export function hbStep(m, owner, dt, siege) {
-  const K = HB(), t = m.t, hb = m.hellbomb;
+  const K = HB(), t = m.t, hb = m.democharge;
   if (!hb || hb.o !== owner) return false;
   if (hb.state === 'fill') {
     hb.fill.t += dt;
@@ -256,7 +256,7 @@ export function hbStep(m, owner, dt, siege) {
     return false;
   }
   if (hb.state === 'inbound') {
-    if (t >= hb.landAt) { hb.state = 'landed'; m.emit('hellbomb_land', { x: hb.x, y: hb.y }); m.radio(tr('c.hb.landed'), 'hbland', 0); }
+    if (t >= hb.landAt) { hb.state = 'landed'; m.emit('democharge_land', { x: hb.x, y: hb.y }); m.radio(tr('c.hb.landed'), 'hbland', 0); }
     return false;
   }
   if (hb.state === 'landed') {
@@ -270,7 +270,7 @@ export function hbStep(m, owner, dt, siege) {
       hb.state = 'armed'; hb.fuseAt = t + K.fuseSec; hb.armer = null;
       m.radio(tr('c.hb.armed', { n: K.fuseSec }), 'hbarmed', 0);
       m.notice(tr('n.hbArmed', { n: K.fuseSec }), 'bad');
-      m.emit('hellbomb_armed', { x: hb.x, y: hb.y, sec: K.fuseSec });
+      m.emit('democharge_armed', { x: hb.x, y: hb.y, sec: K.fuseSec });
     }
     if (siege) siege();
     return false;
@@ -278,13 +278,13 @@ export function hbStep(m, owner, dt, siege) {
   if (hb.state === 'armed' && t >= hb.fuseAt) {
     hb.state = 'done';
     const dived = hbDives(m, hb), D = K.dodge;     // (0.38.1) anyone still inside may dive clear (and the dive still hurts)
-    damageArea(m, hb.x, hb.y, K.blastR, K.dmg, ALL, 'strat', 'none', '');     // (0.58: allies are dealt with by the dive above, not twice)
+    damageArea(m, hb.x, hb.y, K.blastR, K.dmg, ALL, 'callin', 'none', '');     // (0.58: allies are dealt with by the dive above, not twice)
     m.aGrid.near(hb.x, hb.y, K.blastR, (a) => { if (!a.dead) hurtAlly(m, a, dived.has(a) ? a.maxHp * D.graze : K.dmg, 'enemy', true, 'enemy'); });
-    for (const c of m.civs) if (!c.dead && (c.x - hb.x) ** 2 + (c.y - hb.y) ** 2 <= K.blastR * K.blastR) m.hurtCiv(c, K.dmg, 'strat');
+    for (const c of m.civs) if (!c.dead && (c.x - hb.x) ** 2 + (c.y - hb.y) ** 2 <= K.blastR * K.blastR) m.hurtCiv(c, K.dmg, 'callin');
     if (dived.size) m.notice(tr(dived.size > 1 ? 'n.hbDives' : 'n.hbDive', { n: dived.size }), 'good');
-    m.emit('boom', { x: hb.x, y: hb.y, r: K.blastR, dmg: K.dmg, by: 'strat', nuke: true });
-    m.emit('hellbomb_boom', { x: hb.x, y: hb.y, r: K.blastR, kind: owner.type || owner.kind || '' });
-    m.stats.hellbombs = (m.stats.hellbombs || 0) + 1;
+    m.emit('boom', { x: hb.x, y: hb.y, r: K.blastR, dmg: K.dmg, by: 'callin', nuke: true });
+    m.emit('democharge_boom', { x: hb.x, y: hb.y, r: K.blastR, kind: owner.type || owner.kind || '' });
+    m.stats.democharges = (m.stats.democharges || 0) + 1;
     return true;
   }
   return false;
@@ -292,17 +292,17 @@ export function hbStep(m, owner, dt, siege) {
 // The job for owner is called off (its target fell some other way): a bomb not yet armed is dropped; one already armed goes off
 // where it is (sides.js keeps stepping it).
 export function hbCancel(m, owner) {
-  const hb = m.hellbomb;
+  const hb = m.democharge;
   if (!hb || hb.o !== owner || hb.state === 'armed' || hb.state === 'done') return;
-  m.hellbomb = { o: null, state: 'idle', n: hb.n };
-  m.emit('hellbomb_off', {});
+  m.democharge = { o: null, state: 'idle', n: hb.n };
+  m.emit('democharge_off', {});
 }
 
 // The citadel's step: called by objectives.js for a fortress objective each tick.
 export function updateKeep(m, o, dt, fns) {
   const b = o.base;
   if (b.destroyed) return;
-  const outer = (o.parts || []).filter((q) => q !== b), hb = m.hellbomb;
+  const outer = (o.parts || []).filter((q) => q !== b), hb = m.democharge;
   if (!hb || hb.o !== o) {
     if (!outer.every((q) => q.destroyed)) return;
     // the outer bases are down: the keep sends nobody more out, so it can be cleared; then call it in
@@ -312,11 +312,11 @@ export function updateKeep(m, o, dt, fns) {
     return;
   }
   if (hb.state === 'landed') b.quiet = false;                       // the keep turns everything out against the bomb
-  if (hbStep(m, o, dt, () => fns.siege(m, o, b.x, b.y, dt))) { b.bombOnly = false; m.damageBase(b, b.hp + 1, 'strat'); }
+  if (hbStep(m, o, dt, () => fns.siege(m, o, b.x, b.y, dt))) { b.bombOnly = false; m.damageBase(b, b.hp + 1, 'callin'); }
 }
 // Where the squad should be for the Demolition Charge right now (or null): at it to arm it, then well clear of it.
-export function hellbombGoal(m, o) {
-  const hb = m.hellbomb;
+export function demochargeGoal(m, o) {
+  const hb = m.democharge;
   if (!hb || hb.o !== o) return null;
   if (hb.state === 'landed') return { x: hb.x, y: hb.y, stop: 2 };
   if (hb.state === 'armed') {
@@ -330,34 +330,34 @@ export function hellbombGoal(m, o) {
 }
 function startFill(m, o, tg, callText) {
   const order = m.rng.shuffle(HB_PARTS.map((_, i) => i));
-  m.hellbomb = { o, tg, state: 'fill', fill: { t: 0, order, i: 0, n: 0, wrong: 0, taps: 0 }, armT: 0, x: 0, y: 0, n: (m.hellbomb && m.hellbomb.n || 0) + 1 };
+  m.democharge = { o, tg, state: 'fill', fill: { t: 0, order, i: 0, n: 0, wrong: 0, taps: 0 }, armT: 0, x: 0, y: 0, n: (m.democharge && m.democharge.n || 0) + 1 };
   m.radio(callText || tr('c.hb.call'), 'hbcall', 0);
-  m.emit('hellbomb_fill', { kind: o.type || o.kind || '' });
+  m.emit('democharge_fill', { kind: o.type || o.kind || '' });
 }
 function dud(m, o) {
   const K = HB();
-  m.hellbomb = { o: null, state: 'idle', n: m.hellbomb.n };
+  m.democharge = { o: null, state: 'idle', n: m.democharge.n };
   o.hbRetry = m.t + K.retrySec;
   m.radio(tr('c.hb.dud', { n: K.retrySec }), 'hbdud', 0);
   m.notice(tr('n.hbDud'), 'bad');
-  m.emit('hellbomb_dud', {});
+  m.emit('democharge_dud', {});
 }
 // One tap on part i (0 to 3). The part that is lit is the one that takes it; any other costs a moment.
 export function tapDemoCharge(m, i) {
-  const hb = m.hellbomb, K = HB();
+  const hb = m.democharge, K = HB();
   if (!hb || hb.state !== 'fill') return false;
   const f = hb.fill, want = f.order[f.i];
   f.taps++;
   if (i < 0) i = want;
-  if (i !== want) { f.wrong++; f.t += K.wrongSec * K.slowmo; m.emit('hellbomb_wrong', { i }); return false; }
+  if (i !== want) { f.wrong++; f.t += K.wrongSec * K.slowmo; m.emit('democharge_wrong', { i }); return false; }
   f.n++;
-  m.emit('hellbomb_tap', { i, n: f.n });
+  m.emit('democharge_tap', { i, n: f.n });
   if (f.n >= K.cells) { f.i++; f.n = 0; }
   if (f.i >= f.order.length) launch(m);
   return true;
 }
 function launch(m) {
-  const hb = m.hellbomb, b = hb.tg, K = HB();
+  const hb = m.democharge, b = hb.tg, K = HB();
   // beside the target, on the side the squad is on
   let ux = m.hx - b.x, uy = m.hy - b.y; const L = Math.hypot(ux, uy) || 1; ux /= L; uy /= L;
   let x = b.x + ux * ((b.r || 0) + K.off), y = b.y + uy * ((b.r || 0) + K.off);
@@ -365,11 +365,11 @@ function launch(m) {
   hb.state = 'inbound'; hb.x = x; hb.y = y; hb.landAt = m.t + K.dropSec; hb.armT = 0;
   hb.secs = hb.fill.t / K.slowmo; hb.fill = null;
   m.radio(tr('c.hb.inbound'), 'hbinbound', 0);
-  m.emit('hellbomb_launch', { x, y });
+  m.emit('democharge_launch', { x, y });
 }
 // The HUD's line for the citadel once the outer bases are down.
 export function keepStatus(m, o) {
-  const hb = m.hellbomb, K = HB();
+  const hb = m.democharge, K = HB();
   if (!hb || hb.o !== o || hb.state === 'idle') {
     if (o.hbRetry && m.t < o.hbRetry) return { text: tr('obj.hb.retry', { n: Math.ceil(o.hbRetry - m.t) }), p: 0, urgent: true };
     return { text: tr(o.keepClear ? 'obj.hb.call' : 'obj.hb.clear'), p: 0 };

@@ -2,7 +2,7 @@
 // The same drawing goes on flags, banners, billboards, the HQ and the statue plinth.
 
 export const SHAPES = ['shield', 'circle', 'hex', 'diamond', 'square', 'chevron', 'star', 'pentagon', 'pennant', 'roundel', 'oval'];
-export const SYMBOLS = ['eagle', 'fist', 'skull', 'helmet', 'star', 'sword', 'bolt', 'planet', 'globe', 'wings', 'gear', 'tower', 'flame', 'crosshair', 'anchor', 'chevrons', 'none'];
+export const SYMBOLS = ['striker', 'fist', 'skull', 'helmet', 'star', 'sword', 'bolt', 'planet', 'globe', 'wings', 'gear', 'tower', 'flame', 'crosshair', 'anchor', 'chevrons', 'none'];
 export const PATTERNS = ['none', 'halves', 'stripe', 'band', 'chevron', 'quarters', 'cross', 'diagonal', 'border'];
 export const UNIFORMS = ['#8fb0cc', '#2c5a94', '#5b6650', '#7a7f74', '#4a5a6a', '#3b3f3a', '#8a7a5a', '#2e4a2a', '#d9dbd2', '#1d3f8a', '#8a1c1c', '#111111', '#6b5a8a', '#b8862b', '#ffe600', '#c0392b'];
 export const PALETTE = ['#ffe600', '#f4f4f4', '#1b2a1a', '#2e4a2a', '#8a1c1c', '#c0392b', '#1d3f8a', '#3da9ff', '#3d4247', '#111111', '#ffb020', '#7a3fa0', '#0f6b5c', '#b8862b'];
@@ -28,7 +28,7 @@ function crest(g, shape) {
 function symbol(g, sym) {
   g.beginPath();
   switch (sym) {
-    case 'eagle':   // spread wings and a head, the Federation way
+    case 'striker':   // spread wings and a head, the Federation way
       g.moveTo(50, 30); g.lineTo(56, 38); g.lineTo(54, 40); g.lineTo(50, 37); g.lineTo(46, 40); g.lineTo(44, 38); g.closePath();
       for (const s of [-1, 1]) {
         g.moveTo(50 + s * 4, 44);

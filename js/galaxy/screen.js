@@ -209,10 +209,10 @@ const TAB = { sys: tabSys, int: tabInt, def: tabDef, pro: tabPro, exp: tabExp, t
 function side() {
   const adv = g.advice().filter(a => a.kind === 'bad' || a.kind === 'warn').length, sites = Object.keys(C.sites).some(k => g.P.some(p => g.canSite(p.id, k)));
   const dot = { int: adv, exp: sites ? 1 : 0 };
-  $('mins').innerHTML = TABS.map(k => `<button class="min${ui.open && ui.tab === k ? ' on' : ''}" data-a="tab" data-t="${k}">${svg(MICON[k])}<span>${C.ministries[k].short}</span>${dot[k] ? `<i>${dot[k]}</i>` : ''}</button>`).join('');
+  $('mins').innerHTML = TABS.map(k => `<button class="min${ui.open && ui.tab === k ? ' on' : ''}" data-a="tab" data-t="${k}">${svg(MICON[k])}<span>${C.offices[k].short}</span>${dot[k] ? `<i>${dot[k]}</i>` : ''}</button>`).join('');
   $('side').classList.toggle('open', ui.open);
   const p = g.P[ui.sel];
-  $('panel').innerHTML = `<div class="sh"><b>${ui.tab === 'sys' ? (p ? esc(p.name.toUpperCase()) : 'SYSTEM') : 'HEAD OFFICE OF ' + C.ministries[ui.tab].name}</b><button class="plate btn sm" data-a="shut" aria-label="Close">×</button></div>` + TAB[ui.tab]();
+  $('panel').innerHTML = `<div class="sh"><b>${ui.tab === 'sys' ? (p ? esc(p.name.toUpperCase()) : 'SYSTEM') : 'HEAD OFFICE OF ' + C.offices[ui.tab].name}</b><button class="plate btn sm" data-a="shut" aria-label="Close">×</button></div>` + TAB[ui.tab]();
 }
 
 // ---------- the decision bar ----------

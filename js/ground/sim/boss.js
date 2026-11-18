@@ -65,7 +65,7 @@ export function spawnBoss(m, opts = {}) {
 // field, never once the dropship is on its way, at most maxPer a mission and gapSec apart.
 export function reinfHeavyChance(m) {
   const K = C.boss.reinf, fac = m.faction.id;
-  if (!K || m.ls || fac === 'squids' || bossAlive(m)) return 0;
+  if (!K || m.ls || fac === 'lizards' || bossAlive(m)) return 0;
   if ((m.heavyN || 0) >= K.maxPer || m.t < (m.heavyAt ?? -1e9) + K.gapSec || m.t < K.minT) return 0;
   if (m.extraction && m.extraction.state && m.extraction.state !== 'open') return 0;
   let c = Math.max(0, ((m.difficulty ?? 10) - K.from) * K.perLevel);

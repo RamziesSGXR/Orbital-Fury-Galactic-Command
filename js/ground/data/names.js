@@ -2,7 +2,7 @@
 // Ship names and callsigns are never translated.
 
 // Fire-Support Ship names, in the "SES <thing> of <ideal>" style.
-const SHIP_THINGS = ['Hammer', 'Spear', 'Shield', 'Fist', 'Beacon', 'Anthem', 'Banner', 'Vanguard', 'Bulwark', 'Torch', 'Gavel', 'Aegis',
+const SHIP_THINGS = ['Hammer', 'Guided Missile', 'Shield', 'Fist', 'Beacon', 'Anthem', 'Banner', 'Vanguard', 'Bulwark', 'Torch', 'Gavel', 'Aegis',
   'Lantern', 'Pledge', 'Verdict', 'Chorus', 'Standard', 'Tempest', 'Charter', 'Sentinel', 'Harvest', 'Keystone', 'Pennant', 'Rampart'];
 const SHIP_IDEALS = ['Victory', 'Justice', 'Common Sense', 'Civic Duty', 'Steady Progress', 'Rightful Order', 'Fair Weather', 'Good Neighbors',
   'Honest Work', 'Quiet Resolve', 'Open Skies', 'Sturdy Ballots', 'Shared Prosperity', 'Dutiful Thunder', 'Patient Fury', 'Reliable Freedom',
@@ -24,12 +24,12 @@ const SURNAMES = ['HOLLIS', 'KESSLER', 'MARLOWE', 'OKAFOR', 'BRANDT', 'VASQUEZ',
   'WHITAKER', 'CASTELLAN', 'PETROV', 'ADEYEMI', 'MOREAU', 'SATO', 'QUINN', 'BARLOW', 'FONTAINE', 'KOWALSKI', 'ABARA', 'THORNE', 'DELACROIX',
   'MBEKI', 'HARGROVE', 'ESPOSITO', 'NAKAMURA', 'OYELARAN', 'BRIGHTWELL', 'VOSS', 'CALLAHAN', 'ROSALES', 'IVANOV', 'PEMBERTON'];
 export const surname = (rng) => SURNAMES[rng.int(SURNAMES.length)];
-export function seafName(rng, role) {
+export function infantryName(rng, role) {
   const rank = role === 'leader' ? 'SGT' : role === 'spec' ? 'SPC' : role === 'medic' ? 'DOC' : rng.next() < 0.25 ? 'CPL' : 'PVT';     // (0.26) by role
   return `${rank} ${surname(rng)}`;
 }
 
-// The mottos and the lines Vanguards and Infantry call out live in the language tables (motto.hd, motto.seaf, hd.<kind>, infantry.<kind>).
+// The mottos and the lines Vanguards and Infantry call out live in the language tables (motto.hd, motto.infantry, hd.<kind>, infantry.<kind>).
 
 // Short, readable name for a call-in call in a bark.
 export const pickLine = (rng, list) => list[rng.int(list.length)];

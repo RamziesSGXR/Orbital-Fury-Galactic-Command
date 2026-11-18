@@ -23,7 +23,7 @@ export function installPlatform(Station) {
           if (crew < 1 && !why) why = !this.homes.gunner ? 'No crew room' : this.staff.gunner ? 'Short of crew: raise Gunnery\'s allotment' : 'No crew on duty';
           if (S.shells && !this.magN) { ready *= 0.5; why = why || 'No magazine'; }
           if (S.shells && this.short.gunnery) { ready *= P.shortReady; why = why || 'Out of shells'; }
-          if (k === 'seaf' && this.short.medical) { ready *= 0.7; why = why || 'No medkits for the troopers'; }
+          if (k === 'infantry' && this.short.medical) { ready *= 0.7; why = why || 'No medkits for the troopers'; }
           score += S.w * ready * (0.5 + 0.5 * n / S.max);
         }
         if (open) { want += S.w; got += S.w * ready; }

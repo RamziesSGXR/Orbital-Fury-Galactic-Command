@@ -7,8 +7,8 @@
 //   landing   the dropship comes down on the pad
 //   boarding  every Vanguard runs for the ramp and boards
 //   away      the dropship climbs out; (0.39) the destroyer leaves orbit CONFIG.extract.orbitSec later and the mission ends. Infantry
-//             go home only by a pickup (seaf.js): anyone still on the ground then is left behind. The extraction pelican's belly
-//             autocannon fires on the way down and while it waits.
+//             go home only by a pickup (infantry.js): anyone still on the ground then is left behind. The extraction dship's belly
+//             light cannon fires on the way down and while it waits.
 import { alertRaise, callPressure } from './alert.js';
 import { t as tr } from '../i18n.js';
 import { bossAlive } from './boss.js';
@@ -16,7 +16,7 @@ import { CONFIG as C } from '../config.js';
 import { COMMS } from '../data/data.js';
 import { callReinforcements, reinfCount } from './reinforce.js';
 import { bark } from './chatter.js';
-import { pelicanGun } from './seaf.js';
+import { dshipGun } from './infantry.js';
 
 const X = C.extract;
 
@@ -68,7 +68,7 @@ export function updateExtract(m, dt) {
     ex.waveAt = t + C.reinf.extractEvery / Math.max(0.8, Math.min(C.reinf.extractPMax, callPressure(m)));     // (0.53.7: with the alert, and never easier than the start)
     m.radio(COMMS.extractCalled(wait), 'excall', 0);
     m.notice(tr('n.exCalled', { n: wait }), 'warn');
-    if (m.seafAlive.length && !m.ls) { m.notice(tr('n.exSeaf'), 'warn'); m.radio(COMMS.exSeaf, 'exseaf', 0); }     // (0.39) get the Infantry picked up
+    if (m.infantryAlive.length && !m.ls) { m.notice(tr('n.exInfantry'), 'warn'); m.radio(COMMS.exInfantry, 'exinfantry', 0); }     // (0.39) get the Infantry picked up
     m.emit('extract_call', { x: ex.x, y: ex.y });
     alertRaise(m, 1, 'extract');     // (0.48)
     ex.calledAt = t;
@@ -82,13 +82,13 @@ export function updateExtract(m, dt) {
     }
     if (t >= ex.landAt) {
       ex.state = 'landing'; ex.touchAt = t + X.landSec;
-      m.radio(COMMS.pelicanLanding, 'exland', 0);
+      m.radio(COMMS.dshipLanding, 'exland', 0);
       m.emit('extract_landing', { x: ex.x, y: ex.y });
     }
     return;
   }
-  // (0.39) the extraction pelican's autocannon, on the way down and on the pad
-  if (ex.state === 'landing' || ex.state === 'boarding') pelicanGun(m, ex.gun || (ex.gun = { id: -7, x: ex.x, y: ex.y, gunT: 0.4 }), dt);
+  // (0.39) the extraction dship's light cannon, on the way down and on the pad
+  if (ex.state === 'landing' || ex.state === 'boarding') dshipGun(m, ex.gun || (ex.gun = { id: -7, x: ex.x, y: ex.y, gunT: 0.4 }), dt);
   if (ex.state === 'landing') {
     if (t >= ex.touchAt) {
       ex.state = 'boarding'; ex.leaveBy = t + X.boardSec;
@@ -109,7 +109,7 @@ export function updateExtract(m, dt) {
       m.radio(ex.boardedH ? COMMS.victory : COMMS.extractEmpty, 'exaway', 0);
       m.emit('extract_away', { x: ex.x, y: ex.y, n: ex.boardedH });
       // (0.39) the destroyer will not wait: Infantry still on the ground have orbitSec to be picked up
-      const left = m.seafAlive.filter((a) => !a.dead).length;
+      const left = m.infantryAlive.filter((a) => !a.dead).length;
       m.notice(tr(left ? 'n.orbitLeaveN' : 'n.orbitLeave', { s: X.orbitSec, n: left }), left ? 'bad' : 'info');
       m.radio(COMMS.orbitLeave(X.orbitSec, left), 'orbitleave', 0);
       m.emit('orbit_leave', { at: ex.leaveAt, n: left });

@@ -3,24 +3,24 @@
 // operation (one a mission). They live on the kit (kit.perks), so they go with the run and end with it.
 import { CONFIG as C } from '../config.js';
 
-export const PERKS = ['orb', 'eagle', 'ship', 'seaf', 'build'];
+export const PERKS = ['orb', 'striker', 'ship', 'infantry', 'build'];
 const P = () => C.perks;
 export const perkN = (kit, k) => (((kit && kit.perks) || {})[k] | 0);
 export const perksTotal = (kit) => PERKS.reduce((a, k) => a + perkN(kit, k), 0);
 export const perkRoom = (kit) => perksTotal(kit) < P().max;
 // what each does, at n stacks
 export const orbCdMul = (kit, n = perkN(kit, 'orb')) => Math.max(P().orb.min, (1 - P().orb.cd) ** n);          // orbital, utility and minefield recharge
-export const eagleMul = (kit, n = perkN(kit, 'eagle')) => Math.max(P().eagle.min, (1 - P().eagle.rearm) ** n);  // Striker rearm and dropship turnaround
+export const strikerMul = (kit, n = perkN(kit, 'striker')) => Math.max(P().striker.min, (1 - P().striker.rearm) ** n);  // Striker rearm and dropship turnaround
 export const gunMul = (kit, n = perkN(kit, 'ship')) => 1 + P().ship.dmg * n;                                    // ship gun damage and ammo regeneration
-export const seafMul = (kit, n = perkN(kit, 'seaf')) => 1 + P().seaf.hp * n;                                    // Infantry health and damage
+export const infantryMul = (kit, n = perkN(kit, 'infantry')) => 1 + P().infantry.hp * n;                                    // Infantry health and damage
 export const buildCostMul = (kit, n = perkN(kit, 'build')) => Math.max(P().build.min, 1 - P().build.cost * n);  // what a build costs
 // The headline number of a kind at n stacks (for its card): a percentage
 export function perkPct(k, n) {
   const kit = { perks: { [k]: n } };
   if (k === 'orb') return Math.round((1 - orbCdMul(kit)) * 100);
-  if (k === 'eagle') return Math.round((1 - eagleMul(kit)) * 100);
+  if (k === 'striker') return Math.round((1 - strikerMul(kit)) * 100);
   if (k === 'ship') return Math.round((gunMul(kit) - 1) * 100);
-  if (k === 'seaf') return Math.round((seafMul(kit) - 1) * 100);
+  if (k === 'infantry') return Math.round((infantryMul(kit) - 1) * 100);
   return Math.round((1 - buildCostMul(kit)) * 100);
 }
 // Three different kinds to pick from (rng: () => [0, 1))

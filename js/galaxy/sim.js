@@ -20,8 +20,8 @@ export class Game {
     this.P = this.map.planets;       // star systems
     this.round = 1; this.phase = 'plan'; this.fi = -1; this.over = null;
     this.res = { ...C.start.res };
-    this.loot = { swarm: 0, foundry: 0, veil: 0 };   // each front's own resource
-    this.truth = { fed: [], swarm: [], foundry: [], veil: [] };   // propaganda cards each side holds
+    this.loot = { molt: 0, foundry: 0, talon: 0 };   // each front's own resource
+    this.truth = { fed: [], molt: [], foundry: [], talon: [] };   // propaganda cards each side holds
     this.F = {};
     C.fronts.forEach((fr, fi) => {
       const a = C.arrive[fr.f];
@@ -57,7 +57,7 @@ export class Game {
   // ---------- saving (only while you are deciding) ----------
   save() {
     const k = ['seed', 'rs', 'round', 'fi', 'res', 'loot', 'truth', 'F', 'fleets', 'fid', 'policy', 'priority', 'capHit', 'stats', 'over', 'last', 'up', 'due'];
-    const d = { v: 10, log: this.log.slice(-80), P: this.P.map(p => [p.owner, p.dev, p.site, p.built ? 1 : 0, p.station || 0, p.base || 0, p.dmg || 0, p.sp || 0, p.bp || 0]) };
+    const d = { v: 11, log: this.log.slice(-80), P: this.P.map(p => [p.owner, p.dev, p.site, p.built ? 1 : 0, p.station || 0, p.base || 0, p.dmg || 0, p.sp || 0, p.bp || 0]) };
     for (const x of k) d[x] = this[x];
     return d;
   }
@@ -68,7 +68,7 @@ export class Game {
     this.phase = this.over ? 'over' : 'plan'; this._sec = null;
     return this;
   }
-  static load(d) { return d && (d.v === 9 || d.v === 10) ? new Game(d.seed, d) : null; }
+  static load(d) { return d && d.v === 11 ? new Game(d.seed, d) : null; }
 
   // ---------- the board ----------
   linked(owner, root) {
@@ -438,7 +438,7 @@ export class Game {
   rank() { const fl = this.fedLinked(); let n = 0; for (const p of this.P) if (p.owner === 'fed' && fl.has(p.id)) n += (p.sp ? p.station || 0 : 0) + (p.bp ? p.base || 0 : 0); return Math.min(C.rankMax, n); }
   // What the posts and sectors pay this round: credits owed to the chest, and material lifted by bases on deposits.
   postsPay() {
-    const fl = this.fedLinked(), out = { cr: 0, mat: { swarm: 0, foundry: 0, veil: 0 } };
+    const fl = this.fedLinked(), out = { cr: 0, mat: { molt: 0, foundry: 0, talon: 0 } };
     for (const p of this.P) {
       if (p.owner !== 'fed' || !fl.has(p.id)) continue;
       if (p.station && p.sp) out.cr += p.station * (C.chest.post + 10 * this.lv('s_trade'));

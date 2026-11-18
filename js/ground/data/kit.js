@@ -1,9 +1,9 @@
 // The player's kit: what the destroyer can do, what it costs, and how upgrades scale. Pure data and rules, no DOM.
 // The player controls three things: the UAV scan, orbital call-ins, and Infantry. Credits buy more and better of each.
 import { CONFIG as C } from '../config.js';
-import { STRATS, PLAYER_IDS } from './strat.js';
+import { CALLINS, PLAYER_IDS } from './callin.js';
 import { t } from '../i18n.js';
-import { eagleMul, gunMul, seafMul, PERKS } from './perks.js';
+import { strikerMul, gunMul, infantryMul, PERKS } from './perks.js';
 
 const MAXL = C.orbital.maxLevel;
 
@@ -17,10 +17,10 @@ const ORB_BASE = {
   orb_ems: 600, orb_gas: 650, orb_walk: 800, orb_napalm: 900, orb_380: 1300, orb_rail: 1600, orb_laser: 2100,
   util_smoke: 550, util_med: 700, util_shield: 1000, util_sentry: 1200,
   // (0.23) Strikers (the Hangar has to be bought first) and the gunner's minefields
-  eagle_smoke: 450, eagle_strafe: 550, eagle_air: 700, eagle_cluster: 750, eagle_napalm: 900, eagle_rockets: 950, eagle_500: 1250,
+  striker_smoke: 450, striker_strafe: 550, striker_air: 700, striker_cluster: 750, striker_napalm: 900, striker_rockets: 950, striker_500: 1250,
   mine_ap: 600, mine_inc: 800, mine_at: 1000,
   // (0.25) classified: one level each, for the last ranks
-  orb_storm: 2800, eagle_squad: 3000, orb_lance: 3400, orb_final: 4200,
+  orb_storm: 2800, striker_squad: 3000, orb_lance: 3400, orb_final: 4200,
 };
 export const ORB_PRICE = Object.fromEntries(Object.entries(ORB_BASE).map(([k, v]) => [k, price(v)]));
 export const ORB_LIST = PLAYER_IDS.slice().sort((a, b) => ORB_PRICE[a] - ORB_PRICE[b]);
@@ -30,7 +30,7 @@ export function newKit() {
   for (const id of C.kit.startLoadout) owned[id] = 1;
   const loadout = Array(C.kit.slotsMax).fill('');
   C.kit.startLoadout.forEach((id, i) => { loadout[i] = id; });
-  return { slots: C.kit.slotsStart, loadout, owned, hangar: 1, pel: 1, uav: 1, uavb: { speed: 0, dodge: 0 }, seaf: { cap: 0, drop: 0, hp: 0, gren: 0, rocket: 0, medic: 0, spot: 0, build: 0 }, sup: { lives: 0, zone: 0 }, gun: { dmg: 0, ammo: 0, regen: 0, spread: 0, pen: 0 },
+  return { slots: C.kit.slotsStart, loadout, owned, hangar: 1, pel: 1, uav: 1, uavb: { speed: 0, dodge: 0 }, infantry: { cap: 0, drop: 0, hp: 0, gren: 0, rocket: 0, medic: 0, spot: 0, build: 0 }, sup: { lives: 0, zone: 0 }, gun: { dmg: 0, ammo: 0, regen: 0, spread: 0, pen: 0 },
     build: { bastion: 1, mg: 1, lookout: 1, bridge: 1, tower: 1, sam: 0, arty: 0 },
     paid: {}, mix: 'standard', slotRef: 1, perks: {} };     // (0.51) perks: the operation's commendations (data/perks.js)     // (0.50) credits paid toward items, by armory id; the Infantry troop mix
 }
@@ -45,13 +45,13 @@ export function fixKit(k) {
   // (0.18: the bunker went; its levels carry over to the Lookout Tower)
   if (kb.bunker !== undefined && kb.lookout === undefined) kb.lookout = Math.max(1, kb.bunker);
   delete kb.wall; delete kb.beacon; delete kb.bunker;
-  const out = { ...base, ...k, uavb: { ...base.uavb, ...(k.uavb || {}) }, seaf: { ...base.seaf, ...(k.seaf || {}) }, sup: { ...base.sup, ...(k.sup || {}) }, gun: { ...base.gun, ...(k.gun || {}) }, owned: { ...base.owned, ...(k.owned || {}) },
+  const out = { ...base, ...k, uavb: { ...base.uavb, ...(k.uavb || {}) }, infantry: { ...base.infantry, ...(k.infantry || {}) }, sup: { ...base.sup, ...(k.sup || {}) }, gun: { ...base.gun, ...(k.gun || {}) }, owned: { ...base.owned, ...(k.owned || {}) },
     build: { ...base.build, ...kb }, paid: { ...((k.paid && typeof k.paid === 'object') ? k.paid : {}) } };
   for (const [id, v] of Object.entries(out.paid)) if (!(v > 0)) delete out.paid[id]; else out.paid[id] = Math.round(v);
   if (!MIXES.includes(out.mix) || !mixOpen(out, out.mix)) out.mix = 'standard';
   out.perks = Object.fromEntries(PERKS.map((q) => [q, Math.max(0, ((k.perks || {})[q]) | 0)]).filter(([, n]) => n > 0));     // (0.51)
   // Anything the catalog no longer has (the old Orbital Gatling Barrage) is dropped from a save rather than carried around.
-  for (const id of Object.keys(out.owned)) if (!STRATS[id]) delete out.owned[id];
+  for (const id of Object.keys(out.owned)) if (!CALLINS[id]) delete out.owned[id];
   out.loadout = Array.from({ length: C.kit.slotsMax }, (_, i) => (k.loadout && out.owned[k.loadout[i]] ? k.loadout[i] : ''));
   out.slots = Math.max(C.kit.slotsStart, Math.min(C.kit.slotsMax, out.slots | 0));
   // A loadout the cleanup left with an empty slot is topped up from the free starting orbitals.
@@ -84,9 +84,9 @@ export function refundSlots(kit, wallet, bought = 3) {
 }
 
 // ---------- stats ----------
-// An orbital call-in at a given level: the base entry from STRATS, scaled for the player.
+// An orbital call-in at a given level: the base entry from CALLINS, scaled for the player.
 export function orbStats(id, level = 1) {
-  const d = STRATS[id], L = Math.max(1, Math.min(MAXL, level)), k = L - 1, P = C.orbital;
+  const d = CALLINS[id], L = Math.max(1, Math.min(MAXL, level)), k = L - 1, P = C.orbital;
   const dm = P.boost * (1 + P.dmg * k), sz = 1 + P.size * k, nn = 1 + P.shells * k;
   const o = { ...d, id, level: L, cd: d.cd * P.cdMul * (1 - P.cd * k) };
   if (d.dmg) { o.dmg = d.dmg * dm; o.splash = d.splash * sz; if (d.n > 1) o.n = Math.round(d.n * nn); }
@@ -106,8 +106,8 @@ export function orbStats(id, level = 1) {
 // (0.39) The Hangar is always open (level 1 at least: it is no longer bought); fleet is how many dropships are in it.
 export function hangarStats(kit) {
   const H = C.hangar, l = Math.max(1, Math.min(H.levels, (kit && kit.hangar) | 0));
-  const pm = eagleMul(kit);     // (0.51) the Hangar Crews commendation
-  return { level: l, uses: H.usesBase + Math.floor(l / 2), rearm: H.rearm[l] * pm, callCd: H.callCd, seafCool: H.seafCool[l] * pm, fleet: fleetSize(kit) };
+  const pm = strikerMul(kit);     // (0.51) the Hangar Crews commendation
+  return { level: l, uses: H.usesBase + Math.floor(l / 2), rearm: H.rearm[l] * pm, callCd: H.callCd, infantryCool: H.infantryCool[l] * pm, fleet: fleetSize(kit) };
 }
 export const fleetSize = (kit) => Math.max(1, Math.min(C.hangar.fleet.max, (kit && kit.pel) || C.hangar.fleet.start));
 export const uavStats = (lvl = 1) => {
@@ -119,23 +119,23 @@ export const uavBuff = (kit) => {
   const b = (kit && kit.uavb) || { speed: 0, dodge: 0 }, at = (arr, l) => arr[Math.max(0, Math.min(arr.length - 1, l | 0))];
   return { speed: at(C.uav.speed, b.speed), dodge: at(C.uav.dodge, b.dodge) };
 };
-export function seafStats(kit) {
-  const s = kit.seaf, K = C.kit;
+export function infantryStats(kit) {
+  const s = kit.infantry, K = C.kit;
   return {
-    max: C.seaf.max + K.seafCap * s.cap,
-    drop: C.seaf.dropSize + Math.ceil(s.drop / K.seafDropEvery),
-    cool: (C.seaf.dropCooldownSec - 3 * s.drop) * hangarStats(kit).seafCool,     // (0.23: the Hangar turns dropships round faster)
-    hpMul: (1 + K.seafHp * s.hp) * seafMul(kit), dmgMul: (1 + K.seafDmg * s.hp) * seafMul(kit),     // (0.51: and the Veterans commendation)
+    max: C.infantry.max + K.infantryCap * s.cap,
+    drop: C.infantry.dropSize + Math.ceil(s.drop / K.infantryDropEvery),
+    cool: (C.infantry.dropCooldownSec - 3 * s.drop) * hangarStats(kit).infantryCool,     // (0.23: the Hangar turns dropships round faster)
+    hpMul: (1 + K.infantryHp * s.hp) * infantryMul(kit), dmgMul: (1 + K.infantryDmg * s.hp) * infantryMul(kit),     // (0.51: and the Veterans commendation)
     // (0.26) G-12 Grenades: every trooper carries more; Specialists and Field Medics: more drops bring one; Leader Radios: the
     // Squad Leader calls Striker fire missions (none without it)
-    grenades: C.seaf.grenades + K.seafGren * (s.gren || 0) + (kit.mix === 'assault' ? C.seaf.mix.assaultGren : 0),
+    grenades: C.infantry.grenades + K.infantryGren * (s.gren || 0) + (kit.mix === 'assault' ? C.infantry.mix.assaultGren : 0),
     // (0.50) the troop mix: who comes down with each drop (rollRoles). Specialists and Field Medics no longer make them more common
     // in every drop: their first level opens a mix (ANTI-ARMOUR, MEDICAL), and each level adds to that mix
     mix: kit.mix || 'standard', ...mixChances(kit), eatMul: 1 + 0.08 * (s.rocket || 0), medicRate: 1 + K.medicRate * s.medic,
     // (0.50) Leader Command (was Leader Radios): troopers near a Squad Leader fire faster and straighter (no more fire missions)
     aura: (s.spot || 0) > 0, auraR: C.leader.r, auraRof: 1 + C.leader.rof + C.leader.rofUp * Math.max(0, (s.spot || 0) - 1),
     auraAcc: 1 + C.leader.acc + C.leader.accUp * Math.max(0, (s.spot || 0) - 1),
-    buildSpeed: 1 + K.seafBuild * (s.build || 0),       // Combat Engineers: how much faster Infantry put up what they build
+    buildSpeed: 1 + K.infantryBuild * (s.build || 0),       // Combat Engineers: how much faster Infantry put up what they build
   };
 }
 // (0.50) The troop mixes: STANDARD (what drops have always been), ASSAULT (riflemen with extra grenades), ANTI-ARMOUR (opened by
@@ -143,13 +143,13 @@ export function seafStats(kit) {
 // of troopers in a drop is the same in every mix.
 export const MIXES = ['standard', 'assault', 'armor', 'medical'];
 export const mixNeeds = (mix) => (mix === 'armor' ? 'rocket' : mix === 'medical' ? 'medic' : null);
-export const mixOpen = (kit, mix) => { const n = mixNeeds(mix); return !n || (((kit && kit.seaf) || {})[n] || 0) > 0; };
+export const mixOpen = (kit, mix) => { const n = mixNeeds(mix); return !n || (((kit && kit.infantry) || {})[n] || 0) > 0; };
 function mixChances(kit) {
-  const s = kit.seaf, K = C.kit, X = C.seaf.mix, mix = mixOpen(kit, kit.mix) ? kit.mix || 'standard' : 'standard';
+  const s = kit.infantry, K = C.kit, X = C.infantry.mix, mix = mixOpen(kit, kit.mix) ? kit.mix || 'standard' : 'standard';
   if (mix === 'assault') return { specChance: 0, medicChance: 0, spec2: 0, medic2: 0, grenMix: X.assaultGren };
-  if (mix === 'armor') return { specChance: 1, spec2: Math.min(X.secondMax, K.seafRocket * 2 * s.rocket), medicChance: C.seaf.medicChance * X.other, medic2: 0, grenMix: 0 };
-  if (mix === 'medical') return { medicChance: 1, medic2: Math.min(X.secondMax, K.seafMedic * 2 * s.medic), specChance: C.seaf.specChance * X.other, spec2: 0, grenMix: 0 };
-  return { specChance: C.seaf.specChance, medicChance: C.seaf.medicChance, spec2: 0, medic2: 0, grenMix: 0 };
+  if (mix === 'armor') return { specChance: 1, spec2: Math.min(X.secondMax, K.infantryRocket * 2 * s.rocket), medicChance: C.infantry.medicChance * X.other, medic2: 0, grenMix: 0 };
+  if (mix === 'medical') return { medicChance: 1, medic2: Math.min(X.secondMax, K.infantryMedic * 2 * s.medic), specChance: C.infantry.specChance * X.other, spec2: 0, grenMix: 0 };
+  return { specChance: C.infantry.specChance, medicChance: C.infantry.medicChance, spec2: 0, medic2: 0, grenMix: 0 };
 }
 // The Ship Gun (the one gatling the destroyer has): damage, magazine, ammo regeneration and how tight the rounds group.
 export function gunStats(kit) {
@@ -161,7 +161,7 @@ export function gunStats(kit) {
   };
 }
 // Vanguard lives are the same every mission and reset at each drop. The Vanguards themselves are not upgraded in the armory.
-export const maxLives = () => C.helldivers.lives;
+export const maxLives = () => C.vanguards.lives;
 
 // What a buildable does at a level (1 to 5; 0 = not unlocked: the level-1 numbers, for the armory to show).
 export function buildStats(what, level = 1) {
@@ -193,27 +193,27 @@ const GUN_UP = { dmg: { max: 5, price: 300 }, ammo: { max: 5, price: 250 }, pen:
 const SUP_UP = { zone: { max: 4, price: 450 } };
 const LIVES_PRICE = 300;      // the old Reinforcement Budget (extra Vanguard lives), kept only to refund old saves
 // the number a blurb quotes, if it has one
-const BLURB_N = { 'seaf.cap': () => C.kit.seafCap, 'seaf.spot': () => C.leader.r, 'gun.ammo': () => C.gun.upAmmo, 'sup.zone': () => C.kit.zonePer };
+const BLURB_N = { 'infantry.cap': () => C.kit.infantryCap, 'infantry.spot': () => C.leader.r, 'gun.ammo': () => C.gun.upAmmo, 'sup.zone': () => C.kit.zonePer };
 const named = (key) => ({ get name() { return t(`kit.${key}`); }, get blurb() { return t(`kit.${key}.b`, { n: BLURB_N[key] ? BLURB_N[key]() : '' }); } });
 const ORB_UP_BASE = 400;       // upgrade price scale: level L to L+1 costs this (or the unlock price) x 0.5 x L
 
 // (0.23) Strikers and minefields climb more cheaply: a Striker has only so many runs before it rearms, and a minefield sits where you put it.
-const UP_MUL = (id) => (id.startsWith('eagle_') || id.startsWith('mine_') ? 0.3 : 0.5);
+const UP_MUL = (id) => (id.startsWith('striker_') || id.startsWith('mine_') ? 0.3 : 0.5);
 export function orbUpCost(id, level) { return price(Math.max(ORB_UP_BASE, ORB_BASE[id]) * UP_MUL(id) * level); }
 export const slotCost = (n) => price(n === 4 ? 700 : 1500);
 
 // (0.24) Ranks (0.25: they were milestones). Each item opens at a rank (0: from the start, 1: after the first mission done, then
 // 3, 5, 7, 10, 15, 20, 25 and 30 missions; C.ranks.at). Everything shows in the armory; what your rank has not reached is locked.
-// The classified call-ins carry their rank in STRATS (secret).
+// The classified call-ins carry their rank in CALLINS (secret).
 const ITEM_TIER = {
-  'slot:4': 0, util_smoke: 0, orb_ems: 0, 'gun.dmg': 0, 'gun.ammo': 0, uav: 0, 'seaf.cap': 0, 'seaf.drop': 0, 'seaf.hp': 0, 'bld:bastion': 0, 'bld:mg': 0,
-  util_med: 1, orb_gas: 1, orb_walk: 1, 'gun.regen': 1, 'gun.pen': 1, 'uavb.speed': 1, 'seaf.build': 1, 'seaf.gren': 1, 'bld:lookout': 1, 'bld:bridge': 1, 'sup.zone': 1,
-  pel: 2, eagle_smoke: 2, eagle_strafe: 2, eagle_air: 2, mine_ap: 2, orb_napalm: 2, util_shield: 2, 'gun.spread': 2, 'uavb.dodge': 2, 'seaf.rocket': 2, 'seaf.medic': 2, 'bld:tower': 2,
-  'slot:5': 3, eagle_cluster: 3, eagle_napalm: 3, mine_inc: 3, orb_380: 3, util_sentry: 3, 'seaf.spot': 3, 'bld:sam': 3,
-  eagle_rockets: 4, mine_at: 4, orb_rail: 4,
-  orb_laser: 5, eagle_500: 5, 'bld:arty': 5,
+  'slot:4': 0, util_smoke: 0, orb_ems: 0, 'gun.dmg': 0, 'gun.ammo': 0, uav: 0, 'infantry.cap': 0, 'infantry.drop': 0, 'infantry.hp': 0, 'bld:bastion': 0, 'bld:mg': 0,
+  util_med: 1, orb_gas: 1, orb_walk: 1, 'gun.regen': 1, 'gun.pen': 1, 'uavb.speed': 1, 'infantry.build': 1, 'infantry.gren': 1, 'bld:lookout': 1, 'bld:bridge': 1, 'sup.zone': 1,
+  pel: 2, striker_smoke: 2, striker_strafe: 2, striker_air: 2, mine_ap: 2, orb_napalm: 2, util_shield: 2, 'gun.spread': 2, 'uavb.dodge': 2, 'infantry.rocket': 2, 'infantry.medic': 2, 'bld:tower': 2,
+  'slot:5': 3, striker_cluster: 3, striker_napalm: 3, mine_inc: 3, orb_380: 3, util_sentry: 3, 'infantry.spot': 3, 'bld:sam': 3,
+  striker_rockets: 4, mine_at: 4, orb_rail: 4,
+  orb_laser: 5, striker_500: 5, 'bld:arty': 5,
 };
-export const itemTier = (id) => { const k = String(id).replace(/^(own|up):/, ''); return ITEM_TIER[k] ?? (STRATS[k] && STRATS[k].secret) ?? 0; };
+export const itemTier = (id) => { const k = String(id).replace(/^(own|up):/, ''); return ITEM_TIER[k] ?? (CALLINS[k] && CALLINS[k].secret) ?? 0; };
 // The milestone reached after this many missions done (0 before the first).
 export function tierFor(done, kills = false) { let n = 0; (kills ? C.ranks.tutKills : C.ranks.at).forEach((at, i) => { if (done >= at) n = i + 1; }); return n; }
 export const TIER_MAX = C.ranks.at.length;
@@ -241,8 +241,8 @@ export const GUN_PEN = (kit) => ({ ...C.gun.pen[Math.max(0, Math.min(C.gun.pen.l
 function itemMult(id, kit) {
   if (id.startsWith('own:') || id.startsWith('up:')) { const o = orbStats(id.split(':')[1], 1); return o.mult || null; }
   if (id.startsWith('gun.')) return id === 'gun.pen' && kit ? GUN_PEN({ gun: { pen: Math.min(C.gun.pen.length - 1, (kit.gun.pen || 0) + (kit.gun.pen < C.gun.pen.length - 1 ? 1 : 0)) } }) : GUN_PEN(kit);     // (Penetrator Rounds: what the next level gives)
-  if (id === 'seaf.gren') return C.combat.grenadier.mult;
-  if (id === 'seaf.rocket') return C.combat.rocketeer.mult;
+  if (id === 'infantry.gren') return C.combat.grenadier.mult;
+  if (id === 'infantry.rocket') return C.combat.rocketeer.mult;
   return null;
 }
 export function shopItems(kit) {
@@ -259,14 +259,14 @@ export function shopItems(kit) {
 function shopItems0(kit) {
   const items = [];
   // (0.50) no slots to buy: all five are open from the start
-  // (0.39) The Hangar is open from the start: what is bought there is more dropships (the Dropship Fleet) and bigger loads (seaf.drop,
+  // (0.39) The Hangar is open from the start: what is bought there is more dropships (the Dropship Fleet) and bigger loads (infantry.drop,
   // below, listed in the Hangar)
   { const F = C.hangar.fleet, n = fleetSize(kit), lvl = n - F.start, mx = F.max - F.start;
     items.push({ id: 'pel', section: 'hangar', ...named('pel'), level: lvl, max: mx, cost: lvl >= mx ? null : price(F.price[lvl]), live: true }); }
   // Orbitals, utilities, (0.23) Strikers and minefields
   for (const id of ORB_LIST) {
-    const d = STRATS[id], lvl = kit.owned[id] || 0;
-    const sec = d.secret ? 'classified' : d.cat === 'STRIKER' ? 'eagles' : d.cat === 'DEFENSE' ? 'defense' : d.util ? 'utilities' : 'orbitals';    // (all of them equip in the same slots)
+    const d = CALLINS[id], lvl = kit.owned[id] || 0;
+    const sec = d.secret ? 'classified' : d.cat === 'STRIKER' ? 'strikers' : d.cat === 'DEFENSE' ? 'defense' : d.util ? 'utilities' : 'orbitals';    // (all of them equip in the same slots)
     const locked = false, mx = d.secret ? 1 : MAXL;     // (0.25: a classified one has one level; 0.39: the Hangar is always open)
     if (!lvl) items.push({ id: `own:${id}`, section: sec, name: d.name, blurb: d.blurb, level: 0, max: mx, cost: ORB_PRICE[id], orb: id, live: false, locked, needs: locked ? 'hangar' : null, secret: !!d.secret });
     else items.push({ id: `up:${id}`, section: sec, name: d.name, blurb: d.blurb, level: lvl, max: mx, cost: lvl >= mx ? null : orbUpCost(id, lvl), orb: id, owned: true, live: true, secret: !!d.secret });
@@ -283,8 +283,8 @@ function shopItems0(kit) {
     items.push({ id: `uavb.${k}`, section: 'uav', ...named(`uavb.${k}`), level: lvl, max: mx, cost: lvl >= mx ? null : price(C.uav.buffPrice * (lvl + 1)), live: true });
   }
   for (const [k, u] of Object.entries(Infantry_UP)) {
-    const lvl = kit.seaf[k];
-    items.push({ id: `seaf.${k}`, section: k === 'medic' || k === 'spot' || k === 'gren' || k === 'rocket' ? 'specialists' : k === 'drop' ? 'hangar' : 'seaf', ...named(`seaf.${k}`), level: lvl, max: u.max,
+    const lvl = kit.infantry[k];
+    items.push({ id: `infantry.${k}`, section: k === 'medic' || k === 'spot' || k === 'gren' || k === 'rocket' ? 'specialists' : k === 'drop' ? 'hangar' : 'infantry', ...named(`infantry.${k}`), level: lvl, max: u.max,
       cost: lvl >= u.max ? null : u.endless ? barracksCost(lvl) : price(u.price * (lvl + 1)), live: true, endless: !!u.endless });
   }
   // Buildables: what Infantry can put up. Bastions, heavy turret nests, lookouts, light bridges and propaganda towers come at level 1; the SAM site and the
@@ -325,7 +325,7 @@ export function buy(kit, wallet, id, inMission = false, tier = TIER_MAX, free = 
   else if (kind === 'uav') kit.uav++;
   else if (kind === 'pel') kit.pel = fleetSize(kit) + 1;      // (0.39) one more dropship in the hangar
   else if (kind === 'uavb') { kit.uavb = kit.uavb || { speed: 0, dodge: 0 }; kit.uavb[arg] = (kit.uavb[arg] || 0) + 1; }
-  else if (kind === 'seaf') kit.seaf[arg]++;
+  else if (kind === 'infantry') kit.infantry[arg]++;
   else if (kind === 'gun') kit.gun[arg]++;
   else if (kind === 'sup') kit.sup[arg]++;
   else if (kind === 'bld') { kit.build = kit.build || {}; kit.build[arg] = (kit.build[arg] || 0) + 1; }

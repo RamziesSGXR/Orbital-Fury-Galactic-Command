@@ -60,10 +60,10 @@ const CUT_IN = ['hall', 'inner', 'innerLine', 'lane', 'tileLine', 'wood', 'white
 const RESIDENTS = ['resident', 'resident2', 'resident3', 'resident4'];
 // The rooms each job stands in when it is in a part that has them, best first.
 const STAND = { resident: ['quarters', 'bunks', 'mess', 'bar', 'lounge', 'market', 'hydro'], hauler: ['cargostore'], engineer: ['workshop'], officer: ['secoffice'], medic: ['medbay'],
-  aide: ['brass', 'ops'], scientist: ['lab'], gunner: ['guncrew', 'barrack', 'eaglepad', 'pelicanpad', 'dronerack', 'fab', 'mess', 'bar'] };
+  aide: ['brass', 'ops'], scientist: ['lab'], gunner: ['guncrew', 'barrack', 'strikerpad', 'dshippad', 'dronerack', 'fab', 'mess', 'bar'] };
 const KEEP_OUT = new Set(['empty', 'magazine', 'ordnance']);
 // Where each platform part fires or launches from, in its own frame.
-const MUZZLE = { gunmount: [1.9, -3.2, 0], battery: [2.5, -4.7, 0], lance: [3.2, -7.8, 0], dronebay: [1.7, -1.2, 0], relay: [1.2, -1.2, 0], eaglehangar: [7.4, -0.6, 0], pelicanbay: [8.4, -0.8, 0], hangar: [8.4, -0.8, 0], fabshop: [2.9, -1.4, 0], barracks: [2.6, -1, 0] };
+const MUZZLE = { gunmount: [1.9, -3.2, 0], battery: [2.5, -4.7, 0], lance: [3.2, -7.8, 0], dronebay: [1.7, -1.2, 0], relay: [1.2, -1.2, 0], strikerhangar: [7.4, -0.6, 0], dshipbay: [8.4, -0.8, 0], hangar: [8.4, -0.8, 0], fabshop: [2.9, -1.4, 0], barracks: [2.6, -1, 0] };
 const SLOGANS = ['VICTORY', 'HEAD OFFICE', 'REPORT FOR\nGRATITUDE', 'A HAPPY STATION IS\nA COMPLIANT STATION', 'BRAND\nNEVER SLEEPS', 'HAVE YOU PAID YOUR\nVICTORY CONTRIBUTION?'];
 
 export class View {
@@ -1009,7 +1009,7 @@ export class View {
       // A gunner is drawn by where they live: a trooper from a barrack room, a pilot from a pad, a gun crew otherwise.
       let fk = a.role;
       if (fk === 'resident') fk = RESIDENTS[Math.floor(a.seed * 4) % 4];
-      if (fk === 'gunner') { const hp = this.st.parts.get(a.home), ht = hp ? hp.type : ''; fk = ht === 'barracks' ? 'trooper' : ht === 'eaglehangar' || ht === 'pelicanbay' ? (a.seed < 0.5 ? 'pilot' : 'gunner') : 'gunner'; }
+      if (fk === 'gunner') { const hp = this.st.parts.get(a.home), ht = hp ? hp.type : ''; fk = ht === 'barracks' ? 'trooper' : ht === 'strikerhangar' || ht === 'dshipbay' ? (a.seed < 0.5 ? 'pilot' : 'gunner') : 'gunner'; }
       const walking = a.path.length > 0 && !P[5], ck = walking ? `w${fk}` : fk;
       const im = (walking ? this.figsW : this.figs)[fk] || this.figs.resident, i = count[ck] = (count[ck] || 0), part = this.st.parts.get(a.at);
       if (i >= im.instanceMatrix.count) continue;
@@ -1105,8 +1105,8 @@ export class View {
     if (e.sys === 'gun') { for (let i = 0; i < 6; i++) beam(0.05, 6, 0xffd98a, 0.5, i * 0.12, 260); flash(0.35, 0xffd98a); }
     else if (e.sys === 'orbital') { beam(0.16, 14, 0xfff0c0, 0.9, 0, 200); flash(0.9, 0xffe0a0); }
     else if (e.sys === 'classified') { beam(0.5, 900, 0x9fe8ff, 1.8); beam(0.18, 900, 0xffffff, 1.8); flash(1.6, 0x9fe8ff); }
-    else if (e.sys === 'eagle') craft(buildStriker(), 6);
-    else if (e.sys === 'seaf') { const s = buildShip('shuttle'); s.scale.setScalar(C.shipScale.shuttle); craft(s, 7); }
+    else if (e.sys === 'striker') craft(buildStriker(), 6);
+    else if (e.sys === 'infantry') { const s = buildShip('shuttle'); s.scale.setScalar(C.shipScale.shuttle); craft(s, 7); }
     else if (e.sys === 'uav') { const g = new THREE.Group(), c = new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.7, 4).rotateZ(-Math.PI / 2)); c.userData.role = 'hull'; const w = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.02, 0.9)); w.userData.role = 'hull'; g.add(c, w); craft(g, 6); }
     else { const g = new THREE.Group(), c = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5)); c.userData.role = 'pod'; g.add(c); craft(g, 6); }
   }

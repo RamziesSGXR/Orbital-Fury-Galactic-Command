@@ -42,7 +42,7 @@ function radioArt(ctx, s, now, px, col) {
 
 // (0.37) A jammer site, by the enemy: a spore spewer (a swollen pod with spore vents), a call-in jammer (a mast with a dish) or
 // a cognitive disruptor (a tall pylon with a ring); the ground it jams has a pulsing dashed edge.
-const JAM_COL = { bugs: '#ffb020', bots: '#ff4a3a', squids: '#c08cff' };
+const JAM_COL = { bugs: '#ffb020', bots: '#ff4a3a', lizards: '#c08cff' };
 function jammerArt(ctx, s, now, px) {
   const col = JAM_COL[s.fac] || '#ff4a3a', r = Math.max(s.r, px(9));
   const p = 0.5 + 0.5 * Math.sin(now * 2.4 + s.id);
@@ -71,9 +71,9 @@ function sporeCloud(ctx, s, now, px) {
 export function drawSides(ctx, m, now, px, labels, scale) {
   const S = C.sides, task = m.plan && m.plan.task ? m.plan.task.ref : null;
   // (0.37) a Demolition Charge for a side task (the citadel's own is drawn with the citadel)
-  const hb = m.hellbomb;
+  const hb = m.democharge;
   if (hb && hb.o && hb.o.side) {
-    drawDemoCharge(ctx, hb, C.objective.hellbomb, now, px, m.t);
+    drawDemoCharge(ctx, hb, C.objective.democharge, now, px, m.t);
     if (hb.state === 'landed') labels.push({ x: hb.x, y: hb.y, dy: -14, text: tr('lab.hbArm'), col: '#7dff9b', pri: 3 });
     if (hb.state === 'armed') labels.push({ x: hb.x, y: hb.y, dy: -14, text: tr('lab.hbRun', { n: Math.max(0, Math.ceil(hb.fuseAt - m.t)) }), col: '#ff6a4a', pri: 3 });
   }
@@ -223,11 +223,11 @@ export function drawMarks(ctx, m, now, px, labels, scale) {
 }
 
 // Infantry drop beacons: an antenna and a ring the drop can land in; the time until they go dark, then dark.
-export function drawBeacons(ctx, m, now, px, labels, scale, placingSeaf) {
+export function drawBeacons(ctx, m, now, px, labels, scale, placingInfantry) {
   const B = C.beacons, t = m.t;
   for (const b of m.beacons || []) {
     if (b.post) {     // a propaganda tower draws itself (render/posts.js); its drop ring shows while a drop is being placed
-      if (placingSeaf) { ctx.setLineDash([px(6), px(5)]); ctx.strokeStyle = 'rgba(61,169,255,0.85)'; ctx.lineWidth = px(2); ring(ctx, b.x, b.y, B.r); ctx.stroke(); ctx.setLineDash([]); }
+      if (placingInfantry) { ctx.setLineDash([px(6), px(5)]); ctx.strokeStyle = 'rgba(61,169,255,0.85)'; ctx.lineWidth = px(2); ring(ctx, b.x, b.y, B.r); ctx.stroke(); ctx.setLineDash([]); }
       continue;
     }
     const lit = b.relit || t < B.darkSec, R = B.r;
@@ -239,12 +239,12 @@ export function drawBeacons(ctx, m, now, px, labels, scale, placingSeaf) {
       const p = (now * 0.8 + b.id * 0.13) % 1;
       ctx.fillStyle = Math.floor(now * 2 + b.id) % 2 ? '#7fd8ff' : 'rgba(61,169,255,0.5)'; ring(ctx, 0, -px(14), px(2.2)); ctx.fill();
       ctx.strokeStyle = `rgba(61,169,255,${0.7 * (1 - p)})`; ctx.lineWidth = px(1.6); ctx.beginPath(); ctx.arc(0, -px(14), px(4 + 12 * p), -2.4, -0.7); ctx.stroke();
-      ctx.setLineDash([px(6), px(5)]); ctx.strokeStyle = placingSeaf ? 'rgba(61,169,255,0.85)' : 'rgba(61,169,255,0.35)'; ctx.lineWidth = px(placingSeaf ? 2 : 1.2);
+      ctx.setLineDash([px(6), px(5)]); ctx.strokeStyle = placingInfantry ? 'rgba(61,169,255,0.85)' : 'rgba(61,169,255,0.35)'; ctx.lineWidth = px(placingInfantry ? 2 : 1.2);
       ring(ctx, 0, 0, R); ctx.stroke(); ctx.setLineDash([]);
     }
     ctx.restore();
     const text = !lit ? OPS.beaconDark : b.relit ? OPS.beacon : `${OPS.beacon} ${mmss(Math.max(0, B.darkSec - t))}`;
-    labels.push({ x: b.x, y: b.y, dy: 26, text, col: lit ? '#6fc0ff' : 'rgba(150,160,160,0.6)', pri: placingSeaf && lit ? 3 : 0 });
+    labels.push({ x: b.x, y: b.y, dy: 26, text, col: lit ? '#6fc0ff' : 'rgba(150,160,160,0.6)', pri: placingInfantry && lit ? 3 : 0 });
   }
 }
 

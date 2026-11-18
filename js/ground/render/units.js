@@ -23,7 +23,7 @@ let RELIEF = false;
 export function setRelief(v) { RELIEF = v === 2 ? 2 : v ? 1 : false; }
 export function drawAllyBody(ctx, a, r, col, team, strobe, now, px, mt = 0) {
   const H = a.type === 'H';
-  if (!H) { drawSeafBody(ctx, a, r, col, strobe, now, px, mt); return; }
+  if (!H) { drawInfantryBody(ctx, a, r, col, strobe, now, px, mt); return; }
   ctx.save(); ctx.translate(a.x, a.y); ctx.rotate(a.face || 0);
   // dark halo so the shape reads on any ground
   if (RELIEF === 2) { /* raised whole: its own sides are its edge */ } else if (RELIEF) { ctx.fillStyle = 'rgba(0,0,0,0.38)'; ell(ctx, -0.15 * r, 0, r * 0.98, r * 0.92); ctx.fill(); }     // (0.61: with the 3D look the shadow and the side do the halo's work)
@@ -53,7 +53,7 @@ export function drawAllyBody(ctx, a, r, col, team, strobe, now, px, mt = 0) {
 // both shoulders, a neck guard), the MG-43 with its ammo box, the EAT-17 tube across the back. The Medic: light grey armour with
 // red, a white medical pack with a red cross, a helmet that comes forward over the cheeks; some wear orange. A trooper who is
 // down lies on his side, greyed, with a red cross over him (green while a Medic works on him).
-function drawSeafBody(ctx, a, r, col, strobe, now, px, mt) {
+function drawInfantryBody(ctx, a, r, col, strobe, now, px, mt) {
   const role = a.role || 'rifle', down = !!a.down, lw = (n) => Math.max(px(n), 0.04);
   ctx.save(); ctx.translate(a.x, a.y); ctx.rotate((a.face || 0) + (down ? Math.PI / 2 : 0));
   if (down) ctx.globalAlpha *= 0.75;
@@ -141,7 +141,7 @@ export function drawCivBody(ctx, c, now, px) {
 }
 
 // ---------------------------------------------------------------- enemies
-// fac: 'bugs' | 'bots' | 'squids'. kind: 'L' | 'M' | 'H'. col: the faction colour. hot: true for a flash when hit.
+// fac: 'bugs' | 'bots' | 'lizards'. kind: 'L' | 'M' | 'H'. col: the faction colour. hot: true for a flash when hit.
 export function drawEnemyBody(ctx, e, fac, r, col, now, px, hot) {
   ctx.save(); ctx.translate(e.x, e.y); ctx.rotate(e.face || 0);
   const k = e.kind, dark = 'rgba(0,0,0,0.6)', lw = (n) => Math.max(px(n), 0.05);
@@ -167,7 +167,7 @@ export function drawEnemyBody(ctx, e, fac, r, col, now, px, hot) {
     for (let i = 1; i <= 2; i++) { ctx.beginPath(); ctx.arc(-0.48 * r, 0, 0.5 * r * (i / 3), Math.PI * 0.6, Math.PI * 1.4); ctx.stroke(); }
     ctx.fillStyle = body; ell(ctx, 0.12 * r, 0, 0.36 * r, 0.42 * r); ctx.fill();
     if (k === 'H') {
-      // the charger: a broad armoured front plate and a glowing sac behind (its weak spot)
+      // the rammer: a broad armoured front plate and a glowing sac behind (its weak spot)
       ctx.fillStyle = `rgba(255,240,170,${0.55 + 0.4 * pulse})`; ell(ctx, -0.95 * r, 0, 0.32 * r, 0.3 * r); ctx.fill();
       ctx.fillStyle = hot ? '#fff' : rgba(col, 1); ctx.strokeStyle = dark; ctx.lineWidth = lw(1);
       ctx.beginPath(); ctx.moveTo(0.15 * r, -0.95 * r); ctx.quadraticCurveTo(1.15 * r, -0.6 * r, 1.05 * r, 0); ctx.quadraticCurveTo(1.15 * r, 0.6 * r, 0.15 * r, 0.95 * r);
@@ -232,8 +232,8 @@ export function drawEnemyBody(ctx, e, fac, r, col, now, px, hot) {
     }
   } else {
     // lizards (0.62.2)
-    if (k === 'H') drawHarvester(ctx, e, r, col, body, dark, lw, now, px, pulse);
-    else drawSquidBiped(ctx, e, r, col, body, dark, lw, now, px, pulse);
+    if (k === 'H') drawWarBeast(ctx, e, r, col, body, dark, lw, now, px, pulse);
+    else drawLizardBiped(ctx, e, r, col, body, dark, lw, now, px, pulse);
   }
   ctx.restore();
 }
@@ -266,7 +266,7 @@ function helm(ctx, r, hr, lw, hot) {
   ctx.moveTo(0.42 * r + hr * 0.1, -hr * 0.75); ctx.lineTo(0.44 * r + hr * 1.05, 0); ctx.lineTo(0.42 * r + hr * 0.1, hr * 0.75);
   ctx.stroke();
 }
-function drawSquidBiped(ctx, e, r, col, body, dark, lw, now, px, pulse) {
+function drawLizardBiped(ctx, e, r, col, body, dark, lw, now, px, pulse) {
   const M = e.kind === 'M', mort = e.v === 'mort', hot = body !== col;
   const sp = Math.hypot(e.vx || 0, e.vy || 0), walk = sp > 0.3 ? 1 : 0;
   const sw = Math.sin(now * (4 + sp * 0.7) + e.id * 1.7) * walk;
@@ -294,7 +294,7 @@ function drawSquidBiped(ctx, e, r, col, body, dark, lw, now, px, pulse) {
     ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = lw(0.8); ctx.stroke();
     ctx.fillStyle = hot ? '#ffffff' : rgba(SQ_LIT, 0.3 + 0.25 * pulse); plate(ctx, -0.02 * r, s * 0.82 * w, 0.12 * r, 0.05 * r, s * 0.62); ctx.fill();
   }
-  if (M) {     // the overseer wears a crest, two blades swept back over the mantle
+  if (M) {     // the war chief wears a crest, two blades swept back over the mantle
     ctx.strokeStyle = hot ? '#ffffff' : shade(col, 0.5); ctx.lineWidth = lw(1.7); ctx.lineCap = 'round';
     for (const s of [-1, 1]) { ctx.beginPath(); ctx.moveTo(0.4 * r, s * 0.1 * r); ctx.quadraticCurveTo(0.16 * r, s * 0.5 * r, -0.26 * r, s * 0.4 * r); ctx.stroke(); }
   }
@@ -315,7 +315,7 @@ function drawSquidBiped(ctx, e, r, col, body, dark, lw, now, px, pulse) {
     ctx.fillStyle = dkp;
     for (const s of [-1, 1]) { plate(ctx, -0.5 * r, s * 0.42 * w, 0.14 * r, 0.1 * r, 0); ctx.fill(); }
   } else if (M) {
-    // the overseer's lance: a dark haft with twin blades of light at its head
+    // the warchief's lance: a dark haft with twin blades of light at its head
     ctx.save(); ctx.translate(0.12 * r, 0.44 * r); ctx.rotate(-0.08);
     ctx.strokeStyle = SQ_DK; ctx.lineWidth = lw(2.6); ctx.lineCap = 'butt'; line(ctx, -0.5 * r, 0, 0.92 * r, 0);
     ctx.strokeStyle = lit; ctx.lineWidth = lw(1.1); line(ctx, -0.44 * r, 0, 0.86 * r, 0);
@@ -338,10 +338,10 @@ function drawSquidBiped(ctx, e, r, col, body, dark, lw, now, px, pulse) {
   }
 }
 
-// (0.62.2) The harvester: a three-legged strider, not a spider of lines. Heavy tapered legs with knee plates and clawed feet,
+// (0.62.2) The war beast: a three-legged strider, not a spider of lines. Heavy tapered legs with knee plates and clawed feet,
 // a chamfered hull with a raised deck and vents, and a wide lens at the nose that whitens as its beam charges. Its limbs are
 // sized off its own radius, so a big walker gets thick legs however far the camera is.
-function drawHarvester(ctx, e, r, col, body, dark, lw, now, px, pulse) {
+function drawWarBeast(ctx, e, r, col, body, dark, lw, now, px, pulse) {
   const hot = body !== col, sp = Math.hypot(e.vx || 0, e.vy || 0), walk = sp > 0.25 ? 1 : 0;
   const ch = e.ch ? Math.max(0, Math.min(1, e.ch.t || 0)) : 0;
   const lit = hot ? '#ffffff' : shade(col, 0.3), dkp = hot ? '#ffffff' : shade(col, -0.36);

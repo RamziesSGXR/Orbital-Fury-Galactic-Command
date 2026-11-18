@@ -23,7 +23,7 @@ with sync_playwright() as pw:
         assert pg.evaluate(f'{g}.rank()') == 2, 'rank does not follow a base in profit'
         pay = pg.evaluate(f'{g}.postsPay()'); print(name, 'posts pay', pay)
         assert pay['cr'] >= 60 and sum(pay['mat'].values()) == 2
-        pg.evaluate(f'Object.assign({g}.loot, {{swarm: 50, foundry: 50, veil: 50}}); gc.app.camp.wallet.bal = 5000; gc.War.redraw()')
+        pg.evaluate(f'Object.assign({g}.loot, {{molt: 50, foundry: 50, talon: 50}}); gc.app.camp.wallet.bal = 5000; gc.War.redraw()')
         pg.click('[data-a=armoury]'); pg.wait_for_timeout(200)
         pg.screenshot(path=f'{out}/{name}-arm-ground.png')
         for tab in ['station', 'base', 'fleet']:

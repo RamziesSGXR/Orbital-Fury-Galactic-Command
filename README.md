@@ -1,6 +1,6 @@
 # Orbital Fury: Galactic Command
 
-**Prototype 0.6.0.** One war, run from four posts, in one game.
+**Prototype 0.6.1.** One war, run from four posts, in one game.
 
 You found a command (a name, a crest, colours) and hold the centre of the galaxy against three enemies. Everything in
 the war is yours to run, and each part changes the others:
@@ -63,7 +63,7 @@ come back to them.
 - Fleet mechanics beyond the three fleet upgrades; supply lines that change what a system pays.
 - Most of the station's and the base's deeper panels (rooms inside parts, the ledger, research, patrols, landscaping).
 - The tutorial for the theatres, music, French and Spanish.
-- The setting's look: the wording is now the game's own (a private fleet that is its own brand, against the Swarm, the Foundry and the Talon), but the lizard riders are still drawn and fought as the old third enemy, and code names inside the files are unchanged.
+- The setting's look: the wording is now the game's own (a private fleet that is its own brand, against the Molt, the Foundry and the Talon), but the lizard riders are still drawn and fought as the old third enemy.
 
 ## Credits
 

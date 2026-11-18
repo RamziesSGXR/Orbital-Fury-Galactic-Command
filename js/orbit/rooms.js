@@ -10,7 +10,7 @@
 // The plan's frame: x along the door wall, z from the back wall (−) to the door wall (+), y up from the floor, origin at the centre.
 
 const R = 2.4;                 // the depth of a row of kits
-export const OPEN = new Set(['empty', 'shuttlebay', 'pelicanpad', 'eaglepad', 'fighterbay']);      // no walls, no rows
+export const OPEN = new Set(['empty', 'shuttlebay', 'dshippad', 'strikerpad', 'fighterbay']);      // no walls, no rows
 
 // ---------------------------------------------------------------- furniture, in a kit's own frame
 // k.b(w, h, d, role, x, z, y)  a box w wide, h high, d deep, standing at height y; x across the bay, z out from the wall.

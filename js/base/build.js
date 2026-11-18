@@ -17,7 +17,7 @@ const SWEEP_FIND = {
   desert: [['A pack of sand-skippers was driven off the ridge.', 'Two burrows were collapsed with charges.'], ['A wrecked crawler was stripped for parts.', 'An old supply cache was dug out of a dune.']],
   steppe: [['Grazers were chased off the flats and did not come back.', 'A nest of something with too many legs was cleared from the gully.'], ['A downed drone was salvaged.', 'Fence wire and posts from an abandoned homestead were recovered.']],
   ice: [['A den of snow-stalkers was smoked out.', 'Something large moved off under the ice shelf and was not followed.'], ['A frozen supply drop was cut free.', 'A survey hut was found intact and stripped.']],
-  jungle: [['Stalker tracks were found and followed out of the clearing.', 'Two Swarm scouts were dealt with quietly.'], ['A crashed dropship was salvaged for plate and wiring.', 'An overgrown outpost was searched and stripped.']],
+  jungle: [['Stalker tracks were found and followed out of the clearing.', 'Two Molt scouts were dealt with quietly.'], ['A crashed dropship was salvaged for plate and wiring.', 'An overgrown outpost was searched and stripped.']],
   ash: [['Foundry scrap-crawlers were shot off the slag heaps.', 'A dormant patrol bot was found and disabled.'], ['A bot wreck was stripped for steel.', 'Fuel drums were recovered from a burned-out depot.']],
 };
 

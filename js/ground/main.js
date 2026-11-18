@@ -2,7 +2,7 @@
 import { CONFIG as C } from './config.js';
 import { COMMS } from './data/data.js';
 import { Mission } from './sim/mission.js';
-import { STRAT_IDS } from './data/strat.js';
+import { CALLIN_IDS } from './data/callin.js';
 import { buy, equip, unequip, loadoutIds, tierFor, tierItems, TIER_MAX, shopItems, payToward, mixOpen } from './data/kit.js';
 import { makeBot, botStep, botShop } from './sim/bot.js';
 import { Renderer } from './render/renderer.js';
@@ -29,7 +29,7 @@ import { answerTime } from './sim/planner.js';
 import { spawnGroup } from './sim/director.js';
 import { makePost, foxholeSlots, turns, wirePlan, chains, chainPlan, planChain } from './sim/posts.js';
 import { addJammer } from './sim/sides.js';
-import { squadCentres, FORMS, targetSquads } from './sim/seaf.js';
+import { squadCentres, FORMS, targetSquads } from './sim/infantry.js';
 import { fireSlot, refreshAim } from './sim/player.js';
 import { LAST_STAND } from './sim/laststand.js';
 import { Tutorial } from './tutorial.js';
@@ -88,11 +88,11 @@ let lagFor = 0;
 let acc = 0, lastT = 0, overAt = 0, endHandled = false;
 let focusT = 0, focusTo = 0.5;
 let terrainKey = '', briefCtl = null, settingsReturn = null, namesReturn = null, armNote, armBal = 0;
-let placing = null; // desktop placement mode for orders: 'seaf' | 'pickup' | 'move' | 'protect' | 'attack' | 'build:<what>'
+let placing = null; // desktop placement mode for orders: 'infantry' | 'pickup' | 'move' | 'protect' | 'attack' | 'build:<what>'
 // (0.39) while a build is being placed: which way it faces (null: away from the Vanguards' landing, as before) and, for the
 // bastions, ring or line. Q / E (or the turn button) turn it; R (or the shape button) switches ring and line.
 let placeFace = null, placeShape = 'ring';
-let sel = null;      // the selected post, sentry or defence site (posts.js): a panel over it shows, and its reach on the map
+let sel = null;      // the selected post, turret or defence site (posts.js): a panel over it shows, and its reach on the map
 let tac = false;     // the tactical screen (troops, builds, ship weapons, armory) is open; it runs in real time (0.18)
 let armed = false;   // a weapon is armed: the reticle shows and a click calls it. Otherwise the cursor selects things.
 let hideUi = false;  // F2: the HUD is hidden
@@ -215,7 +215,7 @@ document.body.classList.add('rts');     // (0.20: the HUD as an RTS, css)
 }
 const input = new Input(canvas, $('minimap'), cam, {
   weapon: (i) => { if (!act()) return; if (live() && hbFilling(mission)) { hbTap(i); return; } if (live() && supplyFilling(mission)) { supTap(i); return; } setDrawing(false); arm(i); },
-  eagleRearm: () => eagleRearmNow(),
+  strikerRearm: () => strikerRearmNow(),
   cycle: (d) => {
     if (placeTurn(d * Math.PI / 12)) return;      // (0.39) placing a build: Q / E turn it
     if (!live() || handsBusy(mission)) return;
@@ -296,14 +296,14 @@ hud.onWeapon = (i) => {     // (0.25.1: in the pause too, so a weapon call can b
   audio.unlock(); if (!act()) return;
   // (0.53.2) a Striker with no runs left: its button calls the Striker back to rearm (the others come back full with it)
   const s = mission.player.slots[i];
-  if (s && s.eu !== undefined && s.eu <= 0 && mission.t >= mission.player.eagle.rearmAt) { eagleRearmNow(); return; }
+  if (s && s.eu !== undefined && s.eu <= 0 && mission.t >= mission.player.striker.rearmAt) { strikerRearmNow(); return; }
   arm(i);
 };
 // (0.53.2) STRIKER REARM (L, or the button of a Striker out of runs): the Striker flies back now and every Striker comes back full
-function eagleRearmNow() {
+function strikerRearmNow() {
   if (!act() || !mission) return;
-  const r = mission.eagleRearm();
-  if (r.ok) { audio.chirp(); hud.toast(t('hud.eagleBack', { s: Math.round(r.sec) }), 1800); }
+  const r = mission.strikerRearm();
+  if (r.ok) { audio.chirp(); hud.toast(t('hud.strikerBack', { s: Math.round(r.sec) }), 1800); }
 }
 hud.onTac = (on, tab) => { audio.unlock(); if (tab) hud.setTcTab(tab); setTac(on === undefined ? !tac : on); };
 hud.onArmoryTab = () => { if (tac && mission) drawArmory(); };
@@ -311,10 +311,10 @@ hud.onTabChange = () => { if (tut) tut.poke(); };
 hud.onHideUi = (on) => setHideUi(on);
 hud.onOrder = (kind) => order(kind, false);
 let sqPrev = null;      // what was selected before the last tap on a squad button (a double tap moves it into that squad)
-hud.onSquad = (i) => { audio.unlock(); if (mission) sqPrev = { sel: mission.seaf.sel, pick: mission.seaf.pick && mission.seaf.pick.slice() }; selectSquad(i); };
+hud.onSquad = (i) => { audio.unlock(); if (mission) sqPrev = { sel: mission.infantry.sel, pick: mission.infantry.pick && mission.infantry.pick.slice() }; selectSquad(i); };
 hud.onSquadDbl = (i) => {
   if (!live() || !sqPrev || sqPrev.sel === i || sqPrev.sel === -1) return false;
-  const sf = mission.seaf; sf.sel = sqPrev.sel; sf.pick = sqPrev.pick; sqPrev = null;
+  const sf = mission.infantry; sf.sel = sqPrev.sel; sf.pick = sqPrev.pick; sqPrev = null;
   const r = mission.toSquad(i);
   if (r && r.ok) { audio.chirp(); if (tac) hud.fillTactical(mission, sel); return true; }
   return false;
@@ -336,7 +336,7 @@ hud.onDeployNow = () => { audio.unlock(); if (live() && mission.deployNow().ok) 
 // (0.18) the tactical console's modes
 hud.onArmory = () => { audio.unlock(); if (live() || (soft && state === 'play')) openArmory(); };
 hud.onToSquad = (i) => input.h.toSquad(i);
-hud.onPickOne = (id) => { if (!live()) return; const a = mission.seafAlive.find((x) => x.id === id); if (!a) return; audio.click(); if (a.inside) { cam.follow = false; cam.x = a.x; cam.y = a.y; return; } deselect(); mission.pickSeaf([a]); hud.fillTactical(mission, sel); };
+hud.onPickOne = (id) => { if (!live()) return; const a = mission.infantryAlive.find((x) => x.id === id); if (!a) return; audio.click(); if (a.inside) { cam.follow = false; cam.x = a.x; cam.y = a.y; return; } deselect(); mission.pickInfantry([a]); hud.fillTactical(mission, sel); };
 // The tactical build screen (O, or TACTICAL at the top left): what is selected, the builds and the formations, and a box dragged on
 // the map picks troopers. The Vanguards and the Infantry squads fold away into two drop menus. It runs in real time (0.18): Space
 // pauses, to look round without giving orders.
@@ -381,7 +381,7 @@ function escapeKey() {
   if (placing) { setPlacing(null); return; }
   if (hud.tcTab !== 'units') { setTac(false); return; }     // (0.20: back from build or the armory to the troops)
   if (armed) { disarm(); return; }
-  if (sel || mission.seaf.sel !== -1) { deselect(); mission.selectSquad(-1); if (tac) hud.fillTactical(mission, sel); return; }
+  if (sel || mission.infantry.sel !== -1) { deselect(); mission.selectSquad(-1); if (tac) hud.fillTactical(mission, sel); return; }
   togglePause();
 }
 // F2: hide the HUD (SHOW UI, or F2 again, brings it back)
@@ -395,13 +395,13 @@ function setHideUi(on) {
 }
 function setForm(f) {
   if (!act() || !f) return;      // (0.47) in the pause too: a formation takes effect at once, nothing to plan
-  const sq = mission.seafTargets();
-  if (!sq.length) { audio.deny(); hud.toast(deny('noseaf')); return; }
+  const sq = mission.infantryTargets();
+  if (!sq.length) { audio.deny(); hud.toast(deny('noinfantry')); return; }
   for (const q of sq) mission.setForm(q.i, f);
   audio.chirp(); hud.toast(t('hud.formSet', { f: t('form.' + f) }), 1200);
   if (tac) hud.fillTactical(mission, sel);
 }
-// ---- selecting (the cursor, with no weapon armed): what Infantry built, a sentry or a walled defence site, or an Infantry trooper (which
+// ---- selecting (the cursor, with no weapon armed): what Infantry built, a turret or a walled defence site, or an Infantry trooper (which
 // selects his squad). What is under (sx, sy), or null.
 function pickAt(sx, sy) {
   if (!mission || mission.over) return null;
@@ -418,7 +418,7 @@ function pickAt(sx, sy) {
   for (const s of m.coverSites) if (s.kind !== 'built') take(s, Math.hypot(s.x - w.x, s.y - w.y), Math.max(r, s.R * 0.4));
   // (0.20) like an RTS, the trooper under the cursor wins over the building he stands by, unless the click is nearer the building's middle
   let man = null, md = Infinity;
-  for (const a of m.seafAlive) if ((a.sq >= 0 || a.sq === -3) && !a.inside) { const d = Math.hypot(a.x - w.x, a.y - w.y); if (d <= Math.max(3, r * 0.6) && d < md) { md = d; man = a; } }
+  for (const a of m.infantryAlive) if ((a.sq >= 0 || a.sq === -3) && !a.inside) { const d = Math.hypot(a.x - w.x, a.y - w.y); if (d <= Math.max(3, r * 0.6) && d < md) { md = d; man = a; } }
   if (man && (!best || md < bd)) return man;
   if (best) return best;
   // (0.58) nothing of ours there: an enemy in sight under the cursor is picked, to see what it is (its armour, its health)
@@ -438,7 +438,7 @@ function placeInsp(force = false) {
   const q = renderer.worldToScreen(insp.x, insp.y - (insp.boss ? insp.r * 1.5 : 3), canvas);
   hud.selPop(mission, insp, q ? { x: q.x, y: q.y - 10 } : null, force);
 }
-// A click (or a tap) that is not a command: a post, sentry or site is selected; a trooper is picked alone; open ground clears it.
+// A click (or a tap) that is not a command: a post, turret or site is selected; a trooper is picked alone; open ground clears it.
 // (0.19.5) One click (or tap) picks just that trooper, so one man can be sent somewhere; a double click (or double tap) picks his
 // whole squad; Shift+click (on a phone, a finger held on him) adds him to the troopers picked, or takes him out.
 function clickAt(sx, sy) {
@@ -452,7 +452,7 @@ function clickAt(sx, sy) {
     clickAt.t = now; clickAt.id = o.id;
     if (again && o.sq >= 0) { mission.selectSquad(o.sq); if (drawing) hud.setDrawing(true, t('hud.p.forSquad', { n: o.sq + 1 })); clickAt.id = null; }   // (paused too)
     else if (shiftHeld()) addPick(o);
-    else mission.pickSeaf([o]);
+    else mission.pickInfantry([o]);
     if (tac) hud.fillTactical(mission, sel);
     return;
   }
@@ -460,10 +460,10 @@ function clickAt(sx, sy) {
 }
 // The troopers selected now (a pick, or a squad), with o added, or taken out if he was in already.
 function addPick(o) {
-  const sf = mission.seaf;
-  const cur = sf.sel === -2 && sf.pick ? mission.seafAlive.filter((a) => sf.pick.includes(a.id)) : sf.sel >= 0 ? mission.seafAlive.filter((a) => a.sq === sf.sel && !a.inside) : [];
+  const sf = mission.infantry;
+  const cur = sf.sel === -2 && sf.pick ? mission.infantryAlive.filter((a) => sf.pick.includes(a.id)) : sf.sel >= 0 ? mission.infantryAlive.filter((a) => a.sq === sf.sel && !a.inside) : [];
   const has = cur.includes(o), list = has ? cur.filter((a) => a !== o) : [...cur, o];
-  if (list.length) mission.pickSeaf(list); else mission.selectSquad(-1);
+  if (list.length) mission.pickInfantry(list); else mission.selectSquad(-1);
   return !has;
 }
 // A finger held on a trooper (touch): he joins the troopers picked, or leaves them.
@@ -485,7 +485,7 @@ function crateAt(x, y) {
 }
 function commandAt(sx, sy) {
   if (!act()) return;
-  if (mission.seaf.sel === -1 && !(mission.seaf.multi && mission.seaf.multi.length)) { if (mission.seafAlive.length) { audio.deny(); hud.toast(deny('picksquad'), 1600); } return; }
+  if (mission.infantry.sel === -1 && !(mission.infantry.multi && mission.infantry.multi.length)) { if (mission.infantryAlive.length) { audio.deny(); hud.toast(deny('picksquad'), 1600); } return; }
   const w = renderer.screenToWorld(sx, sy, canvas); if (!w) return;
   const m = mission, o = pickAt(sx, sy), r = Math.max(5, cam.view * 0.025), cr = crateAt(w.x, w.y);
   // (0.62.3) only a post or a defence site is somewhere to man. Since 0.58 an enemy in sight is picked too (to read its
@@ -494,9 +494,9 @@ function commandAt(sx, sy) {
   const man = !cr && o && (o.kind === 'post' || m.coverSites.includes(o)) ? o : null;
   const e = !cr && !man ? m.eGrid.nearest(w.x, w.y, r) : null, p = snap(w.x, w.y), hit = !!e || p.x !== w.x || p.y !== w.y;
   const go = () => {
-    if (cr) return m.seafBuildCrate(cr);                                  // a crate (or a foxhole being dug): they go and build it
-    if (man) return m.seafMan(man);
-    return hit ? m.seafOrder('attack', e && !e.dead ? e.x : p.x, e && !e.dead ? e.y : p.y) : m.seafOrder('move', w.x, w.y);
+    if (cr) return m.infantryBuildCrate(cr);                                  // a crate (or a foxhole being dug): they go and build it
+    if (man) return m.infantryMan(man);
+    return hit ? m.infantryOrder('attack', e && !e.dead ? e.x : p.x, e && !e.dead ? e.y : p.y) : m.infantryOrder('move', w.x, w.y);
   };
   const kind = cr ? 'build' : man ? 'post' : hit ? 'attack' : 'move', at = man || cr || (e ? { x: e.x, y: e.y } : hit ? p : w);
   const res = plan() ? queuePlan(kind, at.x, at.y, go) : go();
@@ -510,7 +510,7 @@ function doorPin(post, squad) {
   if (!post || post.dead || bot) return;
   hud.doorPin(post, () => {
     if (!mission || post.dead) return;
-    const sf = mission.seaf, k = { sel: sf.sel, multi: sf.multi };
+    const sf = mission.infantry, k = { sel: sf.sel, multi: sf.multi };
     sf.sel = squad; sf.multi = null; const r = mission.garrisonGo(post); sf.sel = k.sel; sf.multi = k.multi;
     if (r && r.ok) audio.chirp(); else if (r) { audio.deny(); hud.toast(deny(r.reason)); }
   });
@@ -528,7 +528,7 @@ function placeSel(force = false) {
 hud.onSelAct = (k) => {
   audio.unlock();
   if (!sel || !mission) return;
-  const r = k === 'man' ? mission.seafMan(sel) : k === 'in' ? mission.garrisonGo(sel) : k === 'out' ? mission.ungarrison(sel) : k === 'demo' ? mission.demolishPost(sel) : null;     // (0.36: demo, blow it up)
+  const r = k === 'man' ? mission.infantryMan(sel) : k === 'in' ? mission.garrisonGo(sel) : k === 'out' ? mission.ungarrison(sel) : k === 'demo' ? mission.demolishPost(sel) : null;     // (0.36: demo, blow it up)
   if (r && r.ok) audio.chirp(); else if (r) { audio.deny(); hud.toast(deny(r.reason)); }
   placeSel(true);
 };
@@ -538,7 +538,7 @@ function boxEnd() {
   if (Math.abs(b.x1 - b.x0) < 8 && Math.abs(b.y1 - b.y0) < 8) return;
   const p = renderer.screenToWorld(b.x0, b.y0, canvas), q = renderer.screenToWorld(b.x1, b.y1, canvas);
   if (!p || !q) return;
-  const r = mission.seafBox(p.x, p.y, q.x, q.y);
+  const r = mission.infantryBox(p.x, p.y, q.x, q.y);
   if (r && r.ok) { audio.chirp(); setDrawing(false); deselect(); if (tac) hud.fillTactical(mission, sel); }
   else if (r) { audio.deny(); hud.toast(deny(r.reason)); }
 }
@@ -568,7 +568,7 @@ function tapAt(type, x, y) {
   }
   if (!tac && $('hud').classList.contains('tray-open')) { hud.trayToggle(false); return; }
   const o = pickAt(x, y), w = renderer.screenToWorld(x, y, canvas);
-  const none = mission.seaf.sel === -1 && !(mission.seaf.multi && mission.seaf.multi.length);
+  const none = mission.infantry.sel === -1 && !(mission.infantry.multi && mission.infantry.multi.length);
   if (tac && !none && w && crateAt(w.x, w.y)) { commandAt(x, y); return; }   // a crate: the selected squad builds it
   if (o || !tac || none) { clickAt(x, y); return; }
   commandAt(x, y);
@@ -632,7 +632,7 @@ $('keys-btn').onclick = () => { audio.click(); keysEditing(!keysOpen); };
 $('keys-reset').onclick = () => { audio.click(); resetKeys(); keysEditing(true, t('keys.wasReset')); };
 // the keys shown on the HUD's buttons follow the player's own
 function keyHints() {
-  document.querySelectorAll('[data-k]').forEach((k) => { if (k.tagName === 'INPUT') return; k.textContent = k.dataset.k === 'pickup' ? '⇧' + keyLabel('seaf') : keyLabel(k.dataset.k); });
+  document.querySelectorAll('[data-k]').forEach((k) => { if (k.tagName === 'INPUT') return; k.textContent = k.dataset.k === 'pickup' ? '⇧' + keyLabel('infantry') : keyLabel(k.dataset.k); });
   document.querySelectorAll('#tactical .tco[data-o] .k').forEach((k) => { k.textContent = UI.orderKey(k.parentElement.dataset.o); });
   document.querySelectorAll('#weapons .wbtn .k').forEach((k, i) => { k.textContent = keyLabel('w' + (i + 1)); });
   const tw = document.querySelector('#tactical .tac-ship'); if (tw) tw._k = null;      // (the panel's weapon row is drawn again with them)
@@ -678,7 +678,7 @@ function focusTeam(kind, i) {
     p = a || pod || null;
   } else {
     let x = 0, y = 0, n = 0;
-    for (const a of mission.seafAlive) if (i < 0 || a.sq === i) { x += a.x; y += a.y; n++; }
+    for (const a of mission.infantryAlive) if (i < 0 || a.sq === i) { x += a.x; y += a.y; n++; }
     if (n) p = { x: x / n, y: y / n };
   }
   if (!p) { audio.deny(); return; }
@@ -700,7 +700,7 @@ const live = () => state === 'play' && !paused && mission && !mission.over;
 const plan = () => state === 'play' && soft && !!mission && !mission.over;
 const act = () => live() || plan();
 let planQ = [];
-function selNow() { const sf = mission.seaf; if (sf.sel === -2) targetSquads(mission); return { sel: sf.sel, multi: sf.multi ? sf.multi.slice() : null }; }
+function selNow() { const sf = mission.infantry; if (sf.sel === -2) targetSquads(mission); return { sel: sf.sel, multi: sf.multi ? sf.multi.slice() : null }; }
 function queuePlan(kind, x, y, run, o = null) {
   if (planQ.length >= 24) { audio.deny(); hud.toast(t('plan.full'), 1400); return { ok: false, reason: 'planfull' }; }
   const s0 = selNow();
@@ -711,7 +711,7 @@ function queuePlan(kind, x, y, run, o = null) {
 function runPlan() {
   if (!planQ.length || !live()) return;
   const q = planQ; planQ = []; hud.setPlanCount(0);
-  const sf = mission.seaf, keep = { sel: sf.sel, pick: sf.pick, multi: sf.multi }, w0 = mission.player.weapon, e0 = mission.events.length;
+  const sf = mission.infantry, keep = { sel: sf.sel, pick: sf.pick, multi: sf.multi }, w0 = mission.player.weapon, e0 = mission.events.length;
   let bad = 0;
   for (const it of q) {
     sf.sel = it.sel.sel; sf.pick = null; sf.multi = it.sel.multi;
@@ -742,7 +742,7 @@ function planFire() {
 // (0.22) Shift+click (a finger held) on a squad's button: that squad as well; MERGE's popup: those squads become one.
 hud.onSquadAdd = (i) => {
   if (!act()) return;
-  const sf = mission.seaf, cur = sf.sel >= 0 ? [sf.sel] : sf.multi ? sf.multi.slice() : [];
+  const sf = mission.infantry, cur = sf.sel >= 0 ? [sf.sel] : sf.multi ? sf.multi.slice() : [];
   const L = cur.includes(i) ? cur.filter((k) => k !== i) : [...cur, i];
   deselect(); mission.selectSquads(L); audio.click();
   if (tac) hud.fillTactical(mission, sel);
@@ -756,8 +756,8 @@ hud.onMerge = (L) => {
 
 // ---------------- orders: Infantry drop and Infantry orders ----------------
 // Why a call or a purchase was refused: deny.<reason> in the language tables.
-const DENY_KEYS = new Set(['onbase', 'artyrange', 'nocoverage', 'nearlz', 'cooldown', 'full', 'noseaf', 'nohd', 'noallies', 'nomark', 'funds', 'between', 'maxed', 'locked', 'novisual', 'gundry',
-  'short', 'water', 'jammed', 'nocrew', 'nogarrison', 'eaglefull', 'eagleempty', 'noeagle', 'boxnone', 'boxnosquad', 'noweapon', 'picksquad', 'postfull', 'nosight', 'nospan', 'merge', 'planfull', 'shielded', 'rearm', 'nodemo', 'jamsite', 'coin']);
+const DENY_KEYS = new Set(['onbase', 'artyrange', 'nocoverage', 'nearlz', 'cooldown', 'full', 'noinfantry', 'nohd', 'noallies', 'nomark', 'funds', 'between', 'maxed', 'locked', 'novisual', 'gundry',
+  'short', 'water', 'jammed', 'nocrew', 'nogarrison', 'strikerfull', 'strikerempty', 'nostriker', 'boxnone', 'boxnosquad', 'noweapon', 'picksquad', 'postfull', 'nosight', 'nospan', 'merge', 'planfull', 'shielded', 'rearm', 'nodemo', 'jamsite', 'coin']);
 const deny = (r) => (DENY_KEYS.has(r) ? t('deny.' + r) : '');
 function setPlacing(kind) {
   if (kind) { setDrawing(false); disarm(); }
@@ -773,7 +773,7 @@ function setDrawing(on) {
   if (on && !live()) on = false;
   if (on) { placing = null; hud.setPlacing(null); disarm(); }
   drawing = on; stroke = null;
-  hud.setDrawing(on, mission && mission.seaf.sel >= 0 ? t('hud.p.forSquad', { n: mission.seaf.sel + 1 }) : t('hud.p.forAll'));
+  hud.setDrawing(on, mission && mission.infantry.sel >= 0 ? t('hud.p.forSquad', { n: mission.infantry.sel + 1 }) : t('hud.p.forAll'));
 }
 function selectSquad(i) {
   if (!act()) return;
@@ -782,7 +782,7 @@ function selectSquad(i) {
 }
 function cycleSquad(d) {
   if (!act()) return;
-  const n = mission.seaf.squads.length, cur = mission.seaf.sel;   // -1 is ALL
+  const n = mission.infantry.squads.length, cur = mission.infantry.sel;   // -1 is ALL
   let next = cur + d; if (next < -1) next = n - 1; if (next >= n) next = -1;
   selectSquad(next);
 }
@@ -793,13 +793,13 @@ function squadAct(kind, viaKey) {
   if (kind === 'box' ? !act() : !live()) return;
   audio.unlock();
   if (kind === 'draw') {
-    if (!drawing && !mission.seafAlive.length) { audio.deny(); hud.toast(deny('noseaf')); return; }
+    if (!drawing && !mission.infantryAlive.length) { audio.deny(); hud.toast(deny('noinfantry')); return; }
     setDrawing(!drawing);
   } else if (kind === 'disband' && viaKey && sel && sel.kind === 'post' && !sel.dead) { const r = mission.demolishPost(sel); if (r && r.ok) audio.chirp(); else { audio.deny(); hud.toast(deny(r && r.reason), 1400); } if (tac) hud.fillTactical(mission, sel); }     // (0.36) Delete with a building selected: blow it up
-  else if (kind === 'disband') { setDrawing(false); const r = mission.disbandSeaf(); if (r && r.ok) audio.ready(); else { audio.deny(); hud.toast(deny('disband'), 1400); } if (tac) hud.fillTactical(mission, sel); }
+  else if (kind === 'disband') { setDrawing(false); const r = mission.disbandInfantry(); if (r && r.ok) audio.ready(); else { audio.deny(); hud.toast(deny('disband'), 1400); } if (tac) hud.fillTactical(mission, sel); }
   else if (kind === 'box') {
     // SELECT: the next drag on the map draws a box round the troopers to pick (on a computer, Shift + drag does it any time)
-    if (!mission.seafAlive.length) { audio.deny(); hud.toast(deny('noseaf')); return; }
+    if (!mission.infantryAlive.length) { audio.deny(); hud.toast(deny('noinfantry')); return; }
     setDrawing(false); boxArm = !boxArm; hud.setBoxArm(boxArm);
     if (boxArm) hud.toast(t(input.touch ? 'hud.boxTouch' : 'hud.boxDesk'), 2200);
   }
@@ -821,7 +821,7 @@ function strokeEnd() {
   const st = stroke; stroke = null;
   if (!st || !live()) return;
   if (st.pts.length < 2) { audio.deny(); hud.toast(deny('short'), 1200); return; }
-  const r = mission.seafDraw(st.pts);
+  const r = mission.infantryDraw(st.pts);
   if (r && r.ok) { audio.chirp(); hud.toast(t('hud.p.played', { kind: t('hud.p.kind.' + r.kind) }), 1100); }
 }
 function aimWorld() { const sa = input.screenAim(), w = renderer.screenToWorld(sa.x, sa.y, canvas); return w; }
@@ -871,12 +871,12 @@ function placeTools() {
 }
 function runOrderNow(kind, x, y, o = null) {
   const m = mission;
-  if (kind.startsWith('build:')) return m.seafBuild(kind.slice(6), x, y, o || {});
-  if (kind === 'seaf') return m.callSeaf(x, y);
+  if (kind.startsWith('build:')) return m.infantryBuild(kind.slice(6), x, y, o || {});
+  if (kind === 'infantry') return m.callInfantry(x, y);
   if (kind === 'pickup') return m.callPickup(x, y);      // (0.39) a pickup point
-  if (kind === 'auto' || kind === 'escort') return m.seafOrder(kind);
+  if (kind === 'auto' || kind === 'escort') return m.infantryOrder(kind);
   const p = snap(x, y);
-  return m.seafOrder(kind, p.x, p.y);
+  return m.infantryOrder(kind, p.x, p.y);
 }
 // A key press or a touch button acts at the cursor / crosshair. A mouse click on a button starts placement mode.
 function order(kind, viaKey) {
@@ -1118,7 +1118,7 @@ function goBrief(again = false) {
   const n = session.missions.length + 1;
   // The groups and objective come from the mission seed, so the briefing can show them before the drop.
   // ?loadout=id,id,... and ?objective=nuke|vip|fortress force a loadout or objective for testing.
-  const ovLoad = (qs.get('loadout') || '').split(',').filter((id) => STRAT_IDS.includes(id)), ovObj = (qs.get('objective') || '').split(',').filter(Boolean);
+  const ovLoad = (qs.get('loadout') || '').split(',').filter((id) => CALLIN_IDS.includes(id)), ovObj = (qs.get('objective') || '').split(',').filter(Boolean);
   if (!ovObj.length && ch && ch.play && ch.play.objective) ovObj.push(ch.play.objective);
   if (!ovObj.length && info.obj) ovObj.push(info.obj);     // (0.51) the offer's objective
   info.ovObj = ovObj;
@@ -1174,7 +1174,7 @@ function goHome() {
   session = null; mission = null;
   toTitle();
 }
-const FACTION_OK = (f) => ['bugs', 'bots', 'squids'].includes(f);
+const FACTION_OK = (f) => ['bugs', 'bots', 'lizards'].includes(f);
 const BIOME_OK = (b) => ['ice', 'grass', 'desert', 'jungle', 'moon', 'mars', 'city'].includes(b);
 
 function deploy() {
@@ -1190,7 +1190,7 @@ function deploy() {
   shots.length = 0; resetScape();
   mission = new Mission({ seed: info.seed, faction: info.faction, biome: info.biome, sessionMinutes: SMIN ?? S.sessionMinutes(session), events: true, missionN: session.missions.length + 1, opDone: session.missions.length, difficulty: levelFor(info), bump: (info && info.bump) | 0,
     loadout: info.loadout, keepOrder: true, objectives: info.ovObj, kit: session.kit, wallet: session.wallet, names: session.names, tod: info.tod,
-    countdown: qs.has('skipstart') || BOT ? 0 : C.helldivers.countdown, defenders: !qs.has('skipstart'), ...chapterOpts() });
+    countdown: qs.has('skipstart') || BOT ? 0 : C.vanguards.countdown, defenders: !qs.has('skipstart'), ...chapterOpts() });
   bot = BOT ? makeBot() : null;
   enterPlay();
 }
@@ -1247,7 +1247,7 @@ function closeRadioLog() {
   radioFrom = null;
 }
 // (0.38) what a chapter sets on its mission besides the map: no super heavy, a jammer site
-function chapterOpts() { const ch = storyChapter(), p = ch && ch.play; return p ? { ...(p.boss === false ? { boss: false } : {}), ...(p.jammer ? { jammer: true } : {}), ...(p.hb === false ? { hellbombSides: false } : {}) } : {}; }
+function chapterOpts() { const ch = storyChapter(), p = ch && ch.play; return p ? { ...(p.boss === false ? { boss: false } : {}), ...(p.jammer ? { jammer: true } : {}), ...(p.hb === false ? { demochargeSides: false } : {}) } : {}; }
 // (0.27) the chapter this mission is, in a story session (null otherwise), and the cinematic's options for it
 let castRadio = null;
 function storyChapter() { return session && session.story && info && info.chapter ? STORY.chapters.find((c) => c.n === info.chapter) || null : null; }
@@ -2037,7 +2037,7 @@ function onEvent(ev, now) {
     case 'beam': case 'beam_walk': audio.beam(); break;
     case 'gun': audio.snd('shipgat', L, P); break;
     case 'heal': audio.snd('heal', L, P); break;
-    case 'util_call': audio.stratCall(); afterCall(ev); break;
+    case 'util_call': audio.callinCall(); afterCall(ev); break;
     case 'util_land': if (ev.util === 'med') audio.supFull(2); else audio.podLand(); break;
     case 'stim': audio.snd('stim', L, P); break;
     case 'dodge': audio.snd('dodge', L, P); break;
@@ -2052,27 +2052,27 @@ function onEvent(ev, now) {
       break;
     case 'boss_down': audio.baseDown(); audio.objective(); hud.message(t('msg.bossDown', { name: ev.name }), 3000); break;
     case 'boss_block': audio.deny(); break;
-    case 'boss_land': if (ev.kind === 'squids') audio.beam(); audio.boom(14, 1, P); break;     // (0.55.1) a super heavy's arrival lands
+    case 'boss_land': if (ev.kind === 'lizards') audio.beam(); audio.boom(14, 1, P); break;     // (0.55.1) a super heavy's arrival lands
     case 'boss_leave': audio.ready(); hud.message(t('msg.bossLeft', { name: ev.name }), 2600); break;
     case 'supply_ask': audio.supAsk(); hud.wake(6000); break;
     case 'supply_fill': audio.slowIn(); break;
     case 'supply_tap': audio.supTap(ev.i); if (ev.full) audio.supFull(ev.i); break;
-    case 'hellbomb_tap': audio.supTap(ev.i % 3); break;
-    case 'hellbomb_wrong': audio.deny(); break;
-    case 'hellbomb_fill': audio.chirp(); break;
-    case 'hellbomb_armed': audio.chirp(); break;
+    case 'democharge_tap': audio.supTap(ev.i % 3); break;
+    case 'democharge_wrong': audio.deny(); break;
+    case 'democharge_fill': audio.chirp(); break;
+    case 'democharge_armed': audio.chirp(); break;
     case 'cannon_fire': renderer.shake = Math.min(10, renderer.shake + 4); audio.chirp(); break;
     case 'supply_launch': audio.slowOut(); audio.supLaunch(ev.fast); break;
     case 'supply_down': audio.supDown(L, P); break;
     case 'supply_no': audio.deny(); break;
-    case 'board': case 'seaf_pickup': audio.board(); break;     // (0.39: a trooper going up into a pickup dropship too)
+    case 'board': case 'infantry_pickup': audio.board(); break;     // (0.39: a trooper going up into a pickup dropship too)
     case 'shuttle': audio.shuttle(Math.max(0.5, L), P); break;
     case 'civ_down': audio.civDown(L, P); break;
     case 'extract_call': audio.alarm(); hud.message(t('msg.exCall'), 2400); break;
     case 'extract_landing': audio.rotor(); break;
     case 'extract_down': audio.chirp(); hud.message(t('msg.exDown'), 2200); break;
-    case 'pelican_arrive': audio.rotor(); break;
-    case 'pelican_drop': audio.snd('thud', L, P); break;
+    case 'dship_arrive': audio.rotor(); break;
+    case 'dship_drop': audio.snd('thud', L, P); break;
     case 'radar': break;
     // (0.25.1) a squad has just built something with room inside (a turret nest, a lookout, a tower, the cannon): ask, as when
     // they are sent to one. Nobody goes in unless told to.
@@ -2086,7 +2086,7 @@ function onEvent(ev, now) {
     case 'rally': if (mission.visLevel(ev.x, ev.y) > 0) audio.siren(); break;
     case 'full_clear': audio.objective(); hud.message(t('msg.fullClear'), 2600); break;
     case 'area_clear': audio.win(); hud.message(t('msg.areaClear'), 2600); break;
-    case 'strat_call': audio.stratCall(); break;
+    case 'callin_call': audio.callinCall(); break;
     case 'strike_call': audio.strikeCall(ev.id); afterCall(ev); break;
     case 'uav': audio.uav(); afterCall(ev); break;
     case 'nuke_call': audio.siren(); audio.nukeLaunch(); hud.message(t('msg.nukeCall'), 2400); afterCall(ev); if (!BOT) nukeCue = { x: ev.x, y: ev.y, r: ev.r || 230, at: mission.t + ev.delay, on: false }; break;     // (0.40)
@@ -2104,7 +2104,7 @@ function onEvent(ev, now) {
     case 'radio': audio.chirp(); hud.radio(ev.text, ev.key); break;
     case 'notice': hud.notice(ev.text, ev.tone); break;
     case 'credit': audio.coin(); break;
-    case 'pod_call': case 'seaf_order': audio.chirp(); break;
+    case 'pod_call': case 'infantry_order': audio.chirp(); break;
     case 'pod_land': audio.podLand(); break;
     case 'breach_open': audio.reinf('bugs', Math.max(0.5, L), P); break;
     case 'breach_close': if (ev.destroyed) audio.baseDown(); break;
@@ -2174,7 +2174,7 @@ function debugReport() {
   L.push(`settings quality ${settings.quality} fps ${settings.fps || 'auto'} 3d ${settings.relief3d} smooth ${settings.smooth !== false}`);
   L.push(`fps ${fps.toFixed(0)}  ${gameLine()}`);
   L.push(`hold: paused ${paused} soft ${soft} cinema ${!!cinema.on} card ${!!(tut && tut.held)} tac ${tac} speed ${speed}  step faults ${simFails}`);
-  if (m) L.push(`enemies ${m.enemies.length} groups ${m.groups.length} allies ${m.alive.length} infantry ${m.seafAlive.length} squads ${m.seaf.squads.length} posts ${(m.posts || []).length} shells ${m.shells.length} over ${m.over}`);
+  if (m) L.push(`enemies ${m.enemies.length} groups ${m.groups.length} allies ${m.alive.length} infantry ${m.infantryAlive.length} squads ${m.infantry.squads.length} posts ${(m.posts || []).length} shells ${m.shells.length} over ${m.over}`);
   L.push('');
   if (!errLog.length) L.push('no errors logged');
   for (const e of errLog.slice().reverse()) { L.push(`[${e.at}] v${e.v} ${e.where} x${e.n || 1}: ${e.msg}`); L.push(`  ${e.game}`); if (e.stack) L.push(e.stack.split('\n').map((s) => '  ' + s.trim().replace(/\(?file:\/\/[^)\s]*\/|\(?https?:\/\/[^)\s]*\//g, '(')).join('\n')); }
@@ -2190,7 +2190,7 @@ function debugPaint(now) {
   if (debugBroke) $('debug-warn').textContent = t('dbg.broke');
   $('debug-t').textContent = `v${C.share.version}  fps ${fps.toFixed(0)}  ${gameLine()}` +
     `\nhold: ${paused ? (soft ? 'soft pause' : 'pause') : cinema.on ? 'cinematic' : tut && tut.held ? 'tutorial card' : 'none'}  speed ${speed}  faults ${simFails}` +
-    (m ? `\nenemies ${m.enemies.length}  allies ${m.alive.length}  infantry ${m.seafAlive.length}  posts ${(m.posts || []).length}  P ${m.pressure.toFixed(2)}  fx ${renderer.fx.length}  cr ${m.wallet.bal}` : '') +
+    (m ? `\nenemies ${m.enemies.length}  allies ${m.alive.length}  infantry ${m.infantryAlive.length}  posts ${(m.posts || []).length}  P ${m.pressure.toFixed(2)}  fx ${renderer.fx.length}  cr ${m.wallet.bal}` : '') +
     (last ? `\nlast error (${errLog.length} kept): ${last.where} x${last.n || 1}: ${last.msg}` : '');
 }
 $('debug-copy').onclick = async () => {
@@ -2333,7 +2333,7 @@ function hover(now) {
 // 60 or 144 frames a second (it used to move 30 times a second whatever the frame rate), everything that walks or flies is drawn
 // part-way between where it stood a step ago and where it stands now. keepPrev notes where everyone stands before each step;
 // tween moves them to the in-between place for the drawing, and untween puts them back. A jump (a drop, a warp) is not tweened.
-const TWEEN = (m) => [m.alive, m.enemies, m.pelicans, m.civs, m.drops];
+const TWEEN = (m) => [m.alive, m.enemies, m.dships, m.civs, m.drops];
 function keepPrev(m) { for (const L of TWEEN(m)) if (L) for (const o of L) { o._px = o.x; o._py = o.y; } }
 let tweened = false;
 function tween(m, k) {
@@ -2361,7 +2361,7 @@ function simulate(dt, now) {
     if (!bot && firePending) { m.fire(); firePending = false; }
   }
   // half speed if picked; slow motion while the supply pod or the Demolition Charge is loaded (the tactical screen runs in real time)
-  const slow = hbFilling(m) ? C.objective.hellbomb.slowmo : supplyFilling(m) ? C.supply.slowmo : 1;
+  const slow = hbFilling(m) ? C.objective.democharge.slowmo : supplyFilling(m) ? C.supply.slowmo : 1;
   acc += dt * FAST * speed * slow;
   let n = 0;
   const cap = 6 * FAST + 2;

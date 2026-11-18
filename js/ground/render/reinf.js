@@ -4,7 +4,7 @@
 import { t as tr } from '../i18n.js';
 import { VIEW } from './view.js';
 import { CONFIG as C } from '../config.js';
-import { pelicanBody, pelicanDetail } from './squads.js';
+import { dshipBody, dshipDetail } from './squads.js';
 import { drawCivBody } from './units.js';
 import { jellyModel, drawJelly, drawJellyShadow } from './jelly.js';
 
@@ -290,14 +290,14 @@ export function drawExtraction(ctx, m, now, px, labels, scale) {
   if (ex.state === 'called') {
     const left = Math.max(0, ex.landAt - t), f = 1 - left / Math.max(1, ex.wait || C.extract.callSec);
     ctx.strokeStyle = '#7dff9b'; ctx.lineWidth = px(4); ctx.beginPath(); ctx.arc(ex.x, ex.y, R + px(6), -Math.PI / 2, -Math.PI / 2 + TAU * f); ctx.stroke();
-    text = tr('lab.pelicanIn', { n: Math.ceil(left) });
+    text = tr('lab.dshipIn', { n: Math.ceil(left) });
   }
-  // the pelican's line (the dropship itself is drawn later, over the pad's walls: drawExtractionDropship)
+  // the dship's line (the dropship itself is drawn later, over the pad's walls: drawExtractionDropship)
   if (ex.state === 'boarding') {
     const hds = m.hdAlive.length;
     text = tr(hds ? 'lab.boardingLeft' : 'lab.boarding', { on: ex.boardedH || 0, left: hds, n: Math.max(0, Math.ceil(ex.leaveBy - t)) });
-  } else if (ex.state === 'landing') text = tr('lab.pelicanLanding');
-  else if (ex.state === 'away') text = tr(m.seafAlive.length ? 'lab.orbitLeaveN' : 'lab.pelicanAway', { n: ex.boardedH || 0, s: Math.max(0, Math.ceil((ex.leaveAt || t) - t)), k: m.seafAlive.length });
+  } else if (ex.state === 'landing') text = tr('lab.dshipLanding');
+  else if (ex.state === 'away') text = tr(m.infantryAlive.length ? 'lab.orbitLeaveN' : 'lab.dshipAway', { n: ex.boardedH || 0, s: Math.max(0, Math.ceil((ex.leaveAt || t) - t)), k: m.infantryAlive.length });
   labels.push({ x: ex.x, y: ex.y, dy: -R * scale - 10, text, col: '#ffe600', pri: 3 });
 }
 
@@ -312,19 +312,19 @@ export function drawExtractionDropship(ctx, m, now, px) {
   if (ex.state === 'away') { const k = t - ex.awayAt; alt = Math.min(1.4, k * 0.5); y -= k * k * 6; }
   // (0.62.8) the same size as the Infantry's troop Dropship (squads.js drawDropships): it was 18 m against that one's 8
   const s = Math.max(8, px(14)) * (1 + 0.4 * alt), off = 4 + alt * 26;
-  ctx.fillStyle = 'rgba(0,0,0,0.18)'; pelicanBody(ctx, x + off * 1.05, y + off * 0.76, ang, s * 1.08); ctx.fill();
-  ctx.fillStyle = 'rgba(0,0,0,0.42)'; pelicanBody(ctx, x + off * 1.05, y + off * 0.76, ang, s * 0.92); ctx.fill();
+  ctx.fillStyle = 'rgba(0,0,0,0.18)'; dshipBody(ctx, x + off * 1.05, y + off * 0.76, ang, s * 1.08); ctx.fill();
+  ctx.fillStyle = 'rgba(0,0,0,0.42)'; dshipBody(ctx, x + off * 1.05, y + off * 0.76, ang, s * 0.92); ctx.fill();
   if (ex.state === 'boarding') {   // the ramp at the back
     ctx.fillStyle = 'rgba(220,235,245,0.6)'; ctx.fillRect(x - 2.5, y + s * 0.95, 5, 6);
   }
   // (0.39) the rockets: hard down coming in to land and climbing out, idling on the pad
   const thrust = ex.state === 'boarding' ? 0.3 : 1, down = ex.state === 'away' ? Math.max(0, 1 - (t - ex.awayAt) / 1.5) : 1;
-  pelicanDetail(ctx, x, y, ang, s, now, thrust, down, null);
-  pelicanBody(ctx, x, y, ang, s);
+  dshipDetail(ctx, x, y, ang, s, now, thrust, down, null);
+  dshipBody(ctx, x, y, ang, s);
   ctx.lineJoin = 'round'; ctx.strokeStyle = 'rgba(0,0,0,0.7)'; ctx.lineWidth = px(4); ctx.stroke();
   ctx.fillStyle = 'rgba(215,236,255,0.95)'; ctx.fill();
   ctx.strokeStyle = '#ffe600'; ctx.lineWidth = px(1.8); ctx.stroke();
-  pelicanDetail(ctx, x, y, ang, s, now, 0, down, '#ffe600');
+  dshipDetail(ctx, x, y, ang, s, now, 0, down, '#ffe600');
 }
 
 // Pings of hits that matter: critical hits from the destroyer and hits on a heavy's back.

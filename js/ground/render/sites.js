@@ -224,7 +224,7 @@ export function drawLootArt(ctx, q, now, px) {
     ctx.fillStyle = '#c8d3cc'; ctx.fillRect(-1.3, -0.25, 2.6, 0.5);  // the weapon inside
     ctx.fillStyle = `rgba(90,180,255,${0.4 + 0.6 * blink})`; ctx.beginPath(); ctx.arc(0, 0, 0.6, 0, TAU); ctx.fill();
   } else if (q.kind === 'vault') {
-    // a Head Office strongbox on a concrete pad, the eagle-and-globe seal on the lid and a glint of gold
+    // a Head Office strongbox on a concrete pad, the striker-and-globe seal on the lid and a glint of gold
     ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(-4.2, -3.2, 8.8, 7);
     ctx.fillStyle = '#8e9590'; ctx.fillRect(-4, -3.4, 8, 6.6);
     ctx.fillStyle = '#5b625e'; ctx.fillRect(-3.2, -2.6, 6.4, 5);
@@ -245,7 +245,7 @@ export function drawLootArt(ctx, q, now, px) {
 }
 
 // ---------------------------------------------------------------- the operations (0.18, sim/ops.js)
-// The oil pump: a nodding-donkey derrick on a concrete pad, a tank beside it that fills, pipes to the pelican's pad.
+// The oil pump: a nodding-donkey derrick on a concrete pad, a tank beside it that fills, pipes to the dship's pad.
 export function drawOilSite(ctx, o, now, px) {
   const f = Math.max(1, px(2)), pump = o.state === 'pump' && o.fill < 1;
   ctx.save(); ctx.translate(o.x, o.y); ctx.rotate(o.face || 0); ctx.scale(f, f);

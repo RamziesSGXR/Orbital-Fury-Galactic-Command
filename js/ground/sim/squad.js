@@ -1,11 +1,11 @@
-// Squad AI. Vanguards head for the objective and never take orders. Infantry (see seaf.js) are stepped from here.
+// Squad AI. Vanguards head for the objective and never take orders. Infantry (see infantry.js) are stepped from here.
 import { CONFIG as C } from '../config.js';
 import { COMMS } from '../data/data.js';
 import { compass } from './enemies.js';
 import { ringOf, baseAwake } from './director.js';
 import { planGoal, bridgeWait } from './planner.js';
-import { updateSeaf } from './seaf.js';
-import { speedMul } from './helldiver.js';
+import { updateInfantry } from './infantry.js';
+import { speedMul } from './vanguard.js';
 import { canStep } from './safety.js';
 import { steer } from './terrain.js';
 import { runClear } from './ops.js';
@@ -62,8 +62,8 @@ export function updateSquad(m, dt) {
   const bm = m.biome.speed;
   // Call-ins and loads change how fast the squad moves: the recon vehicle is quick, jump packs help, a carried VIP slows them.
   let mod = 1, mounted = false;
-  if (m.frv && !m.frv.dead && m.frv.seats.length) { mounted = true; mod = C.strat.frv.speed / C.squad.speed; }
-  else if (t < m.buff.jumpUntil) mod = C.strat.jump.speedMul;
+  if (m.lrv && !m.lrv.dead && m.lrv.seats.length) { mounted = true; mod = C.callin.lrv.speed / C.squad.speed; }
+  else if (t < m.buff.jumpUntil) mod = C.callin.jump.speedMul;
   if (m.vip && m.vip.carrier) mod *= C.squad.carrySlow;
   sq.mod = mod; sq.mounted = mounted;
   const speed = C.squad.speed * bm * mod;
@@ -198,7 +198,7 @@ export function updateSquad(m, dt) {
     // (holding a walled site the squad does not leave cover for anything its rifles reach from the walls; it only goes out after
     // what stands off beyond that, or it would be shot to pieces by longer guns while it waits)
     const holdingWalls = m.phase !== 'clear' && pointGoal && holdSites(m, sq.ax, sq.ay)
-      && near && Math.hypot(near.x - sq.ax, near.y - sq.ay) <= C.combat.helldiver.range * 0.9;
+      && near && Math.hypot(near.x - sq.ax, near.y - sq.ay) <= C.combat.vanguard.range * 0.9;
     if (near && !engaged && (sq.state === 'attack' || threat) && !(sq.staging && !threat) && !holdingWalls && !sq.fallback) {
       const lim = pointGoal ? 55 : baseGoal ? 60 : 1e9;
       if (Math.hypot(near.x - sq.ax, near.y - sq.ay) <= lim) { gx = near.x; gy = near.y; goal = 'attack'; }
@@ -225,14 +225,14 @@ export function updateSquad(m, dt) {
     const fightOn = engaged && (pointGoal || goal === 'base') && (goal === 'point' || goal === 'extract' || goal === 'base' || goal === 'bridge') && sq.engT >= C.squad.fightOnSec;
     if (fightOn && !sq.fightOn) m.radio(COMMS.fightOn, 'fighton', 40);
     sq.fightOn = fightOn;
-    const hbRun = !!(m.hellbomb && m.hellbomb.state === 'armed');     // (0.38.1) an armed Demolition Charge: the squad moves off, fighting or not
+    const hbRun = !!(m.democharge && m.democharge.state === 'armed');     // (0.38.1) an armed Demolition Charge: the squad moves off, fighting or not
     const hold = !hbRun && !sq.fallback && ((engaged && !fightOn) || sq.state === 'setup');     // (0.40: pulling back, it keeps moving too)
     if (!hold && goal !== 'none') {
       const w = steer(m.terrain, sq, sq.ax, sq.ay, gx, gy, t);     // round the water, if there is any in the way
       let wx = aoX(m, w.x, 3), wy = aoY(m, w.y, 3);                  // (a corner of the route may lie just past the map's edge)
       if (goal !== 'attack') { const r = ringAvoid(m, sq, sq.ax, sq.ay, wx, wy, gx, gy, baseGoal); if (!m.terrain.blocked(r.x, r.y)) { wx = aoX(m, r.x, 3); wy = aoY(m, r.y, 3); } }
       const dx = wx - sq.ax, dy = wy - sq.ay, d = Math.hypot(dx, dy);
-      const v = hbRun ? C.squad.chaseSpeed * bm * C.objective.hellbomb.runMul : sq.fallback ? C.squad.chaseSpeed * bm * 0.9 : speed * (fightOn ? C.squad.fightOnSpeed : 1);
+      const v = hbRun ? C.squad.chaseSpeed * bm * C.objective.democharge.runMul : sq.fallback ? C.squad.chaseSpeed * bm * 0.9 : speed * (fightOn ? C.squad.fightOnSpeed : 1);
       if (d > 0.05) { const s = Math.min(v * dt, d); sq.ax += (dx / d) * s; sq.ay += (dy / d) * s; }
     }
   }
@@ -245,13 +245,13 @@ export function updateSquad(m, dt) {
       const w = steer(m.terrain, a, a.x, a.y, ex.x, ex.y, t), dx = w.x - a.x, dy = w.y - a.y, d = Math.hypot(dx, dy);
       if (d > 0.3) { const s = Math.min(run * speedMul(m, a), d); a.x += (dx / d) * s; a.y += (dy / d) * s; }
     }
-    updateSeaf(m, dt, speed, bm);
+    updateInfantry(m, dt, speed, bm);
     return;
   }
   // (0.38.1) A Demolition Charge armed: every Vanguard inside its blast (with a margin) runs straight out of it, whatever is shooting at
   // him; the rest of the squad goes on as usual
-  const hb = m.hellbomb && m.hellbomb.state === 'armed' ? m.hellbomb : null;
-  const clearR = hb ? C.objective.hellbomb.blastR + C.objective.hellbomb.runPad : 0;
+  const hb = m.democharge && m.democharge.state === 'armed' ? m.democharge : null;
+  const clearR = hb ? C.objective.democharge.blastR + C.objective.democharge.runPad : 0;
   // (0.53.7) the dropship is about to come down: every Vanguard closes on the pad, fighting on the move, so the whole squad is at the
   // ramp when it opens (they used to stand and fight wherever the last wave had drawn them, 50 m out, and die running for it)
   const exg = m.phase === 'extract' ? m.extraction : null;
@@ -261,13 +261,13 @@ export function updateSquad(m, dt) {
     const chase = C.squad.chaseSpeed * bm * dt * Math.max(1, mod);
     const sites = m.phase !== 'clear' ? holdSites(m, sq.ax, sq.ay) : null;     // (0.26: an evacuation's two rings, split between them)
     for (const a of hds) {
-      if (hb && !a.mounted && runClear(m, a, hb, clearR, C.squad.chaseSpeed * bm * C.objective.hellbomb.runMul * dt)) continue;
+      if (hb && !a.mounted && runClear(m, a, hb, clearR, C.squad.chaseSpeed * bm * C.objective.democharge.runMul * dt)) continue;
       if (a.mounted || (a.retreat && !gather)) continue;   // a Vanguard who is falling back is not drifting to his slot (0.53.7: unless the dropship is coming)
       const selfEngaged = eg.nearest(a.x, a.y, C.squad.engageRange);
       let tx = sq.ax + a.ox, ty = sq.ay + a.oy;
       const hi = hds.indexOf(a), hn = hds.length;
       const site = sites ? sites[hi % sites.length] : null, si = sites ? Math.floor(hi / sites.length) : hi, sn = sites ? Math.ceil(hn / sites.length) : hn;
-      const job = m.hellbomb && m.hellbomb.state === 'landed' && m.hellbomb.armer === a ? m.hellbomb : null;
+      const job = m.democharge && m.democharge.state === 'landed' && m.democharge.armer === a ? m.democharge : null;
       if (job) { tx = job.x; ty = job.y; }                                      // the one arming the Demolition Charge goes right to it
       else if (gather) { tx = exg.x + a.ox * 0.35; ty = exg.y + a.oy * 0.35; }   // (0.53.7) round the pad, ready for the ramp
       else if (site) { const p = threatSlot(m, site, si, sn); tx = p.x; ty = p.y; }     // holding a site: the walls that face the threat
@@ -293,7 +293,7 @@ export function updateSquad(m, dt) {
   }
 
   // ---------------- Infantry ----------------
-  updateSeaf(m, dt, speed, bm);
+  updateInfantry(m, dt, speed, bm);
 }
 
 // (0.53.2) The point on the way from the anchor (ax, ay) out to a slot (tx, ty) farthest out that the anchor reaches in a straight

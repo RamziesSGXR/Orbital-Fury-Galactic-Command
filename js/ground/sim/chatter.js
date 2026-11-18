@@ -11,16 +11,16 @@ export function bark(m, a, kind, n = '', force = false) {
   const H = a.type === 'H', CH = C.chatter, t = m.t, g = m.chat;
   if (!force) {
     if (t < (a.sayAt || 0)) return false;
-    if (t < (H ? g.hd : g.seaf)) return false;
+    if (t < (H ? g.hd : g.infantry)) return false;
   }
-  const lines = tl((H ? 'hd.' : 'seaf.') + kind);
+  const lines = tl((H ? 'hd.' : 'infantry.') + kind);
   if (!lines.length) return false;
   let text = fill(pickLine(m.crng, lines), n);
   if (H && kind !== 'hurt' && kind !== 'heavy' && m.crng.next() < 0.45) text += ' ' + pickLine(m.crng, tl('motto.hd'));
-  else if (!H && (kind === 'engage' || kind === 'attack') && m.crng.next() < 0.3) text += ' ' + pickLine(m.crng, tl('motto.seaf'));
-  a.say = { text, until: t + (H ? CH.hdSec : CH.seafSec), small: !H };
-  a.sayAt = t + (H ? CH.hdCool : CH.seafCool) * (0.8 + 0.4 * m.crng.next());
-  if (H) g.hd = t + CH.hdGlobalGap; else g.seaf = t + CH.seafGlobalGap;
+  else if (!H && (kind === 'engage' || kind === 'attack') && m.crng.next() < 0.3) text += ' ' + pickLine(m.crng, tl('motto.infantry'));
+  a.say = { text, until: t + (H ? CH.hdSec : CH.infantrySec), small: !H };
+  a.sayAt = t + (H ? CH.hdCool : CH.infantryCool) * (0.8 + 0.4 * m.crng.next());
+  if (H) g.hd = t + CH.hdGlobalGap; else g.infantry = t + CH.infantryGlobalGap;
   m.emit('bark', { id: a.id, h: H });
   return true;
 }
@@ -53,7 +53,7 @@ export function updateChatter(m, dt) {
   const goal = goalName(m);
   const eg = m.eGrid;
   for (const a of m.hdAlive) {
-    if (a.mounted && !(m.frv && m.frv.seats[0] === a)) { /* passengers share the vehicle's ping */ }
+    if (a.mounted && !(m.lrv && m.lrv.seats[0] === a)) { /* passengers share the vehicle's ping */ }
     if (a.ping && a.ping.e && a.ping.until > t) continue;     // a target mark (grenade, Ultimatum) stays up until it times out
     const e = eg.nearest(a.x, a.y, 55);
     if (e) { ping(a, e.g.cx, e.g.cy, 'fight', t + 4); continue; }
@@ -90,13 +90,13 @@ export function updateChatter(m, dt) {
   }
 
   // ---- Infantry speech ----
-  const sf = m.seafAlive;
+  const sf = m.infantryAlive;
   if (sf.length) {
     const s = sf[Math.floor(m.crng.next() * sf.length)];
     if (s.engaged) bark(m, s, 'engage');
     else {
-      const q = m.seaf.squads[s.sq];
-      if (q && q.order.kind === 'auto' && q.tgt && t - ch.seafAt > 22 && bark(m, s, 'clear', q.tgt.name.toLowerCase())) ch.seafAt = t;
+      const q = m.infantry.squads[s.sq];
+      if (q && q.order.kind === 'auto' && q.tgt && t - ch.infantryAt > 22 && bark(m, s, 'clear', q.tgt.name.toLowerCase())) ch.infantryAt = t;
     }
   }
 }

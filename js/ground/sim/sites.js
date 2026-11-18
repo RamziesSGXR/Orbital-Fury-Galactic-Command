@@ -16,7 +16,7 @@ import { spawnGroup, unseenSpot } from './director.js';
 import { alertStars } from './alert.js';
 
 const K = () => C.sites;
-export const SITE_KIND = { bugs: 'refinery', bots: 'salvage', squids: 'lab' };
+export const SITE_KIND = { bugs: 'refinery', bots: 'salvage', lizards: 'lab' };
 function lcg(seed) { let s = (seed >>> 0) || 1; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); }
 
 // Placed once the bases and objectives are: away from both and from the landing zone, but not too far from it. Its own random
@@ -74,7 +74,7 @@ export function siteGain(m, p = m.workSite) {
 export function siteFalls(m, p) {
   if (p.fallen) { p.hp = 0; return; }
   p.fallen = true; p.hp = 0; p.workers = 0;
-  for (const a of m.seafAlive) if (a.post === p) { a.post = null; a.inside = null; a.sq = a.sqWas >= 0 ? a.sqWas : 0; }
+  for (const a of m.infantryAlive) if (a.post === p) { a.post = null; a.inside = null; a.sq = a.sqWas >= 0 ? a.sqWas : 0; }
   p.garrison = 0;
   m.emit('site_down', { x: p.x, y: p.y, id: p.id });
   m.emit('boom', { x: p.x, y: p.y, r: 8, dmg: 0, by: 'enemy' });
@@ -91,7 +91,7 @@ export function updateSite(m, dt) {
   }
   if (!p.told && m.t > S.tellSec) { p.told = true; const g = siteGain(m, p); m.notice(tr('n.siteHere', { what: p.name.toUpperCase(), gain: tr(g.key, { p: g.full }) }), 'info'); }
   const was = p.workers;
-  p.workers = p.fallen ? 0 : m.seafAlive.filter((a) => a.post === p && !a.down).length;
+  p.workers = p.fallen ? 0 : m.infantryAlive.filter((a) => a.post === p && !a.down).length;
   if (p.workers && !was) { const g = siteGain(m, p); m.notice(tr('n.siteWork', { what: p.name.toUpperCase(), gain: tr(g.key, { p: g.now }), max: g.full, c: p.cap }), 'good'); }
   // (0.53.6) worked for the first time: the enemy knows of it now, and comes for it from here on
   if (p.workers && p.asleep) {

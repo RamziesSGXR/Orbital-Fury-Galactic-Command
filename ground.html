@@ -23,7 +23,7 @@
       <div class="cr-row">
         <div id="bigcr" class="bigcr" data-tt="hud.crTitle"><b id="bigcr-v">0</b><span data-t="hud.cr">CR</span><i id="bigcr-d"></i></div>
         <div id="lives" class="bigcr lives" data-tt="hud.livesTitle"><b id="lives-v">0</b><span data-t="hud.lives">LIVES</span><i id="lives-d"></i></div>
-        <div id="seafc" class="bigcr seafc" data-tt="hud.seafTitle"><b id="seafc-v">0</b><span>Infantry</span></div>
+        <div id="infantryc" class="bigcr infantryc" data-tt="hud.infantryTitle"><b id="infantryc-v">0</b><span>Infantry</span></div>
         <div id="alertc" class="bigcr alertc" data-tt="hud.alertTitle"><b id="alertc-v"></b><span id="alertc-n">CALM</span></div>
       </div>
     </div>
@@ -68,7 +68,7 @@
       <div class="rl-h"><span data-t="radio.title">COMMAND RADIO</span><button id="radio-full" class="rl-b" type="button" data-ta="radio.log" data-tt="radio.log">⤢</button><button id="radio-x" class="rl-b" type="button" data-ta="radio.map" data-tt="radio.map">✕</button></div>
       <div id="rl-body" class="rl-body"></div>
     </div>
-    <!-- bottom left: the Vanguards (health, kit, stratagems, ships), then the Infantry squads and their orders -->
+    <!-- bottom left: the Vanguards (health, kit, callins, ships), then the Infantry squads and their orders -->
     <!-- (0.20) left: the Vanguards (always shown), just above what is selected -->
     <div id="hdpanel"><div id="sqpanel" class="panel" data-tt="hud.hdbarTitle"><div id="hdrows"></div><div id="supply"></div></div></div>
     <div id="selpanel" class="panel"><div id="tc-sel" class="tc-sel"></div></div>
@@ -83,7 +83,7 @@
       <button class="sqa" data-a="merge"><i class="gl">⧉</i><span class="n" data-t="hud.merge">MERGE</span></button>
     </div>
     <div id="orders" class="panel">
-      <button class="ord" data-o="seaf"><span class="k" data-k="seaf">G</span><span class="n" data-t="hud.seafDrop">INFANTRY DROP</span><span class="s">--</span></button>
+      <button class="ord" data-o="infantry"><span class="k" data-k="infantry">G</span><span class="n" data-t="hud.infantryDrop">INFANTRY DROP</span><span class="s">--</span></button>
       <button class="ord" data-o="pickup"><span class="k" data-k="pickup">⇧G</span><span class="n" data-t="hud.pickup">PICKUP</span><span class="s">--</span></button>
       <button class="ord" data-o="auto"><span class="k" data-k="auto">X</span><span class="n" data-t="hud.auto">AUTO</span><span class="s">--</span></button>
       <button class="ord" data-o="move"><span class="k" data-k="move">V</span><span class="n" data-t="hud.move">MOVE</span><span class="s">--</span></button>
@@ -133,12 +133,12 @@
     <div id="dock">
       <button id="dk-hd" class="dkb dkh" type="button" data-ta="tac.tHd"><span class="hdc"></span></button>
       <button id="dk-sq" class="dkb"><span class="n"></span><span class="s">--</span></button>
-      <button id="dk-drop" class="dkb"><span class="n" data-t="hud.seafDrop">INFANTRY DROP</span><span class="s">--</span></button>
+      <button id="dk-drop" class="dkb"><span class="n" data-t="hud.infantryDrop">INFANTRY DROP</span><span class="s">--</span></button>
       <button id="dk-pick" class="dkb"><span class="n" data-t="hud.pickup">PICKUP</span><span class="s">--</span></button>
       
       <button id="dk-tac" class="dkb tacb" type="button"><span class="n" data-t="hud.tactical">TACTICAL</span></button>
     </div>
-    <!-- a tip over whatever was just picked on a bar (a weapon, a build, a formation, a stratagem, a squad): one line, and ⓘ for the rest -->
+    <!-- a tip over whatever was just picked on a bar (a weapon, a build, a formation, a callin, a squad): one line, and ⓘ for the rest -->
     <div id="hottip" class="hidden" role="status"><div class="tt-l"></div><button class="tt-i" type="button" aria-label="More">i</button><div class="tt-more hidden"></div></div>
     <div id="supgame" class="panel hidden" role="dialog" data-ta="sg.title">
       <div class="sg-h"><b data-t="sg.title">LOAD THE SUPPLY POD</b><span id="sg-for"></span></div>
@@ -265,8 +265,8 @@
           <div id="r-diff" class="r-line"></div>
           <div id="r-fail" class="r-line fail"></div>
           <h3 id="b-load-h" class="fold-h b-load-h" data-fold="b-load" role="button" tabindex="0"><span data-t="brief.loadouts">THE SQUAD'S CALL-INS</span></h3>
-          <div id="b-load"><div id="b-strats"></div>
-          <div id="b-strat-note" class="fine"></div></div>
+          <div id="b-load"><div id="b-callins"></div>
+          <div id="b-callin-note" class="fine"></div></div>
           <div class="progress"><i id="b-prog"></i></div>
           <div id="b-status" class="fine"></div>
           <div class="btns">

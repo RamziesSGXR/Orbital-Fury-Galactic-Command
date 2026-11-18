@@ -1,5 +1,5 @@
 // (0.59) The things on the ground that are not the fight: rocks, trees and grass by biome, and what the enemy leaves round its bases
-// and across a world it holds (the bots' banners and flags, the squids' ruins, the bugs' mushroom patches and ruins). Placed once a
+// and across a world it holds (the bots' banners and flags, the lizards' ruins, the bugs' mushroom patches and ruins). Placed once a
 // mission from its own seed (a random stream of its own, so the fight's is untouched), the same every time for a seed, and never on
 // water, a building, an objective, the landing zone or the extraction pad. Big rocks are solid enough to hide behind (cover.js) and
 // break up when something big lands on them (damageRock). render/scenery.js draws all of it.
@@ -20,7 +20,7 @@ const LAND = {
 // What the enemy leaves: near each base (round it, between rB0 and rB1 metres out) and across the map.
 const MARKS = {
   bots:   { base: [['banner', 3], ['flag', 4]], wide: [] },     // (0.58.2) the bots' colours only where the bots are: see placeMarks
-  squids: { base: [['ruin', 3], ['pillar', 3]], wide: [['ruin', 22], ['pillar', 18]] },
+  lizards: { base: [['ruin', 3], ['pillar', 3]], wide: [['ruin', 22], ['pillar', 18]] },
   bugs:   { base: [['shrooms', 4], ['ruin', 1]], wide: [['shrooms', 46], ['ruin', 16]] },
 };
 
@@ -84,7 +84,7 @@ export function setupScenery(m) {
 // (0.58.2) The enemy's marks, once the bases, objectives and side structures are all on the map (mission.js calls this after them).
 // The bots' banners and flags stand only where the bots hold something: round each base (a pair flanking the way in, the rest
 // round it), round a cannon or dome they guard, and by their side structures. Each knows what it belongs to (own) and is drawn
-// fallen once that is destroyed. The squids' ruins and the bugs' mushrooms are also strewn across a world they hold.
+// fallen once that is destroyed. The lizards' ruins and the bugs' mushrooms are also strewn across a world they hold.
 export function placeMarks(m) {
   const sc = m.scenery, M = MARKS[m.faction.id];
   if (!sc || !M) return;

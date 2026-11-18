@@ -222,8 +222,8 @@ export class Input {
       else if (act === 'disband') this.h.squadAct('disband');
       else if (act === 'cyclePrev') this.h.cycle(-1);
       else if (act === 'cycleNext') this.h.cycle(1);
-      else if (act === 'eagleRearm' && this.h.eagleRearm) this.h.eagleRearm();     // (0.53.2) the Striker back to rearm, early
-      else if (act === 'seaf') this.h.order(e.shiftKey ? 'pickup' : 'seaf', true);     // (0.39) Shift+G: a pickup point
+      else if (act === 'strikerRearm' && this.h.strikerRearm) this.h.strikerRearm();     // (0.53.2) the Striker back to rearm, early
+      else if (act === 'infantry') this.h.order(e.shiftKey ? 'pickup' : 'infantry', true);     // (0.39) Shift+G: a pickup point
       else if (act === 'auto' || act === 'move' || act === 'protect' || act === 'attack' || act === 'escort') this.h.order(act, true);
       else if (act === 'build') this.h.ctx('build');
       else if (act === 'armory') this.h.ctx('armory');

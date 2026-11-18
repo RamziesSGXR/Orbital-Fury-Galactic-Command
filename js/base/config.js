@@ -99,7 +99,7 @@ export const ROADS = { 1: { name: 'Dirt Road', cost: 1, speed: 1.6, walk: 1.25 }
 export const VEHICLES = {
   lift: { name: 'Forklift', speed: 0.7, load: 12 }, truck: { name: 'Supply Truck', speed: 1.0, load: 30 },
   // armour sits in a Vehicle Bay until a special operation takes it along. bonus: added to the odds. fuel: burned per operation.
-  frv: { name: 'LRV', speed: 1.4, load: 0, armour: true, bonus: 0.12, guard: 0.7, fuel: 10, desc: 'Fast and light. Better odds, and it gets wounded troopers home.' },
+  lrv: { name: 'LRV', speed: 1.4, load: 0, armour: true, bonus: 0.12, guard: 0.7, fuel: 10, desc: 'Fast and light. Better odds, and it gets wounded troopers home.' },
   tank: { name: 'Tank', speed: 0.7, load: 0, armour: true, bonus: 0.28, guard: 0.4, fuel: 25, desc: 'For the really big actions. Much better odds, far fewer casualties.' },
 };
 
@@ -112,16 +112,16 @@ export const TECH = {
   cargo:    { name: 'Heavy-Lift Dropships', tier: 2, cost: 260, hrs: 36, needs: ['radio'], desc: 'Every dropship carries 60 more goods and 4 more recruits or troopers.' },
   trucks:   { name: 'Third Truck', tier: 2, cost: 240, hrs: 30, needs: ['shelving'], desc: 'Every Motor Pool gets a third supply truck.' },
   asphalt:  { name: 'Bureau Asphalt', tier: 2, cost: 180, hrs: 24, needs: ['shelving'], desc: 'Paved road costs half. The Bureau supplies the asphalt, at a price it would rather not discuss.' },
-  frv:      { name: 'Fast Recon Vehicles', tier: 2, cost: 300, hrs: 36, needs: ['drill'], desc: 'Unlocks the Vehicle Bay and its LRV, which special operations can take along.' },
+  lrv:      { name: 'Fast Recon Vehicles', tier: 2, cost: 300, hrs: 36, needs: ['drill'], desc: 'Unlocks the Vehicle Bay and its LRV, which special operations can take along.' },
   highrise: { name: 'Vertical Housing', tier: 2, cost: 280, hrs: 36, needs: ['shelving'], desc: 'Unlocks the Hab Block: three storeys, thirty bunks, one plot.' },
   broadcast:{ name: 'Planetary Broadcast', tier: 2, cost: 300, hrs: 36, needs: ['radio'], desc: 'Unlocks the Broadcast Mast: a very tall mast that runs four landing pads and carries the Publicity Office to every ear.' },
   command:  { name: 'Unified Command', tier: 3, cost: 480, hrs: 60, needs: ['broadcast', 'highrise'], desc: 'Unlocks the Command Tower, which watches a long stretch of wall and makes the whole base stand straighter.' },
   fortworks:{ name: 'Fortification Doctrine', tier: 1, cost: 180, hrs: 24, desc: 'Unlocks Defence Turrets, Floodlight Towers and the Emergency Operations Bunker.' },
-  civic:    { name: 'Civic Programme', tier: 2, cost: 260, hrs: 30, needs: ['shelving'], desc: 'Unlocks DEMOCRA-MART, the Citizens\' Casino and the Memorial Halls.' },
+  civic:    { name: 'Civic Programme', tier: 2, cost: 260, hrs: 30, needs: ['shelving'], desc: 'Unlocks BRAND-MART, the Citizens\' Casino and the Memorial Halls.' },
   archive:  { name: 'Quantum Archives', tier: 2, cost: 300, hrs: 36, needs: ['radio'], desc: 'Unlocks the Server and Storage Vault, the Security Brig and Cryopreservation Storage.' },
   warroom:  { stage: 2, name: 'Strategic Command', tier: 3, cost: 520, hrs: 60, needs: ['archive', 'command'], desc: 'Unlocks the War Room: every front in real time, better odds and more operations to choose from.' },
   industry: { name: 'State Industry', tier: 2, cost: 280, hrs: 36, needs: ['shelving'], desc: 'Unlocks the State Industrial Complex: your own supplies, made on the base, for fuel and power.' },
-  tank:     { name: 'Armoured Doctrine', tier: 3, cost: 450, hrs: 60, needs: ['frv', 'cargo'], desc: 'Every Vehicle Bay also keeps a tank, for the really big actions.' },
+  tank:     { name: 'Armoured Doctrine', tier: 3, cost: 450, hrs: 60, needs: ['lrv', 'cargo'], desc: 'Every Vehicle Bay also keeps a tank, for the really big actions.' },
 };
 // Training: points a recruit earns per game hour at each place; 100 makes a trooper.
 export const TRAIN = { range: 8, course: 6, lecture: 4, parade: 3 };   // points an hour; the duty day is 7.5 training hours
@@ -210,7 +210,7 @@ export const B = {
               desc: 'Staffed, it makes every patrol more likely to succeed.' },
   hdbarracks: { name: 'Vanguard Barracks', group: 'military', w: 3, d: 2, cost: 420, up: 22, pw: -4, crew: 1, needs: ['barracks'], cryo: true,
               desc: 'Vanguards pass through on their way to the front, kept in cryo until needed. Staffed and powered, it earns +3 Defence standing every day.' },
-  vbay:     { name: 'Vehicle Bay', group: 'military', w: 3, d: 3, cost: 380, up: 20, crew: 1, needs: ['motorpool'], tech: 'frv', need: { fuel: 40 }, armour: true,
+  vbay:     { name: 'Vehicle Bay', group: 'military', w: 3, d: 3, cost: 380, up: 20, crew: 1, needs: ['motorpool'], tech: 'lrv', need: { fuel: 40 }, armour: true,
               desc: 'Keeps a LRV, and a tank once Armoured Doctrine is researched. Special operations can take them along. A wrecked vehicle is replaced in two watches.' },
   shelter:  { name: 'Underground Bunker', group: 'military', w: 2, d: 2, cost: 280, up: 10, pw: -1, mor: 3, needs: ['barracks'],
               desc: 'A blast door and a long stairway down. Knowing it is there helps everyone sleep.' },
@@ -265,8 +265,8 @@ export const B = {
               desc: 'Talon holo cores cast every front in 360 degrees; Foundry servers crunch the threat. Special operations +8% odds, and one more to choose from.' },
   halls:    { stage: 2, name: 'Memorial Halls', group: 'propaganda', w: 4, d: 3, cost: 980, up: 20, pw: -2, tech: 'civic', needs: ['memorial'], large: true, prop: 18, mor: 5, pride: 1,
               desc: 'One wing for legendary Vanguards, one for the battles that made them, in holographic panels lit by Luminite. Inspires every recruit who marches past.' },
-  mart:     { name: 'DEMOCRA-MART', group: 'living', w: 3, d: 3, cost: 700, up: 14, pw: -3, tech: 'civic', large: true, mor: 4, sales: 14, staff: 3,
-              desc: 'Rations upgrades, souvenir shrapnel mugs and liberty-approved luxuries, with self-checkout lanes run by Foundry cores. Earns credits every day.' },
+  mart:     { name: 'BRAND-MART', group: 'living', w: 3, d: 3, cost: 700, up: 14, pw: -3, tech: 'civic', large: true, mor: 4, sales: 14, staff: 3,
+              desc: 'Rations upgrades, souvenir shrapnel mugs and victoryop-approved luxuries, with self-checkout lanes run by Foundry cores. Earns credits every day.' },
   casino:   { name: 'Citizens\' Casino', group: 'living', w: 3, d: 3, cost: 760, up: 16, pw: -4, tech: 'civic', large: true, mor: 5, sales: 18, staff: 3, weekly: { tru: -1 },
               desc: 'Statistically approved wagering on Talon RNG cores. Luck and victory, both supervised. Good for morale and credits; the Publicity Office frowns slightly.' },
   cryo:     { name: 'Cryopreservation Storage', group: 'military', w: 3, d: 2, cost: 680, up: 18, pw: -5, crew: 1, tech: 'archive', needs: ['hdbarracks'], large: true, odds: 0.05,
@@ -315,9 +315,9 @@ export const CREW_ORDER = ['gen', 'motorpool', 'factory', 'extractor', 'mine', '
 export const MISSIONS = [
   { kind: 'Recon sweep', diff: [1, 2], size: [2, 3], dur: [45, 70] },
   { kind: 'Bug hole closure', diff: [2, 4], size: [3, 4], dur: [60, 90], wants: 'tank' },
-  { kind: 'Convoy escort', diff: [2, 3], size: [4, 4], dur: [80, 100], wants: 'frv' },
+  { kind: 'Convoy escort', diff: [2, 3], size: [4, 4], dur: [80, 100], wants: 'lrv' },
   { kind: 'Bot outpost raid', diff: [3, 5], size: [4, 6], dur: [100, 130], wants: 'tank' },
-  { kind: 'Civilian evacuation', diff: [2, 4], size: [3, 5], dur: [70, 110], wants: 'frv' },
+  { kind: 'Civilian evacuation', diff: [2, 4], size: [3, 5], dur: [70, 110], wants: 'lrv' },
   { kind: 'Retrieve stolen flag', diff: [1, 1], size: [2, 2], dur: [40, 50] },
   { kind: 'Orbital spotting run', diff: [2, 3], size: [2, 3], dur: [50, 80] },
   { kind: 'Armoured assault', diff: [5, 5], size: [5, 6], dur: [110, 140], heavy: true, wants: 'tank', needs: true },
@@ -346,7 +346,7 @@ export const PLANETS = ['Veritas Minor', "Hadrian's Reach", 'Calypso IV', 'New L
 export const FACTION_DEFAULT = {
   name: 'Head Office Special Forces', base: 'Fort Sanctuary', motto: 'Victory, delivered.',
   primary: '#2e4a2a', secondary: '#ffe600',
-  logo: { shape: 'shield', symbol: 'eagle', bg: '#1b2a1a', fg: '#ffe600', rim: '#ffe600', text: '' },
+  logo: { shape: 'shield', symbol: 'striker', bg: '#1b2a1a', fg: '#ffe600', rim: '#ffe600', text: '' },
 };
 
 // ---------------------------------------------------------------- designs and parts for the large buildings
@@ -401,7 +401,7 @@ export const DEBT_MAX = 6000;   // the most the Bureau will have outstanding wit
 export const DIFF = {
   recruit:   { name: 'Recruit', desc: 'A gentle Bureau. A smaller Charter at a lower rate, slower rivals, softer penalties.', charter: 2000, rate: 0.008, sup: 4200, rivals: 0.85, pen: 0.6, od: 1200 },
   veteran:   { name: 'Veteran', desc: 'The standard posting.', charter: 3000, rate: 0.012, sup: 3600, rivals: 1, pen: 1, od: 800 },
-  helldiver: { name: 'Vanguard', desc: 'A big Charter at a steep rate, hungry rivals, and a Bureau that remembers everything.', charter: 4200, rate: 0.018, sup: 3600, rivals: 1.15, pen: 1.4, od: 400 },
+  vanguard: { name: 'Vanguard', desc: 'A big Charter at a steep rate, hungry rivals, and a Bureau that remembers everything.', charter: 4200, rate: 0.018, sup: 3600, rivals: 1.15, pen: 1.4, od: 400 },
 };
 
 // ---------------------------------------------------------------- construction standards (design §7, after US base camp doctrine)

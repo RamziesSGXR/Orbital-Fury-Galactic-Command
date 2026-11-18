@@ -10,7 +10,7 @@
 //   jammer (0.37):     an enemy structure only a Demolition Charge brings down (a spore spewer, a call-in jammer, a cognitive disruptor,
 //                      by the enemy): no orbital can be called within its reach while it stands. The squad clears round it and asks
 //                      the gunner for a Demolition Charge (ops.js); the enemy broadcast tower takes one too.
-// Drop beacons: places the player can send an Infantry drop to without a strike zone. Infantry build them (seaf.js); a radio tower powered
+// Drop beacons: places the player can send an Infantry drop to without a strike zone. Infantry build them (infantry.js); a radio tower powered
 // up keeps the ground round it in view for the rest of the mission (a relay, mission.js visLevel).
 import { revealBases } from './spawners.js';
 import { CONFIG as C } from '../config.js';
@@ -18,8 +18,8 @@ import { makePost } from './posts.js';
 import { buildLevel } from '../data/kit.js';
 import { COMMS } from '../data/data.js';
 import { callReinforcements } from './reinforce.js';
-import { rollRoles, dropSquad } from './seaf.js';
-import { seafStats } from '../data/kit.js';
+import { rollRoles, dropSquad } from './infantry.js';
+import { infantryStats } from '../data/kit.js';
 import { aoScale, inAO } from './ao.js';
 import { findSpot } from './objectives.js';
 import { alertGroup } from './enemies.js';
@@ -68,7 +68,7 @@ export function setupSides(m) {
       m.pois.push(poi); m.sides.push(poi);
     } else {
       const s = { id: m.nextId++, side: true, kind: 'rescue', x: p.x, y: p.y, r: 14, state: 'hidden', troops: [], done: false, failed: false, callT: 0, hidden: true };
-      const st = seafStats(m.kit), roles = rollRoles(m, S.rescue.n, st);
+      const st = infantryStats(m.kit), roles = rollRoles(m, S.rescue.n, st);
       for (const role of roles) {
         const a = m.addAlly('S', p.x + m.rng.range(-7, 7), p.y + m.rng.range(-7, 7), { role });
         a.pinned = s.id; a.hidden = true; a.face = m.rng.angle();     // lying low: not on the map for anyone until found
@@ -110,7 +110,7 @@ export function setupSides(m) {
     const r0 = m.rng; m.rng = sr;
     try { const p = findSpot(m, avoid(), 70, way); addSpore(m, p.x, p.y); } finally { m.rng = r0; }
   }
-  // Infantry drop beacons are no longer on the map at the start: Infantry build them (seaf.js, the build order)
+  // Infantry drop beacons are no longer on the map at the start: Infantry build them (infantry.js, the build order)
   m.beacons = [];
 }
 // (0.40) a spore tower at (x, y): a structure (a point of interest), so everything that hurts one hurts it
@@ -169,7 +169,7 @@ export function sideDestroyed(m, p) { hbCancel(m, p); if (!p.failed) finish(m, p
 export function updateSides(m, dt) {
   const S = SD();
   // (0.37) a Demolition Charge already armed for a side that fell some other way still goes off
-  const hb = m.hellbomb;
+  const hb = m.democharge;
   if (hb && hb.state === 'armed' && hb.o && hb.o.side && (hb.o.done || hb.o.failed)) hbStep(m, hb.o, dt, null);
   for (const s of m.sides || []) {
     if (s.done || s.failed) continue;
@@ -204,11 +204,11 @@ export function updateSides(m, dt) {
       }
     } else if (s.kind === 'jammer') {
       // the squad there and the ground clear: a Demolition Charge; it is the only thing that brings one down
-      if (m.hellbomb && m.hellbomb.o === s) { if (hbStep(m, s, dt, () => siteActivity(m, s, dt))) finish(m, s, true); continue; }
+      if (m.democharge && m.democharge.o === s) { if (hbStep(m, s, dt, () => siteActivity(m, s, dt))) finish(m, s, true); continue; }
       if (hbRequest(m, s, s, tr('c.hb.callSide', { name: s.name }))) { s.state = 'bomb'; m.emit('side_state', { kind: 'jammer', state: 'bomb', x: s.x, y: s.y }); }
     } else if (s.kind === 'propaganda') {
       // (0.37) a tower still standing strong when the squad gets there: they call a Demolition Charge on it (its guns still work on it too)
-      if (m.hellbomb && m.hellbomb.o === s) { if (hbStep(m, s, dt, null) && !s.done) { s.hp = 0; s.done = true; s.by = 'strat'; finish(m, s, true); m.emit('poi_down', { x: s.x, y: s.y, r: s.r, id: s.id }); } }
+      if (m.democharge && m.democharge.o === s) { if (hbStep(m, s, dt, null) && !s.done) { s.hp = 0; s.done = true; s.by = 'callin'; finish(m, s, true); m.emit('poi_down', { x: s.x, y: s.y, r: s.r, id: s.id }); } }
       else if (!m.noHbSides && (m.missionN || 1) >= S.jammer.fromMission && s.hp > s.maxHp * S.propBomb) hbRequest(m, s, s, tr('c.hb.callSide', { name: s.name }));
       // while it stands it rallies the patrols round it onto the squad, when the squad is in its reach
       s.rallyT -= dt;

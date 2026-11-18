@@ -5,7 +5,7 @@
 //          Allies can shoot it closed, but not in its first seconds.
 //   bots   a dropship flies in, hovers low while the troops jump out, and climbs away. It can be shot down while it is low; some of
 //          the troops still aboard live through the crash (0.31).
-//   lizards a warp ship slides over the spot and teleports its troops down. Tougher, with a shield like a harvester's (0.31), but it
+//   lizards a warp ship slides over the spot and teleports its troops down. Tougher, with a shield like a warbeast's (0.31), but it
 //          can be shot down too, and everyone aboard goes with it.
 // (0.31) A call can come in at several places at once, from different sides (more often later in a mission, and at extraction).
 // Every number is in CONFIG.reinf.
@@ -108,7 +108,7 @@ export function callReinforcements(m, x, y, why = 'flare', opts = {}) {
   const n = groupsFor(m, opts.extra || 0, count, opts.pMin || 0, opts.maxN || 0);
   // (0.55) no room for troops (the map at its cap): a super heavy may still come in on its own, in a craft of its own
   let only = false;
-  if (n <= 0) { if (fac === 'squids' || !rollReinfHeavy(m)) return 0; only = true; }
+  if (n <= 0) { if (fac === 'lizards' || !rollReinfHeavy(m)) return 0; only = true; }
   count = only ? 1 : Math.min(count, n);
   const ring = opts.dist || (why === 'flare' ? R.dist : R.siteDist), a0 = m.rrng.angle();
   const dirs = [], sizes = [];
@@ -198,15 +198,15 @@ export function updateReinf(m, dt) {
   updateMother(m, dt);
   // Dropships and warp ships: in, low and hovering while the troops come down, then out.
   for (let i = m.drops.length - 1; i >= 0; i--) {
-    const d = m.drops[i], D = R[d.kind === 'ship' ? 'bots' : 'squids'];
+    const d = m.drops[i], D = R[d.kind === 'ship' ? 'bots' : 'lizards'];
     d.vis = m.visLevel(d.x, d.y);
     if (d.mom) { d.vis = 2; if (stepMother(m, d, dt)) m.drops.splice(i, 1); continue; }     // (0.55: always seen)
     if (d.maxShield && d.state !== 'down' && d.shield < d.maxShield && t - d.shieldAt > D.regenDelay) d.shield = Math.min(d.maxShield, d.shield + D.regen * dt);
     if (d.state === 'down') {
       d.fallT += dt; d.alt = Math.max(0, d.alt - dt * 0.8);
       if (d.fallT >= 1.1) {
-        damageArea(m, d.x, d.y, 11, D.crash, ALL, 'strat', 'none', '');
-        m.emit('boom', { x: d.x, y: d.y, r: 11, dmg: D.crash, by: 'strat', big: true });
+        damageArea(m, d.x, d.y, 11, D.crash, ALL, 'callin', 'none', '');
+        m.emit('boom', { x: d.x, y: d.y, r: 11, dmg: D.crash, by: 'callin', big: true });
         m.drops.splice(i, 1);
         // (0.31) a dropship's troops climb out of the wreck, hurt (a warp ship takes everyone with it)
         for (let k = 0; k < (d.survivors || 0); k++) {
@@ -251,7 +251,7 @@ export function updateReinf(m, dt) {
 export function damageDrop(m, d, dmg, by, any = false) {
   if (d.dead || d.state === 'down' || (!d.low && !any) || !(dmg > 0)) return;
   if (d.mom && any) dmg *= C.mother.samMul;      // (0.55) a SAM site's hit is a fraction of itself on a mothership
-  if (d.shield > 0) {     // (0.31) a warp ship's shield takes the hit first, like a harvester's
+  if (d.shield > 0) {     // (0.31) a warp ship's shield takes the hit first, like a warbeast's
     const soak = Math.min(d.shield, dmg);
     d.shield -= soak; d.shieldAt = m.t; dmg -= soak; d.hurtAt = m.t;
     if (by in m.stats.dmg) m.stats.dmg[by] += soak;
@@ -262,7 +262,7 @@ export function damageDrop(m, d, dmg, by, any = false) {
   if (d.hp > 0) return;
   if (d.mom) { motherDown(m, d, by); return; }
   if (any) samKill(m);
-  const D = R[d.kind === 'ship' ? 'bots' : 'squids'];
+  const D = R[d.kind === 'ship' ? 'bots' : 'lizards'];
   d.state = 'down'; d.fallT = 0; d.low = false;
   m.stats.dropsDown = (m.stats.dropsDown || 0) + 1;
   m.sc.drops = (m.sc.drops || 0) + C.score.dropDown;

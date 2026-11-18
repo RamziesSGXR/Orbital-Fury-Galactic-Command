@@ -202,15 +202,15 @@ function drawMark(ctx, o, fac, now, px, high) {
   }
   if (o.kind === 'ruin') {
     if (high) return;
-    // broken walls: a lit top, a dark face below; the squids' carry glowing glyphs, the bugs' are crusted with resin
-    const top = fac === 'squids' ? '#7d7392' : fac === 'bugs' ? '#8a7656' : '#7a7a7a', side = fac === 'squids' ? '#463f58' : fac === 'bugs' ? '#4d3f2a' : '#454545';
+    // broken walls: a lit top, a dark face below; the lizards' carry glowing glyphs, the bugs' are crusted with resin
+    const top = fac === 'lizards' ? '#7d7392' : fac === 'bugs' ? '#8a7656' : '#7a7a7a', side = fac === 'lizards' ? '#463f58' : fac === 'bugs' ? '#4d3f2a' : '#454545';
     let x = o.x, y = o.y;
     for (const g of o.segs) {
       const x2 = x + Math.cos(g.a) * g.l * s, y2 = y + Math.sin(g.a) * g.l * s, hh = g.h * s;
       ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x2, y2); ctx.lineTo(x2 + hh * SH.x * 2, y2 + hh * SH.y * 2); ctx.lineTo(x + hh * SH.x * 2, y + hh * SH.y * 2); ctx.closePath(); ctx.fill();
       ctx.fillStyle = side; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x2, y2); ctx.lineTo(x2, y2 - hh); ctx.lineTo(x, y - hh); ctx.closePath(); ctx.fill();
       ctx.strokeStyle = top; ctx.lineWidth = Math.max(px(1.5), 0.6 * s); ctx.beginPath(); ctx.moveTo(x, y - hh); ctx.lineTo(x2, y2 - hh); ctx.stroke();
-      if (fac === 'squids') { ctx.fillStyle = `rgba(120,240,255,${0.45 + 0.3 * Math.sin(now * 1.5 + o.seed + x)})`; for (let k = 1; k < 3; k++) ctx.fillRect(x + (x2 - x) * k / 3 - 0.2, y + (y2 - y) * k / 3 - hh * 0.6, 0.4, 0.4); }
+      if (fac === 'lizards') { ctx.fillStyle = `rgba(120,240,255,${0.45 + 0.3 * Math.sin(now * 1.5 + o.seed + x)})`; for (let k = 1; k < 3; k++) ctx.fillRect(x + (x2 - x) * k / 3 - 0.2, y + (y2 - y) * k / 3 - hh * 0.6, 0.4, 0.4); }
       if (fac === 'bugs') { ctx.fillStyle = 'rgba(210,150,40,0.45)'; ctx.beginPath(); ctx.arc((x + x2) / 2, (y + y2) / 2 - hh * 0.3, 0.6 * s, 0, TAU); ctx.fill(); }
       x = x2; y = y2;
     }
@@ -310,7 +310,7 @@ export function drawPresence(ctx, st, m, now, px, vb, low) {
       ctx.fillStyle = `rgba(255,170,70,${0.5 * a})`;
       for (let i = 0; i < 4; i++) { const ph = (now * 0.25 + h * 10 + i * 0.25) % 1, x = cx + (((h * (i + 3) * 13.1) % 1) - 0.5) * PCELL + Math.sin(now + i) * 0.8, y = cy + (((h * (i + 7) * 5.3) % 1) - 0.5) * PCELL - ph * 5; ctx.globalAlpha = 1 - ph; ctx.fillRect(x - 0.2, y - 0.2, 0.4, 0.4); }
       ctx.globalAlpha = 1;
-    } else if (fac === 'squids') {
+    } else if (fac === 'lizards') {
       // a heat haze: kept for after the loop (the ground under it is bent, all the cells in one go)
       (haze || (haze = [])).push(cx, cy, a, h);
     } else {
@@ -324,7 +324,7 @@ export function drawPresence(ctx, st, m, now, px, vb, low) {
   // (the shimmer reads the frame back: on HIGH graphics only, never on a phone, and not once the game has had to lighten itself)
   if (haze) { if (st.quality === 'high' && !st.phone && !(st.perf && (st.perf.low || st.perf.tier >= 1))) drawShimmer(ctx, haze, now); drawHaze(ctx, haze, now); }
 }
-// (0.61) The squids' heat haze, seen from above: the picture under it shimmers (drawShimmer), with a soft violet warmth that
+// (0.61) The lizards' heat haze, seen from above: the picture under it shimmers (drawShimmer), with a soft violet warmth that
 // breathes over it. No lines are drawn. Where the shimmer is off (see drawPresence), the warmth alone.
 const HAZE_MAX = 12;
 function drawHaze(ctx, haze, now) {

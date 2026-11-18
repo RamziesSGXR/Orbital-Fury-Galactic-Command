@@ -10,7 +10,7 @@ import { softNear, baseNear } from './pois.js';
 import { bark } from './chatter.js';
 import { dropNear } from './reinforce.js';
 import { turretStep } from './eturret.js';
-import { claim, claimedBy } from './helldiver.js';
+import { claim, claimedBy } from './vanguard.js';
 
 const DIRS = ['e', 'ne', 'n', 'nw', 'w', 'sw', 's', 'se'];
 // Compass word for a vector on the map (north is up, so -y).
@@ -52,7 +52,7 @@ export function noise(m, x, y, r) {
 const RIFLE = {};
 for (const k of ['H', 'S']) { const d = ALLY[k]; RIFLE[k] = { dmg: d.dps * d.burst, acc: d.acc, splash: 0, mult: { ...d.mult, B: 0.04 }, burst: d.burst, range: d.range }; }
 // (0.26) Infantry by role: the Squad Leader and Riflemen carry the Liberator (RIFLE.S), the Specialist the MG-43, the Medic the SMG-37
-for (const [k, d] of [['spec', C.combat.seafMg], ['medic', C.combat.seafSmg]]) RIFLE[k] = { dmg: d.dps * d.burst, acc: d.acc, splash: 0, mult: { ...d.mult, B: 0.04 }, burst: d.burst, range: d.range };
+for (const [k, d] of [['spec', C.combat.infantryMg], ['medic', C.combat.infantrySmg]]) RIFLE[k] = { dmg: d.dps * d.burst, acc: d.acc, splash: 0, mult: { ...d.mult, B: 0.04 }, burst: d.burst, range: d.range };
 const gunOf = (a) => (a.type === 'H' ? RIFLE.H : RIFLE[a.role] || RIFLE.S);
 
 // Infantry specialists. A grenadier lobs frags at groups; a rocket trooper hunts mediums and heavies.
@@ -67,7 +67,7 @@ export function updateAllies(m, dt) {
     const H = a.type === 'H';
 
     // Rifle (the Liberator for a Vanguard): a burst every half second or so at the nearest enemy in range that has a clear lane;
-    // a friendly in the way means the trigger is held (and now and then it is not, and the friendly pays for it). The exosuit
+    // a friendly in the way means the trigger is held (and now and then it is not, and the friendly pays for it). The walker
     // replaces it; a Vanguard with a support weapon keeps it, but fires it less often.
     // Vanguards hold fire while the squad is setting up on an enemy that has not noticed them.
     if (!mechOn) {
@@ -132,7 +132,7 @@ export function updateAllies(m, dt) {
             a.spT = spec.every * (0.9 + 0.2 * m.rng.next());
             const t = e || soft, prof = { ...ROCKET };
             prof.dmg *= (a.dmgMul || 1) * (m.kitEat || 1);
-            if (e) { fireShot(m, a, e, prof, 'squad', 'a', 'rocket'); if (e.kind) claim(m, a, e, 'rocket', 1, C.hd.stagger.seafRocket); }
+            if (e) { fireShot(m, a, e, prof, 'squad', 'a', 'rocket'); if (e.kind) claim(m, a, e, 'rocket', 1, C.hd.stagger.infantryRocket); }
             else {
               m.emit('tracer', { x: a.x, y: a.y, tx: t.x, ty: t.y, s: 'a', hit: true, big: true, fl: prof.flight, snd: 'rocket' });
               m.shells.push({ x: t.x, y: t.y, at: m.t + prof.flight, land: m.t + prof.flight, born: m.t, dmg: prof.dmg, splash: prof.splash, mult: prof.mult, by: 'squad', friendly: false, quiet: true });
@@ -141,7 +141,7 @@ export function updateAllies(m, dt) {
           } else a.spT = 0.4;
         }
       }
-      if ((a.gren ?? C.seaf.grenades) > 0) {
+      if ((a.gren ?? C.infantry.grenades) > 0) {
         a.grT = (a.grT ?? 2 + m.rng.next() * 3) - dt;
         if (a.grT <= 0) {
           const spec = C.combat.grenadier;
@@ -152,11 +152,11 @@ export function updateAllies(m, dt) {
           if (bn < spec.group) e = null;
           if (e) {
             a.grT = spec.every * (0.9 + 0.2 * m.rng.next());
-            a.gren = (a.gren ?? C.seaf.grenades) - 1;
+            a.gren = (a.gren ?? C.infantry.grenades) - 1;
             const prof = { ...GRENADE };
             if (a.dmgMul) prof.dmg *= a.dmgMul;
             fireShot(m, a, e, prof, 'squad', 'a', 'grenade');
-            claim(m, a, e, 'gren', spec.near || 6, C.hd.stagger.seafGren);     // (the group it counted, not just the splash)
+            claim(m, a, e, 'gren', spec.near || 6, C.hd.stagger.infantryGren);     // (the group it counted, not just the splash)
             bark(m, a, 'gren', '');
           } else a.grT = 0.5;
         }
@@ -266,8 +266,8 @@ function segDist(px, py, x1, y1, x2, y2) {
   return Math.hypot(px - (x1 + u * dx), py - (y1 + u * dy));
 }
 
-// Harvester (lizard heavy): picks a target, charges for a couple of seconds with a visible line, then fires a beam.
-function squidHeavy(m, e, p, t) {
+// War Beast (lizard heavy): picks a target, charges for a couple of seconds with a visible line, then fires a beam.
+function lizardHeavy(m, e, p, t) {
   if (e.ch) {
     const c = e.ch;
     if (!c.tgt || c.tgt.dead) c.tgt = nearestTarget(m, e.x, e.y, Math.min(p.range, m.faction.sight * m.biome.ping));
@@ -292,7 +292,7 @@ function squidHeavy(m, e, p, t) {
   const tgt = nearestTarget(m, e.x, e.y, Math.min(p.range, m.faction.sight * m.biome.ping));   // the beam reaches no farther than it sees
   if (tgt) { e.ch = { t0: t, dur: p.charge, tgt, tx: tgt.x, ty: tgt.y }; reveal(m, e); }
 }
-// (while charging, the harvester turns to its target: see the charge branch above, which keeps aimA fresh)
+// (while charging, the war beast turns to its target: see the charge branch above, which keeps aimA fresh)
 
 // (0.55) The warp colossus's walking beam, like the destroyer's orbital laser: after a charge (a line to the target, then a ring
 // where it will touch down), a column of light comes down `lead` metres short of the target, between it and the colossus, and
@@ -341,9 +341,9 @@ function colossusBeam(m, e, p, t, dt) {
 // ---------------------------------------------------------------- super heavies (sim/boss.js spawns them)
 // It walks at the nearest ally until it is at its own fighting distance (the titan wants to be on top of you, the walker and the
 // colossus stand off and shoot), turning slowly, round water like everyone else.
-// (0.55) how far a super heavy reaches: the allies' natural sight (C.sight.helldiver, by the biome), so it hits from as far as
+// (0.55) how far a super heavy reaches: the allies' natural sight (C.sight.vanguard, by the biome), so it hits from as far as
 // they can see it, and no farther
-export const bossReach = (m) => C.sight.helldiver * ((m.biome && m.biome.ping) || 1) * (C.boss.reachMul || 1);
+export const bossReach = (m) => C.sight.vanguard * ((m.biome && m.biome.ping) || 1) * (C.boss.reachMul || 1);
 function bossMove(m, e, dt, size) {
   let best = null, bd = Infinity;     // it hunts the Vanguards (anyone else only once they are gone)
   for (const a of (m.hdAlive.length ? m.hdAlive : m.alive)) { if (a.dead || a.mounted) continue; const d2 = (a.x - e.x) ** 2 + (a.y - e.y) ** 2; if (d2 < bd) { bd = d2; best = a; } }
@@ -359,7 +359,7 @@ function bossMove(m, e, dt, size) {
 function bossAttack(m, e, dt, t) {
   const D = C.boss[e.boss], see = bossReach(m), dm = m.dmgMul;     // (0.55: its reach is the allies' sight)
   if (e.aimUntil > t) reveal(m, e);
-  if (e.boss === 'squids') { e.atk -= dt; colossusBeam(m, e, { ...D.walk, range: see }, t, dt); return; }
+  if (e.boss === 'lizards') { e.atk -= dt; colossusBeam(m, e, { ...D.walk, range: see }, t, dt); return; }
   e.atk -= dt; e.atk2 -= dt;
   if (e.boss === 'bugs') {
     // (0.55) the spray: every so often it rears up and hoses a cone of acid over the ground ahead, blobs landing all across it
@@ -494,13 +494,13 @@ function densest(m, a, splash) {
 }
 // Bombardier: one mortar shell at a time, with a flight time you can see coming (a ring on the ground) and a wide blast.
 function bombardier(m, e, dt, t, p) {
-  const V = C.variants.squids;
+  const V = C.variants.lizards;
   e.atk -= dt;
   if (e.atk > 0 || !e.tgt || e.tgt.dead) return;
   e.atk = p.every;
   const a = e.tgt, c = densest(m, a, p.splash), [ox, oy] = m.rng.inDisc(V.scatter), tx = c.x + (a.vx || 0) * V.flight * 0.4 + ox, ty = c.y + (a.vy || 0) * V.flight * 0.4 + oy;
   m.bossShells.push({ x: tx, y: ty, at: t + V.flight, dmg: p.dmg * m.dmgMul, splash: p.splash, fx: e.x, fy: e.y, mortar: true });
-  m.emit('tracer', { x: e.x, y: e.y, tx, ty, s: 'e', f: 'squids', k: 'M', hit: true, big: true, mortar: true, fl: V.flight, snd: 'squidsM' });
+  m.emit('tracer', { x: e.x, y: e.y, tx, ty, s: 'e', f: 'lizards', k: 'M', hit: true, big: true, mortar: true, fl: V.flight, snd: 'lizardsM' });
   e.aimA = Math.atan2(ty - e.y, tx - e.x); e.aimUntil = t + 0.9;
   reveal(m, e);
 }
@@ -539,9 +539,9 @@ function arrangeForm(g) {
     lead.forEach((q, i) => put(q, -((rows - 1) / 2 + 1) * blk - blk * 0.5, (i - (lead.length - 1) / 2) * blk));
   }
 }
-const startled = (g, t) => ((g.startle ?? -99) > t ? C.formations.squids.startle.speed : 1);
+const startled = (g, t) => ((g.startle ?? -99) > t ? C.formations.lizards.startle.speed : 1);
 function arrangeSchool(g, t) {
-  const S = C.formations.squids, live = g.members.filter((q) => !q.dead && !q.boss);
+  const S = C.formations.lizards, live = g.members.filter((q) => !q.dead && !q.boss);
   const lead = live.filter((q) => q.kind !== 'L'), rest = live.filter((q) => q.kind === 'L');
   // startled: one of it hurt this moment, or fewer of it than a moment ago
   // (not again until it has closed up and swum on a while: under steady fire it scatters, re-forms, scatters)
@@ -610,7 +610,7 @@ function arrangeSchool(g, t) {
   }
   g.lag = ln ? lag / ln : 0;
 }
-const schoolPace = (g) => { const W = C.formations.squids.wedge; return Math.max(W.wait, Math.min(1, 1 - ((g.lag || 0) - W.slack) / W.leash)); };
+const schoolPace = (g) => { const W = C.formations.lizards.wedge; return Math.max(W.wait, Math.min(1, 1 - ((g.lag || 0) - W.slack) / W.leash)); };
 
 // ---------------------------------------------------------------- how each faction fights
 const TAU = Math.PI * 2;
@@ -620,7 +620,7 @@ const wrap = (a) => { while (a > Math.PI) a -= TAU; while (a < -Math.PI) a += TA
 // that is still big enough (CONFIG.enemies.tactics.swarm.rushN) moves faster. Far from anyone they follow the pack.
 function swarmMove(m, g, e, tgt, dt, size, sightE) {
   const S = C.enemies.tactics.swarm, t = m.t;
-  if (e.kind === 'H' || e.sub === 'guard') {   // the charger sprints at whatever is nearest; the hive guard leads the pack straight in
+  if (e.kind === 'H' || e.sub === 'guard') {   // the rammer sprints at whatever is nearest; the hive guard leads the pack straight in
     if (tgt && Math.hypot(tgt.x - e.x, tgt.y - e.y) < 180) moveToward(e, tgt.x, tgt.y, e.speed, dt, size);
     else { const h = homeOf(g, e); moveToward(e, h.x, h.y, e.speed * 1.5, dt, size); }
     return;
@@ -653,7 +653,7 @@ export function standCap(e, range, tg = e.tgt) {
 export function holdHere(e) {
   const tg = e.tgt;
   if (!tg || !tg.kind) return true;                                  // a live ally, or nothing: stand
-  const gr = tg.p && tg.p.range;                                     // the building's own gun (a turret nest, a sentry)
+  const gr = tg.p && tg.p.range;                                     // the building's own gun (a turret nest, a turret)
   if (!gr || tg.dead) return true;                                   // an unarmed thing: no need to walk into it
   return (tg.x - e.x) ** 2 + (tg.y - e.y) ** 2 <= (gr * C.enemies.tactics.closeIn) ** 2;
 }
@@ -701,7 +701,7 @@ function assignRings(m) {
 // To its own place in the school. (0.62.2) One that has fallen a long way behind it (a lake in the way, a wall, a place that
 // landed in deep water) swims back to the school itself first, instead of walking for ever at a place it cannot reach.
 function schoolTo(m, g, e, dt, size) {
-  const far = (e.x - g.cx) ** 2 + (e.y - g.cy) ** 2 > C.formations.squids.lost ** 2;
+  const far = (e.x - g.cx) ** 2 + (e.y - g.cy) ** 2 > C.formations.lizards.lost ** 2;
   const sp = e.speed * 1.5 * startled(g, m.t);
   if (far) moveToward(e, g.cx, g.cy, sp, dt, size);
   else moveToward(e, g.cx + e.ox, g.cy + e.oy, sp, dt, size);
@@ -725,7 +725,7 @@ function ringMove(m, g, e, tgt, dt, size, atk, engaged) {
     return;
   }
   // (0.54) a leader holds a little way in from the ring, behind its lights; (0.62.2) on a slot of its own, as the lights are
-  const Rw = midOf(e) ? Rr * C.formations.squids.hold : Rr;
+  const Rw = midOf(e) ? Rr * C.formations.lizards.hold : Rr;
   const cur = Math.atan2(e.y - tgt.y, e.x - tgt.x), diff = e.slot === undefined ? 0 : wrap(e.slot - cur);
   const inPlace = Math.abs(diff) < 0.3 && Math.abs(d - Rw) < R.slack;
   if (inPlace) { e.vx = 0; e.vy = 0; return; }   // in position: stand and shoot (the attack step does the rest)
@@ -740,11 +740,11 @@ export function updateEnemies(m, dt) {
   NAV = m.terrain; NAVT = m.t; AOB = m.ao; MM = m;
   WIRES.length = 0; for (const p of m.posts) if (p.what === 'wire' && !p.dead && p.wireHp > 0) WIRES.push(p);
   const atk = C.combat.atk[fac.id], prof = (e) => profileOf(fac.id, e);
-  if (fac.id === 'squids') { m.ringT = (m.ringT || 0) - dt; if (m.ringT <= 0) { m.ringT = 0.5; assignRings(m); } }
+  if (fac.id === 'lizards') { m.ringT = (m.ringT || 0) - dt; if (m.ringT <= 0) { m.ringT = 0.5; assignRings(m); } }
   // Commanders jam the ground round them (see jammedAt); a heavy's shield comes back once it has been left alone a while.
   const jam = m.jammers || (m.jammers = []);
   jam.length = 0;
-  m.bubbles = (m.bubbles || []).filter((b) => b.dome);     // (the domes of a shield-generator mission stay; the harvesters' are rebuilt)
+  m.bubbles = (m.bubbles || []).filter((b) => b.dome);     // (the domes of a shield-generator mission stay; the warbeasts' are rebuilt)
   for (const e of m.enemies) {
     if (e.dead) continue;
     // (0.40) a commander jams for jamSec, then cools down for jamCool, over and over
@@ -765,7 +765,7 @@ export function updateEnemies(m, dt) {
       const mx = g.cx - (g.lx ?? g.cx), my = g.cy - (g.ly ?? g.cy), md = Math.hypot(mx, my);
       g.lx = g.cx; g.ly = g.cy;
       if (md > 0.01) { const k = Math.min(1, dt * 3), hx = g.hx + (mx / md - g.hx) * k, hy = g.hy + (my / md - g.hy) * k, hn = Math.hypot(hx, hy) || 1; g.hx = hx / hn; g.hy = hy / hn; }
-      if (fac.id === 'squids') arrangeSchool(g, t);
+      if (fac.id === 'lizards') arrangeSchool(g, t);
       else if ((g.formT -= dt) <= 0) { g.formT = 0.5; arrangeForm(g); }
     }
 
@@ -809,14 +809,14 @@ export function updateEnemies(m, dt) {
         goal = g.pt;
       }
       const o = g.mv || (g.mv = { x: 0, y: 0, nv: null, nvc: null }); o.x = g.cx; o.y = g.cy; o.nv = g.nv;
-      moveToward(o, goal.x, goal.y, minSpeed * pace * (fac.id === 'squids' ? schoolPace(g) : 1), dt, size);
+      moveToward(o, goal.x, goal.y, minSpeed * pace * (fac.id === 'lizards' ? schoolPace(g) : 1), dt, size);
       g.cx = o.x; g.cy = o.y; g.nv = o.nv;
       for (const e of g.members) {
         if (e.dead) continue;
         e.tgt = null;
         if (e.stunUntil > t) { e.vx = 0; e.vy = 0; continue; }
         const h = homeOf(g, e);
-        moveToward(e, h.x, h.y, e.speed * (fac.id === 'squids' ? ((e.x - h.x) ** 2 + (e.y - h.y) ** 2 > 9 ? 1.6 : 1.1) : 0.8), dt, size);     // (0.62.4: a lizard keeps up with its place in the arrow)
+        moveToward(e, h.x, h.y, e.speed * (fac.id === 'lizards' ? ((e.x - h.x) ** 2 + (e.y - h.y) ** 2 > 9 ? 1.6 : 1.1) : 0.8), dt, size);     // (0.62.4: a lizard keeps up with its place in the arrow)
       }
       continue;
     }
@@ -878,7 +878,7 @@ export function updateEnemies(m, dt) {
     const tgt = g.target && !g.target.dead ? g.target : null;
     if (!engaged && g.tp) {
       const o = g.mv || (g.mv = { x: 0, y: 0, nv: null, nvc: null }); o.x = g.cx; o.y = g.cy; o.nv = g.nv;
-      moveToward(o, g.tp.x, g.tp.y, minSpeed * (fac.id === 'squids' ? schoolPace(g) : 1), dt, size);
+      moveToward(o, g.tp.x, g.tp.y, minSpeed * (fac.id === 'lizards' ? schoolPace(g) : 1), dt, size);
       g.cx = o.x; g.cy = o.y; g.nv = o.nv;
     }
     // Which way the group is facing the target and how its members line up across it (used by the firing line).
@@ -910,7 +910,7 @@ export function updateEnemies(m, dt) {
       if (e.boss) { if (t < (e.arriveUntil || 0)) continue; bossAttack(m, e, dt, t); continue; }     // (0.55.1: not while it arrives)
       if (e.v === 'rkt') { rocketeer(m, e, dt, t, p); continue; }
       if (e.v === 'mort') { bombardier(m, e, dt, t, p); continue; }
-      if (e.kind === 'H' && fac.id === 'squids') { e.atk -= dt; squidHeavy(m, e, p, t); continue; }
+      if (e.kind === 'H' && fac.id === 'lizards') { e.atk -= dt; lizardHeavy(m, e, p, t); continue; }
       if (!e.tgt) continue;
       e.atk -= dt;
       if (e.atk > 0) continue;

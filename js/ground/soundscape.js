@@ -40,8 +40,8 @@ export function soundSources(m, shots = []) {
   };
   group('hd', 'squad', m.hdAlive || [], 1);
   const bySq = new Map();
-  for (const a of m.seafAlive || []) { let L = bySq.get(a.sq); if (!L) bySq.set(a.sq, L = []); L.push(a); }
-  for (const [sq, L] of bySq) group('sq' + sq, 'seaf', L, 2);
+  for (const a of m.infantryAlive || []) { let L = bySq.get(a.sq); if (!L) bySq.set(a.sq, L = []); L.push(a); }
+  for (const [sq, L] of bySq) group('sq' + sq, 'infantry', L, 2);
   // ---- fights: where shots have been traded in the last moments
   const fc = new Map(), since = m.t - S.fightSec;
   for (let i = shots.length - 1; i >= 0; i--) {
@@ -53,10 +53,10 @@ export function soundSources(m, shots = []) {
   for (const [k, c] of fc) if (c.n >= S.fightMin) out.push({ key: 'f' + k, kind: 'fight', x: c.x / c.n, y: c.y / c.n, vol: Math.min(1, c.n / S.fightFull) });
   // ---- what stands on the field
   const seen = (o) => !m.visLevel || m.visLevel(o.x, o.y) > 0;
-  const baseKind = { bugs: 'nest', bots: 'fab', squids: 'ship' }[fac] || 'nest';
+  const baseKind = { bugs: 'nest', bots: 'fab', lizards: 'ship' }[fac] || 'nest';
   for (const b of m.bases || []) if (!b.destroyed && seen(b)) out.push({ key: 'b' + b.id, kind: baseKind, x: b.x, y: b.y, vol: 0.9 });
   for (const p of m.posts || []) if (!p.dead && !p.building && p.what !== 'lz') out.push({ key: 'p' + p.id, kind: 'post', x: p.x, y: p.y, vol: 0.5 });
   for (const s of m.sides || []) if (!s.done && !s.failed && (s.kind === 'radio' || s.kind === 'jammer' || s.kind === 'propaganda') && seen(s)) out.push({ key: 's' + s.id, kind: 'radio', x: s.x, y: s.y, vol: 0.7 });
-  for (const p of m.pelicans || []) out.push({ key: 'pl' + p.id, kind: 'pelican', x: p.x, y: p.y, vol: 1, moving: p.state !== 'hover' && p.state !== 'work' });
+  for (const p of m.dships || []) out.push({ key: 'pl' + p.id, kind: 'dship', x: p.x, y: p.y, vol: 1, moving: p.state !== 'hover' && p.state !== 'work' });
   return out;
 }

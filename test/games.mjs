@@ -10,7 +10,7 @@ if (which === 'all' || which === 'ground') {
   const { hbFilling, tapDemoCharge } = await import('../js/ground/sim/ops.js');
   const { newKit, newWallet } = await import('../js/ground/data/kit.js');
   const out = {};
-  for (const faction of ['bugs', 'bots', 'squids']) for (const obj of ['fortress', 'nuke', 'evac', 'vip']) {
+  for (const faction of ['bugs', 'bots', 'lizards']) for (const obj of ['fortress', 'nuke', 'evac', 'vip']) {
     const kit = newKit(), wallet = newWallet(), b0 = wallet.bal; let faults = 0;
     const m = new Mission({ seed: 100 + faction.length * 7 + obj.length, faction, biome: 'desert', sessionMinutes: 0, events: true, missionN: 1, opDone: 0, difficulty: 3, objectives: [obj], kit, wallet, countdown: 0, defenders: true });
     m.guard = true; m.onFault = (part, err) => { faults++; if (faults === 1) bad.push(`ground ${faction}/${obj}: fault in ${part}: ${err && err.message}`); };

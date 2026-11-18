@@ -8,7 +8,7 @@ import { t } from '../i18n.js';
 export const FACTIONS = {
   bugs:   { id: 'bugs',   color: '#FF7A1A', speed: 1.4, sight: 55, spread: 15 },
   bots:   { id: 'bots',   color: '#FF3B3B', speed: 0.8, sight: 75, spread: 4 },
-  squids: { id: 'squids', color: '#B05CFF', speed: 1.0, sight: 65, spread: 8 },
+  lizards: { id: 'lizards', color: '#B05CFF', speed: 1.0, sight: 65, spread: 8 },
 };
 for (const f of Object.values(FACTIONS)) {
   Object.defineProperties(f, {
@@ -27,8 +27,8 @@ export const attackProfile = (faction, kind) => C.combat.atk[faction][kind];
 
 // Allies. Hit points, armor (damage taken is multiplied by it) and rifle damage per second by enemy size.
 export const ALLY = {
-  H: { id: 'H', name: 'Vanguard', hp: C.combat.helldiver.hp, armor: C.combat.helldiver.armor, sight: C.sight.helldiver, r: 4,   ...pick(C.combat.helldiver) },
-  S: { id: 'S', name: 'Infantry',      hp: C.combat.seaf.hp,      armor: C.combat.seaf.armor,      sight: C.sight.seaf,      r: 2.6, ...pick(C.combat.seaf) },
+  H: { id: 'H', name: 'Vanguard', hp: C.combat.vanguard.hp, armor: C.combat.vanguard.armor, sight: C.sight.vanguard, r: 4,   ...pick(C.combat.vanguard) },
+  S: { id: 'S', name: 'Infantry',      hp: C.combat.infantry.hp,      armor: C.combat.infantry.armor,      sight: C.sight.infantry,      r: 2.6, ...pick(C.combat.infantry) },
 };
 function pick(o) { return { dps: o.dps, burst: o.burst, acc: o.acc, mult: o.mult, range: o.range }; }
 
@@ -57,27 +57,27 @@ export const COMMS = {
   get startDrop() { return t('c.startDrop'); },
   get landed() { return t('c.landed'); },
   spotted: (f, dir) => t('c.spotted', { f, dir }),
-  get seafDrop() { return t('c.seafDrop'); },
-  get seafLanded() { return t('c.seafLanded'); },
+  get infantryDrop() { return t('c.infantryDrop'); },
+  get infantryLanded() { return t('c.infantryLanded'); },
   // (0.39) pickups, and the destroyer leaving orbit
   get lzDown() { return t('c.lzDown'); },
-  get seafToLz() { return t('c.seafToLz'); },
+  get infantryToLz() { return t('c.infantryToLz'); },
   get pickupIn() { return t('c.pickupIn'); },
   pickupUp: (n) => t('c.pickupUp', { n }),
-  get exSeaf() { return t('c.exSeaf'); },
+  get exInfantry() { return t('c.exInfantry'); },
   orbitLeave: (s, n) => t(n ? 'c.orbitLeaveN' : 'c.orbitLeave', { s, n }),
-  get seafAuto() { return t('c.seafAuto'); },
-  get seafMove() { return t('c.seafMove'); },
-  get seafProtect() { return t('c.seafProtect'); },
-  get seafAttack() { return t('c.seafAttack'); },
-  get seafEscort() { return t('c.seafEscort'); },
-  seafBuild: (w) => t('c.seafBuild.' + w),
-  get seafPath() { return t('c.seafPath'); },
-  get seafLine() { return t('c.seafLine'); },
-  get seafRing() { return t('c.seafRing'); },
+  get infantryAuto() { return t('c.infantryAuto'); },
+  get infantryMove() { return t('c.infantryMove'); },
+  get infantryProtect() { return t('c.infantryProtect'); },
+  get infantryAttack() { return t('c.infantryAttack'); },
+  get infantryEscort() { return t('c.infantryEscort'); },
+  infantryBuild: (w) => t('c.infantryBuild.' + w),
+  get infantryPath() { return t('c.infantryPath'); },
+  get infantryLine() { return t('c.infantryLine'); },
+  get infantryRing() { return t('c.infantryRing'); },
   get hdDown() { return t('c.hdDown'); },
   get noLives() { return t('c.noLives'); },
-  get seafDown() { return t('c.seafDown'); },
+  get infantryDown() { return t('c.infantryDown'); },
   get friendly() { return t('c.friendly'); },
   reinforcements: (dir) => t('c.reinforcements', { dir }),
   baseDown: (n, total) => t(total - n > 0 ? 'c.baseDown' : 'c.baseDownLast', { n: total - n }),
@@ -100,12 +100,12 @@ export const COMMS = {
   poiDown: (name) => t('c.poiDown', { name }),
   get gunDry() { return t('c.gunDry'); },
   get noVisual() { return t('c.noVisual'); },
-  stratCall: (name) => t('c.stratCall', { name }),
+  callinCall: (name) => t('c.callinCall', { name }),
   assetDown: (name) => t('c.assetDown', { name }),
   assetSpent: (name) => t('c.assetSpent', { name }),
-  get frvIn() { return t('c.frvIn'); },
-  get frvOut() { return t('c.frvOut'); },
-  get frvBail() { return t('c.frvBail'); },
+  get lrvIn() { return t('c.lrvIn'); },
+  get lrvOut() { return t('c.lrvOut'); },
+  get lrvBail() { return t('c.lrvBail'); },
   get mechIn() { return t('c.mechIn'); },
   get mechDown() { return t('c.mechDown'); },
   get jump() { return t('c.jump'); },
@@ -129,7 +129,7 @@ export const COMMS = {
   get objDone() { return t('c.objDone'); },
   get pullOut() { return t('c.pullOut'); },
   extractCalled: (s) => t('c.extractCalled', { s }),
-  get pelicanLanding() { return t('c.pelicanLanding'); },
+  get dshipLanding() { return t('c.dshipLanding'); },
   get board() { return t('c.board'); },
   get extractEmpty() { return t('c.extractEmpty'); },
   get dropshipDown() { return t('c.dropshipDown'); },
@@ -145,7 +145,7 @@ export const COMMS = {
   get civFriendly() { return t('c.civFriendly'); },
   utilCall: (name) => t('c.utilCall', { name }),
   get noWater() { return t('c.noWater'); },
-  get eagleRearm() { return t('c.eagleRearm'); },     // (0.23)
+  get strikerRearm() { return t('c.strikerRearm'); },     // (0.23)
   bossIn: (name, dir, d) => t('c.bossIn', { name, dir, d }),
   bossDown: (name) => t('c.bossDown', { name }),
   bossBlock: (name) => t('c.bossBlock', { name }),
@@ -183,7 +183,7 @@ export const COMMS = {
   get artyUp() { return t('c.artyUp'); },
   get artyStart() { return t('c.artyStart'); },
   get jammed() { return t('c.jammed'); },
-  get seafMan() { return t('c.seafMan'); },
+  get infantryMan() { return t('c.infantryMan'); },
   postDown: (what) => t('c.postDown', { what }),
   get artyFire() { return t('c.artyFire'); },
 };

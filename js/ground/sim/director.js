@@ -14,7 +14,7 @@ import { aoX, aoY, inAO } from './ao.js';
 const POD_MULT = { L: 1, M: 1, H: 1, B: 0.2 };
 
 
-// A heavy's own protection (CONFIG.heavies): the charger's front plate, the tank's extra health and weak points, the harvester's shield.
+// A heavy's own protection (CONFIG.heavies): the rammer's front plate, the tank's extra health and weak points, the warbeast's shield.
 function heavyKit(fid, e) {
   const H = C.heavies[fid];
   if (!H) return;
@@ -80,7 +80,7 @@ export function spawnGroup(m, x, y, state = 'patrol', opts = {}) {
       ang: rng.angle(), lane: 0, slot: undefined, ra: 0, pt: null, ptT: rng.next() * 0.25,
       face: rng.angle(), aimA: 0, aimUntil: 0,
     };
-    // Heavies have their own pace: the charger sprints, the tank rolls, the harvester stalks.
+    // Heavies have their own pace: the rammer sprints, the tank rolls, the war beast stalks.
     if (kind === 'H') { e.speed = attackProfile(fac.id, 'H').speed * m.biome.speed; heavyKit(fac.id, e); }
     else if (special) specialKit(fac.id, e);
     else variantKit(m, fac.id, e);
@@ -154,7 +154,7 @@ export function ringOf(m, b) {
 // Is this base (or, for a citadel piece, any of the citadel) awake?
 export const baseAwake = (m, b) => (b.fortress || b.part ? m.bases.some((q) => (q.fortress || q.part) && q.alert) : !!b.alert);
 // A base wakes: its garrison turns out, it starts sending groups, and its neighbours (the whole citadel, for a citadel piece)
-// follow after a few seconds. why: 'squad' | 'seaf' | 'hit' | 'cluster'.
+// follow after a few seconds. why: 'squad' | 'infantry' | 'hit' | 'cluster'.
 export function alertBase(m, b, why = 'squad') {
   if (b.alert || b.destroyed) return;
   b.alert = true; b.alertWhy = why; b.alertT = m.t;
@@ -167,7 +167,7 @@ export function alertBase(m, b, why = 'squad') {
     if ((b.nb || []).includes(q) && !(q.alertAt && q.alertAt <= m.t + C.bases.alertSpread)) q.alertAt = m.t + C.bases.alertSpread;
   }
   m.stats.alerts = (m.stats.alerts || 0) + 1;
-  if (why === 'seaf') m.stats.seafAlerts = (m.stats.seafAlerts || 0) + 1;
+  if (why === 'infantry') m.stats.infantryAlerts = (m.stats.infantryAlerts || 0) + 1;
   m.emit('base_alert', { x: b.x, y: b.y, why, fortress: !!(b.fortress || b.part) });
 }
 
@@ -215,7 +215,7 @@ export function updateDirector(m, dt) {
       stepDefences(m, b, dt);     // (0.55) shields and turrets
       if (!b.alert) {
         const rg = ringOf(m, b), D2 = rg.R * rg.R;
-        for (const a of m.alive) if (!a.dead && (a.x - rg.x) ** 2 + (a.y - rg.y) ** 2 <= D2) { alertBase(m, b, a.type === 'S' ? 'seaf' : 'squad'); break; }
+        for (const a of m.alive) if (!a.dead && (a.x - rg.x) ** 2 + (a.y - rg.y) ** 2 <= D2) { alertBase(m, b, a.type === 'S' ? 'infantry' : 'squad'); break; }
         if (!b.alert && b.alertAt && t >= b.alertAt) alertBase(m, b, 'cluster');
       }
     }
@@ -246,10 +246,10 @@ export function updateDirector(m, dt) {
     if (t < p.landAt) continue;
     m.pods.splice(i, 1);
     if (p.type === 'H') {
-      damageArea(m, p.x, p.y, C.helldivers.podRadius, C.helldivers.podDmg, POD_MULT, 'squad', 'none');
+      damageArea(m, p.x, p.y, C.vanguards.podRadius, C.vanguards.podDmg, POD_MULT, 'squad', 'none');
       const a = m.addAlly('H', p.x, p.y, { team: p.team });
-      m.emit('pod_land', { type: 'H', x: p.x, y: p.y, n: 1, r: C.helldivers.podRadius });
-      m.emit('boom', { x: p.x, y: p.y, r: C.helldivers.podRadius, dmg: C.helldivers.podDmg, by: 'squad', pod: true });
+      m.emit('pod_land', { type: 'H', x: p.x, y: p.y, n: 1, r: C.vanguards.podRadius });
+      m.emit('boom', { x: p.x, y: p.y, r: C.vanguards.podRadius, dmg: C.vanguards.podDmg, by: 'squad', pod: true });
       if (m.t > 20) m.notice(tr('n.deployed', { who: m.tag(a), ship: m.shipOf(a.team) }), 'good');   // the first drop needs no list
       bark(m, a, 'land', '', true);
       m.radio(COMMS.landed, 'landed', 6);

@@ -25,7 +25,7 @@ export function makeRoute(m, b) {
     for (let i = 0; i < n; i++) { a += (Math.PI * 2) / n + rng.range(-0.4, 0.4); const d = rng.range(R0, R1); pts.push(land(b.x + Math.cos(a) * d, b.y + Math.sin(a) * d)); }
     return { pts, loop: true };
   }
-  if (fac === 'squids') {             // sweep: a wide circle round the gate, one way or the other
+  if (fac === 'lizards') {             // sweep: a wide circle round the gate, one way or the other
     const n = 8, d = rng.range((R0 + R1) / 2, R1), dir = rng.next() < 0.5 ? 1 : -1, a0 = rng.angle(), pts = [];
     for (let i = 0; i < n; i++) { const a = a0 + dir * (i / n) * Math.PI * 2; pts.push(land(b.x + Math.cos(a) * d, b.y + Math.sin(a) * d)); }
     return { pts, loop: true };

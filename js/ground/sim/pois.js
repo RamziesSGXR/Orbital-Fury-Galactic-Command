@@ -8,7 +8,7 @@ import { spawnGroup, spawnNear } from './director.js';
 import { aoScale } from './ao.js';
 import { sideDestroyed } from './sides.js';
 import { RNG } from '../util/rng.js';
-import { STRATS } from '../data/strat.js';
+import { CALLINS } from '../data/callin.js';
 import { inAO } from './ao.js';
 import { reinfHeavy } from './boss.js';
 
@@ -86,10 +86,10 @@ export function takeLoot(m, q, by) {
   let what = '';
   if (q.kind === 'wreck') {
     const g = m.player && m.player.gun; if (g) { g.ammo = g.max; g.dry = false; }
-    for (const a of m.hdAlive) if (a.sw) a.sw.left = Math.max(a.sw.left, STRATS[a.sw.id] && STRATS[a.sw.id].sw ? STRATS[a.sw.id].sw.ammo : a.sw.left);
+    for (const a of m.hdAlive) if (a.sw) a.sw.left = Math.max(a.sw.left, CALLINS[a.sw.id] && CALLINS[a.sw.id].sw ? CALLINS[a.sw.id].sw.ammo : a.sw.left);
     what = tr('loot.got.wreck');
   } else if (q.kind === 'pod') {
-    const d = STRATS[q.w];
+    const d = CALLINS[q.w];
     let h = by.type === 'H' && !by.sw && !(by.mech && by.mech.hp > 0) ? by : null;
     if (!h) { let bd = Infinity; for (const a of m.hdAlive) { if (a.sw || a.mounted || (a.mech && a.mech.hp > 0)) continue; const dd = (a.x - q.x) ** 2 + (a.y - q.y) ** 2; if (dd < bd) { bd = dd; h = a; } } }
     if (h && d && d.sw) { h.sw = { id: q.w, ...d.sw, left: d.sw.ammo, t: 0.8, snd: 'ac', lockE: null, lockT: 0 }; m.emit('asset_new', { kind: 'weapon', sid: q.w, x: h.x, y: h.y }); }

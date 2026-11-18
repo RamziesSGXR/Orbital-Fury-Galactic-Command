@@ -5,7 +5,7 @@ import { alertRaise } from './alert.js';
 import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
 import { setupGun, updateGun, gunStatus } from './gun.js';
-import { OP_OF, OP_TYPES, setupOil, setupCannon, setupDome, setupKeep, updateOil, updateCannon, updateDome, updateKeep, hellbombGoal, keepStatus } from './ops.js';
+import { OP_OF, OP_TYPES, setupOil, setupCannon, setupDome, setupKeep, updateOil, updateCannon, updateDome, updateKeep, demochargeGoal, keepStatus } from './ops.js';
 import { openTasks } from './planner.js';
 import { COMMS } from '../data/data.js';
 import { spawnNear } from './director.js';
@@ -152,7 +152,7 @@ export function nextPart(m, o) {
 export function objectiveGoal(m) {
   const o = activeObjective(m);
   if (!o) return null;
-  if (o.type === 'fortress') { const hg = hellbombGoal(m, o); return hg ? { o, ...hg } : { o, base: nextPart(m, o) }; }
+  if (o.type === 'fortress') { const hg = demochargeGoal(m, o); return hg ? { o, ...hg } : { o, base: nextPart(m, o) }; }
   if (o.type === 'oil') return { o, x: o.x, y: o.y, stop: 12 };
   if (o.type === 'gun') return { o, x: o.x, y: o.y, stop: 14 };
   if (o.type === 'cannon') return { o, base: o.base };

@@ -1,9 +1,9 @@
 // A simple bot that plays the destroyer through the same input API as a human: UAV scans, orbital strikes, Infantry drops,
 // the nuke, and shopping between missions. Used by the headless balance test and the ?bot=1 demo.
 import { CONFIG as C } from '../config.js';
-import { buy, shopItems, seafStats } from '../data/kit.js';
-import { touchSquad } from './seaf.js';
-import { slotStats, aimGeom, UAV_REACH, ORB_SLOTS, eagleReady } from './player.js';
+import { buy, shopItems, infantryStats } from '../data/kit.js';
+import { touchSquad } from './infantry.js';
+import { slotStats, aimGeom, UAV_REACH, ORB_SLOTS, strikerReady } from './player.js';
 import { pickNukeTarget } from './objectives.js';
 import { acceptSupply, fillSupply } from './supply.js';
 import { tapDemoCharge } from './ops.js';
@@ -26,13 +26,13 @@ export const NOVICE = { aimNoise: 9, react: 2.5, gun: 0.5, orders: 6, supply: 6,
 // the luxuries.
 const PLAN = [
   'up:orb_120', 'up:orb_precision', 'up:orb_airburst', 'up:orb_120',
-  'slot:4', 'own:util_med', 'uav', 'gun.ammo', 'up:orb_precision', 'seaf.medic', 'gun.dmg', 'up:orb_120', 'seaf.hp',
-  'gun.ammo', 'gun.pen', 'uav', 'up:orb_airburst', 'seaf.drop', 'gun.regen',
-  'own:orb_rail', 'up:orb_precision', 'seaf.spot', 'gun.dmg', 'gun.pen', 'up:util_med', 'up:orb_120', 'seaf.hp', 'gun.ammo', 'uav', 'sup.zone',
-  'slot:5', 'own:orb_380', 'up:orb_rail', 'seaf.rocket', 'gun.spread', 'up:orb_380', 'seaf.medic', 'gun.regen', 'up:orb_precision',
-  'seaf.gren', 'seaf.cap', 'up:orb_rail', 'up:orb_380', 'gun.dmg', 'uav', 'seaf.hp', 'up:util_med', 'seaf.drop', 'sup.zone', 'gun.ammo',
-  'own:orb_laser', 'up:orb_laser', 'up:orb_rail', 'seaf.spot', 'seaf.medic', 'gun.spread', 'up:orb_380', 'up:orb_laser', 'seaf.rocket',
-  'gun.regen', 'seaf.cap', 'up:orb_laser', 'up:util_med', 'seaf.gren', 'sup.zone', 'gun.dmg', 'gun.spread', 'seaf.hp', 'seaf.drop',
+  'slot:4', 'own:util_med', 'uav', 'gun.ammo', 'up:orb_precision', 'infantry.medic', 'gun.dmg', 'up:orb_120', 'infantry.hp',
+  'gun.ammo', 'gun.pen', 'uav', 'up:orb_airburst', 'infantry.drop', 'gun.regen',
+  'own:orb_rail', 'up:orb_precision', 'infantry.spot', 'gun.dmg', 'gun.pen', 'up:util_med', 'up:orb_120', 'infantry.hp', 'gun.ammo', 'uav', 'sup.zone',
+  'slot:5', 'own:orb_380', 'up:orb_rail', 'infantry.rocket', 'gun.spread', 'up:orb_380', 'infantry.medic', 'gun.regen', 'up:orb_precision',
+  'infantry.gren', 'infantry.cap', 'up:orb_rail', 'up:orb_380', 'gun.dmg', 'uav', 'infantry.hp', 'up:util_med', 'infantry.drop', 'sup.zone', 'gun.ammo',
+  'own:orb_laser', 'up:orb_laser', 'up:orb_rail', 'infantry.spot', 'infantry.medic', 'gun.spread', 'up:orb_380', 'up:orb_laser', 'infantry.rocket',
+  'gun.regen', 'infantry.cap', 'up:orb_laser', 'up:util_med', 'infantry.gren', 'sup.zone', 'gun.dmg', 'gun.spread', 'infantry.hp', 'infantry.drop',
 ];
 // What a new orbital pushes out of a full loadout, first found first.
 const BENCH = ['orb_airburst', 'orb_120', 'orb_walk', 'orb_gas', 'orb_ems', 'orb_napalm'];
@@ -102,12 +102,12 @@ function clearOfAllies(m, x, y, r) {
 
 // Half of the biggest squad (every other trooper, so each keeps a share of the specialists) moves to a squad of its own.
 export function splitHalf(m) {
-  const big = m.seafTargets().sort((a, b) => b.n - a.n)[0];
+  const big = m.infantryTargets().sort((a, b) => b.n - a.n)[0];
   if (!big) return null;
-  const mem = m.seafAlive.filter((a) => a.sq === big.i).sort((a, b) => a.id - b.id).filter((_, k) => k % 2 === 1);
-  const free = m.seaf.squads.find((q) => q.i !== big.i && !m.seafAlive.some((a) => a.sq === q.i));
+  const mem = m.infantryAlive.filter((a) => a.sq === big.i).sort((a, b) => a.id - b.id).filter((_, k) => k % 2 === 1);
+  const free = m.infantry.squads.find((q) => q.i !== big.i && !m.infantryAlive.some((a) => a.sq === q.i));
   if (!mem.length || !free) return null;
-  m.pickSeaf(mem); const r = m.toSquad(free.i); m.selectSquad(-1);
+  m.pickInfantry(mem); const r = m.toSquad(free.i); m.selectSquad(-1);
   return r;
 }
 
@@ -115,16 +115,16 @@ export function splitHalf(m) {
 function orders(m, bot) {
   const t = m.t, dir = m.squad.dir, p = m.player;
   if (!m.alive.length) return;
-  const st = seafStats(m.kit);
-  if (m.countAlly('S') + m.pendingPods('S') <= st.max - st.drop && t >= m.seaf.readyAt) {
+  const st = infantryStats(m.kit);
+  if (m.countAlly('S') + m.pendingPods('S') <= st.max - st.drop && t >= m.infantry.readyAt) {
     const bc = beaconAhead(m);
-    if (bc) m.callSeaf(bc.x, bc.y, { hold: false });
-    else m.callSeaf(m.hx + Math.cos(dir) * 25, m.hy + Math.sin(dir) * 25, { hold: false });      // (0.27.3: the bot sends its new squads straight off, as before)
+    if (bc) m.callInfantry(bc.x, bc.y, { hold: false });
+    else m.callInfantry(m.hx + Math.cos(dir) * 25, m.hy + Math.sin(dir) * 25, { hold: false });      // (0.27.3: the bot sends its new squads straight off, as before)
   }
   // (0.54) a sharp player keeps handing orders out: touch every squad on a timer so none of them goes stale
-  if (t >= (bot.touchT || 0)) { bot.touchT = t + (bot.reorder ?? 70); for (const q of m.seaf.squads) if (q.n) touchSquad(m, q); }
+  if (t >= (bot.touchT || 0)) { bot.touchT = t + (bot.reorder ?? 70); for (const q of m.infantry.squads) if (q.n) touchSquad(m, q); }
   // keep a pair of squads when there are enough troopers
-  if (bot.split && !bot.splitDone && m.seafAlive.length >= 6) { bot.splitDone = true; splitHalf(m); }
+  if (bot.split && !bot.splitDone && m.infantryAlive.length >= 6) { bot.splitDone = true; splitHalf(m); }
   const u = p.slots[0];
   if (u.type === 'uav' && t >= u.readyAt && m.hdAlive.length) {
     const reach = Math.min(120, m.hdAlive[0].zone + UAV_REACH - 20);
@@ -244,7 +244,7 @@ function targetFor(m, st) {
     }
     return best;
   };
-  if (st.lock) return heavy();                                   // railcannon: only for heavies
+  if (st.lock) return heavy();                                   // lance: only for heavies
   if (st.k === 'beam') return heavy() || (base ? { x: base.x, y: base.y } : null);
   if (st.use === 'heavy') return heavy() || (st.base && base ? { x: base.x, y: base.y } : null);
   if (st.base && base && st.id !== 'orb_walk') return { x: base.x, y: base.y };
@@ -274,9 +274,9 @@ export function botStep(m, bot) {
     return;    // the player's hands are on the loader
   }
   // The Demolition Charge: the lit part each time, at about the same rate (and now and then a wrong one, like a player in a hurry)
-  const HBm = m.hellbomb;
+  const HBm = m.democharge;
   if (HBm && HBm.state === 'fill') {
-    const f = HBm.fill, K = C.objective.hellbomb;
+    const f = HBm.fill, K = C.objective.democharge;
     if (f.tapEvery === undefined) f.tapEvery = K.slowmo * (0.3 + ((HBm.n * 5 + m.seed) % 4) * 0.06);
     if (f.t >= (f.nextTap || 0)) { tapDemoCharge(m, ((f.taps * 7 + m.seed) % 9) === 0 ? (f.order[f.i] + 1) % 4 : -1); f.nextTap = f.t + f.tapEvery; }
     return;
@@ -309,7 +309,7 @@ export function botStep(m, bot) {
     bot.rot = (bot.rot + 1) % ORB_SLOTS;
     for (let k = 0; k < ORB_SLOTS; k++) {
       const idx = 1 + ((bot.rot + k) % ORB_SLOTS), s = p.slots[idx];
-      if (s.type !== 'orb' || t < s.readyAt || s.uses <= 0 || (s.eu !== undefined && !eagleReady(m, s))) continue;     // (0.53.2: a Striker out of runs, or the Striker away)
+      if (s.type !== 'orb' || t < s.readyAt || s.uses <= 0 || (s.eu !== undefined && !strikerReady(m, s))) continue;     // (0.53.2: a Striker out of runs, or the Striker away)
       const st = slotStats(m, idx);
       const tgt = targetFor(m, st);
       if (!tgt) continue;

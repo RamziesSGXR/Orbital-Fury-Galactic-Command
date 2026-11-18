@@ -1,7 +1,7 @@
 /* ORBITAL FURY: GALACTIC COMMAND. One stylesheet for the whole game.
    Ship's tactical console: dark plates, thin lines, cut corners. Amber = what you command, cyan = information and
    your own side, red = the enemy and danger. See the project's sci-fi interface style note.
-   Layout: resources on top, the map, the ministries beside (or under) it, your hand of cards along the bottom. */
+   Layout: resources on top, the map, the offices beside (or under) it, your hand of cards along the bottom. */
 :root {
   --ground: #0b0d0c; --plate: rgba(12, 16, 14, 0.9); --strip: rgba(10, 13, 12, 0.76);
   --text: #e6eadc; --dim: rgba(230, 234, 220, 0.62);
@@ -45,7 +45,7 @@ section { margin-bottom: 10px; }
 #bulletin.bad { color: var(--red); } #bulletin.good { color: var(--cyan); } #bulletin.warn { color: var(--amber); }
 #zoom { position: absolute; right: 8px; top: 6px; z-index: 1; display: flex; flex-direction: column; gap: 6px; }
 #zoom .btn { min-width: 40px; min-height: 40px; font-size: 18px; padding: 0; }
-/* On a phone the map and the hand fill the screen. A ministry or a system opens as a sheet over the lower map. */
+/* On a phone the map and the hand fill the screen. A office or a system opens as a sheet over the lower map. */
 #side { position: fixed; left: 0; right: 0; bottom: var(--dh, 220px); max-height: 42dvh; display: none; flex-direction: column;
   background: #0b0d0c; border-top: 2px solid var(--amber); z-index: 3; }
 #side.open { display: flex; }
@@ -53,7 +53,7 @@ section { margin-bottom: 10px; }
 .sh { position: sticky; top: 0; background: #0b0d0c; display: flex; justify-content: space-between; align-items: center; padding: 6px 0; margin-bottom: 4px; z-index: 1; }
 .sh b { font: 700 13px var(--head); letter-spacing: 1.5px; color: var(--amber); }
 .sh .btn { min-width: 40px; min-height: 34px; font-size: 16px; padding: 0; }
-/* the eight ministries: one row, always on screen */
+/* the eight offices: one row, always on screen */
 #mins { flex: 0 0 auto; display: grid; grid-template-columns: repeat(8, 1fr); border-top: 1px solid var(--cyan-l); background: var(--strip); }
 .min { position: relative; background: none; border: 0; border-top: 2px solid transparent; padding: 5px 0 4px; min-height: 48px; display: flex; flex-direction: column;
   align-items: center; gap: 2px; color: var(--dim); }
@@ -167,7 +167,7 @@ section { margin-bottom: 10px; }
 #modal ul { padding-left: 16px; margin-bottom: 10px; }
 @media (max-height: 760px) { .card { height: 112px; } .card .tx { display: none; } }
 
-/* ---------- the tutorial coach: sits above the ministry tabs, so the map stays clear ---------- */
+/* ---------- the tutorial coach: sits above the office tabs, so the map stays clear ---------- */
 #coach { flex: 0 0 auto; background: rgba(40, 36, 10, 0.9); border-top: 2px solid var(--amber); padding: 8px 10px; }
 #coach[hidden] { display: none; }
 #coach em { font: 600 10px var(--head); letter-spacing: 1.5px; color: var(--amber); font-style: normal; }

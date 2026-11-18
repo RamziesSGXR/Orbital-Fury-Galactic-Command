@@ -10,7 +10,7 @@ import { orbStats, uavStats, gunStats, buildStats, buildLevel, hangarStats } fro
 import { noise, alertGroup } from './enemies.js';
 import { ffBlast, damageArea, hurtEnemy, jammedAt } from './combat.js';
 import { domeAt } from './ops.js';
-import { strikeAt, queueZone, destroyAsset } from './strat.js';
+import { strikeAt, queueZone, destroyAsset } from './callin.js';
 
 export const SLOT_ARTY = 8, ORB_SLOTS = 5;
 export const UAV_REACH = 70;       // a UAV can be dropped this far beyond the strike zone of the allies
@@ -27,7 +27,7 @@ export function initPlayer(m) {
   // (0.23) the Striker (the Hangar): every Striker in the loadout calls on it, and it flies back to rearm. (0.53.2) Each Striker call-in
   // has its own runs (its slot's eu, max each); the Striker rearms once every one is out, or when the gunner calls it back early.
   const H = hangarStats(m.kit);
-  p.eagle = { max: H.uses, rearmAt: 0 };
+  p.striker = { max: H.uses, rearmAt: 0 };
   m.player = p;
   m.utilQ = [];
   syncSlots(m, true);
@@ -120,7 +120,7 @@ function fireArty(m, s) {
   artyTick(m, 0);
   g.face = Math.atan2(p.aimY - g.y, p.aimX - g.x); g.firedAt = t;
   m.shells.push({ x: p.aimX, y: p.aimY, at: t + A.flight, dmg: a.dmg, splash: a.r, mult: A.mult, by: 'player', friendly: true, big: true, mini: true, fx: g.x, fy: g.y, above: true });   // (a high arc: it comes down from above)
-  m.markers.push({ type: 'strat', x: p.aimX, y: p.aimY, r: a.r, start: t, end: t + A.flight, impact: t + A.flight, id: tr('hud.w.arty'), cat: 'ORBITAL', by: 'player' });
+  m.markers.push({ type: 'callin', x: p.aimX, y: p.aimY, r: a.r, start: t, end: t + A.flight, impact: t + A.flight, id: tr('hud.w.arty'), cat: 'ORBITAL', by: 'player' });
   m.stats.artyShots = (m.stats.artyShots || 0) + 1; m.stats.shots++;
   m.radio(COMMS.artyFire, 'artyfire', 3);
   m.emit('arty_fire', { x: p.aimX, y: p.aimY, gx: g.x, gy: g.y });
@@ -186,16 +186,16 @@ function fireOrbital(m, idx) {
   const p = m.player, s = p.slots[idx], t = m.t;
   const st = orbStats(s.id, s.level);
   if (t < s.readyAt || s.uses <= 0) return deny(m, 'cooldown');
-  if (st.cat === 'STRIKER' && !eagleReady(m, s)) return deny(m, m.t < m.player.eagle.rearmAt ? 'rearm' : 'eagleempty');
+  if (st.cat === 'STRIKER' && !strikerReady(m, s)) return deny(m, m.t < m.player.striker.rearmAt ? 'rearm' : 'strikerempty');
   if (!m.inZone(p.aimX, p.aimY) && !(st.k !== 'util' && m.nearLock(p.aimX, p.aimY))) return deny(m, 'nocoverage', COMMS.noCoverage);   // a locked enemy can be hit anywhere
   if (st.k === 'util') return callUtil(m, s, st);
   if (st.k === 'mines') return callMines(m, s, st);
   // into a free-fire zone the Vanguards asked for: the destroyer recharges faster, so the gunner can saturate it
   s.readyAt = t + st.cd * orbCdMul(m.kit) * orbSiteMul(m);     // (0.51: the Orbital Efficiency commendation; 0.52: a worked refinery)
-  if (st.cat === 'STRIKER') eagleUse(m, s);
+  if (st.cat === 'STRIKER') strikerUse(m, s);
   if (s.uses !== Infinity) s.uses--;
   let tgt = { x: p.aimX, y: p.aimY };
-  if (st.lock) {      // the railcannon picks the biggest enemy near the aim point
+  if (st.lock) {      // the lance picks the biggest enemy near the aim point
     let best = null, bd = Infinity;
     m.eGrid.near(p.aimX, p.aimY, 26, (e, d2) => { if ((e.vis > 0 || m.locked.includes(e)) && (e.kind === 'H' || !best) && d2 < bd) { bd = d2; best = e; } });
     if (best) tgt = { x: best.x, y: best.y, e: best };
@@ -210,7 +210,7 @@ function fireOrbital(m, idx) {
     m.markers.push({ type: 'laser', x: tgt.x, y: tgt.y, r: b.leash, start: t, end: t + st.delay + b.dur });
   }
   m.stats.shots++; m.stats.orbCalls++;
-  m.stats.stratBy[s.id] = (m.stats.stratBy[s.id] || 0) + 1;
+  m.stats.callinBy[s.id] = (m.stats.callinBy[s.id] || 0) + 1;
   m.emit('strike_call', { slot: idx, id: s.id, name: st.name, x: tgt.x, y: tgt.y });
   return true;
 }
@@ -218,38 +218,38 @@ function fireOrbital(m, idx) {
 // ---------------------------------------------------------------- (0.23) the Striker and the minefields
 // The Striker: a Striker call-in is ready while it has runs left (0.53.2: its own, s.eu) and the Striker is not away rearming. Each call
 // takes one of its runs; once every Striker in the loadout is out, the Striker flies back to rearm. The gunner can call it back to rearm
-// early (eagleRearm) once any run is spent. While it is away no Striker can be called; it comes back with every one full.
-export const eagleSlots = (m) => m.player.slots.filter((s) => s.type === 'orb' && s.eu !== undefined);
-export const eagleAway = (m) => m.t < m.player.eagle.rearmAt;
-export function eagleReady(m, s) {
-  if (eagleAway(m)) return false;
-  return s ? s.eu > 0 : eagleSlots(m).some((q) => q.eu > 0);
+// early (strikerRearm) once any run is spent. While it is away no Striker can be called; it comes back with every one full.
+export const strikerSlots = (m) => m.player.slots.filter((s) => s.type === 'orb' && s.eu !== undefined);
+export const strikerAway = (m) => m.t < m.player.striker.rearmAt;
+export function strikerReady(m, s) {
+  if (strikerAway(m)) return false;
+  return s ? s.eu > 0 : strikerSlots(m).some((q) => q.eu > 0);
 }
-function eagleBack(m, early) {
-  const e = m.player.eagle, H = hangarStats(m.kit);
+function strikerBack(m, early) {
+  const e = m.player.striker, H = hangarStats(m.kit);
   e.rearmAt = m.t + H.rearm; e.early = !!early;
-  m.emit('eagle_rearm', { sec: H.rearm, early: !!early });
-  m.radio(COMMS.eagleRearm, 'eaglerearm', 4);
+  m.emit('striker_rearm', { sec: H.rearm, early: !!early });
+  m.radio(COMMS.strikerRearm, 'strikerrearm', 4);
 }
-function eagleUse(m, s) {
+function strikerUse(m, s) {
   const H = hangarStats(m.kit);
   s.readyAt = m.t + H.callCd;
   s.eu = Math.max(0, s.eu - 1);
-  if (eagleSlots(m).every((q) => q.eu <= 0)) eagleBack(m, false);
+  if (strikerSlots(m).every((q) => q.eu <= 0)) strikerBack(m, false);
 }
 // (0.53.2) STRIKER REARM: the Striker flies back now, with runs still on it. Refused while it is away, or when no run has been spent.
-export function eagleRearm(m) {
-  const e = m.player.eagle, list = eagleSlots(m);
-  if (!list.length) return { ok: false, reason: 'noeagle' };
-  if (eagleAway(m)) return { ok: false, reason: 'rearm' };
-  if (list.every((q) => q.eu >= e.max)) return { ok: false, reason: 'eaglefull' };
-  eagleBack(m, true);
+export function strikerRearm(m) {
+  const e = m.player.striker, list = strikerSlots(m);
+  if (!list.length) return { ok: false, reason: 'nostriker' };
+  if (strikerAway(m)) return { ok: false, reason: 'rearm' };
+  if (list.every((q) => q.eu >= e.max)) return { ok: false, reason: 'strikerfull' };
+  strikerBack(m, true);
   return { ok: true, sec: hangarStats(m.kit).rearm };
 }
-function eagleTick(m) {
-  const e = m.player.eagle, H = hangarStats(m.kit);
-  if (e.max !== H.uses) { for (const q of eagleSlots(m)) q.eu = Math.max(0, q.eu + (H.uses - e.max)); e.max = H.uses; }     // (a Hangar level bought mid-mission)
-  if (e.rearmAt && m.t >= e.rearmAt) { for (const q of eagleSlots(m)) q.eu = e.max; e.rearmAt = 0; e.early = false; m.emit('eagle_ready', {}); }
+function strikerTick(m) {
+  const e = m.player.striker, H = hangarStats(m.kit);
+  if (e.max !== H.uses) { for (const q of strikerSlots(m)) q.eu = Math.max(0, q.eu + (H.uses - e.max)); e.max = H.uses; }     // (a Hangar level bought mid-mission)
+  if (e.rearmAt && m.t >= e.rearmAt) { for (const q of strikerSlots(m)) q.eu = e.max; e.rearmAt = 0; e.early = false; m.emit('striker_ready', {}); }
 }
 // A minefield from the ship: it comes down at the aim point after st.delay and lies there until it is spent or st.life is up.
 function callMines(m, s, st) {
@@ -258,7 +258,7 @@ function callMines(m, s, st) {
   s.readyAt = t + st.cd * orbCdMul(m.kit) * orbSiteMul(m);     // (0.51: the Orbital Efficiency commendation; 0.52: a worked refinery)
   m.utilQ.push({ at: t + st.delay, st, x, y, id: s.id, mines: true });
   m.markers.push({ type: 'pod', x, y, r: st.r, start: t, end: t + st.delay, id: s.id, util: 'mines' });
-  m.stats.shots++; m.stats.stratBy[s.id] = (m.stats.stratBy[s.id] || 0) + 1;
+  m.stats.shots++; m.stats.callinBy[s.id] = (m.stats.callinBy[s.id] || 0) + 1;
   m.emit('util_call', { id: s.id, util: 'mines', name: st.name, x, y, delay: st.delay });
   return true;
 }
@@ -281,7 +281,7 @@ function callUtil(m, s, st) {
   m.utilQ.push({ at: t + st.delay, st, x, y, id: s.id });
   m.markers.push({ type: 'pod', x, y, r: st.r || (st.zone ? st.zone.r : 6), start: t, end: t + st.delay, id: s.id, util: st.util });
   m.stats.utils = (m.stats.utils || 0) + 1; m.stats.shots++;
-  m.stats.stratBy[s.id] = (m.stats.stratBy[s.id] || 0) + 1;
+  m.stats.callinBy[s.id] = (m.stats.callinBy[s.id] || 0) + 1;
   m.emit('util_call', { id: s.id, util: st.util, name: st.name, x, y, delay: st.delay });
   m.radio(COMMS.utilCall(st.name), 'util', 2);
   return true;
@@ -307,7 +307,7 @@ function landUtil(m, u) {
     m.emit('util_land', { util: 'smoke', x: u.x, y: u.y, r: st.zone.r });
     return;
   }
-  // a shield dome or a sentry: one of each at a time from the ship, the new one replaces the old
+  // a shield dome or a turret: one of each at a time from the ship, the new one replaces the old
   for (const a of m.assets) if (!a.dead && a.sid === u.id) destroyAsset(m, a, 'replaced');
   const base = { id: m.nextId++, sid: u.id, x: u.x, y: u.y, born: t, dead: false, hurtAt: -9, name: st.name, ship: true };
   const a = st.util === 'shield'
@@ -348,7 +348,7 @@ export function refreshAim(m) {
     info.lock = st.k !== 'util' && !m.inZone(p.aimX, p.aimY) ? !!m.nearLock(p.aimX, p.aimY) : false;
     info.inZone = m.inZone(p.aimX, p.aimY) || info.lock;
     info.splash = g.splash; info.spread = g.spread + (m.evading && st.k !== 'util' ? C.objective.cannon.scatter : 0);     // (the ship dodging a cannon: wider)
-    info.ready = info.inZone && t >= s.readyAt && s.uses > 0 && (st.cat !== 'STRIKER' || eagleReady(m, s));
+    info.ready = info.inZone && t >= s.readyAt && s.uses > 0 && (st.cat !== 'STRIKER' || strikerReady(m, s));
   } else if (s.type === 'uav') {
     info.inZone = m.inAllyZone(p.aimX, p.aimY, UAV_REACH);
     info.splash = st.r; info.ready = info.inZone && t >= s.readyAt;
@@ -380,7 +380,7 @@ export function refreshAim(m) {
 }
 export function updatePlayer(m, dt) {
   for (let i = m.utilQ.length - 1; i >= 0; i--) if (m.t >= m.utilQ[i].at) landUtil(m, m.utilQ.splice(i, 1)[0]);
-  if (m.player.eagle) eagleTick(m);
+  if (m.player.striker) strikerTick(m);
   const p = m.player, t = m.t;
   if (((m.arty || []).length > 0) !== (p.slots[SLOT_ARTY].type === 'arty')) syncSlots(m);
   artyTick(m, dt);     // (0.62.13) every cannon loads its own round

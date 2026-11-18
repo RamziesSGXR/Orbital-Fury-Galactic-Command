@@ -57,11 +57,11 @@ export const C = {
       about: 'Launches the UAV that scans the ground for the gunner.', ports: [[0, 0, 0, -1, 0, 0, 'L'], [1.5, 0.8, 0.35, 0, 1, 0, 'L']] },
     relay:    { name: 'Target Relay', group: 'platform', tier: 1, cost: 150, up: 2, pw: 2, build: 4, sys: 'uav', keel: true, center: [1, -0.6, 0], r: 1.8,
       about: 'A dish aimed at the ground. Widens the strike zone: the UAV system counts as better equipped.', ports: [[0, 0, 0, -1, 0, 0, 'L']] },
-    barracks: { name: 'Infantry Barracks', group: 'platform', tier: 1, cost: 320, up: 4, pw: 2, build: 7, sys: 'seaf', center: [2.6, 0, 0], r: 2.8, rooms: ['barrack', 'barrack', 'armoury'],
+    barracks: { name: 'Infantry Barracks', group: 'platform', tier: 1, cost: 320, up: 4, pw: 2, build: 7, sys: 'infantry', center: [2.6, 0, 0], r: 2.8, rooms: ['barrack', 'barrack', 'armoury'],
       about: 'Bunks and an armoury for the Infantry troopers who drop to the surface.', ports: [...arm(5.2), [1.85, 0, 1.1, 0, 0, 1, 'L'], [1.85, 0, -1.1, 0, 0, -1, 'L']] },
-    eaglehangar: { name: 'Striker Hangar', group: 'platform', tier: 2, cost: 440, up: 6, pw: 3, build: 9, sys: 'eagle', bay: true, center: [3.5, 0, 0], r: 4.2, rooms: ['eaglepad', 'eaglepad', 'ordnance'],
+    strikerhangar: { name: 'Striker Hangar', group: 'platform', tier: 2, cost: 440, up: 6, pw: 3, build: 9, sys: 'striker', bay: true, center: [3.5, 0, 0], r: 4.2, rooms: ['strikerpad', 'strikerpad', 'ordnance'],
       about: 'Two rearming pads for Strikers, and the ordnance store that feeds them.', ports: [[0, -0.98, 0, -1, 0, 0, 'L'], [3.5, 1.5, 1.73, 0, 1, 0, 'L'], [2.65, -0.98, 2.4, 0, 0, 1, 'L'], [2.65, -0.98, -2.4, 0, 0, -1, 'L']] },
-    pelicanbay: { name: 'Dropship Bay', group: 'platform', tier: 2, cost: 400, up: 5, pw: 3, build: 9, sys: 'seaf', bay: true, center: [4, 0, 0], r: 4.6, rooms: ['pelicanpad', 'armoury', 'barrack'],
+    dshipbay: { name: 'Dropship Bay', group: 'platform', tier: 2, cost: 400, up: 5, pw: 3, build: 9, sys: 'infantry', bay: true, center: [4, 0, 0], r: 4.6, rooms: ['dshippad', 'armoury', 'barrack'],
       about: 'A launch bay for the Dropships that carry Infantry down and bring them home.', ports: [[0, -1.18, 0, -1, 0, 0, 'L'], [4, 1.7, 1.88, 0, 1, 0, 'L'], [2.85, -1.18, 2.7, 0, 0, 1, 'L'], [2.85, -1.18, -2.7, 0, 0, -1, 'L']] },
     fabshop:  { name: 'Fabrication Shop', group: 'platform', tier: 2, cost: 300, up: 4, pw: 4, build: 7, sys: 'fab', center: [2.2, 0, 0], r: 2.6, rooms: ['fab', 'cargostore'],
       about: 'Packs the crates of wire, bastions and turrets that drop to the troops.', ports: [...arm(4.4), [2.2, 0.9, 0.45, 0, 1, 0, 'L']] },
@@ -139,7 +139,7 @@ export const C = {
     ring: { k: 'ring', R: 6.45, y: -0.4, spokes: deg([0, 90, 180, 270]) }, bigring: { k: 'ring', R: 11.72, y: -0.4, spokes: deg([30, 90, 150, 210, 270, 330]), hw: 0.15 },
     drum: { k: 'ring', R: 3.38, spokes: deg([0, 90, 180, 270]) }, disc: { k: 'ring', R: 4.55, y: -0.4, spokes: deg([0, 45, 90, 135, 180, 225, 270, 315]) },
     blister: { k: 'hall', y: -0.4, z: 0 }, dockport: { k: 'hall', y: -0.4, z: 0 }, tube: { k: 'hall', y: -0.4, z: 0 }, truss: { k: 'hall', y: -0.4, z: 0 }, node: { k: 'hall', y: -0.4, z: 0, tz: -0.3 },
-    hangar: { k: 'hall', y: -1.58, z: 2.15, fx: 0.22 }, pelicanbay: { k: 'hall', y: -1.58, z: 2.15, fx: 0.22 }, eaglehangar: { k: 'hall', y: -1.38, z: 2.0, fx: 0.22 },
+    hangar: { k: 'hall', y: -1.58, z: 2.15, fx: 0.22 }, dshipbay: { k: 'hall', y: -1.58, z: 2.15, fx: 0.22 }, strikerhangar: { k: 'hall', y: -1.38, z: 2.0, fx: 0.22 },
     drydock: { k: 'hall', y: -0.4, z: 0.75, fx: 0.12, hw: 0.15 }, refinery: { k: 'hall', y: -0.4, z: 0.62, fx: 0.4 },
     gunmount: { k: 'hall', y: -0.4, z: 0.62, fx: 0.34, h0: 0.24 }, battery: { k: 'hall', y: -0.4, z: 0.62, fx: 0.34, h0: 0.24 }, dronebay: { k: 'hall', y: -0.4, z: 0.62, fx: 0.34, h0: 0.24 },
     barracks: { k: 'hall', y: -0.4, z: 0.72, fx: 0.28 }, fabshop: { k: 'hall', y: -0.4, z: 0.72, fx: 0.27 }, lance: { k: 'hall', y: -0.4, z: 0.8, fx: 0.36, h0: 0.24 },
@@ -171,13 +171,13 @@ export const C = {
     barrack:    { name: 'Barrack Room', short: 'Infantry', tier: 1, cost: 40, up: 1, homes: { gunner: 3 }, col: '#4a5a3a', about: 'Bunks and lockers for 3 Infantry troopers.' },
     armoury:    { name: 'Armoury', short: 'ARMS', tier: 1, cost: 50, up: 1, col: '#5a5a4a', about: 'Rifles in racks, for the Infantry.' },
     dronerack:  { name: 'Drone Rack', short: 'UAV', tier: 1, cost: 60, up: 1, homes: { gunner: 1 }, col: '#3a5a6a', about: 'UAVs on their launch rails. A place for 1 operator.' },
-    eaglepad:   { name: 'Striker Pad', short: 'STRIKER', tier: 2, cost: 120, up: 2, bay: true, homes: { gunner: 2 }, col: '#4a5a6a', about: 'One Striker and its deck crew: a pilot and a loader.' },
+    strikerpad:   { name: 'Striker Pad', short: 'STRIKER', tier: 2, cost: 120, up: 2, bay: true, homes: { gunner: 2 }, col: '#4a5a6a', about: 'One Striker and its deck crew: a pilot and a loader.' },
     ordnance:   { name: 'Ordnance Store', short: 'ORD', tier: 2, cost: 60, up: 1, mag: 6, col: '#6a5a2a', about: 'Bombs on trolleys for the Strikers. Holds a reserve of 6 shells.' },
-    pelicanpad: { name: 'Dropship Pad', short: 'PELI', tier: 2, cost: 100, up: 2, bay: true, homes: { gunner: 2 }, col: '#4a6a5a', about: 'One Dropship on its pad, with its two pilots.' },
+    dshippad: { name: 'Dropship Pad', short: 'PELI', tier: 2, cost: 100, up: 2, bay: true, homes: { gunner: 2 }, col: '#4a6a5a', about: 'One Dropship on its pad, with its two pilots.' },
     fab:        { name: 'Assembler', short: 'FAB', tier: 2, cost: 90, up: 2, homes: { gunner: 1 }, col: '#6a6a3a', about: 'Prints and packs drop crates. A place for 1 packer.' },
     fighterbay: { name: 'Fighter Bay', short: 'FTR', tier: 2, cost: 120, up: 3, bay: true, defence: 5, col: '#6a4a4a', about: 'A flight of patrol fighters. Defence +5.' },
   },
-  roomOrder: ['quarters', 'bunks', 'mess', 'lounge', 'gym', 'hydro', 'workshop', 'cargostore', 'ops', 'market', 'bar', 'medbay', 'customs', 'secoffice', 'truth', 'brass', 'lab', 'guncrew', 'magazine', 'barrack', 'armoury', 'dronerack', 'eaglepad', 'ordnance', 'pelicanpad', 'fab', 'shuttlebay', 'fighterbay', 'empty'],
+  roomOrder: ['quarters', 'bunks', 'mess', 'lounge', 'gym', 'hydro', 'workshop', 'cargostore', 'ops', 'market', 'bar', 'medbay', 'customs', 'secoffice', 'truth', 'brass', 'lab', 'guncrew', 'magazine', 'barrack', 'armoury', 'dronerack', 'strikerpad', 'ordnance', 'dshippad', 'fab', 'shuttlebay', 'fighterbay', 'empty'],
 
   // The divisions you fund and give standing orders to, from the Commander's comms panel.
   div: {
@@ -234,12 +234,12 @@ export const C = {
       gun:        { name: 'Ship gun', w: 2, max: 1, call: 'gun fire', shells: 1, weight: 3 },
       orbital:    { name: 'Orbital strikes', w: 3, max: 5, call: 'an orbital strike', shells: 1, weight: 4 },
       uav:        { name: 'UAV scan', w: 1, max: 2, call: 'a UAV scan', shells: 0, weight: 2 },
-      eagle:      { name: 'Strikers', w: 2, max: 2, call: 'a Striker run', shells: 1, weight: 2 },
-      seaf:       { name: 'Infantry drops', w: 2, max: 3, call: 'an Infantry drop', shells: 0, weight: 2 },
+      striker:      { name: 'Strikers', w: 2, max: 2, call: 'a Striker run', shells: 1, weight: 2 },
+      infantry:       { name: 'Infantry drops', w: 2, max: 3, call: 'an Infantry drop', shells: 0, weight: 2 },
       fab:        { name: 'Buildables', w: 1, max: 1, call: 'a crate of defences', shells: 0, weight: 1 },
       classified: { name: 'Classified', w: 3, max: 1, call: 'the Brand Lance', shells: 2, weight: 1 },
     },
-    order: ['gun', 'orbital', 'uav', 'eagle', 'seaf', 'fab', 'classified'],
+    order: ['gun', 'orbital', 'uav', 'striker', 'infantry', 'fab', 'classified'],
     callSec: [24, 44], firstSec: 50, missSayGap: 90, shortReady: 0.35, bedsNear: 7,
     squads: ['Tibit Tigers', 'Victory Hounds', 'Ballot Boxers', 'Midnight Knights', 'Phantom Nine', 'Sweet Victory Four', 'Iron Voters', 'Quiet Resolve'],
   },
@@ -248,7 +248,7 @@ export const C = {
   researchPerMin: 1.5,
 
   // Ship sizes against the standard (a Dropship is about 25 m, a Striker 15 m, a freighter 45 m, a destroyer 115 m), and how far off the berth each sits.
-  shipScale: { shuttle: 1.1, freighter: 1.2, warship: 1.6, eagle: 0.68 }, shipOff: { shuttle: 1.7, freighter: 3.1, warship: 3 },
+  shipScale: { shuttle: 1.1, freighter: 1.2, warship: 1.6, striker: 0.68 }, shipOff: { shuttle: 1.7, freighter: 3.1, warship: 3 },
   // THE SCALE. One station unit is `m` metres and a person is `person` metres tall. Rooms are furnished in metres (rooms.js), so
   // changing these two numbers rescales the people and every fitting against the station; the hull itself does not change.
   scale: { m: 9, person: 1.8 },
@@ -285,7 +285,7 @@ export const C = {
   founding: {
     def: {
       name: 'Head Office Special Forces', station: 'Orbital Station', motto: 'Victory, delivered.', primary: '#22262a', secondary: '#ffe600',
-      logo: { shape: 'shield', symbol: 'eagle', bg: '#1b2a1a', fg: '#ffe600', rim: '#ffe600', text: '', pattern: 'none', pc: '#ffe600' },
+      logo: { shape: 'shield', symbol: 'striker', bg: '#1b2a1a', fg: '#ffe600', rim: '#ffe600', text: '', pattern: 'none', pc: '#ffe600' },
       look: { uniform: '#5d6a4a', helmet: '#4c5a3c', armband: '#ffe600', crest: true },
     },
     stations: ['Victory', 'Vigil', 'Resolve', 'Anvil', 'Dawn', 'Mercy', 'Ballot', 'Granite', 'Providence', 'Steadfast', 'Meridian', 'Equity'],

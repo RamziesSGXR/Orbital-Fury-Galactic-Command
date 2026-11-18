@@ -6,7 +6,7 @@
 // States: idle -> ask (waiting for the player) -> fill (the loading game, in slow motion) -> inbound (the pod is falling) -> idle.
 import { CONFIG as C } from '../config.js';
 import { COMMS } from '../data/data.js';
-import { restock } from './helldiver.js';
+import { restock } from './vanguard.js';
 import { bark } from './chatter.js';
 import { boardingNow } from './extract.js';
 
@@ -26,7 +26,7 @@ function needy(m) {
     if (a.stims <= 1) s += 2 - a.stims;
     if (a.gren <= 0) s += 1.5;
     if (a.sw && a.sw.ammo && a.sw.left < a.sw.ammo * 0.3) s += 1;
-    if (a.mech && a.mech.hp > 0 && (a.mech.gat < C.strat.mech.gatAmmo * 0.3 || a.mech.rkt <= 3)) s += 1;
+    if (a.mech && a.mech.hp > 0 && (a.mech.gat < C.callin.mech.gatAmmo * 0.3 || a.mech.rkt <= 3)) s += 1;
     if (s > bs) { bs = s; best = a; }
   }
   for (const s of m.assets) if (!s.dead && s.kind === 'turret' && s.ammo < s.maxAmmo * 0.35) bs += 0.5;
@@ -150,13 +150,13 @@ export function launchSupply(m) {
 function land(m) {
   const S = m.supply, P = K(), d = S.drop, fr = d.frac;
   // stims and grenades by how full their compartments were; the ammo compartment covers support weapons, the hand cannon,
-  // exosuits and sentries
+  // walkers and turrets
   restock(m, fr.stims, fr.grenades);
   for (const a of m.hdAlive) {
     if (fr.ammo > 0) {
       a.ultAt = Math.min(a.ultAt, m.t + 1);
       if (a.sw && a.sw.ammo) a.sw.left = Math.min(a.sw.ammo, a.sw.left + Math.round(a.sw.ammo * fr.ammo));
-      if (a.mech) { a.mech.gat = Math.min(C.strat.mech.gatAmmo, a.mech.gat + C.strat.mech.gatAmmo * fr.ammo); a.mech.rkt = Math.min(C.strat.mech.rktAmmo, a.mech.rkt + Math.round(C.strat.mech.rktAmmo * fr.ammo)); a.mech.hp = Math.min(a.mech.maxHp, a.mech.hp + 250 * fr.ammo); }
+      if (a.mech) { a.mech.gat = Math.min(C.callin.mech.gatAmmo, a.mech.gat + C.callin.mech.gatAmmo * fr.ammo); a.mech.rkt = Math.min(C.callin.mech.rktAmmo, a.mech.rkt + Math.round(C.callin.mech.rktAmmo * fr.ammo)); a.mech.hp = Math.min(a.mech.maxHp, a.mech.hp + 250 * fr.ammo); }
     }
   }
   for (const s of m.assets) {

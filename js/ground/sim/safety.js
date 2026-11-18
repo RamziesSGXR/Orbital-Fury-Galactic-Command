@@ -12,7 +12,7 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 // A shape is a capsule: a segment (x1,y1)-(x2,y2) and a radius r. A circle is a capsule whose ends are the same point.
 function shapeOf(mk) {
   if (mk.type === 'nuke') return { x1: mk.x, y1: mk.y, x2: mk.x, y2: mk.y, r: mk.r + 8, hard: true };
-  if (mk.type !== 'strat' || !mk.pat) return null;
+  if (mk.type !== 'callin' || !mk.pat) return null;
   const hard = true, rad = mk.rad || 6;     // (0.58: the squad's own strikes hurt it too now)
   if (mk.pat === 'line' || mk.pat === 'walk') {
     const h = (mk.len || 0) / 2;
@@ -26,7 +26,7 @@ export function buildDanger(m) {
   const t = m.t, out = m.danger || (m.danger = []);
   out.length = 0;
   for (const mk of m.markers) {
-    if (t > mk.end + 0.4 || (mk.type !== 'strat' && mk.type !== 'nuke')) continue;
+    if (t > mk.end + 0.4 || (mk.type !== 'callin' && mk.type !== 'nuke')) continue;
     const s = shapeOf(mk);
     if (s) out.push(s);
   }
@@ -93,7 +93,7 @@ export function updateEvade(m, dt) {
     if (!worst) continue;
     let dx = a.x - worst.sp.px, dy = a.y - worst.sp.py, d = Math.hypot(dx, dy);
     if (d < 0.05) { const s = worst.s; dx = -(s.y2 - s.y1) || 1; dy = (s.x2 - s.x1) || 0; d = Math.hypot(dx, dy) || 1; }
-    const H = a.type === 'H', speed = (H ? C.ff.flee.hd : C.ff.flee.seaf) * bm * (H && t < a.stimUntil ? 1.3 : 1) * dt;
+    const H = a.type === 'H', speed = (H ? C.ff.flee.hd : C.ff.flee.infantry) * bm * (H && t < a.stimUntil ? 1.3 : 1) * dt;
     const nx = aoX(m, a.x + (dx / d) * speed, 4), ny = aoY(m, a.y + (dy / d) * speed, 4);
     if (!m.terrain.blocked(nx, ny)) { a.x = nx; a.y = ny; } else if (!m.terrain.blocked(nx, a.y)) a.x = nx; else if (!m.terrain.blocked(a.x, ny)) a.y = ny;
     a.fleeAt = t;
