@@ -79,7 +79,7 @@ function wirePhoto() {
 }
 function gcStart() {
   wirePhoto();
-  cam.livery = GCX.livery || null; cam.orbit = GCX.orbit ?? 0.004; cam.g3d = GCX.flat ? false : true;     // the land in 3D under the circling view     // the circling view: slow, as from high up; a full turn takes about twenty-six minutes of mission time
+  cam.sight = GCX.sight || 'whot'; cam.livery = GCX.livery || null; cam.orbit = GCX.orbit ?? 0.004; cam.g3d = GCX.flat ? false : true;     // the land in 3D under the circling view     // the circling view: slow, as from high up; a full turn takes about twenty-six minutes of mission time
   // what the war sends down with you: reinforcements from a station and the ratings, a garrison from a base
   if (GCX.support) { C.vanguards.lives = Math.max(8, C.vanguards.lives + (GCX.support.lives | 0)); if (GCX.support.garrison > 0) { C.infantry.defendChance = 1; C.infantry.defendN += GCX.support.garrison | 0; } }
   session = S.newSession(GCX.callsign, GCX.level, GCX.op);
@@ -303,7 +303,8 @@ const input = new Input(canvas, $('minimap'), cam, {
   },
   boxCancel: () => { box = null; },
   armory: () => { if (live() || UI.isOn('s-armory') || UI.isOn('s-pause')) openArmory(); },
-  polarity: () => { settings.polarity = settings.polarity === 'white' ? 'black' : 'white'; onSettingChange('polarity'); },
+  polarity: () => { if (GCX && cam.g3d) { cam.sight = cam.sight === 'whot' ? 'bhot' : cam.sight === 'bhot' ? 'day' : 'whot'; return; }     // (GC 0.22) the sight: white-hot, black-hot, colour
+    settings.polarity = settings.polarity === 'white' ? 'black' : 'white'; onSettingChange('polarity'); },
   relief: () => { settings.relief = !settings.relief; onSettingChange('relief'); if (mission) hud.notice(t(settings.relief ? 'set.reliefOn' : 'set.reliefOff'), 'info'); },
   info: () => openInfo(),
   radio: () => { if (state === 'play' && mission && hud.radioOn) hud.radioToggle(); },

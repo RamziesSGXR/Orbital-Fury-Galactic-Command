@@ -92,6 +92,7 @@ export class Units3D {
       'lizards:L': () => bake(talon(1)), 'lizards:M': () => bake(talon(2)), 'lizards:H': () => bake(talon(3)),
     };
     this.mat = new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true });
+    this.hot = new THREE.Color(0, 0, 0);
   }
   _kind(k) {
     let m = this.kinds.get(k); if (m !== undefined) return m;
@@ -100,7 +101,9 @@ export class Units3D {
     this.scene.add(m); this.kinds.set(k, m); return m;
   }
   // list: [{ k (kind), x, y (the map's), r (footprint, metres), face (radians on the map), tint (a colour or null), dim (0 to 1) }]; ground(x, y): metres up
-  frame(list, ground) {
+  // hot: through an infrared sight a body is warm and shows bright whatever it wears
+  frame(list, ground, hot = false) {
+    this.mat.emissive.setScalar(hot ? 0.62 : 0);
     this.used.clear();
     for (const u of list) {
       const m = this._kind(u.k); if (!m) continue; const n = this.used.get(m) || 0; if (n >= CAP) continue;
@@ -111,5 +114,51 @@ export class Units3D {
     let total = 0;
     for (const m of this.kinds.values()) { if (!m) continue; m.count = this.used.get(m) || 0; total += m.count; if (m.count) { m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; } }
     this.n = total;
+  }
+}
+
+// WHAT COMES DOWN, IN 3D (GC 0.22): the things that fall into the fight, drawn in the air they fall through.
+//   drops    whatever is landing (the squad, infantry, supplies) under a parachute, sinking to its mark
+//   tracers  the ship's own shells, from the gun slung under the gunship down to where they will hit
+//   strobes  the infrared strobe each of yours wears: a point of light that blinks, the way friends are told from foes
+export class Fx3D {
+  constructor(scene) {
+    const lit = (c) => new THREE.MeshLambertMaterial({ color: c }), glow = (c) => new THREE.MeshBasicMaterial({ color: c });
+    const inst = (geo, m, n) => { const o = new THREE.InstancedMesh(geo, m, n); o.count = 0; o.frustumCulled = false; o.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(o); return o; };
+    const dome = new THREE.SphereGeometry(1, 14, 7, 0, Math.PI * 2, 0, Math.PI / 2);     // a canopy: the top half of a ball
+    this.canopy = inst(dome, new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide }), 64);
+    this.load = inst(new THREE.BoxGeometry(1, 1, 1), lit('#4a4f44'), 64);
+    this.cord = inst(new THREE.CylinderGeometry(0.03, 0.03, 1, 4), lit('#1a1c18'), 256);
+    this.shell = inst(new THREE.BoxGeometry(1, 1, 1), glow('#fff2d0'), 128);
+    this.strobe = inst(new THREE.SphereGeometry(1, 8, 6), glow('#ffffff'), 256);
+    this.dir = new THREE.Vector3(); this.a = new THREE.Vector3(); this.b = new THREE.Vector3(); this.z = new THREE.Vector3(0, 0, 1); this.yv = new THREE.Vector3(0, 1, 0);
+  }
+  // drops: [{ x, y, f (1 high up, 0 landed), tint, big }]   shells: [{ x, y, q (0 fired, 1 hit), big }]   strobes: [{ x, y, h }]
+  // gun: where the ship's gun is (a point in the world); ground(x, y): metres up
+  frame(o, ground) {
+    let n = 0, c = 0;
+    for (const d of o.drops || []) {
+      if (n >= 64) break; const gy = ground(d.x, d.y), h = d.f * d.f * 150 + (d.f > 0 ? 2 : 0), sway = Math.sin(d.x * 0.7 + d.f * 9) * 3 * d.f, x = d.x + sway + d.f * 18, z = d.y + d.f * 10, R = d.big ? 5.5 : 4, top = gy + h + 9;
+      Q.identity(); P.set(x, top, z); S.set(R, R * 0.6, R); this.canopy.setMatrixAt(n, M4.compose(P, Q, S)); COL.set(d.tint || '#d8d2c0'); this.canopy.setColorAt(n, COL);
+      const L = d.big ? 2.6 : 1.8; P.set(x, gy + h + L / 2, z); S.set(L, L, L); this.load.setMatrixAt(n, M4.compose(P, Q, S));
+      for (let i = 0; i < 4 && c < 256; i++) {     // four cords from the rim of the canopy to the load
+        const a = i * 1.5708 + 0.785; this.a.set(x + Math.cos(a) * R * 0.95, top, z + Math.sin(a) * R * 0.95); this.b.set(x, gy + h + L, z);
+        this.dir.subVectors(this.b, this.a); const len = this.dir.length(); Q.setFromUnitVectors(this.yv, this.dir.normalize()); P.addVectors(this.a, this.b).multiplyScalar(0.5); S.set(1, len, 1); this.cord.setMatrixAt(c++, M4.compose(P, Q, S));
+      }
+      n++;
+    }
+    this.canopy.count = this.load.count = n; this.cord.count = c;
+    if (n) { this.canopy.instanceMatrix.needsUpdate = this.load.instanceMatrix.needsUpdate = this.cord.instanceMatrix.needsUpdate = true; if (this.canopy.instanceColor) this.canopy.instanceColor.needsUpdate = true; }
+    let k = 0;
+    if (o.gun) for (const s of o.shells || []) {
+      if (k >= 128) break; this.b.set(s.x, ground(s.x, s.y), s.y); this.dir.subVectors(this.b, o.gun); const len = this.dir.length(); this.dir.normalize();
+      const head = s.q * len, tail = Math.max(0, head - (s.big ? 70 : 45)), w = s.big ? 1.3 : 0.8;
+      Q.setFromUnitVectors(this.z, this.dir); P.copy(o.gun).addScaledVector(this.dir, (head + tail) / 2); S.set(w, w, Math.max(1, head - tail)); this.shell.setMatrixAt(k++, M4.compose(P, Q, S));
+    }
+    this.shell.count = k; if (k) this.shell.instanceMatrix.needsUpdate = true;
+    let j = 0;
+    for (const s of o.strobes || []) { if (j >= 256) break; Q.identity(); P.set(s.x, ground(s.x, s.y) + s.h, s.y); S.setScalar(s.r || 0.7); this.strobe.setMatrixAt(j++, M4.compose(P, Q, S)); }
+    this.strobe.count = j; if (j) this.strobe.instanceMatrix.needsUpdate = true;
+    this.n = { drops: n, shells: k, strobes: j };
   }
 }

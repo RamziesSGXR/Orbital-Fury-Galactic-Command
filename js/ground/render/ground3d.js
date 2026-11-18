@@ -6,7 +6,7 @@
 //
 // One camera decides everything: where the land is drawn, where a label goes, and what the pointer is over.
 import * as THREE from '../../vendor/three.js';
-import { Units3D } from './units3d.js';
+import { Units3D, Fx3D } from './units3d.js';
 
 export const V3 = { tilt: 56, fov: 30, amp: 22, grid: 112, blocks: 420, sides: 8 };     // degrees above the horizon; the lens; metres of relief either way of the middle height; cells across the sheet
 const RAD = Math.PI / 180;
@@ -37,7 +37,8 @@ export class Ground3D {
       this.bmesh = new THREE.Mesh(bg, this.bmat); this.bmesh.frustumCulled = false; this.scene.add(this.bmesh); }
     this.v = new THREE.Vector3(); this.pv = new THREE.Matrix4(); this.inv = new THREE.Matrix4();
     this.h = () => 0.5; this.W = this.H = 1; this.ok = true; this.amp = V3.amp;
-    try { this.units = new Units3D(this.scene, livery); } catch (err) { console.warn('3D units unavailable', err); this.units = null; }
+    try { this.units = new Units3D(this.scene, livery); this.fx = new Fx3D(this.scene); } catch (err) { console.warn('3D units unavailable', err); this.units = null; this.fx = null; }
+    this.gun = new THREE.Vector3();
   }
   // metres above the middle height at a point of the map
   y(x, z) { return (this.h(x, z) - 0.5) * 2 * this.amp; }
@@ -71,7 +72,7 @@ export class Ground3D {
         }
       }
       this.bgeo.setDrawRange(0, k); for (const a of ['position', 'uv', 'normal', 'color']) this.bgeo.attributes[a].needsUpdate = true; this.nBlocks = B.length; }
-    if (this.units) this.units.frame(o.units || [], (x, z) => this.y(x, z));
+    if (this.units) this.units.frame(o.units || [], (x, z) => this.y(x, z), !!o.hot);
     // the lens: as far off as makes a metre at the camera's point the same size on screen as it is on the sheet
     const E = Math.max(30, Math.min(86, o.tilt || V3.tilt)) * RAD, d = H / 2 / Math.tan(V3.fov * RAD / 2) / scale, fx = -Math.sin(yaw), fz = -Math.cos(yaw), ly = this.y(camX, camY), C = this.cam;
     C.aspect = W / H; C.setViewOffset(W, H, 0, (0.5 - fy) * H, W, H);
@@ -79,6 +80,8 @@ export class Ground3D {
     C.matrixWorldInverse.copy(C.matrixWorld).invert(); this.pv.multiplyMatrices(C.projectionMatrix, C.matrixWorldInverse); this.inv.copy(this.pv).invert();
     // the light falls the way the map's own shading says it does (from the north-west when the hour has no sun)
     const lx = sun ? sun.lx : -0.6, lz = sun ? sun.ly : -0.6; this.sun.position.set(camX + lx * 200, 260, camY + lz * 200); this.sun.target.position.set(camX, 0, camY); this.sun.target.updateMatrixWorld();
+    // the ship's gun hangs under the gunship, off to the right of the sight: its shells come in from the edge of the picture
+    if (this.fx) { const e = C.matrixWorld.elements; this.gun.set(C.position.x + e[0] * d * 0.5 - e[4] * d * 0.22, C.position.y + e[1] * d * 0.5 - e[5] * d * 0.22, C.position.z + e[2] * d * 0.5 - e[6] * d * 0.22); this.fx.frame({ drops: o.drops, shells: o.shells, strobes: o.strobes, gun: this.gun }, (x, z) => this.y(x, z)); }
     this.r.render(this.scene, C);
     this.at = { camX, camY };
   }

@@ -384,7 +384,8 @@ export class Renderer {
     // (GC 0.18) the land in 3D, when the camera asks for it and the machine can do it; without it, the turned sheet of 0.16
     if (cam.g3d && this._g3 === undefined) { try { this._g3 = new Ground3D(cam.livery); } catch (err) { console.warn('3D ground unavailable', err); this._g3 = null; } }
     const g3 = cam.g3d ? this._g3 : null; this._g3on = false;
-    const U3 = this._u3 || (this._u3 = []); U3.length = 0; const u3 = g3 && g3.units ? U3 : null;     // (GC 0.20) who stands up in 3D this frame, and is not drawn on the sheet
+    const U3 = this._u3 || (this._u3 = []); U3.length = 0; const u3 = g3 && g3.units ? U3 : null;
+    const D3 = this._d3 || (this._d3 = []), S3 = this._s3l || (this._s3l = []), B3 = this._b3 || (this._b3 = []); D3.length = S3.length = B3.length = 0; this._s3 = u3 ? S3 : null;     // (GC 0.22) what falls, the ship's shells, the strobes     // (GC 0.20) who stands up in 3D this frame, and is not drawn on the sheet
     let real = null;
     if (cam.yaw || g3) { real = { ctx: this.ctx, W: this.W, H: this.H, focusY: this.focusY }; const S = this._sheet(real); this._real = real; this.ctx = this._wx; this.W = S; this.H = S; this.focusY = 0.5; }
     let ctx = this.ctx, W = this.W, H = this.H;
@@ -623,7 +624,8 @@ export class Renderer {
       const phase = this.settings.reduceFlash ? ((now + a.id * 0.13) % 2) / 2 : ((now + (a.id % 5) * 0.07) % 1);
       const on = this.settings.reduceFlash ? phase < 0.15 : phase < 0.18;
       const r = Math.max(H_ ? 2.6 : 1.9, px(H_ ? 7 : 5)) * elevK(a.x, a.y);     // (0.62.10) sized by the ground he stands on
-      if (on && !hideUi) {   // the IR strobe on the backpack flashes a ring
+      if (on && !hideUi && u3) B3.push({ x: a.x, y: a.y, h: r * 2.5, r: H_ ? 0.75 : 0.55 });     // (in 3D the strobe is a point of light on his back, not a ring on the ground)
+      else if (on && !hideUi) {   // the IR strobe on the backpack flashes a ring
         ctx.strokeStyle = pal.ally; ctx.lineWidth = px(1.2); ctx.globalAlpha = 0.6;
         ctx.beginPath(); ctx.arc(a.x, a.y, r * 2.1, 0, TAU); ctx.stroke(); ctx.globalAlpha = 1;
       }
@@ -637,7 +639,8 @@ export class Renderer {
       if (!fine) { if (u3) u3.push({ k: H_ ? 'van' : 'inf', x: a.x, y: a.y, r: r * (H_ ? 1.25 : 1.1), face: a.aimUntil > t ? a.aimA : a.face, tint: tm ? tm.color : null }); else drawAllyBody(ctx, a, r, pal.ally, tm ? tm.color : null, on, now, px, t); }
       if (up) dropUnit(ctx, up);
       if (t - a.hurtAt < 0.1 && !hideUi) { ctx.strokeStyle = '#ff6a6a'; ctx.lineWidth = px(1.5); ctx.beginPath(); ctx.arc(a.x, a.y, r * 1.3, 0, TAU); ctx.stroke(); }
-      if (H_ && !hideUi) { ctx.strokeStyle = tm ? tm.color : '#e8f6ff'; ctx.globalAlpha = 0.8; ctx.lineWidth = px(1.3); ctx.beginPath(); ctx.arc(a.x, a.y, r * 1.55, 0, TAU); ctx.stroke(); }
+      if (H_ && !hideUi && u3) { /* in 3D he wears his team's colour himself: no ring */ }
+      else if (H_ && !hideUi) { ctx.strokeStyle = tm ? tm.color : '#e8f6ff'; ctx.globalAlpha = 0.8; ctx.lineWidth = px(1.3); ctx.beginPath(); ctx.arc(a.x, a.y, r * 1.55, 0, TAU); ctx.stroke(); }
       else if (!hideUi) drawInfantryMark(ctx, m, a, r * 0.8, px, infantryMulti, on);
       ctx.globalAlpha = 1;
     }
@@ -653,6 +656,11 @@ export class Renderer {
       const left = Math.max(0, p.landAt - t);
       const total = p.start ? C.vanguards.initialDropSec : p.type === 'H' ? C.vanguards.dropDelaySec : C.infantry.dropDelaySec;
       const f = Math.min(1, left / total), col = p.type === 'H' ? '#ffe600' : pal.ally;
+      if (u3) {     // in 3D it comes down under a parachute; only its countdown is written
+        const tm = p.type === 'H' ? m.teams[p.team] : null; D3.push({ x: p.x, y: p.y, f, tint: tm ? tm.color : null, big: p.type !== 'H' });
+        labels.push({ x: p.x, y: p.y, dy: 42, text: `${p.type === 'H' ? (tm ? m.slotTag(tm) : tr('lab.vanguard')) : `Infantry x${p.n}`} ${Math.ceil(left)}S`, col: tm ? tm.color : col, pri: 1 });
+        continue;
+      }
       ctx.strokeStyle = col;
       if (p.type === 'H') {     // (0.61.5) a Vanguard's pod: a beacon where it will land, no zones (it is theirs, not the player's)
         const bl = 0.5 + 0.5 * Math.sin(now * 8 + p.x);
@@ -695,7 +703,7 @@ export class Renderer {
     if (real) {     // lay the turned world on the screen
       const wc = this._wc, S = this.W; this.ctx = real.ctx; this.W = real.W; this.H = real.H; this.focusY = real.focusY; this._real = null; ctx = this.ctx; W = this.W; H = this.H;
       ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
-      if (g3) { g3.frame({ sheet: wc, S, scale, camX: v.camX, camY: v.camY, yaw: cam.yaw, tilt: cam.tilt, W, H, fy: this.focusY || 0.5, sun: this._sun, height: (x, y) => m.terrain.height(x, y), blocks: this._blocks(m, v.camX, v.camY, S / scale / 2), units: U3 }); ctx.drawImage(g3.cv, 0, 0); this._g3on = true; }
+      if (g3) { g3.frame({ sheet: wc, S, scale, camX: v.camX, camY: v.camY, yaw: cam.yaw, tilt: cam.tilt, W, H, fy: this.focusY || 0.5, sun: this._sun, height: (x, y) => m.terrain.height(x, y), blocks: this._blocks(m, v.camX, v.camY, S / scale / 2), units: U3, drops: D3, shells: S3, strobes: B3, hot: cam.sight === 'whot' || cam.sight === 'bhot' }); ctx.filter = cam.sight === 'whot' ? 'grayscale(1) contrast(1.25) brightness(0.82)' : cam.sight === 'bhot' ? 'grayscale(1) invert(1) contrast(1.2) brightness(0.9)' : 'none'; ctx.drawImage(g3.cv, 0, 0); ctx.filter = 'none'; this._g3on = true; }     // (the sight: infrared white-hot, black-hot, or plain colour)
       else { ctx.translate(v.px, v.py); ctx.rotate(cam.yaw); ctx.drawImage(wc, -S / 2, -S / 2); }
     }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -1475,6 +1483,7 @@ export class Renderer {
       const left = sh.at - t;
       if (left <= 0 || left > fall) continue;
       const q = 1 - left / fall, h = (sh.nuke ? 260 : sh.big ? 170 : 120) * (1 - q), x = sh.x + h * 0.18, y = sh.y - h;
+      if (this._s3) { this._s3.push({ x: sh.x, y: sh.y, q, big: !!sh.big }); continue; }     // (in 3D it comes from the ship's gun)
       if (!isFlat()) {     // (0.61.2) its shadow on the ground, down and to the right of the mark, closing in and darkening as it comes down
         const sr = Math.max(px(sh.big ? 5 : 3.5), sh.big ? 2.2 : 1.4) * (1 + 1.2 * (1 - q));
         ctx.fillStyle = `rgba(0,0,0,${0.08 + 0.3 * q})`; ctx.beginPath(); ctx.ellipse(sh.x + h * 0.2, sh.y + h * 0.145, sr * 1.3, sr * 0.8, 0.63, 0, TAU); ctx.fill();

@@ -26,7 +26,7 @@ with sync_playwright() as pw:
         if f.evaluate("__game.state") == 'play': break
         pg.wait_for_timeout(500); f.evaluate(go)
     assert f.evaluate("__game.state") == 'play', 'the mission did not start'
-    f.evaluate("__game.cam.orbit = 0.25"); pg.keyboard.press('Enter'); pg.wait_for_timeout(9000)     # (Enter: the squad drops now)
+    f.evaluate("__game.cam.orbit = 0.25"); pg.keyboard.press('Enter'); pg.wait_for_timeout(1500); pg.screenshot(path=f'{out}/orbit-0-drop.png'); print('in the air:', f.evaluate('__game.renderer._g3.fx ? __game.renderer._g3.fx.n : null')); pg.wait_for_timeout(7500)     # (Enter: the squad drops now)
     yaw = f.evaluate("__game.cam.yaw"); print('yaw after a few seconds', round(yaw, 2)); assert yaw > 0.3, 'the view is not turning'
     # a point on the ground, to the screen and back, comes back to itself
     err = f.evaluate("(() => { const r = __game.renderer, cv = document.querySelector('canvas'), m = __game.mission, p = { x: m.lz.x + 37, y: m.lz.y - 22 }; const s = r.worldToScreen(p.x, p.y, cv), w = r.screenToWorld(s.x, s.y, cv); return Math.hypot(w.x - p.x, w.y - p.y); })()")
