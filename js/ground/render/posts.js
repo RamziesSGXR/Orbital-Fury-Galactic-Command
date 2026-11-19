@@ -38,6 +38,7 @@ export function cannonArt(ctx, x, y, face, px, live) {
   ctx.restore();
 }
 
+const FLAT3 = { wire: 'prop_wire', foxhole: 'prop_trench', bridge: 'prop_bridge', site: 'prop_worksite' };
 export function postArt(ctx, p, now, px, t) { art(ctx, p, now, px, t); }
 // (0.28) a trench through a foxhole's places (end to end): the spoil heaped along its front, the dark cut, the fire steps. a to b is
 // how much of it is dug, from the middle out (0 to 1 of its length each way).
@@ -127,6 +128,7 @@ function siteArt(ctx, p, now, px) {
 }
 function art(ctx, p, now, px, t) {
   const x = p.x, y = p.y, hit = t - p.hurtAt < 0.12, f = grow(px);
+  if (VIEW.p3 && p.id != null && !p.ghost && FLAT3[p.what] && VIEW.m3.has(FLAT3[p.what])) return;     // (GC 0.41) in 3D it is a model on the land
   if (p.what === 'site') { siteArt(ctx, p, t, px); return; }
   if (p.what === 'bridge') { bridgeArt(ctx, p, now, px); return; }
   if (p.what === 'wire') { const E = p.ends || wireEnds(x, y, p.face0 ?? p.face ?? 0); wireArt(ctx, E[0], E[1], f, p.wireMax ? Math.max(0, p.wireHp) / p.wireMax : 1, !!p.ghost); return; }

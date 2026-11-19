@@ -21,7 +21,7 @@ import { drawFlares, drawHoles, drawDrops, drawEvac, drawAcidPools, drawMotherGr
 import { drawBaseArt, drawBaseRuin, drawCover, drawCitadelWalls, drawCannonArt, drawNodeArt } from './sites.js';
 import { drawPosts, postArt, lzArt, cone, P3_POST } from './posts.js';
 const lzArtGhost = (ctx, x, y, R, now, px, ok) => lzArt(ctx, x, y, R, now, px, ok);
-import { foxReach, wireEnds, bastionWalls, wallShape, turns, onEnemy, buildFoot, lookoutReach, chains, chainPlan, planChain } from '../sim/posts.js';
+import { foxReach, wireEnds, foxholeSlots, bastionWalls, wallShape, turns, onEnemy, buildFoot, lookoutReach, chains, chainPlan, planChain } from '../sim/posts.js';
 import { buildStats, uavStats, infantryStats, buildLevel } from '../data/kit.js';
 import { todAt, skyTint } from './sky.js';
 import { Lighting, ambient, washKey, bakeWash } from './light.js';
@@ -37,6 +37,8 @@ const FP_LIFE = 9, FP_MAX = 6000;     // (0.58) footprints: how long one lasts, 
 const BURST = { bugs: ['#a9d63a', '#f2ff9a'], bots: ['#ff9a3a', '#fff0c0'], lizards: ['#b26cff', '#7af6ff'] };
 // (0.37) the ship's pass over the fight: how far the view swings either side of the middle (radians), and how steeply it looks down at the ends and in the middle (degrees)
 const PASS = { swing: 0.66, low: 53, high: 62 };
+// (GC 0.41) the field works that have a model of their own in 3D
+const FIELD3 = { foxhole: 'prop_trench', bastion: 'prop_cover0', site: 'prop_worksite' };
 // (0.37) worn down: a unit or a building darkens and reddens as its health goes, so its state is read off the thing itself
 const WOUND = (o) => { const f = o.maxHp > 0 ? o.hp / o.maxHp : 1; return f > 0.8 ? null : f > 0.55 ? '#dcc4b6' : f > 0.3 ? '#bd8f7e' : '#9a5d4f'; };
 const TASK_LABEL = { base: 'lab.base', radio: 'lab.radio', propaganda: 'lab.prop', rescue: 'lab.rescue', arty: 'lab.artySite', jammer: 'lab.jam', spore: 'lab.spore' };
@@ -362,6 +364,15 @@ export class Renderer {
       const up = (fn) => (text, px, py) => { const a = this.yaw || 0; if (!a) return fn(text, px, py); x.save(); x.translate(px, py); x.rotate(-a); fn(text, 0, 0); x.restore(); };
       x.fillText = up(ft); x.strokeText = up(st); this._wx = x;
       x.setTransform = (a, b, c, d, e, f) => { const k = this._wq || 1; return sT(a * k, b * k, c * k, d * k, e * k, f * k); }; x.resetTransform = () => x.setTransform(1, 0, 0, 1, 0, 0);
+      // (GC 0.41) RINGS OFF THE GROUND. In 3D a circle (or an arc of one) drawn as a line on the land is not painted on the sheet:
+      // it is taken here, as it is stroked, and drawn as a line of light standing just off the ground (Fx3D rings), sharp at any
+      // zoom and hidden by whatever stands in front of it. Zones, ranges, hold rings and selection rings all come this way,
+      // with their own colour, width and dashes. A circle that is filled is still a tint on the ground.
+      { const R3 = { n: 0, pure: true, a: null }, bp = x.beginPath.bind(x), ar = x.arc.bind(x), sk = x.stroke.bind(x);
+        for (const nm of ['moveTo', 'lineTo', 'rect', 'ellipse', 'quadraticCurveTo', 'bezierCurveTo', 'arcTo', 'closePath', 'roundRect']) if (x[nm]) { const fn = x[nm].bind(x); x[nm] = (...a) => { R3.pure = false; return fn(...a); }; }
+        x.beginPath = () => { R3.n = 0; R3.pure = true; return bp(); };
+        x.arc = (cx, cy, r, a0, a1, ccw) => { R3.n++; R3.a = [cx, cy, r, a0, a1, !!ccw]; return ar(cx, cy, r, a0, a1, ccw); };
+        x.stroke = (p) => { if (p) return sk(p); if (this._rings && R3.pure && R3.n === 1 && this._ringTake(x, R3.a)) return undefined; return sk(); }; }
     }
     const B = Math.round(S * q); if (this._wc.width !== B) { this._wc.width = B; this._wc.height = B; }
     return S;
@@ -375,7 +386,7 @@ export class Renderer {
       for (const q of sc.rocks || []) if (!q.broken && q.r >= 1.5) add(q, q.r * 0.8, Math.min(9, q.r * 0.75), 6);
       for (const t of sc.trees || []) if (!t.down) add(t, Math.max(1.2, t.r * 0.7), 3.5 + Math.min(6, t.r * 0.9), 7);
     }
-    for (const p of m.posts || []) if (!p.dead && !p.ghost && p.what !== 'wire' && p.what !== 'mine' && p.what !== 'lz' && p.what !== 'bridge' && !(p3 && P3_POST[p.what])) add(p, 2.6, 2.4, 4);
+    for (const p of m.posts || []) if (!p.dead && !p.ghost && p.what !== 'wire' && p.what !== 'mine' && p.what !== 'lz' && p.what !== 'bridge' && !(p3 && P3_POST[p.what]) && !(p3 && FIELD3[p.what] && VIEW.m3.has(FIELD3[p.what]))) add(p, 2.6, 2.4, 4);
     for (const b of p3 ? [] : m.bases || []) {
       if (b.destroyed) continue;
       if (b.spawners && b.spawners.length) { for (const s of b.spawners) if (!s.dead) add(s, (s.r || 6) * 0.85, Math.min(8, (s.r || 6) * 0.6), 6); }
@@ -428,10 +439,39 @@ export class Renderer {
     { const pk = { bugs: ['spire', 'hive'], bots: ['node', 'fab'], lizards: ['totem', 'camp'] }[m.faction.id] || ['node', 'fab'];     // the enemy's side sites
       const PK = { spore: 'poi_spewer', propaganda: 'poi_broadcast', relay: 'poi_relay', cache: 'poi_cache' };
       for (const p of m.pois || []) if (!p.done && near(p)) out.push({ k: VIEW.m3.has(PK[p.kind]) ? PK[p.kind] : pk[(p.id || 0) % 2], x: p.x, y: p.y, s: Math.max(2.4, (p.r || 12) * 0.42), rot: ((p.id || 1) * 2.3) % 6.28, tint: hit(p), flash: fl(p), dim: m.visLevel(p.x, p.y) > 0 ? 1 : 0.7 }); }
+    // (GC 0.41) FIELD WORKS, as models: wire, foxholes, walls of sandbags, timber or concrete, the light bridge, the landing
+    // zone's lights, a work site, mines and the shield generator. Things laid along a line are stretched to their length (l).
+    { const M3 = VIEW.m3;
+      for (const p of m.posts || []) {
+        if (p.dead || p.ghost) continue;
+        if (p.what === 'wire' && M3.has('prop_wire')) { const E = p.ends || wireEnds(p.x, p.y, p.face0 ?? p.face ?? 0), L = Math.hypot(E[1].x - E[0].x, E[1].y - E[0].y), x = (E[0].x + E[1].x) / 2, y = (E[0].y + E[1].y) / 2; if (Math.abs(x - cx) < half && Math.abs(y - cy) < half) out.push({ k: 'wire', x, y, l: L / 2, s: 2.6, h: 3.2 * (0.35 + 0.65 * (p.wireMax ? Math.max(0, p.wireHp) / p.wireMax : 1)), rot: -Math.atan2(E[1].y - E[0].y, E[1].x - E[0].x) }); }
+        else if (p.what === 'foxhole' && M3.has('prop_trench')) { const S2 = p.slots || foxholeSlots(p.x, p.y, p.face0 ?? p.face ?? 0, p.cap), a = S2[0], b = S2[S2.length - 1], L = Math.hypot(b.x - a.x, b.y - a.y) + 2.4, f = p.face0 ?? p.face ?? 0; if (near(p)) out.push({ k: 'trench', x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, l: L / 2, s: 2.0, h: 3.2, rot: S2.length > 1 ? -Math.atan2(b.y - a.y, b.x - a.x) : -(f + Math.PI / 2), tint: hit(p), flash: fl(p) }); }
+        else if (p.what === 'lz' && M3.has('prop_lz') && near(p)) out.push({ k: 'lz', x: p.x, y: p.y, s: p.r || 9, h: 5 });
+        else if (p.what === 'site' && M3.has('prop_worksite') && near(p)) out.push({ k: 'worksite', x: p.x, y: p.y, s: Math.max(3.4, (p.r || 5) * 0.8), rot: ((p.id || 1) * 1.3) % 6.28 });
+        else if (p.what === 'bridge' && M3.has('prop_bridge')) { const sp = p.span || { x1: p.x - 20, y1: p.y, x2: p.x + 20, y2: p.y }, L = Math.hypot(sp.x2 - sp.x1, sp.y2 - sp.y1), x = (sp.x1 + sp.x2) / 2, y = (sp.y1 + sp.y2) / 2; if (Math.abs(x - cx) < half + L / 2 && Math.abs(y - cy) < half + L / 2) out.push({ k: 'bridge', x, y, l: L / 2, s: p.w || 20, h: 5, rot: -Math.atan2(sp.y2 - sp.y1, sp.x2 - sp.x1), up: 0.3 }); }
+      }
+      for (const c of m.cover || []) { if (c.post && c.post.what !== 'bastion') continue; const k = 'cover' + (c.style || 0); if (M3.has('prop_' + k) && near(c)) out.push({ k, x: c.x, y: c.y, l: c.len / 2, s: 2.4, h: 3.4, rot: -(c.ang + Math.PI / 2) }); }     // (as tall as cover has to be for troopers drawn this large)
+      for (const a of m.assets || []) {
+        if (a.dead) continue;
+        if (a.kind === 'mines' && M3.has('prop_mine')) { for (const mn of a.mines || []) if (!mn.dead && near(mn)) out.push({ k: 'mine', x: mn.x, y: mn.y, s: 1.2 }); }
+        else if (a.kind === 'shield' && M3.has('prop_shieldgen') && near(a)) out.push({ k: 'shieldgen', x: a.x, y: a.y, s: 3.8, tint: hit(a), flash: fl(a) });
+      }
+    }
     for (const q of m.loot || []) if (!q.done && q.kind !== 'wreck' && near(q)) out.push({ k: 'crate', x: q.x, y: q.y, s: Math.max(1.3, (q.r || 3) * 0.55), rot: ((q.id || 1) * 1.9) % 6.28 });     // what can be picked up
     for (const p of m.posts || []) { const d = P3_POST[p.what]; if (d && !p.dead && !p.ghost && near(p)) out.push({ k: d[0], x: p.x, y: p.y, s: d[1], rot: face(p.face), tint: hit(p), flash: fl(p) }); }
     for (const a of m.assets || []) if (a.kind === 'turret' && !a.dead && near(a)) out.push({ k: 'aturret', x: a.x, y: a.y, s: 1.5, rot: face(a.face), tint: hit(a), flash: fl(a) });
     return out;
+  }
+  // A circle being stroked on the sheet, taken for the 3D picture instead: true if it was (so the stroke is left out).
+  _ringTake(x, a) {
+    const st = x.strokeStyle, V = this._ringV; if (typeof st !== 'string' || !V || this._rings.length >= 420) return false;
+    const M = x.getTransform(), q = this._wq || 1, k = Math.sqrt(Math.abs(M.a * M.d - M.b * M.c)) / (q * V.scale), r = a[2] * k;
+    if (!(r >= 2.5) || !(x.globalAlpha > 0.02) || x.lineWidth * k > 1.2) return false;     // (a dot or a small mark stays where it is; so does a broad soft band)
+    const sx = M.a * a[0] + M.c * a[1] + M.e, sy = M.b * a[0] + M.d * a[1] + M.f, rot = Math.atan2(M.b, M.a), d = x.getLineDash();
+    let a0 = a[3] + rot, a1 = a[4] + rot; if (a[5]) { const t = a0; a0 = a1; a1 = t; }
+    let span = a1 - a0; if (Math.abs(a[4] - a[3]) >= Math.PI * 2 - 1e-3) span = Math.PI * 2; else { span %= Math.PI * 2; if (span < 0) span += Math.PI * 2; }
+    this._rings.push({ x: (sx / q - V.tx) / V.scale, y: (sy / q - V.ty) / V.scale, r, a0, span, w: Math.max(0.05, x.lineWidth * k), col: st, al: x.globalAlpha, on: d.length ? d[0] * k : 0, gap: d.length ? (d[1] ?? d[0]) * k : 0, off: (x.lineDashOffset || 0) * k });
+    return true;
   }
   pass(m, cam) {
     const u = cam.orbit ? Math.max(0, Math.min(1, m.t / (m.limitSec || 1800))) * 2 - 1 : 0;
@@ -445,7 +485,7 @@ export class Renderer {
     this.pass(m, cam);
     // (GC 0.18) the land in 3D, when the camera asks for it and the machine can do it; without it, the turned sheet of 0.16
     if (cam.g3d && this._g3 === undefined) { try { this._g3 = new Ground3D(cam.livery); } catch (err) { console.warn('3D ground unavailable', err); this._g3 = null; } }
-    const g3 = cam.g3d ? this._g3 : null; this._g3on = false; VIEW.p3 = !!(g3 && g3.props); VIEW.sh = !!(g3 && g3.units) && !(this.quality === 'low' || this.perf.low || (this.perf.tier || 0) >= 2);     // (GC 0.38) sh: the sun throws real shadows this frame
+    const g3 = cam.g3d ? this._g3 : null; this._g3on = false; VIEW.p3 = !!(g3 && g3.props); { const RL = this._rl || (this._rl = []); RL.length = 0; this._rings = g3 && g3.fx ? RL : null; } VIEW.sh = !!(g3 && g3.units) && !(this.quality === 'low' || this.perf.low || (this.perf.tier || 0) >= 2);     // (GC 0.38) sh: the sun throws real shadows this frame
     const U3 = this._u3 || (this._u3 = []); U3.length = 0; const u3 = g3 && g3.units ? U3 : null;
     const D3 = this._d3 || (this._d3 = []), S3 = this._s3l || (this._s3l = []), B3 = this._b3 || (this._b3 = []); D3.length = S3.length = B3.length = 0; this._s3 = u3 ? S3 : null; const X3 = this._x3l || (this._x3l = []); X3.length = 0; this._x3 = u3 && g3.fx ? X3 : null; VIEW.air = u3; VIEW.drops = u3 ? D3 : null; const T3 = this._t3l || (this._t3l = []), O3 = this._o3l || (this._o3l = []), DM3 = this._dm3l || (this._dm3l = []); T3.length = O3.length = DM3.length = 0; this._t3 = this._x3 ? T3 : null; this._o3 = this._x3 ? O3 : null; this._dm3 = this._x3 ? DM3 : null; const SM3 = this._sm3l || (this._sm3l = []); SM3.length = 0; this._sm3 = this._x3 ? SM3 : null;     // (GC 0.25) the troops' fire, what is lobbed, the shields     // (GC 0.22) what falls, the ship's shells, the strobes     // (GC 0.20) who stands up in 3D this frame, and is not drawn on the sheet
     let real = null;
@@ -458,7 +498,7 @@ export class Renderer {
     let ox = 0, oy = 0;
     if (this.shake > 0.3) { ox = (Math.random() - 0.5) * this.shake * this.dpr; oy = (Math.random() - 0.5) * this.shake * this.dpr; this.shake *= 0.9; } else this.shake = 0;
     const tx = v.tx + ox, ty = v.ty + oy;
-    this._dtx = tx; this._dty = ty;
+    this._dtx = tx; this._dty = ty; this._ringV = { scale, tx, ty };
     // where a world point is on the SCREEN (turned with the view). Both take the point's x and y.
     const yc = Math.cos(cam.yaw), ys = Math.sin(cam.yaw), ppx = v.px + ox, ppy = v.py + oy;
     const g3p = (x, y) => (g3p.x === x && g3p.y === y ? g3p.s : (g3p.x = x, g3p.y = y, g3p.s = g3.toScreen(x, y)));     // (asked for x then y of the same point: worked out once)
@@ -708,7 +748,8 @@ export class Renderer {
       }
       else if (!flat) up = liftUnit(ctx, a.x, a.y, r, r * (H_ ? 0.5 : 0.42), wallA);
       else if (!VIEW.sh) { ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.ellipse(a.x + r * 0.45, a.y + r * 0.35, r * 0.95, r * 0.7, 0, 0, TAU); ctx.fill(); }     // (0.59) its shadow
-      if (!fine) { if (u3) u3.push({ k: H_ ? 'van' : 'inf', x: a.x, y: a.y, r: r * (H_ ? 1.25 : 1.1), face: a.aimUntil > t ? a.aimA : a.face, tint: tm ? tm.color : null, lod: far3 !== '', aim: !a.down && a.aimUntil > t, pose: a.down ? 'down' : t - (a.hurtAt ?? -9) < 0.18 ? 'hit' : (!H_ && a.aimUntil > t && (a.vx || 0) ** 2 + (a.vy || 0) ** 2 <= 0.1 && a.id % 3 !== 0) ? 'kneel' : null, tumble: a.down ? Math.PI / 2 : undefined, walk: a.down ? null : (a.vx || 0) ** 2 + (a.vy || 0) ** 2 > 0.1 ? t * 11 + a.id : null }); else drawAllyBody(ctx, a, r, pal.ally, tm ? tm.color : null, on, now, px, t); }
+      if (!fine && u3 && a.mech && a.mech.hp > 0 && VIEW.m3.has('veh_mech')) u3.push({ k: 'mech', x: a.x, y: a.y, r: r * 1.9, face: a.aimUntil > t ? a.aimA : a.face, flash: t - (a.hurtAt ?? -9) < 0.1, walk: (a.vx || 0) ** 2 + (a.vy || 0) ** 2 > 0.1 ? t * 7 + a.id : null });     // (GC 0.41) in a mech suit: the suit is what is seen
+      else if (!fine) { if (u3) u3.push({ k: H_ ? 'van' : 'inf', x: a.x, y: a.y, r: r * (H_ ? 1.25 : 1.1), face: a.aimUntil > t ? a.aimA : a.face, tint: tm ? tm.color : null, lod: far3 !== '', aim: !a.down && a.aimUntil > t, pose: a.down ? 'down' : t - (a.hurtAt ?? -9) < 0.18 ? 'hit' : (!H_ && a.aimUntil > t && (a.vx || 0) ** 2 + (a.vy || 0) ** 2 <= 0.1 && a.id % 3 !== 0) ? 'kneel' : null, tumble: a.down ? Math.PI / 2 : undefined, walk: a.down ? null : (a.vx || 0) ** 2 + (a.vy || 0) ** 2 > 0.1 ? t * 11 + a.id : null }); else drawAllyBody(ctx, a, r, pal.ally, tm ? tm.color : null, on, now, px, t); }
       if (up) dropUnit(ctx, up);
       if (t - a.hurtAt < 0.1 && !hideUi) { ctx.strokeStyle = '#ff6a6a'; ctx.lineWidth = px(1.5); ctx.beginPath(); ctx.arc(a.x, a.y, r * 1.3, 0, TAU); ctx.stroke(); }
       if (H_ && !hideUi && u3) { /* in 3D he wears his team's colour himself: no ring */ }
@@ -799,7 +840,7 @@ export class Renderer {
     if (real) {     // lay the turned world on the screen
       const wc = this._wc, S = this.W; this.ctx = real.ctx; this.W = real.W; this.H = real.H; this.focusY = real.focusY; this._real = null; ctx = this.ctx; W = this.W; H = this.H;
       ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
-      if (g3) { const t0 = performance.now(); g3.frame({ sheet: wc, S, scale, camX: v.camX, camY: v.camY, yaw: cam.yaw, tilt: cam.tilt || cam.passTilt, W, H, fy: this.focusY || 0.5, sun: this._sun, height: (x, y) => m.terrain.height(x, y), blocks: this._blocks(m, v.camX, v.camY, S / scale / 2), props: VIEW.p3 ? this._props(m, v.camX, v.camY, S / scale / 2, pal) : null, lit: 1 - Math.min(0.6, (this._dark || 0) * 0.75), units: U3, drops: D3, shells: S3, strobes: B3, blasts: X3, bolts: T3, orbs: O3, domes: DM3, puffs: SM3, hot: cam.sight === 'whot' || cam.sight === 'bhot', sight: cam.sight, topo: !!cam.topo, ground: this.groundCv, groundRev: this.groundRev || 0, size: SIZE, post: !(this.quality === 'low' || this.perf.low), shadows: VIEW.sh });
+      if (g3) { const t0 = performance.now(); g3.frame({ sheet: wc, S, scale, camX: v.camX, camY: v.camY, yaw: cam.yaw, tilt: cam.tilt || cam.passTilt, W, H, fy: this.focusY || 0.5, sun: this._sun, height: (x, y) => m.terrain.height(x, y), blocks: this._blocks(m, v.camX, v.camY, S / scale / 2), props: VIEW.p3 ? this._props(m, v.camX, v.camY, S / scale / 2, pal) : null, lit: 1 - Math.min(0.6, (this._dark || 0) * 0.75), units: U3, drops: D3, shells: S3, strobes: B3, blasts: X3, bolts: T3, orbs: O3, domes: DM3, puffs: SM3, hot: cam.sight === 'whot' || cam.sight === 'bhot', rings: this._rings, sight: cam.sight, topo: !!cam.topo, ground: this.groundCv, groundRev: this.groundRev || 0, size: SIZE, post: !(this.quality === 'low' || this.perf.low), shadows: VIEW.sh });
         if (!g3.sighted) ctx.filter = cam.sight === 'whot' ? 'grayscale(1) brightness(1.3) contrast(1.15)' : cam.sight === 'bhot' ? 'grayscale(1) brightness(1.3) invert(1) contrast(1.12)' : 'none';     // (only where the graphics card could not put the sight on itself)
         ctx.drawImage(g3.cv, 0, 0); ctx.filter = 'none'; this._g3on = true; this.t3 = (this.t3 || 0) + (performance.now() - t0 - (this.t3 || 0)) * 0.08; }     // (the sight: infrared white-hot, black-hot, or plain colour)
       else { ctx.translate(v.px, v.py); ctx.rotate(cam.yaw); ctx.drawImage(wc, -S / 2, -S / 2); }
@@ -1517,6 +1558,7 @@ export class Renderer {
       } else if (f.k === 'shuttle') {
         // a shuttle full of civilians lifting out of the hangar
         const k = p, x = f.x + Math.cos(f.ang) * (6 + k * k * 260), y = f.y + Math.sin(f.ang) * (6 + k * k * 260) - k * 30, s = 7 * (1 + k * 0.6);
+        if (VIEW.air && VIEW.m3.has('veh_shuttle')) { VIEW.air.push({ k: 'shuttle', x: f.x + Math.cos(f.ang) * (6 + k * k * 260), y: f.y + Math.sin(f.ang) * (6 + k * k * 260), r: 9, face: f.ang, up: 1 + k * k * 90 }); continue; }     // (GC 0.41) in 3D: the shuttle itself, climbing away
         ctx.save(); ctx.translate(x, y); ctx.rotate(f.ang);
         ctx.fillStyle = `rgba(235,240,245,${1 - k * 0.5})`; ctx.beginPath(); ctx.moveTo(s, 0); ctx.lineTo(-s * 0.7, -s * 0.55); ctx.lineTo(-s * 0.45, 0); ctx.lineTo(-s * 0.7, s * 0.55); ctx.closePath(); ctx.fill();
         ctx.fillStyle = `rgba(255,200,140,${0.8 * (1 - k)})`; ctx.beginPath(); ctx.arc(-s * 0.6, 0, s * 0.25, 0, TAU); ctx.fill();

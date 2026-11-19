@@ -199,7 +199,7 @@ export const CONFIG = {
               lookout: { cost: 400, sec: 30, cap: 2, hp: 1500, reach: 1.35, spot: 1.6, unlock: 0, up: 200, coneMul: 2, spotMul: 1.25 },
               // bridge: a hard-light span across water (at most span metres of it), built from a crate on the near bank. Anyone
               // walks it: Vanguards, Infantry and the enemy.
-              bridge:  { cost: 250, sec: 16, span: 110, w: 14, unlock: 0, up: 160, dropSec: 30 },     // (0.22: dropped from the ship where an ally can see, dropSec after the call; nobody builds it)
+              bridge:  { cost: 250, sec: 16, span: 110, w: 20, unlock: 0, up: 160, dropSec: 30 },     // (GC 0.41) w 14 to 20: wide enough for a vehicle to drive over with room either side     // (0.22: dropped from the ship where an ally can see, dropSec after the call; nobody builds it)
               tower:   { cost: 700, sec: 50, cap: 1, hp: 1400, unlock: 0, up: 220 },
               sam:     { cost: 550, sec: 34, hp: 1600, dmg: 320, every: 2.4, unlock: 700, up: 260, ammo: 24 },     // (0.56: ammo, missiles a site)
               arty:    { cost: 1100, sec: 44, cap: 2, hp: 2200, unlock: 2200, up: 600 } },

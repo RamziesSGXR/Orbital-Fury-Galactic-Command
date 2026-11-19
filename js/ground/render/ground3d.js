@@ -127,7 +127,7 @@ export class Ground3D {
       if (on && (sc.right !== half || !this._shOk)) { sc.left = -half; sc.right = half; sc.top = half; sc.bottom = -half; sc.near = 10; sc.far = 1400; sc.updateProjectionMatrix(); this._shOk = true; } }
     this.scene.fog.near = d * 1.35; this.scene.fog.far = d * 6;
     // the ship's gun hangs under the gunship, off to the right of the sight: its shells come in from the edge of the picture
-    if (this.fx) { const e = C.matrixWorld.elements; this.gun.set(C.position.x + e[0] * d * 0.5 - e[4] * d * 0.22, C.position.y + e[1] * d * 0.5 - e[5] * d * 0.22, C.position.z + e[2] * d * 0.5 - e[6] * d * 0.22); this.fx.frame({ drops: o.drops, shells: o.shells, strobes: o.strobes, blasts: o.blasts, bolts: o.bolts, orbs: o.orbs, domes: o.domes, puffs: o.puffs, eye: this.cam.quaternion, gun: this.gun }, (x, z) => this.y(x, z)); }
+    if (this.fx) { const e = C.matrixWorld.elements; this.gun.set(C.position.x + e[0] * d * 0.5 - e[4] * d * 0.22, C.position.y + e[1] * d * 0.5 - e[5] * d * 0.22, C.position.z + e[2] * d * 0.5 - e[6] * d * 0.22); this.fx.frame({ drops: o.drops, shells: o.shells, strobes: o.strobes, blasts: o.blasts, bolts: o.bolts, orbs: o.orbs, domes: o.domes, puffs: o.puffs, rings: o.rings, eye: this.cam.quaternion, gun: this.gun }, (x, z) => this.y(x, z)); }
     // (0.37) the picture is taken onto a target, and the sight (infrared white-hot, black-hot, or plain colour) is put on as it
     // is copied to the screen: one cheap step on the graphics card, where it used to be a filter on the finished canvas
     const po = o.post === false ? null : this._post(W, H); this.sighted = !!po;

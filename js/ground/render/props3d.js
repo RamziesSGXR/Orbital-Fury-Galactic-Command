@@ -116,7 +116,7 @@ export class Props3D {
     this.mat.color.setScalar(lit); this.smooth.color.setScalar(lit); this.used.clear();
     for (const u of list) {
       const m = this._kind(u.k); if (!m) continue; const n = this.used.get(m) || 0; if (n >= m.instanceMatrix.count) continue;
-      Q.setFromAxisAngle(UP, u.rot || 0); P.set(u.x, ground(u.x, u.y) - (u.sink || 0), u.y); S.set(u.s, u.h || u.s, u.s);
+      Q.setFromAxisAngle(UP, u.rot || 0); P.set(u.x, ground(u.x, u.y) - (u.sink || 0) + (u.up || 0), u.y); S.set(u.l || u.s, u.h || u.s, u.s);     // (GC 0.41) l: a thing laid along a line is stretched to its length
       m.setMatrixAt(n, M4.compose(P, Q, S)); COL.set(u.tint || '#ffffff'); if (u.dim != null && u.dim < 1) COL.multiplyScalar(u.dim); if (u.flash) COL.multiplyScalar(2.4); m.setColorAt(n, COL);
       this.used.set(m, n + 1);
     }

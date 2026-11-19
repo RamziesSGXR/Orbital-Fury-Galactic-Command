@@ -3,6 +3,7 @@
 // centre; the state that matters (health, progress, labels) is drawn by the callers in renderer.js and world.js.
 import { raise, isFlat, baking } from './relief.js';
 import { poiArt } from './sideart.js';
+import { VIEW } from './view.js';
 const TAU = Math.PI * 2;
 function rgba(hex, a) {
   if (hex.startsWith('rgb')) return hex;
@@ -148,6 +149,7 @@ export function drawPad(ctx, x, y, lit, now, px) {
 export function drawCover(ctx, m, px) {
   for (const p of m.cover || []) {
     if (p.post && p.post.what !== 'bastion') continue;     // a post's places: the post draws itself (render/posts.js)
+    if (VIEW.p3 && VIEW.m3.has('prop_cover' + (p.style || 0))) continue;     // (GC 0.41) in 3D a wall is a model
     raise(ctx, p, p.x, p.y, p.len / 2 + 1.6, p.style === 2 ? 1.5 : 1.1, (c) => coverPiece(c, p, px), COVER_R);
   }
 }

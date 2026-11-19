@@ -6,6 +6,7 @@
 // One instanced mesh for each kind: any number of them is one draw. A model is baked to a single shape with its colours
 // in its corners, standing on the ground at the origin, facing +z, sized so its widest or tallest measure is two units.
 import * as THREE from '../../vendor/three.js';
+import { VIEW } from './view.js';
 import { makeMats, makePerson, poseKit, makeLRV, makeTank, makeDropship, makeCrate } from '../../base/models.js';
 
 const TMP = new THREE.Color(), Q2 = new THREE.Quaternion(), FWD = new THREE.Vector3(0, 0, 1), SIDE = new THREE.Vector3(1, 0, 0);
@@ -119,6 +120,8 @@ const MODELS = {
   'bots:L': 'foundry_L', 'bots:M': 'foundry_M', 'bots:H': 'foundry_H', 'bots:rkt': 'foundry_rocketeer', 'bots:cmd': 'foundry_foreman', 'bots:boss': 'foundry_siege',
   'lizards:L': 'talon_L', 'lizards:M': 'talon_M', 'lizards:H': 'talon_H', 'lizards:mort': 'talon_bombardier', 'lizards:soak': 'talon_herd', 'lizards:boss': 'talon_thunder',
   van: 'vanguard', inf: 'soldier', civ0: 'citizen_a', civ1: 'citizen_b', civ2: 'citizen_c',
+  // (GC 0.41) vehicles and aircraft, made in Blender (tools/blender/vehicles.py) and dressed in the fleet's colours as the people are
+  dship: 'veh_dropship', jet: 'veh_striker', lrv: 'veh_lrv', mech: 'veh_mech', shuttle: 'veh_shuttle', dog: 'veh_dog', uav: 'veh_uav',
 };
 const b64 = (s) => { const b = atob(s), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; };
 // (GC 0.38) SMOOTH WHERE IT CURVES, SHARP WHERE IT FOLDS. A model's corners are lit by the faces round them: a corner takes
@@ -203,7 +206,7 @@ export class Units3D {
     this.loaded = {};
     if (typeof fetch === 'function') fetch('assets/models/index.json').then((r) => (r.ok ? r.json() : null)).then((ix) => {     // (the list says which are made, so nothing missing is asked for)
       for (const [k, file] of Object.entries(MODELS)) if (ix && ix.models && ix.models.includes(file))
-        fetch(`assets/models/${file}.json`).then((r) => (r.ok ? r.json() : null)).then((d) => { if (!d || !d.frames) return; const made = modelFrames(d, this.dress(k)); this.def[k] = () => made; this._drop(k); this.loaded[k] = d.nt; }).catch(() => {});
+        fetch(`assets/models/${file}.json`).then((r) => (r.ok ? r.json() : null)).then((d) => { if (!d || !d.frames) return; const made = modelFrames(d, this.dress(k)); this.def[k] = () => made; this._drop(k); this.loaded[k] = d.nt; VIEW.m3.add(file); }).catch(() => {});
     }).catch(() => {});
   }
   // The fleet's own colours for the parts of a character model that are named for them (the enemy wears its own).
@@ -260,6 +263,17 @@ export class Units3D {
 //   drops    whatever is landing (the squad, infantry, supplies) under a parachute, sinking to its mark
 //   tracers  the ship's own shells, from the gun slung under the gunship down to where they will hit
 //   strobes  the infrared strobe each of yours wears: a point of light that blinks, the way friends are told from foes
+// a canvas colour ('#rrggbb', '#rgb', 'rgb(...)', 'rgba(...)') as [r, g, b, a], each 0 to 1; kept, since the same few come every frame
+const RING_C = new Map();
+function ringCol(s) {
+  let c = RING_C.get(s); if (c !== undefined) return c;
+  const m = /^rgba?\(([^)]+)\)$/i.exec(s);
+  if (m) { const p = m[1].split(/[ ,/]+/).filter(Boolean).map(Number); c = p.length >= 3 ? [p[0] / 255, p[1] / 255, p[2] / 255, p.length > 3 ? p[3] : 1] : null; }
+  else if (/^#[0-9a-f]{6}$/i.test(s)) c = [parseInt(s.slice(1, 3), 16) / 255, parseInt(s.slice(3, 5), 16) / 255, parseInt(s.slice(5, 7), 16) / 255, 1];
+  else if (/^#[0-9a-f]{3}$/i.test(s)) c = [parseInt(s[1] + s[1], 16) / 255, parseInt(s[2] + s[2], 16) / 255, parseInt(s[3] + s[3], 16) / 255, 1];
+  else c = null;
+  if (RING_C.size > 4000) RING_C.clear(); RING_C.set(s, c); return c;
+}
 export class Fx3D {
   constructor(scene) {
     const lit = (c) => new THREE.MeshLambertMaterial({ color: c }), glow = (c) => new THREE.MeshBasicMaterial({ color: c });
@@ -283,6 +297,13 @@ export class Fx3D {
       this.smoke = [0.36, 0.25, 0.15, 0.07].map((op) => { const im = inst(quad, new THREE.MeshBasicMaterial({ color: 0xffffff, map: tex, transparent: true, opacity: op, depthWrite: false }), 90); im.renderOrder = 3; return im; }); }
     this.blast = inst(new THREE.IcosahedronGeometry(1, 2), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }), 96); this.blast.renderOrder = 5;
     this.dir = new THREE.Vector3(); this.a = new THREE.Vector3(); this.b = new THREE.Vector3(); this.z = new THREE.Vector3(0, 0, 1); this.yv = new THREE.Vector3(0, 1, 0);
+    // (GC 0.41) rings: zones, ranges and selections as lines of light just off the ground. Each ring is a run of thin bars that
+    // follow the land; a bar has its own colour and its own strength (an attribute, since an instance's colour has no alpha).
+    { const N = 5000, geo = new THREE.BoxGeometry(1, 1, 1); this.ringA = new THREE.InstancedBufferAttribute(new Float32Array(N), 1); this.ringA.setUsage(THREE.DynamicDrawUsage); geo.setAttribute('ringA', this.ringA);
+      const m = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, depthWrite: false });
+      m.onBeforeCompile = (sh) => { sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float ringA; varying float vRingA;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvRingA = ringA;');
+        sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vRingA;').replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.a *= vRingA;'); };
+      this.ring = inst(geo, m, N); this.ring.renderOrder = 7; this.xv = new THREE.Vector3(1, 0, 0); }
   }
   // drops: [{ x, y, f (1 high up, 0 landed), tint, big }]   shells: [{ x, y, q (0 fired, 1 hit), big }]   strobes: [{ x, y, h }]
   // gun: where the ship's gun is (a point in the world); ground(x, y): metres up
@@ -341,6 +362,20 @@ export class Fx3D {
       P.set(s.x, ground(s.x, s.y) + (s.up || 0) + s.r * 0.45, s.y); S.set(s.r, s.r * 0.85, s.r); im.setMatrixAt(sn[bi], M4.compose(P, o.eye, S)); COL.set(s.col || '#4a4e4a'); im.setColorAt(sn[bi]++, COL); st++;
     }
     for (let i = 0; i < 4; i++) { const im = this.smoke[i]; im.count = sn[i]; if (sn[i]) { im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; } }
-    this.n = { drops: n, shells: k, strobes: j, blasts: w, bolts: bn, orbs: on, domes: dn, puffs: st };
+    // rings: [{ x, y, r, a0, span, w, col, al, on, gap, off }] (metres and radians; on/gap: the dashes; off: how far they have crawled)
+    let rn = 0;
+    for (const g of o.rings || []) {
+      const L = g.r * g.span, per = g.on + g.gap, seg = g.on ? Math.max(0.35, Math.min(g.on / 2, 3)) : Math.max(0.9, g.r * 0.1), N = Math.max(6, Math.min(220, Math.ceil(L / seg))), da = g.span / N, c = ringCol(g.col);
+      if (!c) continue; const al = Math.min(1, c[3] * g.al * 1.15), wd = Math.max(g.w, 0.07);
+      for (let i = 0; i < N && rn < 5000; i++) {
+        if (per > 0) { let d = ((i + 0.5) * L / N + g.off) % per; if (d < 0) d += per; if (d > g.on) continue; }
+        const t0 = g.a0 + i * da, t1 = t0 + da, x0 = g.x + Math.cos(t0) * g.r, z0 = g.y + Math.sin(t0) * g.r, x1 = g.x + Math.cos(t1) * g.r, z1 = g.y + Math.sin(t1) * g.r;
+        this.a.set(x0, ground(x0, z0) + 0.3 + wd, z0); this.b.set(x1, ground(x1, z1) + 0.3 + wd, z1); this.dir.subVectors(this.b, this.a); const len = this.dir.length() || 1e-3; this.dir.multiplyScalar(1 / len);
+        Q.setFromUnitVectors(this.xv, this.dir); P.addVectors(this.a, this.b).multiplyScalar(0.5); S.set(len * 1.04, wd * 0.5, wd);
+        this.ring.setMatrixAt(rn, M4.compose(P, Q, S)); COL.setRGB(c[0], c[1], c[2], THREE.SRGBColorSpace); this.ring.setColorAt(rn, COL); this.ringA.array[rn] = al; rn++;
+      }
+    }
+    this.ring.count = rn; if (rn) { this.ring.instanceMatrix.needsUpdate = true; this.ringA.needsUpdate = true; if (this.ring.instanceColor) this.ring.instanceColor.needsUpdate = true; }
+    this.n = { drops: n, shells: k, strobes: j, blasts: w, bolts: bn, orbs: on, domes: dn, puffs: st, rings: rn };
   }
 }

@@ -361,10 +361,12 @@ export function drawObjectives(ctx, m, now, px, labels, scale, pal) {
         if (o.pel.state === 'in') { const u = Math.min(1, k / K.inSec), e = 1 - (1 - u) * (1 - u); x = sx + (o.px - sx) * e; y = sy + (o.py - sy) * e; alt = 1 - e; }
         else if (o.pel.state === 'out') { const u = Math.min(1, k / K.outSec), e = u * u; x = o.px + 160 * e; y = o.py - 110 * e; alt = e; }
         const s = 14 * (1 + 0.3 * alt), off = 4 + alt * 26, ang = Math.atan2(o.py - sy, o.px - sx);
+        if (VIEW.air) VIEW.air.push({ k: 'dship', x, y, r: 9, face: ang, up: 1.5 + alt * 60 }); else {
         ctx.fillStyle = 'rgba(0,0,0,0.38)'; dshipBody(ctx, x + off * 1.05, y + off * 0.76, ang, s * 0.92); ctx.fill();
         dshipDetail(ctx, x, y, ang, s, now, 1, 1, null);
         dshipBody(ctx, x, y, ang, s); ctx.fillStyle = '#d8e8f2'; ctx.fill(); ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.lineWidth = px(2); ctx.stroke();
         dshipDetail(ctx, x, y, ang, s, now, 0, 1, null);
+        }
       }
       const K = O.oil;
       const txt = o.done ? tr('lab.oilDone') : o.state === 'load' ? tr('lab.oilLoad', { n: o.trips + 1, of: K.trips }) : o.state === 'pump' ? tr('lab.oilPump', { p: Math.round(o.fill * 100), n: o.trips + 1, of: K.trips }) : tr('lab.oil');
@@ -388,6 +390,7 @@ export function drawAssets(ctx, m, now, px, labels, scale, pal) {
       const f = s.hp / s.maxHp;
       if (f < 0.999) hpBar(ctx, s.x, s.y + r * 2 + px(2), r * 2.6, px(2.4), f, f > 0.35 ? '#7dff9b' : '#ff4a4a');
       labels.push({ x: s.x, y: s.y, dy: -r * 1.8 * scale - 8, text: tr(`callin.${s.sid}.tag`), col: ac , pri: 0 });
+    } else if (s.kind === 'mines' && VIEW.p3 && VIEW.m3.has('prop_mine')) { /* (GC 0.41) in 3D each mine is a model */
     } else if (s.kind === 'mines') {
       ctx.strokeStyle = 'rgba(61,169,255,0.55)'; ctx.lineWidth = px(1);
       for (const mn of s.mines) {
@@ -399,11 +402,16 @@ export function drawAssets(ctx, m, now, px, labels, scale, pal) {
       const f = Math.max(0, s.shield / s.maxShield);
       ctx.fillStyle = `rgba(120,200,255,${(0.05 + 0.1 * f) + (hit ? 0.12 : 0)})`; ring(ctx, s.x, s.y, s.r); ctx.fill();
       ctx.strokeStyle = `rgba(170,225,255,${0.35 + 0.5 * f})`; ctx.lineWidth = px(1.6); ring(ctx, s.x, s.y, s.r); ctx.stroke();
-      const r = Math.max(2.4, px(4)); ctx.fillStyle = '#bfe4ff'; ring(ctx, s.x, s.y, r); ctx.fill();
+      if (!(VIEW.p3 && VIEW.m3.has('prop_shieldgen'))) { const r = Math.max(2.4, px(4)); ctx.fillStyle = '#bfe4ff'; ring(ctx, s.x, s.y, r); ctx.fill(); }
       hpBar(ctx, s.x, s.y + s.r + px(3), s.r * 1.2, px(3), f, '#8fd0ff');
+    } else if (s.kind === 'dog' && VIEW.air && VIEW.m3.has('veh_dog')) {
+      VIEW.air.push({ k: 'dog', x: s.x, y: s.y, r: 2.6, face: s.face || 0, flash: hit, walk: (s.vx || 0) ** 2 + (s.vy || 0) ** 2 > 0.1 ? t * 12 : null });
     } else if (s.kind === 'dog') {
       const r = Math.max(2.2, px(4));
       ctx.fillStyle = hit ? '#fff' : ac; ctx.beginPath(); ctx.moveTo(s.x, s.y - r); ctx.lineTo(s.x + r, s.y + r); ctx.lineTo(s.x - r, s.y + r); ctx.closePath(); ctx.fill();
+    } else if (s.kind === 'vehicle' && VIEW.air && VIEW.m3.has('veh_lrv')) {     // (GC 0.41) the squad's vehicle as a model, big enough to carry them
+      VIEW.air.push({ k: 'lrv', x: s.x, y: s.y, r: LRV_R, face: s.face || 0, tint: s.wreck ? '#4a4038' : null, flash: hit });
+      labels.push({ x: s.x, y: s.y, dy: -LRV_R * 0.9 * scale - 12, text: s.wreck ? tr('lab.burning') : tr('lab.lrv', { n: s.seats.length }), col: ac, pri: 0 });
     } else if (s.kind === 'vehicle') {
       const L = 8, Wd = 4.2;
       ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(s.face);
@@ -421,9 +429,11 @@ export function drawAssets(ctx, m, now, px, labels, scale, pal) {
     const r = Math.max(4, px(4.5));
     if (a.mech && a.mech.hp > 0) {
       const mc = a.mech, c = C.callin.mech, R = Math.max(6.5, px(9));
+      if (!(VIEW.p3 && VIEW.m3.has('veh_mech'))) {     // (GC 0.41: in 3D the suit is a model, drawn where its Vanguard is)
       ctx.strokeStyle = t - a.hurtAt < 0.12 ? '#fff' : '#ffb020'; ctx.lineWidth = px(2.2);
       ctx.strokeRect(a.x - R, a.y - R, R * 2, R * 2);
       ctx.fillStyle = 'rgba(255,176,32,0.18)'; ctx.fillRect(a.x - R, a.y - R, R * 2, R * 2);
+      }
       hpBar(ctx, a.x, a.y + R + px(2), R * 2.4, px(3), mc.hp / mc.maxHp, '#7dff9b');
       hpBar(ctx, a.x, a.y + R + px(6), R * 2.4, px(2), mc.gat / c.gatAmmo, '#ffe600');
       hpBar(ctx, a.x, a.y + R + px(9), R * 2.4, px(2), mc.rkt / c.rktAmmo, '#ff7a4a');
@@ -664,6 +674,8 @@ function bracket(ctx, x, y, r, lw, col) {
 }
 
 // ---------- UAV circles ----------
+// (GC 0.41) how big the squad's vehicle is drawn in 3D: a car that carries four of these outsized troopers
+const LRV_R = 8.5;
 export function drawUavs(ctx, m, now, px, labels, scale) {
   // Kept faint so it does not cover the battlefield: a thin dashed edge, a slow pale sweep, and a small tag. Allies under it get a
   // soft green tick at their feet (they are faster and dodge more while it is up).
@@ -678,6 +690,7 @@ export function drawUavs(ctx, m, now, px, labels, scale) {
     g.addColorStop(0, 'rgba(157,255,184,0)'); g.addColorStop(1, `rgba(157,255,184,${0.07 * a})`);
     ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(u.x, u.y); ctx.arc(u.x, u.y, r, ang - 0.5, ang); ctx.closePath(); ctx.fill();
     labels.push({ x: u.x, y: u.y, dy: -r * scale - 6, text: `UAV ${Math.ceil(left)}S`, col: 'rgba(157,255,184,0.7)', pri: 0 });
+    if (VIEW.air && VIEW.m3.has('veh_uav')) { const w = t * 0.35 + u.born; VIEW.air.push({ k: 'uav', x: u.x + Math.cos(w) * r * 0.55, y: u.y + Math.sin(w) * r * 0.55, r: 5, face: w + Math.PI / 2, up: 46 }); }     // (GC 0.41) the drone itself, circling its patch
   }
   if (m.uavs.length) {
     ctx.strokeStyle = 'rgba(157,255,184,0.55)'; ctx.lineWidth = px(1.2);
