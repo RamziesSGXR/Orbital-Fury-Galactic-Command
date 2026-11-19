@@ -241,7 +241,8 @@ button small { display: block; font: 9.5px var(--mono); letter-spacing: 0.5px; o
 .fchoice .go small { color: #141204; }
 
 /* ---------- title ---------- */
-#s-title { align-items: center; justify-content: center; overflow-y: auto; }
+/* (0.46.1) the menu starts at the top and centres itself with its own margins, so when it is taller than the screen (a phone) the top is not pushed out of reach; it scrolls by touch, clear of the notch and the home bar */
+#s-title { align-items: center; justify-content: flex-start; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
 #tbg { position: fixed; inset: 0; width: 100%; height: 100%; }
 /* (0.39) the main menu: the game's name, then four ways to play side by side, each a card that says what is saved in it */
 .tmain { position: relative; width: min(1240px, 96vw); padding: 18px 0 14px; margin: auto; }
@@ -268,6 +269,30 @@ button small { display: block; font: 9.5px var(--mono); letter-spacing: 0.5px; o
 .tfoot .btn { flex: 1; }
 @media (max-width: 1080px) { .modes { grid-template-columns: repeat(2, 1fr); } .mcard { min-height: 0; } }
 @media (max-width: 560px) { .modes { grid-template-columns: 1fr; } .thead { flex-direction: column; text-align: center; } .tfoot { flex-wrap: wrap; } .tfoot .btn { flex: 1 1 45%; } .mart { height: 104px; } }
+/* ---- (0.46.1) THE MENU ON A PHONE ---- */
+@media (hover: none) { .mcard:hover { transform: none; box-shadow: none; border-color: var(--empty); } .mcard:active { border-color: var(--amber); } }
+/* held upright: each mode is one short card, its picture beside its name, its buttons the full width and tall enough for a thumb */
+@media (max-width: 560px) {
+  .tmain { width: 100%; padding: 14px 12px 20px; }
+  .thead { gap: 6px; margin: 0 0 12px; } #t-crest { width: 68px; height: 68px; }
+  .thead h1 { font-size: clamp(22px, 7.6vw, 34px); letter-spacing: 2px; margin: 2px 0 4px; } .over { font-size: 11px; letter-spacing: 5px; } .thead .tag { font-size: 12px; }
+  .modes { gap: 10px; }
+  .mcard { display: grid; grid-template-columns: 96px 1fr; grid-template-areas: "art em" "art h" "art p" "save save" "bt bt"; grid-template-rows: auto auto 1fr auto auto; column-gap: 12px; padding: 12px; min-height: 0; }
+  .mcard .mart { grid-area: art; margin: 0; height: auto; min-height: 88px; align-self: stretch; border: 1px solid var(--empty); }
+  .mcard em { grid-area: em; } .mcard h2 { grid-area: h; font-size: 19px; margin: 3px 0 5px; } .mcard > p { grid-area: p; font-size: 12px; line-height: 1.4; }
+  .mcard .msave { grid-area: save; min-height: 0; margin-top: 0; padding-top: 10px; } .mcard .msave:empty { display: none; }
+  .mcard .mbt { grid-area: bt; margin-top: 10px; flex-direction: row; gap: 8px; } .mcard .mbt .btn { flex: 1; min-height: 48px; font-size: 14px; }
+  .tfoot { gap: 8px; margin-top: 12px; } .tfoot .btn { min-height: 46px; }
+}
+/* on its side: all four side by side, the words cut down to the name, the save and the button, so the whole menu is on one screen */
+@media (max-height: 480px) and (min-width: 561px) {
+  .tmain { width: 97vw; padding: 8px 0 10px; }
+  .thead { margin: 0 4px 8px; gap: 12px; } #t-crest { width: 46px; height: 46px; } .thead h1 { font-size: 24px; letter-spacing: 3px; margin: 0; } .over, .thead .tag { display: none; }
+  .modes { grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .mcard { padding: 0 10px 10px; min-height: 0; } .mart { height: 50px; margin: 0 -10px 6px; } .mcard em { font-size: 9px; letter-spacing: 2px; } .mcard h2 { font-size: 14px; letter-spacing: 1px; margin: 2px 0 0; }
+  .mcard > p:not(.msave) { display: none; } .mcard .msave { min-height: 28px; padding-top: 4px; font-size: 10px; } .mbt { margin-top: 6px; } .mbt .btn { min-height: 40px; }
+  .tfoot { margin-top: 8px; } .tfoot .btn { min-height: 38px; }
+}
 /* the list of what is saved */
 .svrow { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--empty); text-align: left; }
 .svrow div { flex: 1; min-width: 0; } .svrow b { font: 600 13px var(--head); letter-spacing: 1px; display: block; } .svrow span { font-size: 12px; color: var(--dim); }
