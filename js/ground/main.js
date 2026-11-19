@@ -980,7 +980,7 @@ function toTitle() {
   $('tt-cp-sub').textContent = campSub(); drawLoadBtn();
   UI.buildLangs(getLang(), pickLang);
   drawDiff();
-  $('tut-new').classList.toggle('hidden', !!S.load('tutSeen', false));      // (0.19) NEW on the tutorial until it has been opened
+  // (GC 0.39.2: the tutorial's card is gone from the title)
   if (tut) { tut.close(); tut = null; }
   lsReset();
   if (!renderer.terrain) setTimeout(() => buildFor('ice', 4242), 30);
@@ -1959,7 +1959,7 @@ $('btn-retry').onclick = () => retryMission();
 $('btn-end-d').onclick = () => endTap('btn-end-d', () => endSession(true));
 $('shop-end').onclick = () => { audio.unlock(); endTap('shop-end', () => endSession(true)); };     // (0.44)
 $('btn-again').onclick = () => { audio.click(); session = null; toTitle(); };
-$('btn-tutorial').onclick = () => { audio.unlock(); audio.click(); askLock('tut'); };
+// (GC 0.39.2) the old tutorial (a last stand told in another game's story) is gone from the game: nothing opens it.
 $('glass-title').onclick = () => { audio.click(); session = null; toTitle(); };
 $('glass-again').onclick = () => startLastStand();
 $('glass-play').onclick = () => { audio.click(); session = null; toTitle(); $('btn-play').click(); };

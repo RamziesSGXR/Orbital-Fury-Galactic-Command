@@ -137,7 +137,7 @@ body.photo #showui { display: none !important; }</style>
         <div class="tc-sec tc-f"><div class="tc-l" data-t="tac.form">FORMATION</div><div class="tc-grid tac-form"></div></div>
       </div>
     </div>
-    <!-- (0.19) the tutorial's card, and the glassing of Mars -->
+    <!-- (the old tutorial's card) -->
     <div id="tut" class="panel hidden" role="dialog" aria-live="polite">
       <div class="tut-top"><span id="tut-k" class="tut-k"></span><button id="tut-x" class="tut-x" type="button" aria-label="Fold">▾</button></div>
       <h3 id="tut-h"></h3><p id="tut-b"></p>
@@ -215,13 +215,6 @@ body.photo #showui { display: none !important; }</style>
         <p id="tt-wiped" class="tt-wiped hidden" role="status"></p>
       </header>
       <div id="langs" class="langs tt-langs" role="group" data-ta="set.lang"></div>
-      <!-- (0.37) the tutorial in the big window; QUICK PLAY and the campaign ask for the rest (NEW OPERATION, s-lock) -->
-      <section class="tt-deploy tt-tut" aria-labelledby="tt-dh">
-        <h2 id="tt-dh" class="tt-h"><span data-t="title.tutH">TUTORIAL</span> <i id="tut-new" class="tt-new hidden" data-t="title.new">NEW</i></h2>
-        <p class="tt-tut-n" data-t="title.tutName">LAST STAND ON MARS</p>
-        <p class="tt-tut-p" data-t="title.tutP"></p>
-        <button id="btn-tutorial" class="btn tt-item tt-play" type="button" data-t="title.tutPlay">PLAY TUTORIAL</button>
-      </section>
       <nav class="tt-menu" data-ta="title.menu">
         <button id="btn-gc-exit" class="btn tt-item fury-only" type="button"><span>MAIN MENU</span><small>Back to Galactic Command: the war, the base and the station</small></button>
         <button id="btn-resume" class="btn tt-item tt-resume hidden" type="button"></button>
@@ -303,21 +296,21 @@ body.photo #showui { display: none !important; }</style>
     </div>
   </section>
 
-  <!-- (0.19) the tutorial's cinematics: Mars from space before the last stand and after it (render/cinema.js) -->
+  <!-- the old tutorial's cinematics (render/cinema.js): no longer reached -->
   <div id="cine" class="hidden" role="dialog" aria-live="polite">
     <canvas id="cine-cv"></canvas>
     <div id="cine-text"></div>
     <button id="cine-skip" class="btn" type="button"><span data-t="cine.skip">SKIP</span> ▸▸</button>
   </div>
 
-  <!-- (0.19) the end of the tutorial: Mars is glassed -->
+  <!-- the old tutorial's end screen: no longer reached -->
   <section id="s-glass" class="screen">
     <div class="card wide glass-card">
-      <div class="eyebrow" data-t="glass.eyebrow">MARS · 20 MAY 2185</div>
-      <h2 id="g-title" data-t="glass.title">MARS IS GLASS</h2>
+      <div class="eyebrow"></div>
+      <h2 id="g-title"></h2>
       <p id="g-lede" class="g-lede"></p>
       <table id="g-table"></table>
-      <p class="fine g-lore" data-t="glass.lore"></p>
+      <p class="fine g-lore"></p>
       <div class="d-copy">
         <textarea id="g-text" class="rep-text" aria-hidden="true" tabindex="-1" readonly rows="7" spellcheck="false" data-ta="deb.copyTitle"></textarea>
         <div class="btns"><button id="btn-copy-g" class="btn" type="button" data-t="deb.copy">COPY FOR DISCORD</button><button id="btn-radio-g" class="btn hidden" type="button" data-t="radio.log">RADIO LOG</button></div>
@@ -325,7 +318,7 @@ body.photo #showui { display: none !important; }</style>
       </div>
       <div class="btns">
         <button id="glass-play" class="btn primary big" type="button" data-t="glass.play">PLAY A SESSION</button>
-        <button id="glass-again" class="btn" type="button" data-t="glass.again">HOLD MARS AGAIN</button>
+        <button id="glass-again" class="btn hidden" type="button"></button>
         <button id="glass-title" class="btn" type="button" data-t="glass.toTitle">TITLE SCREEN</button>
       </div>
     </div>

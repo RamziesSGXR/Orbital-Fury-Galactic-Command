@@ -256,11 +256,11 @@ export function aarStand(res, callsign) {
   const ls = res.lastStand || {}, k = tierFor(res.kills || 0, true);
   return [
     HEAD,
-    '**THE LAST STAND AT THARSIS** · Mars, 20 May 2185',
+    '**LAST STAND**',
     gunner(callsign),
-    `**Personnel off Mars:** ${fmtNum(res.civSaved)}${ls.pop ? ` of ${fmtNum(ls.pop)}` : ''} · ${fmtNum(ls.lifted)} dship${ls.lifted === 1 ? '' : 's'} away · held ${fmtTime(ls.held)}`,
+    `**Personnel lifted out:** ${fmtNum(res.civSaved)}${ls.pop ? ` of ${fmtNum(ls.pop)}` : ''} · ${fmtNum(ls.lifted)} dship${ls.lifted === 1 ? '' : 's'} away · held ${fmtTime(ls.held)}`,
     `**Kills:** ${fmtNum(res.kills)}` + (k ? ` · Rank ${k}, ${tEn('rank.' + k)}` : ''),
-    `**Result:** ${res.outcome === 'glassed' ? 'Mars is glass. The Great Host took it.' : 'Left before the end.'}`,
+    `**Result:** ${res.outcome === 'glassed' ? 'The base fell.' : 'Left before the end.'}`,
     foot(),
   ].join('\n');
 }
