@@ -43,6 +43,11 @@ const $ = (id) => document.getElementById(id);
 // briefing, the mission and its debrief, then back to the map.
 const GCX = (() => { try { return window.parent !== window ? window.parent.gcGround || null : null; } catch { return null; } })();
 if (GCX) document.documentElement.classList.add('gc');
+// (GC 0.39) ORBITAL FURY MODE: this game whole, opened from Galactic Command's main menu. Its own missions, difficulty, saves
+// and never-ending play, with the new look: the land and everything on it in 3D, the pass overhead, the sight and height switches.
+const FURY = GCX ? null : (() => { try { return window.parent !== window ? window.parent.gcFury || null : null; } catch { return null; } })();
+if (FURY) document.documentElement.classList.add('fury');
+const LOOK3 = GCX || FURY;
 let gcOver = false;
 function gcDone() { if (gcOver) return; gcOver = true; audio.humStop(); if (lastRes) GCX.onResult(lastRes); else GCX.onAbort(); }
 // PHOTO MODE (GC 0.20): the fight stops, the interface goes away, and the camera is yours: drag to look round and up and
@@ -88,10 +93,14 @@ function wirePhoto() {
   });
   canvas.addEventListener('wheel', (e) => { if (!photo) return; e.preventDefault(); cam.view = Math.max(C.world.zoomMin * 0.6, Math.min(C.world.zoomMax, cam.view * (e.deltaY > 0 ? 1.1 : 1 / 1.1))); }, { passive: false });
 }
-function gcStart() {
+// the new look, for a fight of the war and for Orbital Fury mode alike: src is what the game was opened with
+function lookStart(src) {
   wirePhoto();
-  { let k = {}; try { k = JSON.parse(localStorage.getItem('ofgc.view') || '{}') || {}; } catch { /* nothing kept */ } cam.sight = GCX.sight || k.sight || 'whot'; cam.hot = k.hot || 'whot'; cam.topo = !!k.topo; syncView(); }
-  cam.livery = GCX.livery || null; cam.orbit = GCX.orbit ?? 1; cam.g3d = GCX.flat ? false : true;     // the land in 3D under the circling view     // the circling view: slow, as from high up; a full turn takes about twenty-six minutes of mission time
+  { let k = {}; try { k = JSON.parse(localStorage.getItem('ofgc.view') || '{}') || {}; } catch { /* nothing kept */ } cam.sight = src.sight || k.sight || 'whot'; cam.hot = k.hot || 'whot'; cam.topo = !!k.topo; syncView(); }
+  cam.livery = src.livery || null; cam.orbit = src.orbit ?? 1; cam.g3d = src.flat ? false : true;     // the land in 3D under the circling view     // the circling view: slow, as from high up; a full turn takes about twenty-six minutes of mission time
+}
+function gcStart() {
+  lookStart(GCX);
   // what the war sends down with you: reinforcements from a station and the ratings, a garrison from a base
   if (GCX.support) { C.vanguards.lives = Math.max(8, C.vanguards.lives + (GCX.support.lives | 0)); if (GCX.support.garrison > 0) { C.infantry.defendChance = 1; C.infantry.defendN += GCX.support.garrison | 0; } }
   session = S.newSession(GCX.callsign, GCX.level, GCX.op);
@@ -315,9 +324,9 @@ const input = new Input(canvas, $('minimap'), cam, {
   },
   boxCancel: () => { box = null; },
   armory: () => { if (live() || UI.isOn('s-armory') || UI.isOn('s-pause')) openArmory(); },
-  polarity: () => { if (GCX && cam.g3d) { cam.sight = cam.sight === 'whot' ? 'bhot' : cam.sight === 'bhot' ? 'day' : 'whot'; if (cam.sight !== 'day') cam.hot = cam.sight; keepView(); syncView(); return; }     // (GC 0.22) the sight: white-hot, black-hot, colour
+  polarity: () => { if (LOOK3 && cam.g3d) { cam.sight = cam.sight === 'whot' ? 'bhot' : cam.sight === 'bhot' ? 'day' : 'whot'; if (cam.sight !== 'day') cam.hot = cam.sight; keepView(); syncView(); return; }     // (GC 0.22) the sight: white-hot, black-hot, colour
     settings.polarity = settings.polarity === 'white' ? 'black' : 'white'; onSettingChange('polarity'); },
-  relief: () => { if (GCX && cam.g3d) { cam.topo = !cam.topo; keepView(); syncView(); return; }     // (0.37) in 3D the height view is put on by the graphics card: nothing is rebuilt
+  relief: () => { if (LOOK3 && cam.g3d) { cam.topo = !cam.topo; keepView(); syncView(); return; }     // (0.37) in 3D the height view is put on by the graphics card: nothing is rebuilt
     settings.relief = !settings.relief; onSettingChange('relief'); if (mission) hud.notice(t(settings.relief ? 'set.reliefOn' : 'set.reliefOff'), 'info'); },
   info: () => openInfo(),
   radio: () => { if (state === 'play' && mission && hud.radioOn) hud.radioToggle(); },
@@ -2447,7 +2456,7 @@ applySettings();
 renderer.resize();
 // (0.53) operations saved before the new campaign are cleared, once; the title says so
 const wipedOld = GCX ? false : S.resetOldSaves();
-if (GCX) gcStart(); else toTitle();
+if (GCX) gcStart(); else { if (FURY) { lookStart(FURY); $('btn-gc-exit').onclick = () => { audio.click(); audio.humStop(); FURY.onExit(); }; } toTitle(); }
 if (wipedOld) { $('tt-wiped').textContent = t('title.wiped'); $('tt-wiped').classList.remove('hidden'); }
 requestAnimationFrame((t) => { lastT = t / 1000; frame(t); });
 

@@ -11,7 +11,7 @@ with sync_playwright() as pw:
     pg.on('console', lambda m: errs.append('console: ' + m.text) if m.type == 'error' and 'fonts.g' not in m.text and 'ERR_' not in m.text else None)
     pg.goto('http://localhost:8080/'); pg.wait_for_timeout(500); pg.evaluate('localStorage.clear()'); pg.reload(); pg.wait_for_timeout(500)
     pg.click('#b-new'); pg.wait_for_timeout(200); pg.click('#f-go'); pg.wait_for_timeout(300); pg.click('#modal [data-x=close]'); pg.wait_for_timeout(300)
-    pg.click('#modal [data-x=tut]'); pg.wait_for_timeout(1500)
+    pg.wait_for_timeout(1500)     # (0.39) no asking: with the hints on (as they are to begin with) the first war opens with them
     total = pg.evaluate("document.querySelector('#coach em, #fcoach em').textContent"); print('starts:', total)
     seen, skipped, idle, last = [], [], 0, None
     for i in range(400):

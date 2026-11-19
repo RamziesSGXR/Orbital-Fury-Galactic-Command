@@ -19,10 +19,13 @@ import { words } from './core/words.js';
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
 const KEY = 'ofgc.campaign', SET_KEY = 'ofgc.settings';
+// (0.39) a single post played on its own (FOB Commander, Orbital Commander) keeps its own save, apart from the war's; the
+// command's name, crest and colours are kept once and worn in every way of playing
+const PROFILE = 'ofgc.profile', SOLO = { base: 'ofgc.solo.base', orbit: 'ofgc.solo.orbit' }, SOLO_META = 'ofgc.solo.meta';
 const qs = new URLSearchParams(location.search);
 
 // ---------------------------------------------------------------- settings and sound
-const settings = { volume: 0.6, muted: false, ...read(SET_KEY, {}) };
+const settings = { volume: 0.6, muted: false, hints: true, hintsDone: false, ...read(SET_KEY, {}) };     // (0.39) hints: the coach's cards, on or off
 export const audio = new Audio();
 audio.set(settings.volume, settings.muted);
 for (const k of ['pointerdown', 'keydown']) window.addEventListener(k, () => audio.unlock(), { once: true, capture: true });
@@ -49,41 +52,105 @@ function rollFaction() {
 let camp = null;
 let state = 'title';       // title | found | war | ground | orbit | base
 let mode = null;           // the theatre on screen, if any
+let solo = null;           // (0.39) 'base' or 'orbit' while one post is played on its own, with no war round it
+let soloCamp = null;       // what stands in for the campaign then: the command's identity and nothing else
+let fury = null;           // the Orbital Fury mode's own page, while it is open
 const modes = {};          // loaded theatres, by name
 
 export const app = {
-  get faction() { return camp ? camp.faction : draft; },
-  get camp() { return camp; },
+  get faction() { return camp ? camp.faction : soloCamp ? soloCamp.faction : draft; },
+  get camp() { return camp || soloCamp; },
   audio, settings, version: VERSION,
   crest(canvas) { if (!canvas) return; const g = canvas.getContext('2d'); g.clearRect(0, 0, canvas.width, canvas.height); drawLogo(g, app.faction.logo, 2, 2, canvas.width - 4); },
   keep() { if (!camp) return; const g = War.war(); if (g && g.phase === 'plan' && !g.over) camp.war = g.save(); camp.at = Date.now(); write(KEY, camp); },
   toast(text, ms = 2200) { const t = $('toast'); t.textContent = text; t.classList.add('show'); clearTimeout(app._tt); app._tt = setTimeout(() => t.classList.remove('show'), ms); },
   menu: () => openMenu(),
   newWar(seed, tutorial) { camp.war = null; War.open(app, { seed: seed || (Date.now() % 100000), tutorial }); app.keep(); },
+  saveSettings() { write(SET_KEY, settings); },
+  // the coach's hints, on or off (the war room is told, if it is open)
+  setHints(on) { settings.hints = !!on; if (on) settings.hintsDone = false; write(SET_KEY, settings); if (state === 'war') War.hints(!!on); },
   endCampaign() { drop(KEY); for (const k of Object.keys(localStorage)) if (k.startsWith('ofgc.site.')) drop(k); camp = null; toTitle(); },
   theatre: (kind, args) => enterTheatre(kind, args),
   // a theatre's own saved state, kept apart from the campaign so one big base cannot crowd out the rest
-  siteLoad: (kind, pid) => read(`ofgc.site.${kind}.${pid}`, null),
-  siteSave: (kind, pid, data) => write(`ofgc.site.${kind}.${pid}`, data),
-  siteDrop: (kind, pid) => drop(`ofgc.site.${kind}.${pid}`),
+  siteLoad: (kind, pid) => read(solo ? SOLO[kind] : `ofgc.site.${kind}.${pid}`, null),
+  siteSave: (kind, pid, data) => write(solo ? SOLO[kind] : `ofgc.site.${kind}.${pid}`, data),
+  siteDrop: (kind, pid) => drop(solo ? SOLO[kind] : `ofgc.site.${kind}.${pid}`),
 };
 window.gc = { app, War, get state() { return state; }, get mode() { return mode; } };     // for the browser checks
 
 function show(id) { for (const s of document.querySelectorAll('.scr')) s.classList.toggle('on', s.id === id); }
 
 // ---------------------------------------------------------------- title
+// who you are when there is no war on: the identity kept from the last founding, or the saved campaign's
+const identity = () => { const c = read(KEY, null); return read(PROFILE, null) || (c && c.v === 2 && c.faction) || null; };
+const ago = (t) => { if (!t) return ''; const m = Math.max(0, Math.round((Date.now() - t) / 60000)); return m < 1 ? 'saved just now' : m < 60 ? `saved ${m} min ago` : m < 1440 ? `saved ${Math.round(m / 60)} h ago` : `saved ${Math.round(m / 1440)} d ago`; };
+// What is saved in each way of playing, in a line or two: shown on its card and in the SAVES list.
+function saves() {
+  const c = read(KEY, null), okC = c && c.v === 2 && c.faction, meta = read(SOLO_META, {}) || {}; let f = null; try { f = JSON.parse(localStorage.getItem('ofs.session') || 'null'); } catch { f = null; }
+  const okF = f && Array.isArray(f.missions);
+  return {
+    war: okC ? { title: c.faction.name, text: `Round ${(c.war && c.war.round) || 1}${c.stats && c.stats.ground ? ` · ${c.stats.groundWon || 0} of ${c.stats.ground} ground fights won` : ''}`, at: c.at } : null,
+    fury: okF ? { title: f.op || 'Operation', text: `Mission ${f.missions.length + 1} · difficulty ${f.difficulty ?? 1}${f.score ? ` · score ${f.score}` : ''}`, at: f.savedAt || f.startedAt } : null,
+    base: read(SOLO.base, null) ? { title: (meta.base && meta.base.name) || 'Your base', text: meta.base ? `${meta.base.charter || 'Charter'} · ${meta.base.troops || 0} troops${meta.base.profit ? ' · in profit' : ''}` : 'A base under way', at: meta.base && meta.base.at } : null,
+    orbit: read(SOLO.orbit, null) ? { title: (meta.orbit && meta.orbit.name) || 'Your station', text: meta.orbit ? `${meta.orbit.tier || 'Tier'}${meta.orbit.profit ? ' · in profit' : ''}` : 'A station under way', at: meta.orbit && meta.orbit.at } : null,
+  };
+}
+const NONE = { war: 'No campaign yet.', fury: 'No operation under way.', base: 'No base yet.', orbit: 'No station yet.' };
 function toTitle() {
-  state = 'title'; mode = null; War.show(false); show('s-title');
-  const saved = read(KEY, null), ok = saved && saved.v === 2 && saved.faction;
+  state = 'title'; mode = null; solo = null; soloCamp = null; War.show(false); show('s-title');
+  const saved = read(KEY, null), ok = saved && saved.v === 2 && saved.faction, me = (ok && saved.faction) || identity() || draft, S = saves();
   $('b-continue').classList.toggle('hidden', !ok);
   $('b-new').classList.toggle('go', !ok);
-  if (ok && saved.faction.logo.img) ensureLogo(saved.faction.logo).then(() => { if (state === 'title') drawLogo($('t-crest').getContext('2d'), saved.faction.logo, 4, 4, 152); });
-  if (ok) { $('b-continue-sub').textContent = `${saved.faction.name} · round ${(saved.war && saved.war.round) || 1}`; drawLogo($('t-crest').getContext('2d'), saved.faction.logo, 4, 4, 152); }
-  else { const g = $('t-crest').getContext('2d'); g.clearRect(0, 0, 160, 160); drawLogo(g, draft.logo, 4, 4, 152); }
+  const crest = () => { const g = $('t-crest').getContext('2d'); g.clearRect(0, 0, 160, 160); drawLogo(g, me.logo, 4, 4, 152); };
+  if (me.logo.img) ensureLogo(me.logo).then(() => { if (state === 'title') crest(); }); crest();
+  for (const k of ['war', 'fury', 'base', 'orbit']) { const el = $('ms-' + k), v = S[k]; el.classList.toggle('none', !v); el.innerHTML = v ? `<b>${esc(v.title)}</b>${esc(v.text)}${v.at ? ' · ' + ago(v.at) : ''}` : NONE[k]; }
+  $('b-fury').textContent = S.fury ? 'CONTINUE' : 'PLAY';
+  for (const k of ['base', 'orbit']) { $('b-' + k).classList.toggle('hidden', !S[k]); $('b-' + k + '-new').classList.toggle('go', !S[k]); }
   $('t-ver').textContent = `PROTOTYPE ${VERSION} · A FAN PROJECT · NOT AFFILIATED WITH ANY STUDIO`;
 }
-$('b-continue').onclick = async () => { audio.click(); camp = read(KEY, null); if (!camp) return toTitle(); await ensureLogo(camp.faction.logo); toWar({ saved: camp.war }); };
-$('b-new').onclick = () => { audio.click(); if (read(KEY, null)) return confirmBox('Start a new campaign?', 'The campaign in progress, with its stations and bases, will be lost.', 'START A NEW CAMPAIGN', toFound); toFound(); };
+$('b-continue').onclick = async () => { audio.click(); camp = read(KEY, null); if (!camp) return toTitle(); await ensureLogo(camp.faction.logo); toWar({ saved: camp.war, tutorial: settings.hints && !settings.hintsDone && !qs.has('seed') }); };
+$('b-new').onclick = () => { audio.click(); if (read(KEY, null)) return confirmBox('Start a new campaign?', 'The campaign in progress, with its stations and bases, will be lost.', 'START A NEW CAMPAIGN', () => toFound('war')); toFound('war'); };
+// ---- (0.39) one post on its own: FOB Commander (the base) and Orbital Commander (the station)
+const SOLO_NAME = { base: 'FOB COMMANDER', orbit: 'ORBITAL COMMANDER' };
+function soloGo(kind, fresh) {
+  audio.click();
+  const go = () => { if (fresh) { drop(SOLO[kind]); const m = read(SOLO_META, {}) || {}; delete m[kind]; write(SOLO_META, m); } const me = identity(); if (!me) return toFound(kind); enterSolo(kind, me); };
+  if (fresh && read(SOLO[kind], null)) return confirmBox(kind === 'base' ? 'Start a new base?' : 'Start a new station?', `The ${kind === 'base' ? 'base' : 'station'} you have been building will be lost.`, kind === 'base' ? 'START A NEW BASE' : 'START A NEW STATION', go);
+  go();
+}
+async function enterSolo(kind, me) {
+  await ensureLogo(me.logo);
+  solo = kind; soloCamp = { v: 2, faction: me, war: null, kit: newKit(), wallet: newWallet(), sites: {}, stats: {}, solo: true };
+  const home = (me.capital || GC.names.capital || 'Aurelia');
+  enterTheatre(kind, { system: { id: kind === 'base' ? 9001 : 9002, name: home, kind: 'capital', worlds: [{ name: home, type: 'capital' }], key: 0 } }, true);
+}
+$('b-base').onclick = () => soloGo('base', false); $('b-base-new').onclick = () => soloGo('base', true);
+$('b-orbit').onclick = () => soloGo('orbit', false); $('b-orbit-new').onclick = () => soloGo('orbit', true);
+// ---- (0.39) Orbital Fury mode: the ground game whole, with its own missions, difficulty and saves, in its own page
+function enterFury() {
+  audio.click(); if (fury) return;
+  const me = identity();
+  window.gcFury = { livery: me || draft, hints: settings.hints, onExit: () => setTimeout(leaveFury, 0) };
+  state = 'fury'; fury = document.createElement('iframe'); fury.id = 'g-frame'; fury.title = 'Orbital Fury'; fury.setAttribute('allow', 'autoplay; fullscreen');
+  fury.onload = () => { try { fury.contentWindow.focus(); } catch { /* not focusable yet */ } };
+  fury.src = 'ground.html' + (qs.has('debug') ? '?debug' : ''); document.body.appendChild(fury);
+}
+function leaveFury() { if (fury) { fury.remove(); fury = null; } window.gcFury = null; toTitle(); }
+$('b-fury').onclick = enterFury;
+// ---- (0.39) what is saved, in one list: every way of playing, what it holds, and a way to clear it
+function savesBox() {
+  const S = saves(), name = { war: 'GALACTIC', fury: 'ORBITAL FURY', base: 'FOB COMMANDER', orbit: 'ORBITAL COMMANDER' };
+  War.modal('<h2>Saves</h2><p class="dim">Everything is kept on this device, in this browser.</p>' + ['war', 'fury', 'base', 'orbit'].map((k) => { const v = S[k];
+    return `<div class="svrow${v ? '' : ' none'}"><div><b>${name[k]}</b><span>${v ? `${esc(v.title)} · ${esc(v.text)}${v.at ? ' · ' + ago(v.at) : ''}` : NONE[k]}</span></div>${v ? `<button class="plate btn sm" data-del="${k}">DELETE</button>` : ''}</div>`; }).join('') +
+    '<button class="plate btn go" data-x="close" style="margin-top:12px">CLOSE</button>');
+  const box = $('modal'); box.querySelector('[data-x=close]').onclick = () => { box.hidden = true; audio.click(); toTitle(); };
+  for (const b of box.querySelectorAll('[data-del]')) b.onclick = () => confirmBox(`Delete the ${name[b.dataset.del]} save?`, 'It cannot be brought back.', 'DELETE IT', () => {
+    const k = b.dataset.del;
+    if (k === 'war') app.endCampaignQuiet(); else if (k === 'fury') { for (const q of ['ofs.session', 'ofs.campRun', 'ofs.slots']) drop(q); } else { drop(SOLO[k]); const m = read(SOLO_META, {}) || {}; delete m[k]; write(SOLO_META, m); }
+    savesBox();
+  });
+}
+$('b-saves').onclick = () => { audio.click(); savesBox(); };
 $('b-how').onclick = () => { audio.click(); how(); };
 $('b-settings').onclick = () => { audio.click(); openMenu('settings'); };
 $('b-credits').onclick = () => { audio.click(); credits(); };
@@ -141,10 +208,11 @@ function titleBg(now) {
 // ---------------------------------------------------------------- found your command
 let draft = rollFaction();
 const CYCLE = { shape: SHAPES, symbol: SYMBOLS, pattern: PATTERNS };
-function toFound() {
-  state = 'found'; show('s-found');
+let foundFor = 'war';     // what the founding is for: the war, or a single post ('base', 'orbit')
+function toFound(what = 'war') {
+  foundFor = what; state = 'found'; show('s-found'); $('f-open').classList.toggle('hidden', what !== 'war');
   $('f-name').value = draft.name; $('f-capital').value = draft.capital || ''; openDraw(); $('f-motto').value = draft.motto; $('f-text').value = draft.logo.text || '';
-  const sw = (id, get, set) => { $(id).innerHTML = PALETTE.map((c) => `<button style="background:${c}" data-c="${c}" class="${get() === c ? 'on' : ''}" aria-label="${c}"></button>`).join(''); $(id).onclick = (e) => { const b = e.target.closest('[data-c]'); if (!b) return; set(b.dataset.c); audio.click(); toFound(); }; };
+  const sw = (id, get, set) => { $(id).innerHTML = PALETTE.map((c) => `<button style="background:${c}" data-c="${c}" class="${get() === c ? 'on' : ''}" aria-label="${c}"></button>`).join(''); $(id).onclick = (e) => { const b = e.target.closest('[data-c]'); if (!b) return; set(b.dataset.c); audio.click(); toFound(foundFor); }; };
   sw('f-bg', () => draft.logo.bg, (c) => { draft.logo.bg = c; });
   sw('f-fg', () => draft.logo.fg, (c) => { draft.logo.fg = c; });
   sw('f-pc', () => draft.logo.pc, (c) => { draft.logo.pc = c; });
@@ -177,27 +245,25 @@ $('f-name').oninput = () => { draft.name = $('f-name').value; };
 $('f-capital').oninput = () => { draft.capital = $('f-capital').value; };
 $('f-motto').oninput = () => { draft.motto = $('f-motto').value; };
 $('f-text').oninput = () => { draft.logo.text = $('f-text').value.toUpperCase(); foundDraw(); };
-$('f-roll').onclick = () => { draft = rollFaction(); audio.click(); toFound(); };
+$('f-roll').onclick = () => { draft = rollFaction(); audio.click(); toFound(foundFor); };
 // your own picture in place of the crest: shrunk to 128 px and kept with the campaign on this device
 $('f-up').onclick = () => $('f-file').click();
 $('f-file').onchange = async () => {
   const f = $('f-file').files[0]; $('f-file').value = ''; if (!f) return;
-  try { draft.logo.img = await readUpload(f); audio.ready(); toFound(); } catch (err) { audio.deny(); app.toast(err.message || 'That picture could not be read.', 4000); }
+  try { draft.logo.img = await readUpload(f); audio.ready(); toFound(foundFor); } catch (err) { audio.deny(); app.toast(err.message || 'That picture could not be read.', 4000); }
 };
-$('f-unup').onclick = () => { delete draft.logo.img; audio.click(); toFound(); };
+$('f-unup').onclick = () => { delete draft.logo.img; audio.click(); toFound(foundFor); };
 $('f-back').onclick = () => { audio.click(); toTitle(); };
 $('f-go').onclick = () => {
   audio.ready();
   draft.name = (draft.name || '').trim() || 'The Command'; draft.motto = (draft.motto || '').trim(); draft.capital = (draft.capital || '').replace(/[<>&]/g, '').trim() || GC.names.capital;
+  write(PROFILE, JSON.parse(JSON.stringify(draft)));
+  if (foundFor !== 'war') return enterSolo(foundFor, JSON.parse(JSON.stringify(draft)));
   app.endCampaignQuiet();
   camp = { v: 2, faction: JSON.parse(JSON.stringify(draft)), war: null, kit: newKit(), wallet: newWallet(), sites: {}, stats: { ground: 0, groundWon: 0 }, at: Date.now() };
-  how(() => {
-    if (qs.has('seed')) return toWar({ seed: Number(qs.get('seed')) });
-    War.modal(`<h2>Your first war</h2><p>The guided opening walks you through the first rounds in the war room, one step at a time: reading the map, moving a fleet, your first battle. It takes about three minutes, and the war carries on from there.</p>
-      <button class="plate btn go" data-x="tut">PLAY THE GUIDED OPENING</button><button class="plate btn" style="width:100%;margin-top:8px" data-x="skip">SKIP IT, I KNOW THE WAR ROOM</button>`);
-    $('modal').querySelector('[data-x=tut]').onclick = () => { $('modal').hidden = true; audio.click(); toWar({ seed: SEED, tutorial: true }); };
-    $('modal').querySelector('[data-x=skip]').onclick = () => { $('modal').hidden = true; audio.click(); toWar({ seed: Date.now() % 100000 }); };
-  });
+  // (0.39) no asking whether to play a tutorial: the coach's hints are on or off (Settings), and a first war with them on is
+  // the opening they were written for
+  how(() => { const hints = settings.hints && !settings.hintsDone && !qs.has('seed'); toWar({ seed: qs.has('seed') ? Number(qs.get('seed')) : hints ? SEED : Date.now() % 100000, tutorial: hints }); });
 };
 app.endCampaignQuiet = () => { drop(KEY); try { for (const k of Object.keys(localStorage)) if (k.startsWith('ofgc.site.')) drop(k); } catch { /* no storage */ } };
 
@@ -217,10 +283,10 @@ const PASS = {
   orbit: (a) => ['ORBIT', `STATION OVER ${a.system.name}`, 'Shuttle on approach. The station is yours to lay out; its people will do the rest.'],
   base: (a) => ['SURFACE', `BASE ON ${a.system.worlds[a.system.key].name}`, 'Lander on final. Roads first, then let the base grow along them.'],
 };
-async function enterTheatre(kind, args) {
-  if (state !== 'war') return;
+async function enterTheatre(kind, args, alone = false) {
+  if (state !== 'war' && !alone) return;
   app.keep(); audio.strikeCall();
-  const [over, title, sub] = PASS[kind](args);
+  const [over, title, sub] = alone ? [kind === 'base' ? 'SURFACE' : 'ORBIT', SOLO_NAME[kind], kind === 'base' ? 'One base, yours to grow. Roads first, then let it grow along them.' : 'One station, yours to lay out. Its people will do the rest.'] : PASS[kind](args);
   $('tr-over').textContent = over; $('tr-title').textContent = title; $('tr-sub').textContent = sub; $('tr-bar').style.width = '8%';
   app.crest($('tr-crest')); $('trans').hidden = false;
   const t0 = performance.now();
@@ -236,7 +302,7 @@ async function enterTheatre(kind, args) {
     $('tr-bar').style.width = '100%';
     await new Promise((r) => setTimeout(r, Math.max(250, 900 - (performance.now() - t0))));
   } catch (err) {
-    console.error(err); state = 'war'; mode = null; show('s-war'); War.show(true);
+    console.error(err); mode = null; if (alone) toTitle(); else { state = 'war'; show('s-war'); War.show(true); }
     app.toast('That post could not be reached. ' + (err && err.message ? err.message : ''), 5000);
   }
   $('trans').hidden = true;
@@ -244,8 +310,10 @@ async function enterTheatre(kind, args) {
 // Back to the war room. `out` is what the theatre reports: { win, left } from the ground; { level } from a station or a base.
 function leaveTheatre(out = {}) {
   const kind = state, args = frameUi.args; if (!mode) return;
+  if (solo) soloNote(out);
   try { mode.leave(); } catch (err) { console.error(err); }
   mode = null; clearInterval(frameUi._wt); frameUi.war(null);
+  if (solo) return toTitle();     // (0.39) a post on its own answers to no war: back to the main menu
   if (kind === 'ground') { camp.stats.ground++; if (out.win) camp.stats.groundWon++; if (!out.abandon) War.groundResult(!!out.win, out.left ?? 0.5, out.res || null); }
   else if (out.level != null) {
     const key = kind === 'orbit' ? 'station' : 'base', g = War.war(), p = args.system, rec = (camp.sites[p.id] ||= {}), cur = p[key] || 1;
@@ -258,17 +326,22 @@ function leaveTheatre(out = {}) {
   if (kind === 'ground' && out.abandon) app.toast('The landing is called off. The fleets still face each other.');
 }
 
+// (0.39) a line about the post played on its own, for its card on the main menu
+function soloNote(out) {
+  if (!solo || !mode) return; let r = out; try { if (r == null || r.level == null) r = mode.report ? mode.report() : {}; } catch { r = {}; }
+  const m = read(SOLO_META, {}) || {}; m[solo] = { name: $('th-where').textContent || '', charter: r.charter || '', tier: r.tier || '', troops: r.troops || 0, profit: !!r.profit, at: Date.now() }; write(SOLO_META, m);
+}
 // ---------------------------------------------------------------- the frame every theatre shares
 // A theatre never touches the page outside this: it sets where it is, its numbers, its tools and what is said.
 export const frameUi = {
   args: null, paused: false, speed: 1, speeds: [1, 2, 4],
   reset(kind, args) {
     this.args = args; this.paused = false; this.speed = 1;
-    $('th-kind').textContent = { ground: 'FIRE SUPPORT', orbit: 'STATION COMMAND', base: 'BASE COMMAND' }[kind]; this.war(null); clearInterval(this._wt);
+    $('th-kind').textContent = solo ? SOLO_NAME[kind] : { ground: 'FIRE SUPPORT', orbit: 'STATION COMMAND', base: 'BASE COMMAND' }[kind]; this.war(null); clearInterval(this._wt);
     if (kind !== 'ground') this._wt = setInterval(() => { try { const g = War.war(); if (!mode || !mode.report || !g || (state !== 'orbit' && state !== 'base')) return; const r = mode.report(), key = state === 'orbit' ? 'station' : 'base'; this.war(g.postGives(args.system.id, key, Math.max(1, Math.min(r.level || 1, (args.system[key] || 0) + 1)), !!r.profit)); } catch (err) { /* the post is still opening */ } }, 700);
     $('th-where').textContent = args.system.name; $('th-stats').innerHTML = ''; $('th-bar').innerHTML = ''; $('th-tabs').innerHTML = '';
     $('th-feed').innerHTML = ''; $('th-desk').innerHTML = ''; $('th-msg').classList.remove('show'); $('th-side').classList.add('hidden'); $('th-sel').classList.add('hidden'); $('th-tip').classList.add('hidden');
-    $('th-pause').textContent = 'II'; $('th-speed').textContent = '1×'; $('th-leave').textContent = kind === 'ground' ? 'ABORT' : 'TO THE MAP';
+    $('th-pause').textContent = 'II'; $('th-speed').textContent = '1×'; $('th-leave').textContent = kind === 'ground' ? 'ABORT' : solo ? 'MAIN MENU' : 'TO THE MAP';
     $('th-speed').classList.toggle('hidden', kind === 'ground');
     app.crest($('crest-th'));
   },
@@ -285,7 +358,7 @@ export const frameUi = {
   },
   message(text, ms = 2600) { const m = $('th-msg'); m.textContent = text; m.classList.add('show'); clearTimeout(this._mt); this._mt = setTimeout(() => m.classList.remove('show'), ms); },
   feed(text, tone = '') { const f = $('th-feed'), d = document.createElement('div'); d.className = tone; d.textContent = text; f.appendChild(d); while (f.children.length > 4) f.firstChild.remove(); setTimeout(() => d.remove(), 7000); },
-  tip(text) { const t = $('th-tip'); t.classList.toggle('hidden', !text); if (text) t.textContent = text; },
+  tip(text) { if (!settings.hints) text = ''; const t = $('th-tip'); t.classList.toggle('hidden', !text); if (text) t.textContent = text; },     // (0.39: a tip is a hint, and hints can be off)
   leave: (out) => leaveTheatre(out),
 };
 $('th-menu').onclick = () => openMenu();
@@ -350,14 +423,16 @@ function openMenu(page = 'main') {
     m.innerHTML = `<div class="plate amber box"><h2>Settings</h2>
       <label class="rng">VOLUME<input type="range" id="m-vol" min="0" max="100" value="${Math.round(settings.volume * 100)}"></label>
       <div class="mm"><button class="plate btn${settings.muted ? ' on' : ''}" id="m-mute">${settings.muted ? 'SOUND IS OFF' : 'SOUND IS ON'}</button>
+      <button class="plate btn${settings.hints ? ' on' : ''}" id="m-hints">${settings.hints ? 'HINTS ARE ON' : 'HINTS ARE OFF'}<small>The coach's cards and tips. Turn them off when you know your way round, and on again whenever you like.</small></button>
       <button class="plate btn go" id="m-back">${inPlay ? 'BACK' : 'CLOSE'}</button></div></div>`;
     $('m-vol').oninput = () => { settings.volume = $('m-vol').value / 100; audio.set(settings.volume, settings.muted); write(SET_KEY, settings); };
     $('m-mute').onclick = () => { settings.muted = !settings.muted; audio.set(settings.volume, settings.muted); write(SET_KEY, settings); openMenu('settings'); };
+    $('m-hints').onclick = () => { app.setHints(!settings.hints); audio.click(); openMenu('settings'); };
     $('m-back').onclick = () => { if (inPlay) openMenu('main'); else close(); };
   } else {
     const g = War.war();
     m.innerHTML = `<div class="plate amber box"><h2>${esc(app.faction.name)}</h2><p>${esc(app.faction.motto || '')}</p>
-      <p>${state === 'war' ? `The war room · round ${g ? g.round : 1}` : state === 'ground' ? 'Fire support' : state === 'orbit' ? 'Station command' : 'Base command'} · saved on this device</p>
+      <p>${solo ? SOLO_NAME[solo][0] + SOLO_NAME[solo].slice(1).toLowerCase() : state === 'war' ? `The war room · round ${g ? g.round : 1}` : state === 'ground' ? 'Fire support' : state === 'orbit' ? 'Station command' : 'Base command'} · saved on this device</p>
       <div class="mm"><button class="plate btn go" id="m-resume">RESUME</button>
       <button class="plate btn" id="m-how">HOW THE WAR FITS TOGETHER</button>
       <button class="plate btn" id="m-set">SETTINGS</button>
@@ -375,9 +450,9 @@ function openMenu(page = 'main') {
   m.hidden = false;
 }
 window.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') { if (!$('menu').hidden) { $('menu').hidden = true; return; } if (!$('modal').hidden) return; if (state !== 'title' && state !== 'found') openMenu(); }
+  if (e.key === 'Escape') { if (!$('menu').hidden) { $('menu').hidden = true; return; } if (!$('modal').hidden) return; if (state !== 'title' && state !== 'found' && state !== 'fury') openMenu(); }
 });
-window.addEventListener('beforeunload', () => { if (mode && mode.store) mode.store(); app.keep(); });
+window.addEventListener('beforeunload', () => { if (mode && mode.store) mode.store(); soloNote(null); app.keep(); });
 document.addEventListener('visibilitychange', () => { if (document.hidden) { if (mode && mode.store) mode.store(); app.keep(); } });
 
 // ---------------------------------------------------------------- the clock: one loop for the whole game

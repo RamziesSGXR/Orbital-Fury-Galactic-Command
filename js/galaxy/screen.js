@@ -41,12 +41,12 @@ function odds(mine, theirs) { const r = mine / Math.max(1, theirs); return r >= 
 
 function start(seed, saved, tutorial) {
   g = (saved && Game.load(saved)) || new Game(seed || (Date.now() % 100000), null, app && app.faction && app.faction.open);
-  Object.assign(ui, { sel: null, fleet: null, half: false, pend: null, tab: 'int', open: false, mark: Math.max(0, g.log.length - 6), tut: tutorial ? 0 : null, hint: null, dest: null, anims: [], show: null, seen: null, fx: null, auto: 0, front: -2 });
+  Object.assign(ui, { sel: null, fleet: null, half: false, pend: null, tab: 'int', open: false, mark: Math.max(0, g.log.length - 6), tut: tutorial ? Math.min(STEPS.length - 1, Math.max(0, (saved && app && app.camp && app.camp.hint) || 0)) : null, hint: null, dest: null, anims: [], show: null, seen: null, fx: null, auto: 0, front: -2 });
   tutStep = -1;
   if (view.R0) view.reset();
   step();
 }
-function store() { if (app && active && g.phase === 'plan' && !g.over) app.keep(); }
+function store() { if (app && app.camp) app.camp.hint = ui.tut; if (app && active && g.phase === 'plan' && !g.over) app.keep(); }     // (0.39: where the hints have got to is kept with the war)
 
 // After the rules have moved on: animate the fleets that moved, announce what the enemy did, turn the camera to
 // the front in play, then redraw.
@@ -252,7 +252,7 @@ function tabUni() {
     <div class="sm2 dim">ENEMIES DESTROYED: ${C.factions.filter(f => g.F[f].state === 'dead').length} / 3</div>
     <div class="sm2 dim">Systems taken ${g.stats.taken} · fallen ${g.stats.fallen} · defences held ${g.stats.held}</div></section>
     <section><div class="row"><button class="plate btn sm grow" data-a="log">WAR LOG</button><button class="plate btn sm grow" data-a="help">RULES</button></div>
-    <div class="row" style="margin-top:6px"><button class="plate amber btn sm grow" data-a="asktut">TUTORIAL</button><button class="plate btn sm grow" data-a="ask">NEW WAR</button></div></section>`;
+    <div class="row" style="margin-top:6px"><button class="plate amber btn sm grow" data-a="hints">${app && app.settings.hints ? 'HINTS: ON' : 'HINTS: OFF'}</button><button class="plate btn sm grow" data-a="ask">NEW WAR</button></div></section>`;
 }
 const TAB = { sys: tabSys, int: tabInt, def: tabDef, pro: tabPro, exp: tabExp, tru: tabTru, hum: tabHum, emp: tabEmp, uni: tabUni };
 function side() {
@@ -325,7 +325,7 @@ function tutorial() {
   if (ui.tut == null) { ui.hint = null; return; }
   if (g.over) { ui.tut = null; ui.hint = null; return; }
   for (let guard = 0; guard < STEPS.length; guard++) {
-    const st = STEPS[ui.tut]; if (!st) { ui.tut = null; ui.hint = null; return; }
+    const st = STEPS[ui.tut]; if (!st) { ui.tut = null; ui.hint = null; if (app && app.settings && !app.settings.hintsDone) { app.settings.hintsDone = true; app.saveSettings(); } return; }     // (0.39) every hint has been given
     if (st.wait && st.wait(g, ui)) { ui.hint = null; return; }
     const fresh = tutStep !== ui.tut;
     if ((fresh && st.skipIf && st.skipIf(g, ui)) || (st.done && st.done(g, ui))) { ui.tut++; continue; }
@@ -342,10 +342,10 @@ function coach() {
   for (const el of [$('coach'), $('fcoach')]) el.hidden = true;
   if (!show) return;
   const el = inFight ? $('fcoach') : $('coach'); el.hidden = false;
-  el.innerHTML = `<div class="ctx"><em>TUTORIAL · ${ui.tut + 1} OF ${STEPS.length}</em><p>${words(st.text(g, ui))}</p></div><div class="cbt">` +
+  el.innerHTML = `<div class="ctx"><em>HINT · ${ui.tut + 1} OF ${STEPS.length}</em><p>${words(st.text(g, ui))}</p></div><div class="cbt">` +
     (st.next ? `<button class="plate btn go" data-a="tnext">${st.last ? 'FINISH' : 'NEXT'}</button>` : '') +
     (st.help ? `<button class="plate amber btn sm" data-a="thelp">${st.help}</button>` : '') +
-    (st.next ? '' : '<button class="plate btn sm" data-a="tnext">SKIP STEP</button>') + '<button class="plate btn sm" data-a="tend">END TUTORIAL</button></div>';
+    (st.next ? '' : '<button class="plate btn sm" data-a="tnext">SKIP</button>') + '<button class="plate btn sm" data-a="tend" title="Turn the hints off. They can be turned on again in Settings.">HINTS OFF</button></div>';
 }
 function outline() {
   const st = ui.tut == null ? null : STEPS[ui.tut];
@@ -452,7 +452,8 @@ document.addEventListener('click', e => {
     case 'prio': g.setPriority(+d.k); break;
     case 'tnext': ui.tut++; break;
     case 'thelp': STEPS[ui.tut].do(g, ui); return step();
-    case 'tend': ui.tut = null; break;
+    case 'tend': ui.tut = null; if (app) { app.setHints(false); app.toast('Hints are off. Turn them on again in Settings, or under the menu on the map.', 3600); } break;
+    case 'hints': if (app) app.setHints(!app.settings.hints); break;
     case 'tut': $('modal').hidden = true; app.newWar(SEED, true); return;
     case 'zin': view.zoomAt(1.4); return;
     case 'zout': view.zoomAt(1 / 1.4); return;
@@ -537,6 +538,8 @@ export function open(a, { saved = null, seed = 0, tutorial = false } = {}) {
   view.resize(); if (view.front != null) view.focus(view.front);
   refresh();
 }
+// (0.39) The coach's hints, switched on or off while the war is open. On: they begin again from the first that still applies.
+export function hints(on) { if (!g) return; ui.tut = on && !g.over ? 0 : null; tutStep = -1; if (!on) ui.hint = null; if (active) refresh(); }
 export function show(on) { active = on; if (on) { view.resize(); if (view.front != null) view.focus(view.front); refresh(); } }
 // A battle settled on the ground comes back here: the result goes on the map and the battle screen shows it.
 export function groundResult(win, left, res) { if (g && g.battle && !g.battle.done) { g.battleResolve(win, left, res); ui.fx = null; ui.cards = false; } }

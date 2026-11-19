@@ -9,7 +9,8 @@
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="css/fury.css">
 <style>.gc #btn-retry, .gc #s-title { display: none !important; }
-html:not(.gc) .gc-only { display: none !important; }
+html:not(.gc):not(.fury) .gc-only { display: none !important; }
+html:not(.fury) .fury-only, html.fury #d-war { display: none !important; }
 /* (GC 0.25) inside the war a fight is one mission: no next mission, no second try, no operation total, no version of the old game */
 html.gc #btn-retry, html.gc #btn-end-d, html.gc #d-retry-note, html.gc .ver, html.gc .d-total { display: none !important; }
 /* (GC 0.29) what the mission brings the war, at the head of its debrief */
@@ -222,6 +223,7 @@ body.photo #showui { display: none !important; }</style>
         <button id="btn-tutorial" class="btn tt-item tt-play" type="button" data-t="title.tutPlay">PLAY TUTORIAL</button>
       </section>
       <nav class="tt-menu" data-ta="title.menu">
+        <button id="btn-gc-exit" class="btn tt-item fury-only" type="button"><span>MAIN MENU</span><small>Back to Galactic Command: the war, the base and the station</small></button>
         <button id="btn-resume" class="btn tt-item tt-resume hidden" type="button"></button>
         <button id="btn-load-t" class="btn tt-item" type="button"><span data-t="title.load">LOAD GAME</span><small id="tt-load-sub" data-t="title.loadNone">Save an operation from the menu to keep it here</small></button>
         <button id="btn-campaign" class="btn tt-item" type="button"><span data-t="title.campaign">CAMPAIGN</span><i class="tt-dev" data-t="title.inDev">IN DEVELOPMENT</i><small id="tt-cp-sub" data-t="title.campaignSub">A story across missions</small></button>

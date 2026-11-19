@@ -21,7 +21,7 @@ const mode = {
     const objs = GC.groundObj[atk ? 'atk' : 'def'];
     credits0 = g.wallet.bal; snap = JSON.stringify({ kit: g.kit, wallet: g.wallet });
     window.gcGround = {
-      kit: g.kit, wallet: g.wallet, tier: app.armouryTier(), level: a.level || 1, support: a.support || null, livery: app.faction,
+      kit: g.kit, wallet: g.wallet, tier: app.armouryTier(), hints: app.settings.hints, level: a.level || 1, support: a.support || null, livery: app.faction,
       faction: GC.link.foe[b.f] || 'bugs', biome: GC.link.biome[kw.type] || 'grass', seed, obj: a.post ? 'evac' : objs[seed % objs.length], post: a.post || null,     // a post under attack is always its defence and evacuation
       op: a.post ? `Evacuate ${a.system.name}` : `Operation ${kw.name}`, callsign: (app.faction.name || '').toUpperCase().replace(/[^\w \-.]/g, '').slice(0, 16),
       // (0.29) for the debrief: what this result will bring the war, before it is handed over

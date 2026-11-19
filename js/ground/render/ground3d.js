@@ -149,7 +149,7 @@ export class Ground3D {
             void main() { vec3 lin = texture2D(t, vUv).rgb; vec3 c = enc(uMode > 0 ? clamp(lin, 0.0, 1.0) : film(max(lin, 0.0)));
               if (uMode == 0) { float l = dot(c, vec3(0.2126, 0.7152, 0.0722)); c = mix(vec3(l), c, 0.86); }
               vec2 q = vUv - 0.5; c *= 1.0 - 0.22 * smoothstep(0.45, 1.0, length(q * vec2(1.0, 0.82)) * 1.45);     // darker toward the corners, as through a lens
-              if (uMode > 0) { float l = dot(c, vec3(0.2126, 0.7152, 0.0722)); if (uMode == 2) l = 1.0 - l; l = (l - 0.5) * (uMode == 1 ? 1.25 : 1.2) + 0.5; l *= uMode == 1 ? 0.82 : 0.9; c = vec3(clamp(l, 0.0, 1.0)); }
+              if (uMode > 0) { float l = dot(c, vec3(0.2126, 0.7152, 0.0722)); l = pow(l, 0.7); if (uMode == 2) l = 1.0 - l; l = clamp((l - 0.5) * 1.15 + 0.56, 0.0, 1.0) * 0.9; c = vec3(l); }     // (0.39) the infrared picture: dark ground is lifted before the contrast goes on, so land in shadow or out of sight is dim, not black
               gl_FragColor = vec4(c, 1.0); }` });
         const scene = new THREE.Scene(), quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mat); quad.frustumCulled = false; scene.add(quad);
         this.post = { rt, mat, scene, cam: new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1), W, H };

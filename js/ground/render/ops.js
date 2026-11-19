@@ -25,7 +25,7 @@ const mmss = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart
 // (0.18: the area is round, like the minimap: everything outside the circle is darkened)
 export function drawAoEdge(ctx, m, px, x0, y0, x1, y1) {
   const a = m.ao, R = a.R || a.size / 2;
-  ctx.fillStyle = 'rgba(6,4,0,0.8)';
+  ctx.fillStyle = VIEW.p3 ? 'rgba(6,4,0,0.5)' : 'rgba(6,4,0,0.8)';     // (GC 0.39) in 3D the tilted view looks far past the edge: the land out there is dimmed, not blacked out
   ctx.beginPath(); ctx.rect(x0, y0, x1 - x0, y1 - y0); ctx.arc(a.cx, a.cy, R, 0, Math.PI * 2, true); ctx.fill('evenodd');
   ctx.strokeStyle = 'rgba(255,200,40,0.12)'; ctx.lineWidth = px(14);
   ring(ctx, a.cx, a.cy, R - px(7)); ctx.stroke();
