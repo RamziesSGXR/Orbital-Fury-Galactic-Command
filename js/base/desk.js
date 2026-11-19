@@ -52,7 +52,7 @@ export const REQUESTS = [
   { from: 'Citizen', title: 'Lost property', text: 'NAME has handed in a wallet found by the landing pad. It contains 45 credits and no name.',
     opts: [{ label: 'BASE FUNDS', fx: { cr: 45, mood: -1 }, say: 'The credits have been absorbed by the base. NAME looked at you for a moment longer than usual.' },
            { label: 'REWARD THE FINDER', fx: { cr: 20, mood: 3 }, say: 'NAME kept a finder\'s share and told everyone. Honesty is up today.' }] },
-  { from: 'Bureau', title: 'Census of votes', text: 'The Bureau requires a recount of the recruits on your base. A clerk can do it properly, or your figure from yesterday can be sent again with confidence.',
+  { from: 'Bureau', title: 'Head count', text: 'The Bureau requires a fresh count of the recruits on your base. A clerk can do it properly, or your figure from yesterday can be sent again with confidence.',
     opts: [{ label: 'PAY A CLERK (15 CR)', fx: { cr: -15, pro: 2 }, say: 'The recruits were counted. There was one more than expected. He has been issued a bunk.' },
            { label: 'SEND YESTERDAY\'S', fx: { pro: -1, tru: -1 }, say: 'Yesterday\'s figure was sent. The Bureau replied with yesterday\'s thanks.' }] },
   { from: 'Trooper', title: 'A band', text: 'Four troopers and a citizen with a tuba ask to form a base band for the colours. They have rehearsed. This is a warning.',
@@ -85,7 +85,7 @@ export const REQUESTS = [
     opts: [{ label: 'JOIN THE SCHEME', fx: { tru: 2, mood: 2 }, say: 'Letters are going out. One child has asked whether bugs have feelings. The censor said no.' },
            { label: 'NO TIME', fx: { pro: 1 }, say: 'The base is too busy for letters. The Publicity Office has noted the missed opportunity.' }] },
   { from: 'Citizen', title: 'A talent night', text: 'NAME of the canteen staff wants to hold a talent night in the mess. Acts so far: a juggler, a poet, and a trooper who can recite the Federation Constitution backwards.',
-    opts: [{ label: 'ALLOW IT', fx: { mood: 4, sup: -8 }, say: 'Talent night was a success. The backwards Constitution was declared both patriotic and unsettling.' },
+    opts: [{ label: 'ALLOW IT', fx: { mood: 4, sup: -8 }, say: 'Talent night was a success. The backwards Constitution was declared both on brand and unsettling.' },
            { label: 'LIGHTS OUT AS USUAL', fx: { pro: 1 }, say: 'No talent night. The juggler practises alone behind the depot.' }] },
   { from: 'Research Office', title: 'A field test', text: 'The Research Office wants to test a new ration flavour on the base: "Victory Stew, Mark II". NAME has read the ingredients and requests a transfer.',
     opts: [{ label: 'VOLUNTEER THE BASE', fx: { cr: 25, mood: -2 }, say: 'Mark II has been served. The Head Office pays 25 credits for the data. The data is mostly groaning.' },
@@ -112,7 +112,7 @@ const KIN = ['Mother on Head Office, works in a munitions plant. Writes weekly; 
   'No family listed. Head Office is family enough.', 'Wife and two children in a Victory Habitat. C-01 permits on file, all approved.',
   'Father served on Malevelon Creek. Does not discuss it.', 'Older sister in the Publicity Office. Sends posters.',
   'Husband, a hydroponics technician on Mars. C-01 application pending: 14 months and counting.',
-  'Grandmother on Head Office, 103, still voting.', 'Twin brother, also Infantry, on another planet. Each insists he is the better shot.',
+  'Grandmother on Head Office, 103, still watching.', 'Twin brother, also Infantry, on another planet. Each insists he is the better shot.',
   'Parents run a canteen in Brand Sector 9. Their meatloaf was commended.', 'Fiancée on Head Office. Wedding approved for after the war.',
   'Three cousins in the Vanguards. Only one still answers letters, for obvious reasons.', 'Adopted by the state. Very well adjusted. Very.'];
 export function fileOf(t) {

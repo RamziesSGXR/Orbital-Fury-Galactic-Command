@@ -12,16 +12,16 @@ import { installLedger } from './ledger.js';
 import { installMarket } from './market.js';
 import { solidOf, inSolid } from './solid.js';
 
-const NAMES = ['Honest Work', 'Steady Progress', 'Fair Weather', 'Good Neighbors', 'Quiet Resolve', 'Open Skies', 'Sturdy Ballots',
+const NAMES = ['Honest Work', 'Steady Progress', 'Fair Weather', 'Good Neighbors', 'Quiet Resolve', 'Open Skies', 'Sturdy Headlines',
   'Shared Prosperity', 'Cheerful Compliance', 'Sensible Shoes', 'Unanimous Consent', 'Bright Mornings', 'Fair Play', 'Civic Duty',
-  'Common Sense', 'Rightful Order', 'Patient Thunder', 'Reliable Freedom'];
+  'Common Sense', 'Rightful Order', 'Patient Thunder', 'Reliable Sources'];
 const WARSHIPS = ['FS Hammer of Justice', 'FS Fist of Steady Progress', 'FS Banner of Fair Play', 'FS Gavel of Civic Duty', 'FS Rampart of Victory', 'FS Pledge of Quiet Resolve'];
 const PROPAGANDA = [
   'Every crate unloaded is a bullet delivered. Thank you, citizen.',
   'A happy station is a compliant station.',
   'The Victory Contribution keeps the lights on. Literally.',
   'Remember: the hull is load-bearing. So is your loyalty.',
-  'Today\'s mess special: Freedom Loaf. Seconds are patriotic.',
+  'Today\'s mess special: Sponsor Loaf. Seconds are on brand.',
   'Report unapproved goods to your nearest Brand Officer.',
   'The war is going well. Please continue to work.',
   'Space is cold. Brand is warm. Stay inside.',
@@ -990,7 +990,7 @@ export class Station {
       case 'command': return `Aides on staff: ${st.aide} of ${this.homes.aide} places. Open faults: ${open.length}. Stores running short: ${Object.entries(this.short).filter(([, x]) => x).map(([k2]) => k2).join(', ') || 'none'}. ${this.homes.aide ? 'The suite is ready for inspection at any hour.' : 'We have nowhere fit to receive the brass, Commander.'}`;
       case 'science': return `Scientists: ${st.scientist} of ${this.homes.scientist} places. Research logged: ${Math.floor(this.stats.research)}. ${this.homes.scientist ? 'Readings are coming in.' : 'Give us a Laboratory and we will tell you things about this planet you will wish you did not know.'}`;
       case 'gunnery': { const P = this.platform(); return `Gunners, pilots and troopers on duty: ${st.gunner} of ${this.homes.gunner} places. Platform readiness: ${Math.round(P.ready * 100)}%. Calls answered: ${this.stats.calls || 0}, missed: ${this.stats.missed || 0}. ${this.platformN ? (P.ready > 0.8 ? 'The troops below know we are here.' : 'We are not where the Head Office expects us to be, Commander.') : 'There is no gun on this station. Build a Ship Gun or an Orbital Battery.'}`; }
-      case 'truth': return this.div.truth.order.broadcast === 'silence' ? 'The Head Office is silent, by your order. Citizens are left alone with their thoughts.' : `Broadcasting ${this.div.truth.order.broadcast === 'patriotic' ? 'the Patriotic Hour' : 'the Recruitment Drive'} on every screen. Morale from broadcasts: +${this.broadcastBoost().toFixed(0)}. Truth Offices aboard: ${this.broadcast}.`;
+      case 'truth': return this.div.truth.order.broadcast === 'silence' ? 'The Head Office is silent, by your order. Citizens are left alone with their thoughts.' : `Broadcasting ${this.div.truth.order.broadcast === 'patriotic' ? 'the Company Hour' : 'the Recruitment Drive'} on every screen. Morale from broadcasts: +${this.broadcastBoost().toFixed(0)}. Truth Offices aboard: ${this.broadcast}.`;
     }
     return '';
   }
@@ -1003,7 +1003,7 @@ export class Station {
       care: { free: 'Free care for all citizens. Brand heals.', fees: 'Fees in effect. Payment before treatment.' },
       mix: { all: 'Clearing all traffic to approach.', freight: 'Freighters only. Shuttles will be waved off.', colonists: 'Colonist shuttles only. Freighters will be waved off.' },
       rate: { low: 'Thinning the traffic.', normal: 'Normal traffic.', high: 'Opening the lanes. Expect a crowd.' },
-      broadcast: { patriotic: 'The Patriotic Hour begins now.', recruitment: 'The Recruitment Drive is on every screen.', silence: 'Broadcasts suspended. This is highly irregular.' },
+      broadcast: { patriotic: 'The Company Hour begins now.', recruitment: 'The Recruitment Drive is on every screen.', silence: 'Broadcasts suspended. This is highly irregular.' },
     };
     return (lines[o] && lines[o][val]) || 'Orders received.';
   }

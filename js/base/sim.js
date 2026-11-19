@@ -965,7 +965,7 @@ export class Sim {
       if (o && o !== f.id) return { ok: false, why: 'Something is in the way' };
     }
     const cap = this.plazaAt(x, z, f.id).length * 2, need = this.troops.length;
-    if (cap < Math.min(need, 120)) return { ok: false, why: `Not enough open ground: the plaza holds ${cap}, you have ${need} votes` };
+    if (cap < Math.min(need, 120)) return { ok: false, why: `Not enough open ground: the plaza holds ${cap}, you have ${need} recruits` };
     return { ok: true };
   }
   // until the first road goes down (and nothing else is built), the HQ and its flag can be set down anywhere inside the charter
@@ -1181,7 +1181,7 @@ export class Sim {
     const before = this.stand.pro;
     this.stand.pro = clamp(this.stand.pro + (score - this.stand.pro) * 0.6, 0, 100);
     const notes = [];
-    if (food < 80) notes.push('Votes went hungry today. Rations must reach the mess.');
+    if (food < 80) notes.push('Recruits went hungry today. Rations must reach the mess.');
     if (lines < 80) notes.push('Buildings ran dry of what they need. More trucks, shorter roads or more storage.');
     if (housing < 100) notes.push('Not every recruit has a bunk.');
     if (growth < 90) notes.push(`The Head Office expected ${target} recruits on the base by now. Build housing; recruits fill empty bunks.`);
@@ -1202,9 +1202,9 @@ export class Sim {
     else if (this.prop > 70) notes.push('Propaganda density is commendable. The inspector saluted twice.');
     if (this.morale < 45) notes.push('Several recruits were seen frowning in an unauthorised manner.');
     else if (this.morale > 75) notes.push('Morale is radiant. Several recruits sang unprompted.');
-    if (this.hunger > 0.3) notes.push('Votes were seen eating their boot laces. The Head Office suggests rations.');
+    if (this.hunger > 0.3) notes.push('Recruits were seen eating their boot laces. The Head Office suggests rations.');
     if (this.avgCond < 60) notes.push('Several structures appear to be held together by optimism.');
-    if (this.troops.length > this.beds) notes.push('Votes are sleeping outdoors. The Head Office finds this photogenic but concerning.');
+    if (this.troops.length > this.beds) notes.push('Recruits are sleeping outdoors. The Head Office finds this photogenic but concerning.');
     if (this.potties.filthy) notes.push('The latrines were described in the report as "a matter for the Research Office".');
     else if (!this.potties.n && this.troops.length > 8) notes.push('The inspector asked where the latrines were. Nobody would say.');
     if (!notes.length) notes.push('Adequate. The Head Office expects more than adequate.');

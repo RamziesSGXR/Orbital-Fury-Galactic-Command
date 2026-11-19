@@ -23,7 +23,7 @@ export const PA = [
 // chatter, by where someone works or what they are. Short enough for a bubble
 export const SAY = {
   mess: ['Stew\'s ready. It\'s been ready since Tuesday.', 'Who keeps ordering more grey?', 'Seconds are a privilege, not a right.'],
-  burger: ['One Victory Double, hold the doubt.', 'Fryer\'s at patriotic temperature.', 'Would you like freedom with that?'],
+  burger: ['One Victory Double, hold the doubt.', 'Fryer\'s at broadcast temperature.', 'Would you like fame with that?'],
   chicken: ['Extra crispy, extra loyal.', 'They\'re not slow, they\'re thorough.'],
   cola: ['Ice cold and fully audited.', 'Two cans per recruit. Bureau rules.'],
   lab: ['If this works, nobody will know.', 'Has anyone seen the left-handed spanner?', 'Results are promising. Promising to whom, unclear.'],

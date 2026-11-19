@@ -6,6 +6,7 @@
 //   pod   - cargo containers                                         screen - the propaganda screen
 // Port positions in config.js and slot positions here match these shapes.
 import * as THREE from './vendor/three.js';
+import { roleGeos, staticGeo } from '../model3d.js';
 
 import { C } from './config.js';
 import { roomPlan, OPEN } from './rooms.js';
@@ -202,7 +203,23 @@ export const wayPoint = (p, j) => { const w = wayIn(p, j).pts; return w[w.length
 
 // Bake a built group down to one mesh (or one set of lines) per role, so a part or a room costs a handful of draw calls however
 // many pieces it was drawn from. Sub-groups (fittings turned to face a door, a craft on a pad) are folded in where they stand.
-function bake(g) {
+// (GC 0.45) THE HULL IS MADE IN BLENDER. Each part's structure (its hull, trim, decks, walls and fittings) is a model, one
+// geometry for each role, in assets/models/station.json (tools/blender/dump_station.py writes the plans from the parts as built
+// here, tools/blender/station.py makes them: the same shapes with their edges cut). When a part is baked, the model's geometry
+// takes the place of the code's for every role it has; lights, glass, screens and lines stay as built here.
+export const HULLS = { data: new Map(), geo: new Map(), asked: false };
+export const HULL_SKIP = new Set(['crate', 'glow', 'lane', 'screen', 'glass', 'spark', 'blue', 'alarm', 'cross', 'awning', 'decal', 'mark', 'panel', 'tile']);
+export function loadHulls(done) {
+  if (HULLS.asked || typeof fetch !== 'function') return; HULLS.asked = true;
+  fetch('assets/models/station.json').then((r) => (r.ok ? r.json() : null)).then((pack) => { for (const [k, d] of Object.entries(pack || {})) if (d && d.frames) HULLS.data.set(k, d); if (HULLS.data.size && done) done(); }).catch(() => {});
+}
+function hullGeo(key, role) {
+  if (!key || !HULLS.data.has(key)) return null; let G = HULLS.geo.get(key);
+  if (!G) { try { G = roleGeos(HULLS.data.get(key)); } catch { G = {}; } HULLS.geo.set(key, G); }
+  const src = G['s_' + role]; if (!src) return null; const g = src.clone();
+  return role === 'hull' || role === 'trim' ? skin(g) : role === 'inner' || role === 'hall' || role === 'wall' ? skin(g, C.scale.m / 2) : g;
+}
+function bake(g, key = null) {
   g.updateMatrixWorld(true);
   const by = new Map();
   g.traverse((o) => { if ((o.isMesh || o.isLineSegments) && o.userData.role) { const k = (o.isMesh ? 'm:' : 'l:') + o.userData.role; if (!by.has(k)) by.set(k, []); by.get(k).push(o); } });
@@ -217,7 +234,8 @@ function bake(g) {
       geo.setAttribute(name, new THREE.BufferAttribute(arr, size));
     }
     for (const x of geos) x.dispose();
-    const o = mesh ? new THREE.Mesh(geo) : new THREE.LineSegments(geo);
+    const made = mesh ? hullGeo(key, k.slice(2)) : null; if (made) geo.dispose();
+    const o = mesh ? new THREE.Mesh(made || geo) : new THREE.LineSegments(geo);
     Object.assign(o.userData, list[0].userData); out.add(o);
   }
   return out;
@@ -743,7 +761,7 @@ export function buildPart(type, raw = false) {      // raw: the pieces as built,
     }
     for (const q of side) { const F = sillY(type, q[1]), a = Math.atan2(q[2], q[0]), at = wallAt(q, F); runner([at, [Math.cos(a) * W.g, F, Math.sin(a) * W.g]], 0.12); passage(q, F, at); airlock(q, F, at); }
   }
-  return raw ? g : bake(g);
+  return raw ? g : bake(g, type);
 }
 
 // ---------------------------------------------------------------- rooms: a floor tile and everything rooms.js planned for it
@@ -978,4 +996,19 @@ export function partIcon(type) {
     case 'billboard': return s('<path d="M2 12h4M6 4h16v14H6zM9 9h10M9 13h7"/>');
     default: return s('<circle cx="12" cy="12" r="6"/>');
   }
+}
+
+// (GC 0.45) THE SHIPS ARE THE ONES ALREADY MADE: the fleet's own ship, the dropship and the Striker from the ground and the map.
+// A craft built here keeps its place and size; its shape becomes the model's, turned nose-first and fitted to the same length.
+export const CRAFT = { files: { warship: 'ship_fed', freighter: 'ship_fed', shuttle: 'veh_dropship', striker: 'veh_striker' }, geo: {}, asked: false };
+export function loadCraft(done) {
+  if (CRAFT.asked || typeof fetch !== 'function') return; CRAFT.asked = true; const files = [...new Set(Object.values(CRAFT.files))];
+  Promise.all(files.map((f) => fetch(`assets/models/${f}.json`).then((r) => (r.ok ? r.json() : null)).then((d) => { if (d && d.frames) { const g = staticGeo(d); if (f.startsWith('veh_')) g.rotateY(Math.PI / 2); g.computeBoundingBox(); CRAFT.geo[f] = g; } }).catch(() => {}))).then(() => { if (done) done(); });
+}
+export function modelCraft(g, kind) {
+  const src = CRAFT.geo[CRAFT.files[kind]]; if (!src) return g;
+  const was = new THREE.Box3().setFromObject(g), b = src.boundingBox, k = (was.max.x - was.min.x) / (b.max.x - b.min.x), c = was.getCenter(new THREE.Vector3());
+  const geo = src.clone(); geo.translate(-(b.min.x + b.max.x) / 2, -(b.min.y + b.max.y) / 2, -(b.min.z + b.max.z) / 2); geo.scale(k, k, k); geo.translate(c.x, c.y, c.z);
+  for (const o of [...g.children]) if ((o.isMesh || o.isLineSegments) && o.userData.role !== 'glow') g.remove(o);
+  const m = new THREE.Mesh(geo); m.userData.role = 'model'; g.add(m); return g;
 }

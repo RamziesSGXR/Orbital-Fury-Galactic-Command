@@ -8,7 +8,7 @@ export const C = {
   BRIDGE: 3,               // a road tile over water costs this many times as much
   // the charter: how much land the Bureau lets you hold. parcels: the most parcels of LAND you may own at once
   // four steps, after the design doc: a camp in an action area, a forward operating base behind a closed wall, a walled
-  // garrison town, a major installation. Each is granted for votes, Expansion standing and a fee in credits and supplies
+  // garrison town, a major installation. Each is granted for recruits, Expansion standing and a fee in credits and supplies
   STAGES: [
     // needs: buildings the Bureau wants standing before it grants the charter; store: total storage (rations, fuel, ammo)
     { name: 'Outpost', parcels: 12 },
@@ -108,7 +108,7 @@ export const TECH = {
   radio:    { name: 'Long-Range Radio', tier: 1, cost: 120, hrs: 18, desc: 'Each Comms Tower runs three landing pads instead of two.' },
   shelving: { name: 'Reinforced Shelving', tier: 1, cost: 150, hrs: 24, desc: 'All storage holds 25% more.' },
   drill:    { name: 'Drill Sergeant Manuals', tier: 1, cost: 150, hrs: 24, desc: 'Recruits train 20% faster everywhere.' },
-  solar:    { name: 'Patriotic Photovoltaics', tier: 1, cost: 160, hrs: 24, desc: 'Solar Arrays make 6 power instead of 4.' },
+  solar:    { name: 'Brand-Approved Photovoltaics', tier: 1, cost: 160, hrs: 24, desc: 'Solar Arrays make 6 power instead of 4.' },
   cargo:    { name: 'Heavy-Lift Dropships', tier: 2, cost: 260, hrs: 36, needs: ['radio'], desc: 'Every dropship carries 60 more goods and 4 more recruits or troopers.' },
   trucks:   { name: 'Third Truck', tier: 2, cost: 240, hrs: 30, needs: ['shelving'], desc: 'Every Motor Pool gets a third supply truck.' },
   asphalt:  { name: 'Bureau Asphalt', tier: 2, cost: 180, hrs: 24, needs: ['shelving'], desc: 'Paved road costs half. The Bureau supplies the asphalt, at a price it would rather not discuss.' },
@@ -183,7 +183,7 @@ export const B = {
               desc: 'A standard-issue storage bunker. Holds a little of everything, and looks exactly like a shed.' },
 
   solar:    { name: 'Solar Array', group: 'power', w: 2, d: 1, cost: 90, up: 5, pw: 4,
-              desc: 'Clean, quiet, patriotic power. Not much of it.' },
+              desc: 'Clean, quiet, on-brand power. Not much of it.' },
   lab:      { staff: 2, name: 'Science Lab', group: 'industry', w: 3, d: 2, cost: 320, up: 18, pw: -3, crew: 1, needs: ['comms'], lab: true,
               desc: 'Researches upgrades, one at a time, while it is staffed and powered. Pick what to study in the Science tab. More labs, faster research.' },
   gen:      { name: 'Biofuel Generator', group: 'power', w: 2, d: 2, cost: 220, up: 15, pw: 14, crew: 1, need: { fuel: 30 }, burn: { fuel: 8 },
@@ -220,15 +220,15 @@ export const B = {
   hab:      { name: 'Prefab Hab', group: 'living', w: 2, d: 2, cost: 120, up: 8, pw: 1, beds: 6, mor: 1,
               desc: 'The standard-issue hab with solar on the roof. Houses six recruits.' },
   vend:     { name: 'Vending Machine', group: 'living', w: 1, d: 1, cost: 45, up: 4, pw: -1, mor: 2,
-              desc: 'Victory Cola. Tastes like freedom, mostly.' },
+              desc: 'Victory Cola. Tastes like winning, mostly.' },
   potty:    { name: 'Porta Potty', group: 'living', w: 1, d: 1, cost: 35, up: 2, mor: 2, potty: true,
               desc: 'Somewhere to go. Gets dirtier the more recruits use it; idle troopers clean it. Filthy ones hurt morale, and too few means queues.' },
   mess:     { staff: 2, name: 'Mess Hall', group: 'living', w: 3, d: 2, cost: 200, up: 15, pw: -3, crew: 1, mor: 8, eat: 24, need: { rations: 40 },
               desc: 'Feeds 24 recruits a watch, if the rations keep coming. The single biggest thing for morale.' },
   burger:   { staff: 2, name: 'Big Victory Burger', group: 'living', w: 2, d: 2, cost: 260, up: 34, pw: -2, mor: 10, chain: true, needs: ['mess'], eat: 16, need: { rations: 30 },
               desc: 'A franchise with a cheerful mascot. Feeds 16. The biggest morale boost money can buy, and it costs a lot of money. One chain per base.' },
-  chicken:  { staff: 2, name: 'Patriot Clucks', group: 'living', w: 2, d: 2, cost: 220, up: 8, pw: -2, mor: 6, chain: true, sluggish: 0.08, needs: ['mess'], eat: 16, need: { rations: 30 },
-              desc: 'Cheap, fried and fiercely patriotic. Feeds 16. Votes who eat here work 8% slower. One chain per base.' },
+  chicken:  { staff: 2, name: 'Prime Time Clucks', group: 'living', w: 2, d: 2, cost: 220, up: 8, pw: -2, mor: 6, chain: true, sluggish: 0.08, needs: ['mess'], eat: 16, need: { rations: 30 },
+              desc: 'Cheap, fried and fiercely on brand. Feeds 16. Recruits who eat here work 8% slower. One chain per base.' },
   cola:     { staff: 2, name: 'Bureau Cola & Fries', group: 'living', w: 2, d: 2, cost: 200, up: 4, pw: -2, mor: 4, chain: true, kickback: 70, needs: ['mess'], eat: 16, need: { rations: 30 },
               desc: 'Run by the Bureau. Feeds 16. Modest morale, but it pays the base a 70 supply "consulting fee" every day. One chain per base.' },
   dome:     { staff: 1, name: 'Hydro Dome', group: 'living', w: 2, d: 2, cost: 240, up: 12, pw: -2, crew: 1, mor: 5, prop: 2,
@@ -322,8 +322,8 @@ export const MISSIONS = [
   { kind: 'Orbital spotting run', diff: [2, 3], size: [2, 3], dur: [50, 80] },
   { kind: 'Armoured assault', diff: [5, 5], size: [5, 6], dur: [110, 140], heavy: true, wants: 'tank', needs: true },
 ];
-export const OP_A = ['Righteous', 'Unyielding', 'Glorious', 'Patriotic', 'Steadfast', 'Victory', 'Iron', 'Free', 'Lawful', 'Radiant', 'Vigilant', 'Sovereign'];
-export const OP_B = ['Harvest', 'Thunder', 'Gavel', 'Lantern', 'Ballot', 'Anvil', 'Sunrise', 'Verdict', 'Beacon', 'Hammer', 'Mandate', 'Anthem'];
+export const OP_A = ['Righteous', 'Unyielding', 'Glorious', 'Televised', 'Steadfast', 'Victory', 'Iron', 'Free', 'Lawful', 'Radiant', 'Vigilant', 'Sovereign'];
+export const OP_B = ['Harvest', 'Thunder', 'Gavel', 'Lantern', 'Byline', 'Anvil', 'Sunrise', 'Verdict', 'Beacon', 'Hammer', 'Mandate', 'Anthem'];
 
 // The other loyal factions on this planet. w: how much each one cares about each Head Office.
 export const RIVALS = [
@@ -331,7 +331,7 @@ export const RIVALS = [
     logo: { shape: 'shield', symbol: 'sword', bg: '#8a1c1c', fg: '#f4f4f4', rim: '#f4f4f4', text: '7' } },
   { name: 'Steel Ledger Logistics', motto: 'Every shell accounted for.', w: { def: 0.4, pro: 1.0, tru: 0.45 },
     logo: { shape: 'hex', symbol: 'gear', bg: '#3d4247', fg: '#ffd21f', rim: '#ffd21f', text: '' } },
-  { name: 'Choir of Managed Truth', motto: 'Morale is mandatory.', w: { def: 0.45, pro: 0.5, tru: 1.0 },
+  { name: 'Choir of Approved Truth', motto: 'Morale is mandatory.', w: { def: 0.45, pro: 0.5, tru: 1.0 },
     logo: { shape: 'circle', symbol: 'star', bg: '#1d3f8a', fg: '#ffd780', rim: '#ffd780', text: '' } },
 ];
 

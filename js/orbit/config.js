@@ -184,7 +184,7 @@ export const C = {
     supply:      { name: 'Logistics Office', short: 'SUPPLY', staff: 'hauler', uses: 'coffee', per: 2, allot: 10, col: '#4db8ff',
       orders: { shift: [['normal', 'Normal shifts'], ['double', 'Double shifts: haulers 40% faster, morale −5']],
         rations: [['normal', 'Standard rations'], ['double', 'Double rations: morale +6, rations go twice as fast'], ['short', 'Short rations: half the rations, morale −8']] } },
-    maintenance: { name: 'Department of Patriotic Maintenance', short: 'MAINT', staff: 'engineer', uses: 'parts', per: 3, allot: 6, col: '#ffc340',
+    maintenance: { name: 'Department of Brand Maintenance', short: 'MAINT', staff: 'engineer', uses: 'parts', per: 3, allot: 6, col: '#ffc340',
       orders: { plan: [['reactive', 'Fix what breaks'], ['preventive', 'Preventive: half the faults, upkeep +20%']] } },
     security:    { name: 'Brand Officers', short: 'SECURITY', staff: 'officer', uses: 'ammo', per: 3, allot: 6, col: '#ff5a4a',
       orders: { checks: [['spot', 'Spot checks: catch half the smugglers'], ['every', 'Inspect every ship: catch them all, unloading waits 4 s']] } },
@@ -196,7 +196,7 @@ export const C = {
     traffic:     { name: 'Traffic Control', short: 'TRAFFIC', col: '#e6e6e6',
       orders: { mix: [['all', 'All traffic'], ['freight', 'Freighters only'], ['colonists', 'Colonists only']], rate: [['low', 'Light'], ['normal', 'Normal'], ['high', 'Heavy']] } },
     truth:       { name: 'Publicity Office', short: 'TRUTH', col: '#ffe600',
-      orders: { broadcast: [['patriotic', 'Patriotic hour: morale up to +8, more with Truth Offices'], ['recruitment', 'Recruitment drive: shuttles 50% more often'], ['silence', 'Silence: no broadcast']] } },
+      orders: { broadcast: [['patriotic', 'Company hour: morale up to +8, more with Truth Offices'], ['recruitment', 'Recruitment drive: shuttles 50% more often'], ['silence', 'Silence: no broadcast']] } },
   },
   divOrder: ['supply', 'maintenance', 'security', 'medical', 'command', 'science', 'gunnery', 'traffic', 'truth'],
   // Supplies come in on freighters, one unit a crate, and each faction draws its weekly allotment from the stores a day at a time.
@@ -241,7 +241,7 @@ export const C = {
     },
     order: ['gun', 'orbital', 'uav', 'striker', 'infantry', 'fab', 'classified'],
     callSec: [24, 44], firstSec: 50, missSayGap: 90, shortReady: 0.35, bedsNear: 7,
-    squads: ['Tibit Tigers', 'Victory Hounds', 'Ballot Boxers', 'Midnight Knights', 'Phantom Nine', 'Sweet Victory Four', 'Iron Voters', 'Quiet Resolve'],
+    squads: ['Tibit Tigers', 'Victory Hounds', 'Box Office Boxers', 'Midnight Knights', 'Phantom Nine', 'Sweet Victory Four', 'Iron Viewers', 'Quiet Resolve'],
   },
   // Capability is what the station adds to the war effort. It is the score, and it opens the upgrade path.
   capability: { crate: 0.5, ship: 1.5, resident: 2, defence: 3, repair: 12, staff: 1, research: 1, raid: 15, call: 2, platform: 12 },
@@ -288,7 +288,7 @@ export const C = {
       logo: { shape: 'shield', symbol: 'striker', bg: '#1b2a1a', fg: '#ffe600', rim: '#ffe600', text: '', pattern: 'none', pc: '#ffe600' },
       look: { uniform: '#5d6a4a', helmet: '#4c5a3c', armband: '#ffe600', crest: true },
     },
-    stations: ['Victory', 'Vigil', 'Resolve', 'Anvil', 'Dawn', 'Mercy', 'Ballot', 'Granite', 'Providence', 'Steadfast', 'Meridian', 'Equity'],
+    stations: ['Victory', 'Vigil', 'Resolve', 'Anvil', 'Dawn', 'Mercy', 'Byline', 'Granite', 'Providence', 'Steadfast', 'Meridian', 'Equity'],
     kinds: ['Station', 'Outpost', 'Platform', 'Bastion', 'Spire', 'Haven'],
   },
 

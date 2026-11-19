@@ -7,7 +7,7 @@
 import * as THREE from './vendor/three.js';
 import { C } from './config.js';
 import { Crowd3D } from '../model3d.js';
-import { buildPart, buildShip, buildRoom, buildSuit, buildFigure, buildRaider, buildStriker, FIGURES, SLOTS, WALK, partPath, wayPoint, onWalk, slotSpot, doorSide, sillY, liftR, FL, LIFT_R } from './parts.js';
+import { loadHulls, loadCraft, modelCraft, buildPart, buildShip, buildRoom, buildSuit, buildFigure, buildRaider, buildStriker, FIGURES, SLOTS, WALK, partPath, wayPoint, onWalk, slotSpot, doorSide, sillY, liftR, FL, LIFT_R } from './parts.js';
 import { paintWorld, WORLDS, WORLD_TYPES } from './planets.js';
 import { RNG } from './rng.js';
 import { drawLogo, ensureLogo } from './logo.js';
@@ -89,6 +89,9 @@ export class View {
     this.markers = new THREE.Group(); this.scene.add(this.markers); this.dot = new THREE.SphereGeometry(1, 10, 8);
     this.ghost = null; this.ghostKey = '';
     this.sel = null; this.selLines = null; this.edit = null; this.slotHot = null; this.slotLines = null;
+    // (GC 0.45) when the hull's and the ships' models have come, whatever is standing is built again from them
+    loadHulls(() => { for (const o of this.partObjs ? this.partObjs.values() : []) this.scene.remove(o); if (this.partObjs) this.partObjs.clear(); if (this.boxes) this.boxes.clear(); });
+    loadCraft(() => { for (const o of this.shipObjs ? this.shipObjs.values() : []) this.scene.remove(o); if (this.shipObjs) this.shipObjs.clear(); });
     this.suits = new THREE.Group(); this.scene.add(this.suits); this.suitPool = []; this.evaPos = []; this.boxes = new Map();
     this.sparks = new THREE.Group(); this.scene.add(this.sparks);
     this._agentsInit(); this._figuresInit(); this._raidInit();
@@ -141,6 +144,7 @@ export class View {
       hall: S({ color: 0x9a8a6a, roughness: 0.95, side: THREE.DoubleSide }),
       fdark: S({ color: 0x1d2024, metalness: 0.5, roughness: 0.5 }), fblue: B({ color: 0x5fc8ff }), fscreen: B({ color: 0xffffff }),
       bed: S({ color: 0x9fb4c8, roughness: 0.95 }), locker: S({ color: 0x4a5258, roughness: 0.6, metalness: 0.4 }), shell: S({ color: 0xc9a23a, roughness: 0.4, metalness: 0.7 }), carpet: S({ color: 0x7a2a2a, roughness: 1 }),
+      model: S({ color: 0xffffff, vertexColors: true, metalness: 0.15, roughness: 0.7 }),
       craft: S({ color: 0x8c9690, metalness: 0.5, roughness: 0.5, flatShading: true }), craftTrim: S({ color: 0xf5d547, metalness: 0.3, roughness: 0.6, flatShading: true }),
       raider: S({ color: 0x3a2226, metalness: 0.6, roughness: 0.4, flatShading: true }), raiderGlow: B({ color: 0xff5a3a }),
       xHull: B({ color: 0x0c2a1a, transparent: true, opacity: 0.07, depthWrite: false, side: THREE.DoubleSide }),
@@ -348,6 +352,7 @@ export class View {
   // edit: the part being edited, whose hull turns to glass so every room inside shows.
   mat(role, state, dim, edit, solid = false) {
     const M = this.M, m = this.mode;
+    if (role === 'model') return state === 'building' ? M.hidden : dim ? M.dimHull : m === 'blueprint' && !edit ? M.bpHull : m === 'life' ? M.xHull : M.model;     // (a craft from a model file wears its own colours)
     if (state === 'building') return role === 'line' || role === 'wire' ? M.build : M.hidden;
     if (state === 'demolish' && (role === 'line' || role === 'wire')) return M.gone;
     if (role === 'decal' && (edit || dim || m !== 'hull')) return M.hidden;
@@ -789,7 +794,7 @@ export class View {
     const ease = (x) => { const t = Math.min(1, Math.max(0, x)); return t * t * (3 - 2 * t); }, fly = [];
     for (const s of st.ships) {
       let o = this.shipObjs.get(s.id), fresh = false;
-      if (!o) { o = buildShip(s.kind); o.scale.setScalar(C.shipScale[s.kind] || 1); this._dress(o, 'active', !!this.edit, false, true); this._shade(o); this.scene.add(o); this.shipObjs.set(s.id, o); o.userData.push = new THREE.Vector3(); o.userData.nom = new THREE.Vector3(); fresh = true; }
+      if (!o) { o = modelCraft(buildShip(s.kind), s.kind); o.scale.setScalar(C.shipScale[s.kind] || 1); this._dress(o, 'active', !!this.edit, false, true); this._shade(o); this.scene.add(o); this.shipObjs.set(s.id, o); o.userData.push = new THREE.Vector3(); o.userData.nom = new THREE.Vector3(); fresh = true; }
       const u = o.userData, pos = u.nom, look = u.look ||= new THREE.Vector3();
       let free = 1;      // how free it is to step aside for another ship: not at all on the last of the way in to a berth
       if (s.state === 'hold') {
@@ -1123,8 +1128,8 @@ export class View {
     if (e.sys === 'gun') { for (let i = 0; i < 6; i++) beam(0.05, 6, 0xffd98a, 0.5, i * 0.12, 260); flash(0.35, 0xffd98a); }
     else if (e.sys === 'orbital') { beam(0.16, 14, 0xfff0c0, 0.9, 0, 200); flash(0.9, 0xffe0a0); }
     else if (e.sys === 'classified') { beam(0.5, 900, 0x9fe8ff, 1.8); beam(0.18, 900, 0xffffff, 1.8); flash(1.6, 0x9fe8ff); }
-    else if (e.sys === 'striker') craft(buildStriker(), 6);
-    else if (e.sys === 'infantry') { const s = buildShip('shuttle'); s.scale.setScalar(C.shipScale.shuttle); craft(s, 7); }
+    else if (e.sys === 'striker') craft(modelCraft(buildStriker(), 'striker'), 6);
+    else if (e.sys === 'infantry') { const s = modelCraft(buildShip('shuttle'), 'shuttle'); s.scale.setScalar(C.shipScale.shuttle); craft(s, 7); }
     else if (e.sys === 'uav') { const g = new THREE.Group(), c = new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.7, 4).rotateZ(-Math.PI / 2)); c.userData.role = 'hull'; const w = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.02, 0.9)); w.userData.role = 'hull'; g.add(c, w); craft(g, 6); }
     else { const g = new THREE.Group(), c = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5)); c.userData.role = 'pod'; g.add(c); craft(g, 6); }
   }

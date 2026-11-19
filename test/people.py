@@ -25,6 +25,11 @@ with sync_playwright() as pw:
         pg.wait_for_timeout(1500)
     info = pg.evaluate("(() => { const f = gc.mode.view.folk, by = {}; for (const [id, im] of f.ims) if (im.count) by[id] = im.count; return { kinds: Object.keys(f.kinds).filter(k => f.ready(k)).length, drawn: f.n, by, old: gc.mode.view.pm ? gc.mode.view.pm.size : null }; })()")
     print(which, 'people from the models:', info)
+    if which == 'orbit':
+        hull = pg.evaluate("(async () => { const { HULLS, CRAFT } = await import('/js/orbit/parts.js'); const v = gc.mode.view; let ships = 0; for (const o of v.shipObjs.values()) o.traverse(x => { if (x.userData.role === 'model') ships++; }); return { parts: HULLS.data.size, used: HULLS.geo.size, craft: Object.keys(CRAFT.geo), shipsShown: v.shipObjs.size, shipsFromModels: ships }; })()")
+        print('hull and ships from the models:', hull); assert hull['parts'] >= 40 and hull['used'] > 0, 'the hull is not from the models'
+        pg.evaluate("(() => { const v = gc.mode.view; v.setCutaway(false); v.setMode && v.setMode('hull'); })()"); pg.wait_for_timeout(1500); pg.screenshot(path=f'{out}/station-hull.png')
+
     pg.screenshot(path=f'{out}/people-{which}.png')
     assert info['kinds'] >= 7, 'the models did not load'
     br.close()

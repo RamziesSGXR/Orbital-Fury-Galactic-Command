@@ -67,6 +67,19 @@ export function modelFrames(d, remap = null, only = null) {
   return out;
 }
 
+// (GC 0.45) A model whose materials are named for jobs (the station's roles): one geometry for each name, places and normals only,
+// smooth where it curves and sharp where it folds. The station lays its own skins and its own materials on them.
+export function roleGeos(d, deg = 38) {
+  const tris = new Uint16Array(b64(d.tris).buffer.slice(0)), mi = b64(d.mi), q = new Uint16Array(b64(d.frames.stand).buffer.slice(0)), nt = d.nt, pos = new Float32Array(nt * 9), n = {}, at = {}, out = {};
+  for (let i = 0; i < nt * 3; i++) { const v = tris[i] * 3; for (let k = 0; k < 3; k++) pos[i * 3 + k] = d.min[k] + q[v + k] / 65535 * d.size[k]; }
+  const nor = crease(tris, pos, d.nv, deg);
+  for (let t = 0; t < nt; t++) n[mi[t]] = (n[mi[t]] || 0) + 1;
+  for (const k in n) { out[k] = { p: new Float32Array(n[k] * 9), n: new Float32Array(n[k] * 9) }; at[k] = 0; }
+  for (let t = 0; t < nt; t++) { const k = mi[t], o = out[k]; o.p.set(pos.subarray(t * 9, t * 9 + 9), at[k]); o.n.set(nor.subarray(t * 9, t * 9 + 9), at[k]); at[k] += 9; }
+  const G = {}; for (const k in out) { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(out[k].p, 3)); g.setAttribute('normal', new THREE.BufferAttribute(out[k].n, 3)); G[d.pal[k]] = g; }
+  return G;
+}
+
 // A CROWD OF PEOPLE FROM THE MODELS: one instanced mesh for each (kind, frame) in use, made when first asked for.
 //   kinds: { key: { file, remap (material name -> colour), only (pattern of frames) } }
 //   each frame of the game: begin(); put(key, frame, matrix[, colour, far]); ...; end();

@@ -35,13 +35,13 @@ export function makeMats(f) {
     dship: std('#4c5550', { metalness: 0.35, roughness: 0.6 }), olive: std('#4d5638', { metalness: 0.3, roughness: 0.7 }), oliveDark: std('#33392a', { metalness: 0.3, roughness: 0.7 }), lift: std('#e0b21c'), crate: std('#5d6a3e'), scaffold: new THREE.LineBasicMaterial({ color: '#ffd21f', transparent: true, opacity: 0.8 }),
   };
   m.seflag = seFlagMat(f); m.hdbanner = hdBannerMat(f);
-  m.signBurger = signMat('BIG VICTORY BURGER', '#c0392b', '#ffe600'); m.signChicken = signMat('PATRIOT CLUCKS', '#1d3f8a', '#ffffff'); m.signCola = signMat('BUREAU COLA & FRIES', '#5a2a7a', '#ffd21f'); m.flag = flagMat(f, logo); m.banner = bannerMat(f); m.bill = billMat(f); m.tex = [logo, m.flag.map, m.banner.map, m.bill.map];
+  m.signBurger = signMat('BIG VICTORY BURGER', '#c0392b', '#ffe600'); m.signChicken = signMat('PRIME TIME CLUCKS', '#1d3f8a', '#ffffff'); m.signCola = signMat('BUREAU COLA & FRIES', '#5a2a7a', '#ffd21f'); m.flag = flagMat(f, logo); m.banner = bannerMat(f); m.bill = billMat(f); m.tex = [logo, m.flag.map, m.banner.map, m.bill.map];
   m.potty = std('#3d7fb0'); m.pottyRoof = std('#e8ecef'); m.grime = new THREE.MeshBasicMaterial({ color: '#3a2a12', transparent: true, opacity: 0, depthWrite: false });
   // construction standards and engineers (0.13)
   m.canvas = std('#7d7556', { roughness: 0.95 }); m.canvasDark = std('#5a5440', { roughness: 0.95 }); m.gravel = std('#857c6a', { roughness: 1 });
   m.ply = std('#a08560', { roughness: 0.9 }); m.hesco = std('#a89470', { roughness: 1 }); m.box1 = std('#5f6e7a', { metalness: 0.4, roughness: 0.55 }); m.box2 = std('#7a5a3a', { metalness: 0.4, roughness: 0.55 });
   m.lagoonW = std('#4a4a2a', { metalness: 0.3, roughness: 0.2 });
-  m.engSuit = std('#5d6046'); m.hardhat = std('#e8b81a', { roughness: 0.5 }); m.vest = std('#ff7a1a', { emissive: '#ff5a00', emissiveIntensity: 0.15 }); m.cross = std('#c8241e');
+  m.engSuit = std('#5d6046'); m.hardhat = std('#e8b81a', { roughness: 0.5 }); m.vest = std('#ff7a1a', { emissive: '#ff5a00', emissiveIntensity: 0.15 }); m.cross = std('#1f9a5a');     // (GC 0.45: the aid mark is a green cross; a red one is a protected emblem)
   return m;
 }
 // The Vanguards banner: an original design for this fan game, a yellow helmet on black over hazard stripes.
@@ -626,14 +626,15 @@ const MAKE = {
     box(g, 0.9, 0.16, 0.04, m.dark, 0, 1.0, 0.47); box(g, 0.8, 0.09, 0.02, m.glowY, 0, 1.0, 0.5);
     for (const x of [-0.35, 0.35]) box(g, 0.25, 0.25, 0.25, m.sand, x, 0.15, 0.75);
   },
-  monument(g, m) {   // the Vanguard salute: a fist at chin height on a vertical forearm, in bronze, on a stepped plinth
+  monument(g, m) {   // (GC 0.45) the fleet's own: THE VOICE OF HEAD OFFICE, a microphone in bronze on a stepped plinth. (It was a fist at the chin on an upright forearm: another game's salute.)
     slab(g, m, 2, 2, m.stone);
     box(g, 1.5, 0.25, 1.5, m.stone, 0, 0.15, 0); box(g, 1.1, 0.5, 1.1, m.concrete, 0, 0.52, 0); box(g, 1.15, 0.05, 1.15, m.gold, 0, 0.8, 0);
-    box(g, 0.34, 1.7, 0.34, m.bronze, 0, 1.68, 0);
-    box(g, 0.5, 0.42, 0.42, m.bronze, 0, 2.7, 0.03); for (let i = 0; i < 4; i++) box(g, 0.1, 0.1, 0.14, m.bronze, -0.18 + i * 0.12, 2.7, 0.27);
-    box(g, 0.12, 0.28, 0.12, m.bronze, 0.27, 2.62, 0.12);
+    cyl(g, 0.3, 0.38, 0.12, m.bronze, 0, 0.89, 0, { seg: 12 }); cyl(g, 0.07, 0.09, 1.25, m.bronze, 0, 1.55, 0, { seg: 10 });     // a foot and a stem
+    cyl(g, 0.2, 0.13, 0.5, m.bronze, 0, 2.4, 0, { seg: 12 }); cyl(g, 0.24, 0.24, 0.07, m.gold, 0, 2.68, 0, { seg: 12 });     // the body and its band
+    ball(g, 0.3, m.bronze, 0, 2.95, 0); cyl(g, 0.31, 0.31, 0.04, m.gold, 0, 2.95, 0, { seg: 12 });     // the head, with a band round it
     plane(g, 0.5, 0.5, m.logo, 0, 0.55, 0.56);
   },
+
   factory(g, m) {   // sheds, a chimney, a conveyor and a fuel tank
     slab(g, m, 4, 3, m.asphalt);
     block(g, m, 2.4, 1.0, 1.8, -0.6, 0.08, -0.35, m.hazard, 0); prism(g, 2.4, 1.85, 0.4, m.metal, -0.6, 1.08, -0.35);

@@ -1135,7 +1135,7 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
       switch (a.act) {
         case 'walk': p.legL.rotation.x = Math.sin(ph) * 0.6; p.legR.rotation.x = -Math.sin(ph) * 0.6; p.armL.rotation.x = -Math.sin(ph) * 0.5; p.armR.rotation.x = Math.sin(ph) * 0.5; eL.rotation.x = eR.rotation.x = -0.35; g.position.y = Math.abs(Math.sin(ph)) * 0.015; break;
         case 'heart': p.armR.rotation.set(-0.55, 0, 0.5); eR.rotation.x = -2.0; break;
-        case 'salute': p.armR.rotation.set(-1.05, 0, -0.35); eR.rotation.x = -2.1; break;
+        case 'salute': p.armR.rotation.set(-0.15, 0, -1.2); eR.rotation.set(-0.2, 0, -2.1); break;     // (the hand to the brow, the elbow out to the side)
         case 'work': case 'build': p.armR.rotation.x = -1.4 + Math.sin(t * 7 + a.seed) * 0.5; eR.rotation.x = -0.9 + Math.sin(t * 7 + a.seed) * 0.4; p.armL.rotation.x = -0.6; eL.rotation.x = -0.8; break;
         case 'drill': { const k = Math.sin(t * 6 + Math.floor(a.x)); p.legL.rotation.x = Math.max(0, k) * -1.1; p.legR.rotation.x = Math.max(0, -k) * -1.1; p.armL.rotation.x = k * 0.7; p.armR.rotation.x = -k * 0.7; eL.rotation.x = eR.rotation.x = -0.4; g.position.y = Math.abs(k) * 0.02; break; }
         case 'drink': p.armR.rotation.set(-0.9, 0, -0.3); eR.rotation.x = -2.0 + Math.sin(t * 2 + a.seed) * 0.25; break;
