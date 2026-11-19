@@ -18,7 +18,7 @@ To run one: open Blender, then in its Python console
 
 `assets/models/<name>.json` (version 2): `nv` vertices, `nt` triangles, `tris` (uint16, base64), `cols` (one sRGB colour for each triangle, uint8), `min` and `size` (the box the vertices are packed into), `frames` (for each frame name, every vertex's place as uint16), `pal` and `mi` (the names of the model's materials and which one each triangle wears, so the game can dress a named part in other colours), `lod` (the same model again in about a third of the triangles: small parts left out, the rest cut down), and optionally `fit` (the measure that is sized to the unit in the game; without it, the largest dimension).
 
-Frames: `stand`, `w0` to `w7` (one walk cycle), `atk` (a strike), and for the Leaper `jump`. People: `stand`, `w0` to `w7`, `down` (lying), and for the armed `aim`, `a0` to `a7` (walking with the rifle up), `kneel`, `hit`.
+Frames: `stand`, `w0` to `w7` (one walk cycle), `atk` (a strike), `dead` (fallen: over on its side, limbs slack; the kit's `dead()` makes it for any creature), and for the Leaper `jump`. People: `stand`, `w0` to `w7`, `down` (lying), and for the armed `aim`, `a0` to `a7` (walking with the rifle up), `kneel`, `hit`.
 
 In Blender Z is up and the creature faces -Y. In the game Y is up and it faces +Z. The export turns it.
 

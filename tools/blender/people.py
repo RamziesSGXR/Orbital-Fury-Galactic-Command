@@ -60,9 +60,9 @@ def person(kind):
             box(PRE + 'mask', (0.13, 0.07, 0.08), (0, -0.13, 0.43), m=legs, parent=tor, bevel=0.025)
             for sx in (1, -1): cyl(PRE + 'filter', (sx * 0.05, -0.16, 0.42), (sx * 0.08, -0.2, 0.41), 0.025, m=shellm, parent=tor, sides=6)
         if cz == 'c':     # the company officer: a long coat with a pale front and a hem that glows, a mantle in the company's colour
-            loft(PRE + 'coat', [((0, 0, 0.08), 0.175, 0.125), ((0, 0.01, -0.3), 0.23, 0.17), ((0, 0.02, -0.66), 0.29, 0.21)], sides=10, m=top, parent=pel, cap=False)
-            loft(PRE + 'hem', [((0, 0.02, -0.64), 0.295, 0.215), ((0, 0.02, -0.68), 0.295, 0.215)], sides=10, m=glow, parent=pel, cap=False)
-            box(PRE + 'coatfront', (0.07, 0.02, 0.6), (0.05, -0.19, -0.3), m=lining, parent=pel, rot=(0.115, 0, 0))
+            loft(PRE + 'coat', [((0, 0, 0.08), 0.175, 0.125), ((0, 0.01, -0.3), 0.25, 0.21), ((0, 0.02, -0.7), 0.31, 0.28)], sides=10, m=top, parent=pel, cap=False)
+            loft(PRE + 'hem', [((0, 0.02, -0.68), 0.315, 0.285), ((0, 0.02, -0.72), 0.315, 0.285)], sides=10, m=glow, parent=pel, cap=False)
+            box(PRE + 'coatfront', (0.07, 0.02, 0.62), (0.05, -0.245, -0.33), m=lining, parent=pel, rot=(0.19, 0, 0))
             box(PRE + 'chestfront', (0.07, 0.02, 0.4), (0.05, -0.128, 0.22), m=lining, parent=tor)
             loft(PRE + 'mantle', [((0, 0.01, 0.3), 0.26, 0.17), ((0, 0.01, 0.4), 0.235, 0.15), ((0, 0.005, 0.46), 0.17, 0.115)], sides=9, m=trim, parent=tor, cap=False)
     head = joint('head', (0, 0, 0.52), tor)
@@ -129,7 +129,7 @@ def p_stand(mode='ready'):
     zero(J('root')); turn('elbow.L', x=-0.12); turn('elbow.R', x=-0.12); hold(mode)
     if PRE == 'cc_': turn('sho.R', x=-0.3); turn('elbow.R', x=-1.25); turn('head', x=0.18)     # reading the slate
 def p_walk(ph, mode='ready', armed=True):
-    zero(J('root')); stride(ph, 0.5, 0.8, 0.0); shift('pelvis', z=0.03 * abs(math.sin(ph)) - 0.03); turn('torso', z=0.07 * math.sin(ph) * (0.4 if mode == 'aim' else 1), x=0.05); turn('head', z=-0.06 * math.sin(ph))
+    zero(J('root')); long = PRE == 'cc_'; stride(ph, 0.26 if long else 0.5, 0.4 if long else 0.8, 0.0); shift('pelvis', z=0.03 * abs(math.sin(ph)) - 0.03);     # (in the long coat: a shorter step) turn('torso', z=0.07 * math.sin(ph) * (0.4 if mode == 'aim' else 1), x=0.05); turn('head', z=-0.06 * math.sin(ph))
     if armed: hold(mode)
     else: swing(ph)
 def p_kneel(): zero(J('root')); shift('pelvis', z=-0.47); turn('hip.L', x=-1.45); turn('knee.L', x=1.45); turn('hip.R', x=0.12); turn('knee.R', x=1.5); turn('torso', x=0.1); hold('aim')

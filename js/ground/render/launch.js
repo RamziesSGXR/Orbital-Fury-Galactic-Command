@@ -30,10 +30,10 @@ export class Launch {
       const bm = { x: ev.x, y: ev.y, r: ev.r, t: now };
       this.booms.push(bm); if (this.booms.length > 24) this.booms.shift();
       for (const b of this.bodies) {            // a body still lying in the new blast is thrown again, less far than a fresh one
-        if (!b.landed || b.fade < 0.4 || (b.x - bm.x) ** 2 + (b.y - bm.y) ** 2 > (bm.r * 1.1) ** 2) continue;
+        if (b.boss || !b.landed || b.fade < 0.4 || (b.x - bm.x) ** 2 + (b.y - bm.y) ** 2 > (bm.r * 1.1) ** 2) continue;
         b.fell = false; this._throw(b, bm, 0.7);
       }
-    } else if (ev.type === 'kill') { if (!ev.boss) this.pend.push({ ev, ally: false, t: now }); }
+    } else if (ev.type === 'kill') { if (!ev.boss || VIEW.air) this.pend.push({ ev, ally: false, t: now }); }     // (GC 0.35: in 3D a boss falls where it stood, like the rest)
     else if (ev.type === 'ally_down') this.pend.push({ ev, ally: true, t: now });
   }
 
@@ -49,11 +49,11 @@ export class Launch {
       }
       if (!best && (!VIEW.air || p.ally)) continue;     // (GC 0.29) in 3D a death outside any blast still leaves a body: it falls where it stood
       const b = {
-        x: ev.x, y: ev.y, z: 0, vx: 0, vy: 0, vz: 0, rot: ev.face || 0, spin: 0, ally: p.ally, kind: ev.kind, sub: ev.sub || '', id: ev.id || 0,
+        x: ev.x, y: ev.y, z: 0, vx: 0, vy: 0, vz: 0, rot: ev.face || 0, spin: 0, ally: p.ally, kind: ev.kind, sub: ev.sub || '', as: ev.boss ? 'boss' : ev.sub || ev.v || ev.kind, boss: !!ev.boss, id: ev.id || 0,
         role: ev.role, type: ev.unit, team: ev.team, r0: ev.r, landed: false, bounces: 0, marked: false, age: 0, tl: 0, fade: 1,
         mass: p.ally ? (ev.type === 'H' ? 0.7 : 0.9) : (MASS[ev.kind] ?? 0.6),
       };
-      if (best) this._throw(b, best, b.mass); else { b.fell = true; b.landed = true; b.tl = 1.4; }     // (it lies a little longer than one that was thrown)
+      if (best && !b.boss) this._throw(b, best, b.mass); else { b.fell = true; b.landed = true; b.tl = b.boss ? 4 : 1.4; }     // (it lies a little longer than one that was thrown)
       this.bodies.push(b);
       if (this.bodies.length > (VIEW.air ? 90 : MAX_BODIES)) this.bodies.shift();
     }
@@ -101,13 +101,13 @@ export class Launch {
     for (const b of this.bodies) {
       const proxy = { x: 0, y: 0, face: b.rot, id: b.id, kind: b.kind, sub: b.sub, r: b.r0, role: b.role, type: b.type, down: false, braceUntil: 0 };
       const lift = b.z * 0.45, s = 1 + Math.min(0.8, b.z * 0.025);
-      const r = b.ally ? Math.max(b.type === 'H' ? 2.6 : 1.9, px(b.type === 'H' ? 7 : 5)) : enemyR(proxy, SUBTYPES[b.kind] || SUBTYPES.L, px);
+      const r = b.ally ? Math.max(b.type === 'H' ? 2.6 : 1.9, px(b.type === 'H' ? 7 : 5)) : b.boss ? Math.max((b.r0 || 10) * 1.5, px(20)) * 0.92 : enemyR(proxy, SUBTYPES[b.kind] || SUBTYPES.L, px);
       // the shadow stays on the ground and shrinks and fades as the body climbs
       ctx.globalAlpha = b.fade * Math.max(0.12, 0.38 - b.z * 0.006); ctx.fillStyle = '#000';
       ctx.beginPath(); ctx.ellipse(b.x + b.z * 0.12, b.y + b.z * 0.12, r * 1.1 * (1 - Math.min(0.4, b.z * 0.01)), r * 0.9 * (1 - Math.min(0.4, b.z * 0.01)), 0, 0, TAU); ctx.fill();
       if (VIEW.air) {     // (GC 0.29) in 3D: the unit's own model, turning over in the air, then lying where it came down and sinking away
         const lie = Math.PI / 2, tumble = b.fell ? lie * Math.min(1, (b.age / 0.35) ** 2) : b.landed ? lie : b.rot * 1.3;
-        VIEW.air.push({ k: b.ally ? (b.type === 'H' ? 'van' : 'inf') : fid + ':' + b.kind, x: b.x, y: b.y, r: r * (b.ally ? 1.2 : 1.25), face: b.fell || b.landed ? b.rot : b.rot * 0.35, up: b.z * 0.5, tumble, sink: 1 - b.fade, pose: b.ally && (b.fell || b.landed) ? 'down' : null,
+        VIEW.air.push({ k: b.ally ? (b.type === 'H' ? 'van' : 'inf') : fid + ':' + (b.as || b.kind), alt: fid + ':' + b.kind, x: b.x, y: b.y, r: r * (b.ally ? 1.2 : 1.25), face: b.fell || b.landed ? b.rot : b.rot * 0.35, up: b.z * 0.5, tumble, sink: 1 - b.fade, pose: b.fell || b.landed ? (b.ally ? 'down' : 'dead') : null,     // (GC 0.35) the fallen lie as their own model has them lie: an enemy over on its side, limbs curled
           tint: b.ally && b.type === 'H' && b.team !== undefined && m.teams[b.team] ? m.teams[b.team].color : null, dim: 0.75 });
         continue;
       }

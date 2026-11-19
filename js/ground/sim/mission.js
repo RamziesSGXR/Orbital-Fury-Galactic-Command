@@ -1064,7 +1064,7 @@ export class Mission {
       this.stats.killsAlly++;
     }
     this.earn('kills', C.credits.kill[e.kind] * rw, e.x, e.y);
-    this.emit('kill', { x: e.x, y: e.y, kind: e.kind, by, sub: e.sub || '', id: e.id, face: e.face || 0, r: e.r, boss: !!e.boss });
+    this.emit('kill', { x: e.x, y: e.y, kind: e.kind, by, sub: e.sub || '', v: e.v || '', id: e.id, face: e.face || 0, r: e.r, boss: !!e.boss });
   }
 
   _cause(by, src) {

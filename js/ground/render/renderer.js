@@ -603,7 +603,11 @@ export class Renderer {
       else { const sr = e.r * 1.5; ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.beginPath(); ctx.ellipse(e.x + sr * 0.5, e.y + sr * 0.4, sr * 1.1, sr * 0.8, 0, 0, TAU); ctx.fill(); }
       if (e.boss) {
         const br = bossR(e, px), body = (q) => drawBossBody(ctx, q, fid, br, pal.enemy, now, px, t - e.hurtAt < 0.06, t);
-        if (u3 && !arriving(e, t)) u3.push({ k: fid + ':boss', alt: fid + ':H', atk: e.aimUntil > t, x: e.x, y: e.y, r: br * 1.15, face: e.face, tint: t - e.hurtAt < 0.06 ? '#ffffff' : null, dim: e.vis >= 2 ? 1 : 0.6, walk: (e.vx || 0) ** 2 + (e.vy || 0) ** 2 > 0.1 ? t * 5 + e.id : null });
+        if (u3) {     // (GC 0.35) in 3D it arrives as itself: the Molt's and the Talon's climb out of the ground, the Foundry's comes down onto it; the cracks and dust stay on the land
+          const arr = arriving(e, t), k = arr && e.arriveUntil > e.arriveAt ? Math.max(0, Math.min(1, (t - e.arriveAt) / (e.arriveUntil - e.arriveAt))) : 1, rise = k < 1 ? (fid === 'bots' ? (1 - k) ** 2 * 90 : -(1 - k) * br * 2.4) : 0;
+          if (arr) drawBossArrival(ctx, e, fid, br, pal.enemy, now, px, t, () => {});
+          u3.push({ k: fid + ':boss', alt: fid + ':H', atk: e.aimUntil > t, x: e.x, y: e.y, r: br * 1.15, face: e.face, tint: t - e.hurtAt < 0.06 ? '#ffffff' : null, dim: e.vis >= 2 ? 1 : 0.6, walk: (e.vx || 0) ** 2 + (e.vy || 0) ** 2 > 0.1 ? t * 5 + e.id : null , up: rise });
+        }
         else if (arriving(e, t)) drawBossArrival(ctx, e, fid, br, pal.enemy, now, px, t, body);     // (0.55.1) its arrival
         else if (flat) body(e);
         else raiseUnit(ctx, br * 0.34, wallE, (c) => drawBossBody(c, e, fid, br, pal.enemy, now, px, t - e.hurtAt < 0.06, t));

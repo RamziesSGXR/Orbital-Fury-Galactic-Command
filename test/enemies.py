@@ -41,4 +41,23 @@ with sync_playwright() as pw:
     f.evaluate("(() => { const m = __game.mission, c = __game.cam; let sx = 0, sy = 0, n = 0; for (const e of m.enemies) if (!e.dead) { e.vis = 2; sx += e.x; sy += e.y; n++; } const b = m.enemies.find(e => !e.dead && (e.sub || e.v)) || m.enemies.find(e => !e.dead); c.x = b.x; c.y = b.y; c.view = 60; })()"); pg.wait_for_timeout(700); pg.screenshot(path=f'{out}/enemy-{foe}-variant.png')
     f.evaluate("(() => { const c = __game.cam; c.view = 300; })()"); pg.wait_for_timeout(700); pg.screenshot(path=f'{out}/enemy-{foe}-far.png')
     print('drawn from far off:', f.evaluate("(() => { const u = __game.renderer._g3.units, o = {}; for (const [k, m] of u.kinds) { if (!m || !m.frames) continue; const full = Object.values(m.frames).reduce((a, x) => a + x.count, 0), far = m.lod ? Object.values(m.lod.frames).reduce((a, x) => a + x.count, 0) : 0; if (full || far) o[k] = { full, far }; } return o; })()"))
+    # the special, the second kind and the boss, put into this fight near the squad, and one enemy killed to see it lie
+    f.evaluate("(() => { const c = __game.cam; c.view = 110; })()")
+    made = f.evaluate("""(async () => { const m = __game.mission, sq = m.alive[0], fid = m.faction.id, SUB = { bugs: 'guard', bots: 'cmd', lizards: 'soak' }[fid], V = { bugs: 'leap', bots: 'rkt', lizards: 'mort' }[fid];
+      const near = m.enemies.filter(e => !e.dead && !e.boss).sort((a, b) => Math.hypot(a.x - sq.x, a.y - sq.y) - Math.hypot(b.x - sq.x, b.y - sq.y));
+      const put = (e, dx, dy) => { e.x = sq.x + dx; e.y = sq.y + dy; e.vis = 2; e.vx = e.vy = 0; e.hp = e.maxHp = 1e7; };     // (too tough to be shot before the picture is taken)
+      const out = {}; let i = 0;
+      const a = near.find(e => e.kind !== 'L') || near[0]; if (a) { a.sub = SUB; a.v = undefined; put(a, 14, -10); out.special = SUB; }
+      const b = near.find(e => e !== a && e.kind === (fid === 'bugs' ? 'L' : 'M')) || near.find(e => e !== a); if (b) { b.v = V; b.sub = undefined; put(b, -2, -14); out.second = V; }
+      const B = await import('./js/ground/sim/boss.js'); const boss = B.spawnBoss(m, { spot: { x: sq.x + 34, y: sq.y - 30 } }); out.boss = !!boss; if (boss) { boss.vis = 2; boss.hp = boss.maxHp = 1e8; }
+      const c = __game.cam; c.follow = false; c.x = sq.x + 14; c.y = sq.y - 16; return out; })()""")
+    pg.wait_for_timeout(900); pg.screenshot(path=f'{out}/enemy-{foe}-boss-arrives.png')
+    for i in range(30):
+        if not f.evaluate("(() => { const m = __game.mission, b = m.boss; for (const e of m.enemies) if (!e.dead && (e.sub || e.v || e.boss)) e.vis = 2; return !!(b && b.arriveUntil && m.t < b.arriveUntil + 1.3); })()"): break
+        pg.wait_for_timeout(400)
+    pg.wait_for_timeout(300); pg.screenshot(path=f'{out}/enemy-{foe}-special-boss.png')
+    print('put in the fight:', made, '| drawn:', f.evaluate("(() => { const u = __game.renderer._g3.units, o = {}; for (const [k, m] of u.kinds) { if (!m || !m.frames || !k.includes(':')) continue; const n = Object.values(m.frames).reduce((a, x) => a + x.count, 0) + (m.lod ? Object.values(m.lod.frames).reduce((a, x) => a + x.count, 0) : 0); if (n) o[k] = n; } return o; })()"))
+    f.evaluate("(() => { const r = __game.renderer, m = __game.mission, c = __game.cam, now = r.fxNow(m), fid = m.faction.id; r.launch.onEvent({ type: 'kill', x: c.x - 8, y: c.y + 12, kind: 'M', id: 951, face: 0.4, r: 4 }, now); r.launch.onEvent({ type: 'kill', x: c.x + 2, y: c.y + 14, kind: 'L', id: 952, face: 2, r: 2 }, now); })()")
+    pg.wait_for_timeout(500); pg.screenshot(path=f'{out}/enemy-{foe}-fallen.png')
+    print('the fallen lie in the frame:', f.evaluate("(() => { const u = __game.renderer._g3.units, o = {}; for (const [k, m] of u.kinds) if (m && m.frames && m.frames.dead && m.frames.dead.count) o[k] = m.frames.dead.count; return o; })()"))
     print('\n'.join(errs) if errs else 'no page errors'); br.close()

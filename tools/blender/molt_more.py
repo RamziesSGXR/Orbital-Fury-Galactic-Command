@@ -34,7 +34,7 @@ def lp_jump():
 def lp_atk(): zero(J('root')); turn('head', x=-0.3); turn('body', x=-0.12); shift('body', y=-0.08); turn('wing.L', z=0.3); turn('wing.R', z=-0.3)
 F = {'stand': lambda: zero(J('root')), 'atk': lp_atk, 'jump': lp_jump}
 for i in range(8): F['w%d' % i] = (lambda i=i: lp_walk(i / 8 * 2 * math.pi))
-OUT['molt_leaper'] = export('molt_leaper', CUR, F, {'fit': 1.9}); zero(root); R4 = root
+F['dead'] = dead('body', seed=11); OUT['molt_leaper'] = export('molt_leaper', CUR, F, {'fit': 1.9}); zero(root); R4 = root
 
 # ---------------- Shellback: a low bug behind a wall of plates, the plates edged pale so its front reads from above
 PRE = 'sh_'; CUR = coll('molt_shellback')
@@ -58,7 +58,7 @@ def sh_walk(ph): zero(J('root')); walk(ph, 3, 0.26, 0.16, 0.015); turn('shield',
 def sh_atk(): zero(J('root')); shift('body', y=-0.2); turn('body', x=0.08); turn('shield', x=0.12)
 F = {'stand': lambda: zero(J('root')), 'atk': sh_atk}
 for i in range(8): F['w%d' % i] = (lambda i=i: sh_walk(i / 8 * 2 * math.pi))
-OUT['molt_shellback'] = export('molt_shellback', CUR, F); zero(root); R5 = root
+F['dead'] = dead('body', seed=14); OUT['molt_shellback'] = export('molt_shellback', CUR, F); zero(root); R5 = root
 
 # ---------------- Elder Husk: old, towering, a sack of acid swinging under it; it spits from far off and stamps on what comes close
 PRE = 'eh_'; CUR = coll('molt_elder')
@@ -92,7 +92,7 @@ def eh_walk(ph):
 def eh_atk(): zero(J('root')); turn('neck', x=-0.5); turn('head', x=-0.25); turn('jaw.L', z=0.7); turn('jaw.R', z=-0.7); turn('fang.L', x=0.5); turn('fang.R', x=0.5); turn('body', x=-0.08); turn('sac', x=-0.15)
 F = {'stand': lambda: zero(J('root')), 'atk': eh_atk}
 for i in range(8): F['w%d' % i] = (lambda i=i: eh_walk(i / 8 * 2 * math.pi))
-OUT['molt_elder'] = export('molt_elder', CUR, F); zero(root); R6 = root
+F['dead'] = dead('body', seed=10); OUT['molt_elder'] = export('molt_elder', CUR, F); zero(root); R6 = root
 
 PRE = 'lp_'; lp_jump(); PRE = 'sh_'; sh_walk(1.0); PRE = 'eh_'; eh_walk(0.8)
 for r in (R1, R2, R3): r.location = (0, 60, 0)

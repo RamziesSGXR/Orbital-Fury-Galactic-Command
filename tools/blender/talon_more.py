@@ -30,7 +30,7 @@ def bm_walk(ph): zero(J('root')); stride(ph, 0.45, 0.5, 0.0); wag(3, ph, 0.18); 
 def bm_atk(): zero(J('root')); turn('torso', x=0.2); turn('tube', x=0.25); shift('pelvis', z=-0.1); turn('hip.L', x=-0.25); turn('hip.R', x=-0.25); turn('knee.L', x=0.4); turn('knee.R', x=0.4); turn('jaw', x=0.4)
 F = {'stand': lambda: zero(J('root')), 'atk': bm_atk}
 for i in range(8): F['w%d' % i] = (lambda i=i: bm_walk(i / 8 * 2 * math.pi))
-OUT['talon_bombardier'] = export('talon_bombardier', CUR, F, {'fit': 2.2}); zero(root); R4 = root
+F['dead'] = dead('pelvis', seed=16); OUT['talon_bombardier'] = export('talon_bombardier', CUR, F, {'fit': 2.2}); zero(root); R4 = root
 
 # ---------------- Herd Beast: a slow mass of hide and bone that takes what is thrown at it
 PRE = 'hb_'; CUR = coll('talon_herd')
@@ -62,7 +62,7 @@ def hb_walk(ph):
 def hb_atk(): zero(J('root')); turn('head', x=0.35); shift('body', y=-0.2); turn('body', x=0.1)
 F = {'stand': lambda: zero(J('root')), 'atk': hb_atk}
 for i in range(8): F['w%d' % i] = (lambda i=i: hb_walk(i / 8 * 2 * math.pi))
-OUT['talon_herd'] = export('talon_herd', CUR, F); zero(root); R5 = root
+F['dead'] = dead('body', seed=10); OUT['talon_herd'] = export('talon_herd', CUR, F); zero(root); R5 = root
 
 # ---------------- Thunder Lizard: a living hill with a fortress on its back; pylons hold its shield, the great crystal throws the beam
 PRE = 'th_'; CUR = coll('talon_thunder')
@@ -107,4 +107,4 @@ def th_walk(ph):
 def th_atk(): zero(J('root')); turn('neck', x=-0.2); turn('neck1', x=-0.2); turn('neck2', x=0.3); turn('tjaw', x=0.5); shift('emitter', z=0.25); turn('body', x=-0.03)
 F = {'stand': lambda: zero(J('root')), 'atk': th_atk}
 for i in range(8): F['w%d' % i] = (lambda i=i: th_walk(i / 8 * 2 * math.pi))
-OUT['talon_thunder'] = export('talon_thunder', CUR, F, {'fit': 9.0}); zero(root); R6 = root
+F['dead'] = dead('body', seed=13); OUT['talon_thunder'] = export('talon_thunder', CUR, F, {'fit': 9.0}); zero(root); R6 = root

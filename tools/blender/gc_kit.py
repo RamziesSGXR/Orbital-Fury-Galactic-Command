@@ -287,3 +287,19 @@ def at(j, loc=None, rot=None):
 def wpt(j, local):
     bpy.context.view_layer.update(); o = bpy.data.objects[PRE + j] if isinstance(j, str) else j
     return o.matrix_world @ Vector(local)
+
+def dead(top='body', roll=1.4, curl=0.5, seed=1):
+    """A pose for the fallen: over on its side, limbs curled or slack, lying on the ground. top: the joint the whole body hangs from."""
+    def f():
+        r = J('root'); zero(r); turn(top, y=roll); k = 0
+        for o in r.children_recursive:
+            if o.type != 'EMPTY' or 'rrot' not in o: continue
+            nm = o.name[len(PRE):]; k += 1; h = math.sin(k * 12.9898 + seed) * 43758.5453; h -= math.floor(h); rr = o['rrot']; sd = 1 if '.L' in nm else -1
+            if nm.startswith('hip') or nm.startswith('hop'): o.rotation_euler = (rr[0] + (h - 0.5) * curl, rr[1] + sd * 0.6 * curl, rr[2] + (h - 0.5) * curl)
+            elif nm.startswith('knee'): o.rotation_euler = (rr[0] + 0.5 * curl + h * 0.4, rr[1], rr[2])
+            elif nm.startswith(('tail', 'neck', 'jaw', 'head')): o.rotation_euler = (rr[0] + (h - 0.5) * 0.5, rr[1], rr[2] + (h - 0.5) * 0.6)
+            elif nm.startswith(('sho', 'arm', 'claw')): o.rotation_euler = (rr[0] + (h - 0.5) * 1.0, rr[1] + sd * 0.4, rr[2])
+        bpy.context.view_layer.update()
+        lo = min((o.matrix_world @ v.co).z for o in CUR.all_objects if o.type == 'MESH' for v in o.data.vertices)
+        r.location = (0, 0, -lo)
+    return f

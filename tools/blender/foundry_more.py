@@ -30,7 +30,7 @@ def rk_walk(ph): zero(J('root')); stride(ph, 0.4, 0.6, 0.2); shift('pelvis', z=0
 def rk_atk(): zero(J('root')); turn('torso', x=-0.18); turn('pod.L', x=0.2); turn('pod.R', x=0.2); turn('hip.L', x=0.15); turn('hip.R', x=-0.2); turn('knee.R', x=0.3)
 F = {'stand': lambda: zero(J('root')), 'atk': rk_atk}
 for i in range(8): F['w%d' % i] = (lambda i=i: rk_walk(i / 8 * 2 * math.pi))
-OUT['foundry_rocketeer'] = export('foundry_rocketeer', CUR, F); zero(root); R4 = root
+F['dead'] = dead('pelvis', seed=17); OUT['foundry_rocketeer'] = export('foundry_rocketeer', CUR, F); zero(root); R4 = root
 
 # ---------------- Foreman: stands behind the line under a mast and a dish; nothing can be called down near it
 PRE = 'fm_'; CUR = coll('foundry_foreman')
@@ -64,7 +64,7 @@ def fm_walk(ph): zero(J('root')); stride(ph, 0.36, 0.55, 0.0); shift('pelvis', z
 def fm_atk(): zero(J('root')); turn('sho.R', x=-1.2); turn('elbow.R', x=0.5); turn('torso', x=-0.05, z=0.15); turn('dish', x=-0.4)
 F = {'stand': lambda: zero(J('root')), 'atk': fm_atk}
 for i in range(8): F['w%d' % i] = (lambda i=i: fm_walk(i / 8 * 2 * math.pi))
-OUT['foundry_foreman'] = export('foundry_foreman', CUR, F, {'fit': 2.6}); zero(root); R5 = root
+F['dead'] = dead('pelvis', seed=15); OUT['foundry_foreman'] = export('foundry_foreman', CUR, F, {'fit': 2.6}); zero(root); R5 = root
 
 # ---------------- Siege Walker: a works on four legs, a hatch under it that opens on fresh machines
 PRE = 'sw_'; CUR = coll('foundry_siege')
@@ -105,4 +105,4 @@ def sw_walk(ph):
 def sw_atk(): zero(J('root')); shift('gun.L', y=0.35); shift('gun.R', y=0.35); turn('body', x=-0.03); shift('body', y=0.1)
 F = {'stand': lambda: zero(J('root')), 'atk': sw_atk}
 for i in range(8): F['w%d' % i] = (lambda i=i: sw_walk(i / 8 * 2 * math.pi))
-OUT['foundry_siege'] = export('foundry_siege', CUR, F, {'fit': 8.0}); zero(root); R6 = root
+F['dead'] = dead('body', seed=13); OUT['foundry_siege'] = export('foundry_siege', CUR, F, {'fit': 8.0}); zero(root); R6 = root

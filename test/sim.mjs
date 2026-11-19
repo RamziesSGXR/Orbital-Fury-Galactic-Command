@@ -18,6 +18,7 @@ const games = +process.argv[2] || 40, maxR = +process.argv[3] || 120;
 //   bot buys the cheapest armoury upgrade it can; a ground fight costs ammunition, and is not fought without it. Every
 //   bot uses the market: it sells a product that is at its cap and buys fuel or ammunition when it is nearly out (it buys nothing from the ground's shelf).
 const ONLY = process.argv[5] || '';     // 'sites' or 'ground': only that half of 'full', to see what each is worth
+const MIX = +process.argv[6] || 10;     // in 'mixed' play: one battle in this many goes to the ground
 const FOUND = 3, LEVEL = 12, PROFIT = 4, GROUND_CR = 500, GROUND_P = [1, 1, 1, 1, 0.9, 0.8, 0.7, 0.6, 0.5];
 const rng = (a) => () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
 function sites(g, age, run = true) {
@@ -39,7 +40,7 @@ function sites(g, age, run = true) {
   if (pick && g.found(pick.id, kind)) { g.x.foundAt = g.round; age.set(`${pick.id}:${kind}`, { n: 0 }); }
 }
 export function play(seed, mode, rounds = maxR) {
-  const g = new Game(seed), full = mode === 'full', R = rng(seed * 977 + 5), age = new Map();
+  const g = new Game(seed), full = mode === 'full' || mode === 'mixed', R = rng(seed * 977 + 5), age = new Map();     // mixed: every post, but only one battle in MIX fought on the ground, as a person might
   g.x = { ground: 0, groundWon: 0, wal: { bal: 1200 }, maxRank: 0, sold: 0, bought: 0, ratMin: 100, ratSum: 0, ratN: 0 };
   let guard = 0, last = 0;
   while (!g.over && g.round <= rounds && guard++ < 400000) {
@@ -55,7 +56,7 @@ export function play(seed, mode, rounds = maxR) {
     if (g.battle) {
       const b = g.battle;
       if (b.done) { if (mode !== 'idle' && b.pending && b.foe.hp <= b.you.fire * 2 + 2) g.press(); else g.battleClose(); }
-      else if (full && ONLY !== 'sites' && b.round === 0 && GROUND_P[g.groundLevel()] >= 0.6 && g.canGround()) { const win = R() < GROUND_P[g.groundLevel()]; g.x.ground++; if (win) { g.x.groundWon++; g.x.wal.bal += GROUND_CR; } g.battleResolve(win, win ? 0.6 : 0); }
+      else if (full && ONLY !== 'sites' && b.round === 0 && GROUND_P[g.groundLevel()] >= 0.6 && g.canGround() && (mode !== 'mixed' || (b._g === undefined ? (b._g = (g.x.bn = (g.x.bn || 0) + 1) % MIX === 0) : b._g))) { const win = R() < GROUND_P[g.groundLevel()]; g.x.ground++; if (win) { g.x.groundWon++; g.x.wal.bal += GROUND_CR; } g.battleResolve(win, win ? 0.6 : 0); }
       else g.battlePlay(mode !== 'idle' ? botCard(g) : null);
     }
     else if (mode !== 'idle') botDecide(g); else g.hold();
@@ -78,8 +79,8 @@ if ((process.argv[1] || '').endsWith('sim.mjs')) for (const mode of (process.arg
   }
   const avg = k => (st[k] / games).toFixed(1);
   console.log(`${mode.padEnd(5)} won ${won}/${games}  lost ${lost}  undecided ${games - won - lost}  avg rounds ${(rounds / games).toFixed(1)}`);
-  if (mode === 'full') console.log(`      per game: station tiers held at the end ${(xs / games).toFixed(1)}, base charters ${(xb / games).toFixed(1)}, ground battles ${(xg / games).toFixed(1)} (won ${(xw / Math.max(1, xg) * 100).toFixed(0)}%)`);
-  if (mode === 'full') console.log(`      war chest at the end ${(xc / games).toFixed(0)} CR, upgrades bought ${(xu / games).toFixed(1)} of ${Object.values(C.shelf).flat().reduce((a, it) => a + it.lv.length, 0)}, best rank ${(xr / games).toFixed(1)}, materials left ${xm.map(x => (x / games).toFixed(0)).join(' / ')}`);
+  if (mode === 'full' || mode === 'mixed') console.log(`      per game: station tiers held at the end ${(xs / games).toFixed(1)}, base charters ${(xb / games).toFixed(1)}, ground battles ${(xg / games).toFixed(1)} (won ${(xw / Math.max(1, xg) * 100).toFixed(0)}%)`);
+  if (mode === 'full' || mode === 'mixed') console.log(`      war chest at the end ${(xc / games).toFixed(0)} CR, upgrades bought ${(xu / games).toFixed(1)} of ${Object.values(C.shelf).flat().reduce((a, it) => a + it.lv.length, 0)}, best rank ${(xr / games).toFixed(1)}, materials left ${xm.map(x => (x / games).toFixed(0)).join(' / ')}`);
   console.log(`      enemies destroyed: ${C.factions.map((f, i) => f + ' ' + dead[i]).join(' ')} | per game: systems taken ${avg('taken')}, attacks beaten off ${avg('repelled')}, defences held ${avg('held')}, systems fallen ${avg('fallen')}, ships at the end ${(ships / games).toFixed(1)}, sites ${(sites / games).toFixed(1)}`);
   console.log(`      ratings: average ${(ra / games).toFixed(0)}%, lowest in a war ${(rm / games).toFixed(0)}% (mean of each war's low) | market: bought ${(mb / games).toFixed(0)}, sold ${(ms / games).toFixed(0)} a war | campaigns: won ${(cw / games).toFixed(1)}, failed ${(cl / games).toFixed(1)}`);
   if (lost) console.log('      losses:', JSON.stringify(why));

@@ -47,7 +47,7 @@ blob('sm_shield', 0.26, (0.22, 1, 1), (0.09, 0, -0.16), sub=2, m=leather, parent
 d = (0, -0.85, -0.52); H = (0, 0, -0.27); P = lambda t: (H[0] + d[0] * t, H[1] + d[1] * t, H[2] + d[2] * t)
 cyl('sm_spear', P(-0.7), P(1.15), 0.016, m=wood, parent=J('elbow.R'), sides=5); spike('sm_spearhead', P(1.1), P(1.5), 0.05, sides=4, m=lime, parent=J('elbow.R'), flat=0.45)
 loft('sm_binding', [(P(1.02), 0.03, 0.03), (P(1.12), 0.03, 0.03)], sides=5, m=bone, parent=J('elbow.R'), cap=False)
-J('sho.R').rotation_euler = (-0.5, 0, 0); J('elbow.R').rotation_euler = (-0.7, 0, 0); J('sho.L').rotation_euler = (-0.2, 0, 0.25); J('elbow.L').rotation_euler = (-0.7, 0, 0)
+J('sho.R').rotation_euler = (-1.0, 0, 0); J('elbow.R').rotation_euler = (-0.75, 0, 0); J('sho.L').rotation_euler = (-0.2, 0, 0.25); J('elbow.L').rotation_euler = (-0.7, 0, 0)     # (the spear arm is up: the spear rides level at the shoulder)
 rest(root)
 def sm_walk(ph):
     zero(J('root')); stride(ph, 0.55, 0.55, 0.0); wag(3, ph, 0.2); shift('pelvis', z=0.025 * abs(math.sin(ph)) - 0.02)
@@ -56,7 +56,7 @@ def sm_atk(): zero(J('root')); turn('sho.R', x=-0.85); turn('elbow.R', x=0.45); 
 F = {'stand': lambda: zero(J('root')), 'atk': sm_atk}
 for i in range(8): F['w%d' % i] = (lambda i=i: sm_walk(i / 8 * 2 * math.pi))
 # fit: the measure that is sized to the unit in the game; without it a long spear would shrink the one who carries it
-OUT['talon_L'] = export('talon_L', CUR, F, {'fit': 2.0}); zero(root); R1 = root
+F['dead'] = dead('pelvis', seed=7); OUT['talon_L'] = export('talon_L', CUR, F, {'fit': 2.0}); zero(root); R1 = root
 
 # ---------------- Raptor Rider: a lancer on a running lizard
 PRE = 'rr_'; CUR = coll('talon_M_raptor_rider')
@@ -100,7 +100,7 @@ def rr_walk(ph):
 def rr_atk(): zero(J('root')); turn('lance', x=0.16); shift('lance', y=-0.35); turn('neck', x=0.45); turn('rjaw', x=0.5); turn('rider', x=0.22); wag(3, 1.2, 0.25)
 F = {'stand': lambda: zero(J('root')), 'atk': rr_atk}
 for i in range(8): F['w%d' % i] = (lambda i=i: rr_walk(i / 8 * 2 * math.pi))
-OUT['talon_M'] = export('talon_M', CUR, F, {'fit': 3.0}); zero(root); R2 = root
+F['dead'] = dead('body', seed=7); OUT['talon_M'] = export('talon_M', CUR, F, {'fit': 3.0}); zero(root); R2 = root
 
 # ---------------- War Beast: horns, a bone frill, a crystal on its back that throws the beam
 PRE = 'wb_'; CUR = coll('talon_H_war_beast')
@@ -144,7 +144,7 @@ def wb_walk(ph):
 def wb_atk(): zero(J('root')); turn('head', x=0.4); turn('jaw', x=0.3); shift('body', y=-0.15); turn('body', x=0.06); wag(3, 1.4, 0.3)
 F = {'stand': lambda: zero(J('root')), 'atk': wb_atk}
 for i in range(8): F['w%d' % i] = (lambda i=i: wb_walk(i / 8 * 2 * math.pi))
-OUT['talon_H'] = export('talon_H', CUR, F, {'fit': 4.7}); zero(root); R3 = root
+F['dead'] = dead('body', seed=7); OUT['talon_H'] = export('talon_H', CUR, F, {'fit': 4.7}); zero(root); R3 = root
 
 PRE = 'sm_'; sm_walk(1.0); PRE = 'rr_'; rr_walk(2.4); PRE = 'wb_'; wb_walk(0.7)
 sc = [5.5 / 2.0, 10 / 3.0, 17.5 / 4.7]

@@ -40,7 +40,7 @@ def dr_walk(ph):
 def dr_atk(): zero(J('root')); turn('sho.R', x=-0.2); turn('elbow.R', x=-0.12); turn('torso', x=-0.06, z=0.12); turn('sho.L', x=0.3)
 F = {'stand': lambda: zero(J('root')), 'atk': dr_atk}
 for i in range(8): F['w%d' % i] = (lambda i=i: dr_walk(i / 8 * 2 * math.pi))
-OUT['foundry_L'] = export('foundry_L', CUR, F); zero(root); R1 = root
+F['dead'] = dead('pelvis', seed=9); OUT['foundry_L'] = export('foundry_L', CUR, F); zero(root); R1 = root
 
 # ---------------- Enforcer: a wall on two legs, a shield on one arm and a cannon for the other
 PRE = 'en_'; CUR = coll('foundry_M_enforcer')
@@ -78,7 +78,7 @@ def en_walk(ph):
 def en_atk(): zero(J('root')); turn('sho.R', x=-0.22); turn('elbow.R', x=-0.1); turn('torso', x=-0.08, z=0.1); turn('sho.L', x=-0.5)
 F = {'stand': lambda: zero(J('root')), 'atk': en_atk}
 for i in range(8): F['w%d' % i] = (lambda i=i: en_walk(i / 8 * 2 * math.pi))
-OUT['foundry_M'] = export('foundry_M', CUR, F); zero(root); R2 = root
+F['dead'] = dead('pelvis', seed=9); OUT['foundry_M'] = export('foundry_M', CUR, F); zero(root); R2 = root
 
 # ---------------- Crusher: a furnace on four legs, claws out front, stacks smoking
 PRE = 'cr_'; CUR = coll('foundry_H_crusher')
@@ -120,7 +120,7 @@ def cr_walk(ph):
 def cr_atk(): zero(J('root')); turn('claw.L', z=0.2); turn('claw.R', z=-0.2); turn('body', x=-0.05); shift('body', y=0.14); shift('turret', y=0.12)     # the gun has just fired: the hull rocks back
 F = {'stand': lambda: zero(J('root')), 'atk': cr_atk}
 for i in range(8): F['w%d' % i] = (lambda i=i: cr_walk(i / 8 * 2 * math.pi))
-OUT['foundry_H'] = export('foundry_H', CUR, F); zero(root); R3 = root
+F['dead'] = dead('body', seed=9); OUT['foundry_H'] = export('foundry_H', CUR, F); zero(root); R3 = root
 
 PRE = 'dr_'; dr_walk(1.0); PRE = 'en_'; en_walk(2.4); PRE = 'cr_'; cr_walk(0.7)
 sc = [5.5 / max(OUT['foundry_L']['size']), 10 / max(OUT['foundry_M']['size']), 17.5 / max(OUT['foundry_H']['size'])]

@@ -38,7 +38,7 @@ def sk_walk(ph):
 def sk_atk(): zero(J('root')); turn('jaw.L', z=0.55); turn('jaw.R', z=-0.55); turn('head', x=-0.25); turn('abd', x=0.3); shift('body', y=-0.06)
 F = {'stand': lambda: zero(J('root')), 'atk': sk_atk}
 for i in range(8): F['w%d' % i] = (lambda i=i: sk_walk(i / 8 * 2 * math.pi))
-OUT['molt_L'] = export('molt_L', CUR, F); zero(root); R1 = root
+F['dead'] = dead('body', seed=6); OUT['molt_L'] = export('molt_L', CUR, F); zero(root); R1 = root
 
 # ---------------- Mauler: reared up, two great scythes, four legs
 PRE = 'ma_'; CUR = coll('molt_M_mauler')
@@ -75,7 +75,7 @@ def ma_atk():     # it spits: reared back, head thrown forward, scythes spread
     zero(J('root')); turn('chest', x=-0.22); turn('head', x=0.5); turn('arm.L', z=0.5, x=-0.2); turn('arm.R', z=-0.5, x=-0.2); turn('abd', x=-0.2); shift('body', y=0.05)
 F = {'stand': lambda: zero(J('root')), 'atk': ma_atk}
 for i in range(8): F['w%d' % i] = (lambda i=i: ma_walk(i / 8 * 2 * math.pi))
-OUT['molt_M'] = export('molt_M', CUR, F); zero(root); R2 = root
+F['dead'] = dead('body', seed=6); OUT['molt_M'] = export('molt_M', CUR, F); zero(root); R2 = root
 
 # ---------------- Rammer: a charging fortress under a domed shell, a forked horn out front
 PRE = 'sb_'; CUR = coll('molt_H_rammer')
@@ -105,7 +105,7 @@ def sb_walk(ph):
 def sb_atk(): zero(J('root')); turn('body', x=-0.16); turn('head', x=-0.35); turn('jaw.L', z=0.5); turn('jaw.R', z=-0.5)
 F = {'stand': lambda: zero(J('root')), 'atk': sb_atk}
 for i in range(8): F['w%d' % i] = (lambda i=i: sb_walk(i / 8 * 2 * math.pi))
-OUT['molt_H'] = export('molt_H', CUR, F); zero(root); R3 = root
+F['dead'] = dead('body', seed=6); OUT['molt_H'] = export('molt_H', CUR, F); zero(root); R3 = root
 
 PRE = 'sk_'; sk_walk(0.9); PRE = 'ma_'; ma_walk(2.2); PRE = 'sb_'; sb_walk(0.6)
 PIC = [lineup('molt_lineup', [R1, R2, R3], [2.6, 4.6, 0], [0.9, 1.5, 2.3], dist=17, target=(3.6, 0.6, 1.0), az=28, el=24, res=(1280, 640)),
