@@ -84,6 +84,19 @@ function shipOf(side) {
   return join(P);
 }
 const SIDES = ['fed', 'molt', 'foundry', 'talon'];
+// (0.40) A ship made in Blender (tools/blender/world.py), read from its file: flat-lit triangles in their own colours, the parts
+// named accent in the side's colour, laid nose to +x and made 3.3 long whatever it was drawn at.
+function shipFile(d, side) {
+  const b64 = (t) => { const b = atob(t), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; };
+  const tris = new Uint16Array(b64(d.tris).buffer.slice(0)), cols = b64(d.cols), mi = d.mi ? b64(d.mi) : null, q = new Uint16Array(b64(d.frames.stand).buffer.slice(0)), nt = d.nt;
+  const pos = new Float32Array(nt * 9), col = new Float32Array(nt * 9), c = new THREE.Color(), k = 3.3 / d.size[0], cx = d.min[0] + d.size[0] / 2, cy = d.min[1] + d.size[1] / 2, cz = d.min[2] + d.size[2] / 2;
+  for (let t = 0; t < nt; t++) {
+    const nm = mi && d.pal ? d.pal[mi[t]] : '';
+    if (nm === 'accent' || nm === 'accent_lit') { c.set(C.color[side] || C.color.fed); if (nm === 'accent_lit') c.lerp(new THREE.Color('#ffffff'), 0.35); } else c.setRGB(cols[t * 3] / 255, cols[t * 3 + 1] / 255, cols[t * 3 + 2] / 255, THREE.SRGBColorSpace);
+    for (let j = 0; j < 3; j++) { const v = tris[t * 3 + j] * 3, o = t * 9 + j * 3; pos[o] = (d.min[0] + q[v] / 65535 * d.size[0] - cx) * k; pos[o + 1] = (d.min[1] + q[v + 1] / 65535 * d.size[1] - cy) * k; pos[o + 2] = (d.min[2] + q[v + 2] / 65535 * d.size[2] - cz) * k; col[o] = c.r; col[o + 1] = c.g; col[o + 2] = c.b; }
+  }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.computeVertexNormals(); return g;
+}
 
 // ---- the sectors as territory (0.36). A sector is a band of rings cut into slices round its front, so on the board it
 // is a piece of a ring: an arc on the inside, an arc on the outside and a straight edge either end. The pieces fit edge to
@@ -175,6 +188,11 @@ export class Galaxy3D {
       const ln = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, -0.5, 0), new THREE.Vector3(Math.cos(a0) * W, -0.5, Math.sin(a0) * W)]), new THREE.LineDashedMaterial({ color: 0xe6eadc, transparent: true, opacity: 0.22, dashSize: 1.2, gapSize: 2.4 }));
       ln.computeLineDistances(); S.add(ln); return m;
     });
+    // (0.40) the fleets' own hulls, made in Blender: fetched once, and put on the fleets as they come
+    this.hulls = {};
+    if (typeof fetch === 'function') fetch('assets/models/index.json').then((r) => (r.ok ? r.json() : null)).then((ix) => {
+      for (const f of SIDES) if (ix && (ix.ships || []).includes('ship_' + f)) fetch(`assets/models/ship_${f}.json`).then((r) => (r.ok ? r.json() : null)).then((d) => { if (!d || !d.frames || !d.frames.stand) return; this.hulls[f] = shipFile(d, f); if (this.fleet && this.fleet[f]) this.fleet[f].geometry = this.hulls[f]; }).catch(() => {});
+    }).catch(() => {});
     this.ok = true;
   }
   // The worlds and lanes of this war's map (built once for a map, coloured every frame).
@@ -196,7 +214,7 @@ export class Galaxy3D {
     // (0.36) THE SECTORS: territory, edge to edge, shaded in its holder's colour (it was a loop round each sector's systems)
     this.terr = territory(g); S.add(this.terr);
     // the fleets: one hull a side, and a light at each ship's engines
-    this.fleet = {}; for (const f of SIDES) { const m = new THREE.InstancedMesh(shipOf(f), new THREE.MeshStandardMaterial({ roughness: 0.6, metalness: 0.25, flatShading: true, vertexColors: true }), MAXSHIPS / 4); m.count = 0; m.frustumCulled = false; S.add(m); this.fleet[f] = m; }
+    this.fleet = {}; for (const f of SIDES) { const m = new THREE.InstancedMesh(this.hulls[f] || shipOf(f), new THREE.MeshStandardMaterial({ roughness: 0.6, metalness: 0.25, flatShading: true, vertexColors: true }), MAXSHIPS / 4); m.count = 0; m.frustumCulled = false; S.add(m); this.fleet[f] = m; }
     { const gg = new THREE.BufferGeometry(); gg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAXSHIPS * 3), 3)); gg.setAttribute('color', new THREE.BufferAttribute(new Float32Array(MAXSHIPS * 3), 3)); gg.setDrawRange(0, 0);
       this.glows = new THREE.Points(gg, new THREE.PointsMaterial({ size: 2.6, sizeAttenuation: true, vertexColors: true, map: dotTexture(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); this.glows.frustumCulled = false; this.glows.renderOrder = 4; S.add(this.glows); }
     this.lanes.renderOrder = 2; this.halo.renderOrder = 3;

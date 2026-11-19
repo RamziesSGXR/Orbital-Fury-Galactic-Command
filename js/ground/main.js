@@ -97,6 +97,7 @@ function wirePhoto() {
 function lookStart(src) {
   wirePhoto();
   { let k = {}; try { k = JSON.parse(localStorage.getItem('ofgc.view') || '{}') || {}; } catch { /* nothing kept */ } cam.sight = src.sight || k.sight || 'whot'; cam.hot = k.hot || 'whot'; cam.topo = !!k.topo; syncView(); }
+  if (src.hints != null) settings.cards = src.hints ? (settings.cards === 'off' ? 'side' : settings.cards) : 'off';     // (GC 0.40) the hints switch on the main menu is the one switch: it turns the tip cards down here on and off too
   cam.livery = src.livery || null; cam.orbit = src.orbit ?? 1; cam.g3d = src.flat ? false : true;     // the land in 3D under the circling view     // the circling view: slow, as from high up; a full turn takes about twenty-six minutes of mission time
 }
 function gcStart() {

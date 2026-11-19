@@ -86,6 +86,8 @@ const MODELS = {
     part(g, BOX, a, 0, 0.8, 0, 0.6, 0.45, 0.7); part(g, CYL, b, 0, 0.82, 0.8, 0.1, 1.1, 0.1, Math.PI / 2); part(g, BOX, mat('#ffffff'), 0, 1.06, 0, 0.5, 0.06, 0.5); return g; },
 };
 
+// (GC 0.40) the file a thing's model is kept in: 'tree:leaf' is prop_tree_leaf, 'post:mg' is prop_post_mg
+const FILE = (k) => 'prop_' + String(k).replace(/:/g, '_');
 export class Props3D {
   constructor(scene) {
     this.scene = scene; this.kinds = new Map(); this.used = new Map();
@@ -95,18 +97,18 @@ export class Props3D {
     // fetched as the game starts. Until one has come, the old flat drawing of it is used (VIEW.m3 says which have come).
     this.files = new Map(); this.accent = '#ff5a3a';
     fetch('assets/models/index.json').then((r) => (r.ok ? r.json() : null)).then((ix) => {
-      for (const name of (ix && ix.props) || []) fetch(`assets/models/${name}.json`).then((r) => (r.ok ? r.json() : null)).then((d) => { if (d && d.frames && d.frames.stand) { this.files.set(name, d); this._drop(name); VIEW.m3.add(name); } }).catch(() => {});
+      for (const name of (ix && ix.props) || []) fetch(`assets/models/${name}.json`).then((r) => (r.ok ? r.json() : null)).then((d) => { if (d && d.frames && d.frames.stand) { this.files.set(name, d); for (const k of [...this.kinds.keys()]) if (k === name || FILE(k) === name) this._drop(k); VIEW.m3.add(name); } }).catch(() => {});
     }).catch(() => {});
   }
-  has(k) { return !!MODELS[k] || this.files.has(k); }
+  has(k) { return !!MODELS[k] || this.files.has(k) || this.files.has(FILE(k)); }
   _drop(k) { const m = this.kinds.get(k); if (m) { this.scene.remove(m); m.geometry.dispose(); } this.kinds.delete(k); }
   // the enemy's own colour, for the parts of a model that wear it (its screen, its lamps, its door)
   setAccent(hex) { if (!hex || hex === this.accent) return; this.accent = hex; for (const k of this.files.keys()) this._drop(k); }
   _kind(k) {
     let m = this.kinds.get(k); if (m !== undefined) return m;
-    const file = this.files.get(k), make = MODELS[k]; if (!file && !make) { this.kinds.set(k, null); return null; }
+    const file = this.files.get(k) || this.files.get(FILE(k)), make = MODELS[k]; if (!file && !make) { this.kinds.set(k, null); return null; }     // (GC 0.40) a model from Blender if it has come, else the one built here
     const geo = file ? staticGeo(file, { accent: this.accent, accent_lit: this.accent }) : bake(make(), null, true);
-    m = new THREE.InstancedMesh(geo, file ? this.smooth : this.mat, file ? 96 : CAP); m.count = 0; m.frustumCulled = false; m.castShadow = true; m.receiveShadow = true; m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    m = new THREE.InstancedMesh(geo, file ? this.smooth : this.mat, file && !this.files.has(FILE(k)) ? 96 : CAP); m.count = 0; m.frustumCulled = false; m.castShadow = true; m.receiveShadow = true; m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.scene.add(m); this.kinds.set(k, m); return m;
   }
   // list: [{ k, x, y (the map's), s (footprint, metres), h (height scale, if not s), rot (radians), tint, dim }]; lit: how much light the hour leaves (0 to 1)
