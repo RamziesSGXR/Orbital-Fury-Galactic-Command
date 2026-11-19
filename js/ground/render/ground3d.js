@@ -21,8 +21,14 @@ export class Ground3D {
     this.cam = new THREE.PerspectiveCamera(V3.fov, 1, 5, 6000);
     // (0.37) less light from everywhere and more from the sun, which stands lower: a slope turned to it is bright and one
     // turned away is dark, so the shape of the land can be read
-    this.scene.add(new THREE.AmbientLight(0xffffff, 1.15));
-    this.sun = new THREE.DirectionalLight(0xffffff, 3.1); this.scene.add(this.sun); this.scene.add(this.sun.target);
+    // (0.38) the light from everywhere is the sky's above and the ground's own below (so the underside of a thing is darker
+    // than its top), and the sun throws real shadows: every unit, building, tree and hill on the ground beside it
+    this.sky = new THREE.HemisphereLight(0xeef3ff, 0x6a6258, 1.25); this.scene.add(this.sky);
+    this.sun = new THREE.DirectionalLight(0xfff6e8, 3.1);
+    this.r.shadowMap.enabled = true; this.r.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.sun.castShadow = true; this.sun.shadow.mapSize.set(2048, 2048); this.sun.shadow.bias = -0.0006; this.sun.shadow.normalBias = 0.5;
+    this.scene.fog = new THREE.Fog(0x39434a, 400, 1600);     // distance: the far ground fades into haze
+    this.scene.add(this.sun); this.scene.add(this.sun.target);
     const n = V3.grid, vn = (n + 1) * (n + 1);
     this.pos = new Float32Array(vn * 3); this.uv = new Float32Array(vn * 2);
     const idx = new Uint32Array(n * n * 6); let k = 0;
@@ -55,14 +61,14 @@ export class Ground3D {
         diffuseColor.rgb *= gcLin(clamp(gr * (1.0 - ov.a) + ov.rgb, 0.0, 1.0));`);
     }; return mat; };
     this.mat = two(new THREE.MeshLambertMaterial({ color: 0xffffff }));
-    this.mesh = new THREE.Mesh(g, this.mat); this.mesh.frustumCulled = false; this.scene.add(this.mesh);
+    this.mesh = new THREE.Mesh(g, this.mat); this.mesh.frustumCulled = false; this.mesh.receiveShadow = true; this.mesh.castShadow = true; this.scene.add(this.mesh);
     // THE THINGS THAT STAND UP (GC 0.19): rocks, trees, buildings, guns. Each is a block risen out of the sheet: its roof is the
     // very patch of the sheet it stands on (so it wears its own top-down drawing, lit and fogged like everything else) and
     // its walls take the colours at its edge, darker. Built afresh each frame from what is in view.
     { const nv = V3.blocks * V3.sides * 9; this.bp = new Float32Array(nv * 3); this.bu = new Float32Array(nv * 2); this.bn = new Float32Array(nv * 3); this.bc = new Float32Array(nv * 3);
       const bg = this.bgeo = new THREE.BufferGeometry(); bg.setAttribute('position', new THREE.BufferAttribute(this.bp, 3)); bg.setAttribute('uv', new THREE.BufferAttribute(this.bu, 2)); bg.setAttribute('normal', new THREE.BufferAttribute(this.bn, 3)); bg.setAttribute('color', new THREE.BufferAttribute(this.bc, 3));
       this.bmat = two(new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true }));
-      this.bmesh = new THREE.Mesh(bg, this.bmat); this.bmesh.frustumCulled = false; this.scene.add(this.bmesh); }
+      this.bmesh = new THREE.Mesh(bg, this.bmat); this.bmesh.frustumCulled = false; this.bmesh.castShadow = true; this.bmesh.receiveShadow = true; this.scene.add(this.bmesh); }
     this.v = new THREE.Vector3(); this.pv = new THREE.Matrix4(); this.inv = new THREE.Matrix4();
     this.h = () => 0.5; this.W = this.H = 1; this.ok = true; this.amp = V3.amp;
     try { this.units = new Units3D(this.scene, livery); this.fx = new Fx3D(this.scene); } catch (err) { console.warn('3D units unavailable', err); this.units = null; this.fx = null; }
@@ -115,7 +121,11 @@ export class Ground3D {
     C.position.set(camX - fx * d * Math.cos(E), ly + d * Math.sin(E), camY - fz * d * Math.cos(E)); C.lookAt(camX, ly, camY); C.updateMatrixWorld(); C.updateProjectionMatrix();
     C.matrixWorldInverse.copy(C.matrixWorld).invert(); this.pv.multiplyMatrices(C.projectionMatrix, C.matrixWorldInverse); this.inv.copy(this.pv).invert();
     // the light falls the way the map's own shading says it does (from the north-west when the hour has no sun)
-    const lx = sun ? sun.lx : -0.6, lz = sun ? sun.ly : -0.6; this.sun.position.set(camX + lx * 200, 150, camY + lz * 200); this.sun.target.position.set(camX, 0, camY); this.sun.target.updateMatrixWorld();
+    const lx = sun ? sun.lx : -0.6, lz = sun ? sun.ly : -0.6; this.sun.position.set(camX + lx * 400, ly + 300, camY + lz * 400); this.sun.target.position.set(camX, ly, camY); this.sun.target.updateMatrixWorld();
+    // the shadows' own camera: square on the ground in view, no wider than it need be (so a shadow keeps its edge)
+    { const on = o.shadows !== false, sh = this.sun.shadow, sc = sh.camera, half = Math.max(60, Math.min(S / scale / 2, d * 1.15)); if (this.sun.castShadow !== on) { this.sun.castShadow = on; this.mat.needsUpdate = true; this.bmat.needsUpdate = true; }
+      if (on && (sc.right !== half || !this._shOk)) { sc.left = -half; sc.right = half; sc.top = half; sc.bottom = -half; sc.near = 10; sc.far = 1400; sc.updateProjectionMatrix(); this._shOk = true; } }
+    this.scene.fog.near = d * 1.35; this.scene.fog.far = d * 6;
     // the ship's gun hangs under the gunship, off to the right of the sight: its shells come in from the edge of the picture
     if (this.fx) { const e = C.matrixWorld.elements; this.gun.set(C.position.x + e[0] * d * 0.5 - e[4] * d * 0.22, C.position.y + e[1] * d * 0.5 - e[5] * d * 0.22, C.position.z + e[2] * d * 0.5 - e[6] * d * 0.22); this.fx.frame({ drops: o.drops, shells: o.shells, strobes: o.strobes, blasts: o.blasts, bolts: o.bolts, orbs: o.orbs, domes: o.domes, puffs: o.puffs, eye: this.cam.quaternion, gun: this.gun }, (x, z) => this.y(x, z)); }
     // (0.37) the picture is taken onto a target, and the sight (infrared white-hot, black-hot, or plain colour) is put on as it
@@ -135,7 +145,10 @@ export class Ground3D {
           vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
           fragmentShader: `uniform sampler2D t; uniform int uMode; varying vec2 vUv;
             vec3 enc(vec3 c) { return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c)); }
-            void main() { vec3 c = enc(clamp(texture2D(t, vUv).rgb, 0.0, 1.0));
+            vec3 film(vec3 x) { x *= 1.05; return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0); }     // a film's curve: bright things roll off, dark things keep their depth
+            void main() { vec3 lin = texture2D(t, vUv).rgb; vec3 c = enc(uMode > 0 ? clamp(lin, 0.0, 1.0) : film(max(lin, 0.0)));
+              if (uMode == 0) { float l = dot(c, vec3(0.2126, 0.7152, 0.0722)); c = mix(vec3(l), c, 0.86); }
+              vec2 q = vUv - 0.5; c *= 1.0 - 0.22 * smoothstep(0.45, 1.0, length(q * vec2(1.0, 0.82)) * 1.45);     // darker toward the corners, as through a lens
               if (uMode > 0) { float l = dot(c, vec3(0.2126, 0.7152, 0.0722)); if (uMode == 2) l = 1.0 - l; l = (l - 0.5) * (uMode == 1 ? 1.25 : 1.2) + 0.5; l *= uMode == 1 ? 0.82 : 0.9; c = vec3(clamp(l, 0.0, 1.0)); }
               gl_FragColor = vec4(c, 1.0); }` });
         const scene = new THREE.Scene(), quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mat); quad.frustumCulled = false; scene.add(quad);

@@ -407,8 +407,27 @@ export class Renderer {
         for (const T of b.turrets || []) if (!T.dead) out.push({ k: 'turret', x: T.x, y: T.y, s: Math.max(1.3, T.r * 1.1), rot: face(T.face), tint: hit(T) || pal.enemy, flash: fl(T) });
       } else out.push({ k: b.cannon ? 'cannon' : b.node ? 'node' : fk, x: b.x, y: b.y, s: Math.max(2.2, (b.r || 8) * (b.cannon ? 0.8 : b.node ? 0.6 : 0.85)), rot: b.cannon ? face(b.face) : (b.id * 1.7) % 6.28, tint: hit(b, b.lastHit) });
     }
+    // (GC 0.38) THE OBJECTIVES AND SIDE SITES, as the models made for them (tools/blender/sites.py); each only once its file has come
+    { const M3 = VIEW.m3, turn = (o) => (((o.id || 1) * 2.3 + o.x * 0.01) % 6.28), put = (k, x, y, s2, rot, o) => { if (M3.has(k) && Math.abs(x - cx) < half && Math.abs(y - cy) < half) out.push({ k, x, y, s: s2, rot, tint: o ? hit(o) : null, flash: o ? fl(o) : false }); };
+      if (this._g3 && this._g3.props) this._g3.props.setAccent(pal.enemy);
+      for (const o of m.objectives || []) {
+        if (o.type === 'nuke') put('site_silo', o.x, o.y, Math.max(7, (o.r || 10) * 0.8), turn(o));
+        else if (o.type === 'vip') { if (!o.picked) put('site_crash', o.x, o.y, 11, ((o.x * 7 + o.y) | 0) % 6.28); put('site_pad', o.dx, o.dy, 11.5, 0); }
+        else if (o.type === 'oil') put('site_derrick', o.x, o.y, Math.max(8, (o.r || 12) * 0.75), turn(o));
+      }
+      { const hb = m.democharge; if (hb && (hb.state === 'landed' || hb.state === 'armed')) put('site_charge', hb.x, hb.y, 2.2, 0.6); }
+      for (const q of m.loot || []) if (q.kind === 'wreck') put('site_wreck', q.x, q.y, Math.max(4.5, (q.r || 4) * 1.3), turn(q));
+      for (const sd of m.sides || []) {
+        if (sd.done || sd.failed || sd.hidden) { if (sd.kind === 'radio' && sd.done) put('side_radio', sd.x, sd.y, Math.max(5, sd.r * 0.7), turn(sd)); continue; }
+        if (sd.kind === 'radio') put('side_radio', sd.x, sd.y, Math.max(5, sd.r * 0.7), turn(sd));
+        else if (sd.kind === 'arty') put('side_howitzer', sd.x, sd.y, 5, Math.PI / 2 - (sd.face || 0));
+        else if (sd.kind === 'jammer') put('side_jam_' + sd.fac, sd.x, sd.y, Math.max(4, sd.r * 0.6), turn(sd));
+        else if (sd.kind === 'rescue') put('side_redoubt', sd.x, sd.y, Math.max(6, sd.r * 0.62), turn(sd));
+      }
+    }
     { const pk = { bugs: ['spire', 'hive'], bots: ['node', 'fab'], lizards: ['totem', 'camp'] }[m.faction.id] || ['node', 'fab'];     // the enemy's side sites
-      for (const p of m.pois || []) if (!p.done && near(p)) out.push({ k: pk[(p.id || 0) % 2], x: p.x, y: p.y, s: Math.max(2.4, (p.r || 12) * 0.42), rot: ((p.id || 1) * 2.3) % 6.28, tint: hit(p), flash: fl(p), dim: m.visLevel(p.x, p.y) > 0 ? 1 : 0.7 }); }
+      const PK = { spore: 'poi_spewer', propaganda: 'poi_broadcast', relay: 'poi_relay', cache: 'poi_cache' };
+      for (const p of m.pois || []) if (!p.done && near(p)) out.push({ k: VIEW.m3.has(PK[p.kind]) ? PK[p.kind] : pk[(p.id || 0) % 2], x: p.x, y: p.y, s: Math.max(2.4, (p.r || 12) * 0.42), rot: ((p.id || 1) * 2.3) % 6.28, tint: hit(p), flash: fl(p), dim: m.visLevel(p.x, p.y) > 0 ? 1 : 0.7 }); }
     for (const q of m.loot || []) if (!q.done && q.kind !== 'wreck' && near(q)) out.push({ k: 'crate', x: q.x, y: q.y, s: Math.max(1.3, (q.r || 3) * 0.55), rot: ((q.id || 1) * 1.9) % 6.28 });     // what can be picked up
     for (const p of m.posts || []) { const d = P3_POST[p.what]; if (d && !p.dead && !p.ghost && near(p)) out.push({ k: d[0], x: p.x, y: p.y, s: d[1], rot: face(p.face), tint: hit(p), flash: fl(p) }); }
     for (const a of m.assets || []) if (a.kind === 'turret' && !a.dead && near(a)) out.push({ k: 'aturret', x: a.x, y: a.y, s: 1.5, rot: face(a.face), tint: hit(a), flash: fl(a) });
@@ -426,7 +445,7 @@ export class Renderer {
     this.pass(m, cam);
     // (GC 0.18) the land in 3D, when the camera asks for it and the machine can do it; without it, the turned sheet of 0.16
     if (cam.g3d && this._g3 === undefined) { try { this._g3 = new Ground3D(cam.livery); } catch (err) { console.warn('3D ground unavailable', err); this._g3 = null; } }
-    const g3 = cam.g3d ? this._g3 : null; this._g3on = false; VIEW.p3 = !!(g3 && g3.props);
+    const g3 = cam.g3d ? this._g3 : null; this._g3on = false; VIEW.p3 = !!(g3 && g3.props); VIEW.sh = !!(g3 && g3.units) && !(this.quality === 'low' || this.perf.low || (this.perf.tier || 0) >= 2);     // (GC 0.38) sh: the sun throws real shadows this frame
     const U3 = this._u3 || (this._u3 = []); U3.length = 0; const u3 = g3 && g3.units ? U3 : null;
     const D3 = this._d3 || (this._d3 = []), S3 = this._s3l || (this._s3l = []), B3 = this._b3 || (this._b3 = []); D3.length = S3.length = B3.length = 0; this._s3 = u3 ? S3 : null; const X3 = this._x3l || (this._x3l = []); X3.length = 0; this._x3 = u3 && g3.fx ? X3 : null; VIEW.air = u3; VIEW.drops = u3 ? D3 : null; const T3 = this._t3l || (this._t3l = []), O3 = this._o3l || (this._o3l = []), DM3 = this._dm3l || (this._dm3l = []); T3.length = O3.length = DM3.length = 0; this._t3 = this._x3 ? T3 : null; this._o3 = this._x3 ? O3 : null; this._dm3 = this._x3 ? DM3 : null; const SM3 = this._sm3l || (this._sm3l = []); SM3.length = 0; this._sm3 = this._x3 ? SM3 : null;     // (GC 0.25) the troops' fire, what is lobbed, the shields     // (GC 0.22) what falls, the ship's shells, the strobes     // (GC 0.20) who stands up in 3D this frame, and is not drawn on the sheet
     let real = null;
@@ -615,6 +634,7 @@ export class Renderer {
         }
         up = liftUnit(ctx, e.x, e.y, sr, eh, wallE, e.vis >= 2 ? 1 : 0.6);
       }
+      else if (VIEW.sh) { /* (GC 0.38) in 3D with the sun's own shadows: no drawn one */ }
       else if (!e.boss) { const sr = enemyR(e, SUBTYPES[e.kind], px); ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.beginPath(); ctx.ellipse(e.x + sr * 0.4, e.y + sr * 0.5, sr * 0.7, sr * 0.38, 0, 0, TAU); ctx.fill(); }     // (0.59) its shadow (0.58.2: a flat one under its feet, not a disc behind it)
       else { const sr = e.r * 1.5; ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.beginPath(); ctx.ellipse(e.x + sr * 0.5, e.y + sr * 0.4, sr * 1.1, sr * 0.8, 0, 0, TAU); ctx.fill(); }
       if (e.boss) {
@@ -687,7 +707,7 @@ export class Renderer {
         raiseUnit(ctx, r * (H_ ? 0.5 : 0.42), wallA, (c) => drawAllyBody(c, a, r, pal.ally, tm ? tm.color : null, on, now, px, t));
       }
       else if (!flat) up = liftUnit(ctx, a.x, a.y, r, r * (H_ ? 0.5 : 0.42), wallA);
-      else { ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.ellipse(a.x + r * 0.45, a.y + r * 0.35, r * 0.95, r * 0.7, 0, 0, TAU); ctx.fill(); }     // (0.59) its shadow
+      else if (!VIEW.sh) { ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.ellipse(a.x + r * 0.45, a.y + r * 0.35, r * 0.95, r * 0.7, 0, 0, TAU); ctx.fill(); }     // (0.59) its shadow
       if (!fine) { if (u3) u3.push({ k: H_ ? 'van' : 'inf', x: a.x, y: a.y, r: r * (H_ ? 1.25 : 1.1), face: a.aimUntil > t ? a.aimA : a.face, tint: tm ? tm.color : null, lod: far3 !== '', aim: !a.down && a.aimUntil > t, pose: a.down ? 'down' : t - (a.hurtAt ?? -9) < 0.18 ? 'hit' : (!H_ && a.aimUntil > t && (a.vx || 0) ** 2 + (a.vy || 0) ** 2 <= 0.1 && a.id % 3 !== 0) ? 'kneel' : null, tumble: a.down ? Math.PI / 2 : undefined, walk: a.down ? null : (a.vx || 0) ** 2 + (a.vy || 0) ** 2 > 0.1 ? t * 11 + a.id : null }); else drawAllyBody(ctx, a, r, pal.ally, tm ? tm.color : null, on, now, px, t); }
       if (up) dropUnit(ctx, up);
       if (t - a.hurtAt < 0.1 && !hideUi) { ctx.strokeStyle = '#ff6a6a'; ctx.lineWidth = px(1.5); ctx.beginPath(); ctx.arc(a.x, a.y, r * 1.3, 0, TAU); ctx.stroke(); }
@@ -779,7 +799,7 @@ export class Renderer {
     if (real) {     // lay the turned world on the screen
       const wc = this._wc, S = this.W; this.ctx = real.ctx; this.W = real.W; this.H = real.H; this.focusY = real.focusY; this._real = null; ctx = this.ctx; W = this.W; H = this.H;
       ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
-      if (g3) { const t0 = performance.now(); g3.frame({ sheet: wc, S, scale, camX: v.camX, camY: v.camY, yaw: cam.yaw, tilt: cam.tilt || cam.passTilt, W, H, fy: this.focusY || 0.5, sun: this._sun, height: (x, y) => m.terrain.height(x, y), blocks: this._blocks(m, v.camX, v.camY, S / scale / 2), props: VIEW.p3 ? this._props(m, v.camX, v.camY, S / scale / 2, pal) : null, lit: 1 - Math.min(0.6, (this._dark || 0) * 0.75), units: U3, drops: D3, shells: S3, strobes: B3, blasts: X3, bolts: T3, orbs: O3, domes: DM3, puffs: SM3, hot: cam.sight === 'whot' || cam.sight === 'bhot', sight: cam.sight, topo: !!cam.topo, ground: this.groundCv, groundRev: this.groundRev || 0, size: SIZE, post: !(this.quality === 'low' || this.perf.low) });
+      if (g3) { const t0 = performance.now(); g3.frame({ sheet: wc, S, scale, camX: v.camX, camY: v.camY, yaw: cam.yaw, tilt: cam.tilt || cam.passTilt, W, H, fy: this.focusY || 0.5, sun: this._sun, height: (x, y) => m.terrain.height(x, y), blocks: this._blocks(m, v.camX, v.camY, S / scale / 2), props: VIEW.p3 ? this._props(m, v.camX, v.camY, S / scale / 2, pal) : null, lit: 1 - Math.min(0.6, (this._dark || 0) * 0.75), units: U3, drops: D3, shells: S3, strobes: B3, blasts: X3, bolts: T3, orbs: O3, domes: DM3, puffs: SM3, hot: cam.sight === 'whot' || cam.sight === 'bhot', sight: cam.sight, topo: !!cam.topo, ground: this.groundCv, groundRev: this.groundRev || 0, size: SIZE, post: !(this.quality === 'low' || this.perf.low), shadows: VIEW.sh });
         if (!g3.sighted) ctx.filter = cam.sight === 'whot' ? 'grayscale(1) contrast(1.25) brightness(0.82)' : cam.sight === 'bhot' ? 'grayscale(1) invert(1) contrast(1.2) brightness(0.9)' : 'none';     // (only where the graphics card could not put the sight on itself)
         ctx.drawImage(g3.cv, 0, 0); ctx.filter = 'none'; this._g3on = true; this.t3 = (this.t3 || 0) + (performance.now() - t0 - (this.t3 || 0)) * 0.08; }     // (the sight: infrared white-hot, black-hot, or plain colour)
       else { ctx.translate(v.px, v.py); ctx.rotate(cam.yaw); ctx.drawImage(wc, -S / 2, -S / 2); }

@@ -5,7 +5,8 @@
 // Every model is built round the origin, standing on y = 0, a footprint radius of one and as tall as it is drawn here;
 // an instance gives its place, its footprint (s), its height (h, if not the same), its turn and a tint.
 import * as THREE from '../../vendor/three.js';
-import { bake } from './units3d.js';
+import { bake, staticGeo } from './units3d.js';
+import { VIEW } from './view.js';
 
 const CAP = 900;
 const M4 = new THREE.Matrix4(), Q = new THREE.Quaternion(), UP = new THREE.Vector3(0, 1, 0), P = new THREE.Vector3(), S = new THREE.Vector3(), COL = new THREE.Color();
@@ -89,19 +90,30 @@ export class Props3D {
   constructor(scene) {
     this.scene = scene; this.kinds = new Map(); this.used = new Map();
     this.mat = new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true, flatShading: true });
+    this.smooth = new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true });     // (the Blender models bring their own normals: rounded where they curve)
+    // (GC 0.38) the objectives and side sites are models made in Blender (tools/blender/sites.py), listed in the index and
+    // fetched as the game starts. Until one has come, the old flat drawing of it is used (VIEW.m3 says which have come).
+    this.files = new Map(); this.accent = '#ff5a3a';
+    fetch('assets/models/index.json').then((r) => (r.ok ? r.json() : null)).then((ix) => {
+      for (const name of (ix && ix.props) || []) fetch(`assets/models/${name}.json`).then((r) => (r.ok ? r.json() : null)).then((d) => { if (d && d.frames && d.frames.stand) { this.files.set(name, d); this._drop(name); VIEW.m3.add(name); } }).catch(() => {});
+    }).catch(() => {});
   }
-  has(k) { return !!MODELS[k]; }
+  has(k) { return !!MODELS[k] || this.files.has(k); }
+  _drop(k) { const m = this.kinds.get(k); if (m) { this.scene.remove(m); m.geometry.dispose(); } this.kinds.delete(k); }
+  // the enemy's own colour, for the parts of a model that wear it (its screen, its lamps, its door)
+  setAccent(hex) { if (!hex || hex === this.accent) return; this.accent = hex; for (const k of this.files.keys()) this._drop(k); }
   _kind(k) {
     let m = this.kinds.get(k); if (m !== undefined) return m;
-    const make = MODELS[k]; if (!make) { this.kinds.set(k, null); return null; }
-    m = new THREE.InstancedMesh(bake(make(), null, true), this.mat, CAP); m.count = 0; m.frustumCulled = false; m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    const file = this.files.get(k), make = MODELS[k]; if (!file && !make) { this.kinds.set(k, null); return null; }
+    const geo = file ? staticGeo(file, { accent: this.accent, accent_lit: this.accent }) : bake(make(), null, true);
+    m = new THREE.InstancedMesh(geo, file ? this.smooth : this.mat, file ? 96 : CAP); m.count = 0; m.frustumCulled = false; m.castShadow = true; m.receiveShadow = true; m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.scene.add(m); this.kinds.set(k, m); return m;
   }
   // list: [{ k, x, y (the map's), s (footprint, metres), h (height scale, if not s), rot (radians), tint, dim }]; lit: how much light the hour leaves (0 to 1)
   frame(list, ground, lit = 1) {
-    this.mat.color.setScalar(lit); this.used.clear();
+    this.mat.color.setScalar(lit); this.smooth.color.setScalar(lit); this.used.clear();
     for (const u of list) {
-      const m = this._kind(u.k); if (!m) continue; const n = this.used.get(m) || 0; if (n >= CAP) continue;
+      const m = this._kind(u.k); if (!m) continue; const n = this.used.get(m) || 0; if (n >= m.instanceMatrix.count) continue;
       Q.setFromAxisAngle(UP, u.rot || 0); P.set(u.x, ground(u.x, u.y) - (u.sink || 0), u.y); S.set(u.s, u.h || u.s, u.s);
       m.setMatrixAt(n, M4.compose(P, Q, S)); COL.set(u.tint || '#ffffff'); if (u.dim != null && u.dim < 1) COL.multiplyScalar(u.dim); if (u.flash) COL.multiplyScalar(2.4); m.setColorAt(n, COL);
       this.used.set(m, n + 1);

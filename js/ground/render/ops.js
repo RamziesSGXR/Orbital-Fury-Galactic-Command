@@ -8,6 +8,7 @@ import { crateSec, foxholeSlots, wireEnds } from '../sim/posts.js';
 import { t as tr } from '../i18n.js';
 import { drawDemoCharge } from './sites.js';
 import { raise } from './relief.js';
+import { VIEW } from './view.js';
 import { jammerBody, radioBody, redoubtBody, howitzerBody } from './sideart.js';
 const RAISE_S = { wall: 0.56, live: true };     // (0.62.8) the side objectives stand up like every other building
 
@@ -35,7 +36,7 @@ export function drawAoEdge(ctx, m, px, x0, y0, x1, y1) {
 // A radio tower (sideart.js radioBody), raised; online, it pulses blue.
 function radioArt(ctx, s, now, px, col) {
   const r = Math.max(s.r, px(8)) * 1.1;
-  raise(ctx, s, s.x, s.y, r * 1.7, 3.2, (c) => { c.save(); c.translate(s.x, s.y); radioBody(c, r, s.id || 1, !!s.done, now, px); c.restore(); }, { ...RAISE_S, sig: s.done ? 1 : 0 });
+  if (!(VIEW.p3 && VIEW.m3.has('side_radio'))) raise(ctx, s, s.x, s.y, r * 1.7, 3.2, (c) => { c.save(); c.translate(s.x, s.y); radioBody(c, r, s.id || 1, !!s.done, now, px); c.restore(); }, { ...RAISE_S, sig: s.done ? 1 : 0 });
   if (s.done) { const p = (now * 0.6) % 1; ctx.strokeStyle = `rgba(127,216,255,${0.6 * (1 - p)})`; ctx.lineWidth = px(1.5); ring(ctx, s.x, s.y, r * (1.2 + p * 2.5)); ctx.stroke(); }
   void col;
 }
@@ -51,7 +52,7 @@ function jammerArt(ctx, s, now, px) {
   ctx.lineDashOffset = -now * px(6); ring(ctx, s.x, s.y, s.R); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
   ctx.fillStyle = rgba(col, 0.05 + 0.04 * p); ring(ctx, s.x, s.y, s.R); ctx.fill();
   // (0.62.8) the thing itself: a shrieker nest, a call-in jammer or a cognitive disruptor (sideart.js), raised
-  raise(ctx, s, s.x, s.y, r * 1.9, 2.6, (c) => { c.save(); c.translate(s.x, s.y); jammerBody(c, s.fac, col, r, s.id || 1, s.face || 0, now, px); c.restore(); }, RAISE_S);
+  if (!(VIEW.p3 && VIEW.m3.has('side_jam_' + s.fac))) raise(ctx, s, s.x, s.y, r * 1.9, 2.6, (c) => { c.save(); c.translate(s.x, s.y); jammerBody(c, s.fac, col, r, s.id || 1, s.face || 0, now, px); c.restore(); }, RAISE_S);
   void p;
 }
 
@@ -73,7 +74,7 @@ export function drawSides(ctx, m, now, px, labels, scale) {
   // (0.37) a Demolition Charge for a side task (the citadel's own is drawn with the citadel)
   const hb = m.democharge;
   if (hb && hb.o && hb.o.side) {
-    drawDemoCharge(ctx, hb, C.objective.democharge, now, px, m.t);
+    if (!((VIEW.p3 && VIEW.m3.has('site_charge')) && hb.state !== 'inbound')) drawDemoCharge(ctx, hb, C.objective.democharge, now, px, m.t);
     if (hb.state === 'landed') labels.push({ x: hb.x, y: hb.y, dy: -14, text: tr('lab.hbArm'), col: '#7dff9b', pri: 3 });
     if (hb.state === 'armed') labels.push({ x: hb.x, y: hb.y, dy: -14, text: tr('lab.hbRun', { n: Math.max(0, Math.ceil(hb.fuseAt - m.t)) }), col: '#ff6a4a', pri: 3 });
   }
@@ -113,7 +114,7 @@ export function drawSides(ctx, m, now, px, labels, scale) {
     if (s.done || s.failed) { if (s.failed) labels.push({ x: s.x, y: s.y, dy: -14, text: OPS.rescueLost, col: 'rgba(255,120,100,0.6)', pri: 0 }); continue; }
     const R = Math.max(s.r, px(10)), hot = s.state === 'siege';
     // (0.62.8) a sandbag redoubt with their flag in it (sideart.js), raised: it was a dashed ring
-    raise(ctx, s, s.x, s.y, R * 1.25, 0.9, (c) => { c.save(); c.translate(s.x, s.y); redoubtBody(c, R, s.id || 1, hot, now, px); c.restore(); }, { ...RAISE_S, sig: hot ? 1 : 0 });
+    if (!(VIEW.p3 && VIEW.m3.has('side_redoubt'))) raise(ctx, s, s.x, s.y, R * 1.25, 0.9, (c) => { c.save(); c.translate(s.x, s.y); redoubtBody(c, R, s.id || 1, hot, now, px); c.restore(); }, { ...RAISE_S, sig: hot ? 1 : 0 });
     if (hot) { const p = 0.5 + 0.5 * Math.sin(now * 5); ctx.strokeStyle = `rgba(255,80,60,${0.35 + 0.4 * p})`; ctx.lineWidth = px(2); ring(ctx, s.x, s.y, R * 1.6); ctx.stroke(); }
     labels.push({ x: s.x, y: s.y, dy: -R * scale - 8, text: `${hot ? OPS.rescueHot : OPS.rescue} ${alive}`, col: hot ? '#ff8a6a' : '#9dd0ff', pri: s === task || hot ? 2 : 1 });
   }
@@ -131,7 +132,7 @@ function howitzerArt(ctx, x, y, face, now, px, live, who) {
 export function drawArty(ctx, m, now, px, labels, scale) {
   for (const s of m.sides || []) {
     if (s.kind !== 'arty' || s.done || s.failed) continue;
-    howitzerArt(ctx, s.x, s.y, s.face, now, px, false, s);
+    if (!(VIEW.p3 && VIEW.m3.has('side_howitzer'))) howitzerArt(ctx, s.x, s.y, s.face, now, px, false, s);
     if (s.state === 'active') {
       const f = s.holdT / C.sides.arty.holdSec, R = Math.max(C.sides.arty.holdR, px(14));
       ctx.strokeStyle = 'rgba(127,216,255,0.35)'; ctx.lineWidth = px(3); ring(ctx, s.x, s.y, R); ctx.stroke();

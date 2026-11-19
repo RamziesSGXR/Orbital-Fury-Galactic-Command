@@ -4,4 +4,4 @@
 // (GC 0.24) air: the list that aircraft are added to when they fly in 3D (null when the picture is flat); drops: the same for what comes down by parachute.
 // (GC 0.37) bars: health bars drawn on the map beside units and buildings. Off: damage is shown on the thing itself (it flashes
 // when hit and darkens as it is worn down, a building smokes), and aiming at a thing or picking it gives its name and health.
-export const VIEW = { quiet: false, squad: false, p3: false, air: null, drops: null, bars: false };
+export const VIEW = { quiet: false, squad: false, p3: false, air: null, drops: null, bars: false, m3: new Set(), sh: false };     // (GC 0.38) m3: the objectives and side sites whose models have come, so their flat drawings are left out
