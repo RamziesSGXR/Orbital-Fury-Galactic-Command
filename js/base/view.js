@@ -3,7 +3,7 @@ import * as THREE from './vendor/three.js';
 import { B, ZONES, ZKEYS, UTIL, LAND } from './config.js';
 import { dims, wingOf, PLAZA } from './sim.js';
 import { BIOMES } from './site.js';
-import { SCRUB_COL, makeMats, mergeStatic, buildModel, makePerson, poseKit, makeForklift, makeTruck, makeLRV, makeTank, makeCrate, makeDropship, wrap } from './models.js';
+import { SCRUB_COL, loadBuildings, makeMats, mergeStatic, buildModel, makePerson, poseKit, makeForklift, makeTruck, makeLRV, makeTank, makeCrate, makeDropship, wrap } from './models.js';
 const VMAKE = { lift: makeForklift, truck: makeTruck, lrv: makeLRV, tank: makeTank };
 import { Noise } from './noise.js';
 import { Crowd3D } from '../model3d.js';
@@ -80,8 +80,9 @@ export class View {
     this.setFaction(sim.faction);
   }
   setFaction(f) {
-    if (this.m) for (const t of this.m.tex) t.dispose();
+    if (this.m) { for (const t of this.m.tex) t.dispose(); if (this.m._bld) for (const g of this.m._bld.values()) g.dispose(); }
     this.m = makeMats(f);
+    loadBuildings(() => { if (this.sim && this.faction) this.setFaction(this.faction); });     // (when the models have come, everything is built again from them)
     for (const g of this.bm.values()) this.world.remove(g); this.bm.clear();
     for (const c of this.chunks?.values() || []) { this.world.remove(c.group); for (const m of c.group.children) m.geometry.dispose(); } this.chunks = new Map();
     this.pm.clear(); if (this.crowd) for (const c of Object.values(this.crowd)) for (const im of c.ims) { this.world.remove(im); im.dispose(); } this.crowd = {};

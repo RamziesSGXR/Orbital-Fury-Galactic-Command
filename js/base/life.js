@@ -458,7 +458,7 @@ export class Life {
     if (a.task !== want && want === 'honors') {
       a.task = want; a.goal = null; a.path = []; a.then = null; a.lap = null; a.wait = 0;
       if (a.act === 'plan') a.act = 'idle';
-      if (!a.hidden) { a.act = hd ? 'salute' : 'heart'; a.face = this.ceremony ? this.centre(s.byId(this.ceremony.flag) || flag) : this.nearestFlag(a); }
+      if (!a.hidden) { a.act = 'salute'; a.face = this.ceremony ? this.centre(s.byId(this.ceremony.flag) || flag) : this.nearestFlag(a); }
     }
     if (a.task !== want) {
       a.task = want; a.hidden = false; a.wait = 0; a.face = null; a.lap = null;
@@ -499,7 +499,7 @@ export class Life {
         const tv = of('billboard', 'speaker', 'mast'), vend = of('vend'), r = Math.random();
         if (tv.length && r < (hd ? 0.25 : 0.55)) { const v = pick(tv), [x, z] = this.front(v, rnd(1, 2.4), rnd(-1.4, 1.4)); this.go(a, x, z, () => { a.act = 'look'; a.face = this.centre(v); a.wait = rnd(8, 16); }); }
         else if (vend.length && r < 0.75) { const v = pick(vend), [x, z] = this.front(v, 0.6, rnd(-0.3, 0.3)); this.go(a, x, z, () => { a.act = 'drink'; a.face = this.centre(v); a.wait = rnd(4, 7); }); }
-        else if (flag && r < 0.88) { const [x, z] = this.front(flag, rnd(1.2, 2.4), rnd(-1.2, 1.2)); this.go(a, x, z, () => { a.act = hd ? 'salute' : 'heart'; a.face = this.centre(flag); a.wait = rnd(3, 5); }); }
+        else if (flag && r < 0.88) { const [x, z] = this.front(flag, rnd(1.2, 2.4), rnd(-1.2, 1.2)); this.go(a, x, z, () => { a.act = 'salute'; a.face = this.centre(flag); a.wait = rnd(3, 5); }); }
         else { const [x, z] = this.near(a.x + rnd(-6, 6), a.z + rnd(-6, 6)); this.go(a, x + 0.5, z + 0.5, () => { a.act = 'idle'; a.wait = rnd(2, 5); }); }
       }
     }

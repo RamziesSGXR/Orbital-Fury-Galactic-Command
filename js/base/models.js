@@ -2,6 +2,7 @@
 // through the materials, so the same standard-issue buildings look like they belong to whoever built them.
 // A model's origin is the centre of its footprint at ground level, front facing +z, one tile = one unit.
 import * as THREE from './vendor/three.js';
+import { staticGeo } from '../model3d.js';
 import { logoCanvas, lookOf } from './logo.js';
 
 const shade = (hex, k) => { const c = new THREE.Color(hex); c.multiplyScalar(k); return c; };
@@ -33,7 +34,7 @@ export function makeMats(f) {
     coat: std('#141414'), cap: std('#e9e9e9'), paper: std('#f2f2ea'),
     dship: std('#4c5550', { metalness: 0.35, roughness: 0.6 }), olive: std('#4d5638', { metalness: 0.3, roughness: 0.7 }), oliveDark: std('#33392a', { metalness: 0.3, roughness: 0.7 }), lift: std('#e0b21c'), crate: std('#5d6a3e'), scaffold: new THREE.LineBasicMaterial({ color: '#ffd21f', transparent: true, opacity: 0.8 }),
   };
-  m.seflag = seFlagMat(); m.hdbanner = hdBannerMat();
+  m.seflag = seFlagMat(f); m.hdbanner = hdBannerMat(f);
   m.signBurger = signMat('BIG VICTORY BURGER', '#c0392b', '#ffe600'); m.signChicken = signMat('PATRIOT CLUCKS', '#1d3f8a', '#ffffff'); m.signCola = signMat('BUREAU COLA & FRIES', '#5a2a7a', '#ffd21f'); m.flag = flagMat(f, logo); m.banner = bannerMat(f); m.bill = billMat(f); m.tex = [logo, m.flag.map, m.banner.map, m.bill.map];
   m.potty = std('#3d7fb0'); m.pottyRoof = std('#e8ecef'); m.grime = new THREE.MeshBasicMaterial({ color: '#3a2a12', transparent: true, opacity: 0, depthWrite: false });
   // construction standards and engineers (0.13)
@@ -44,14 +45,14 @@ export function makeMats(f) {
   return m;
 }
 // The Vanguards banner: an original design for this fan game, a yellow helmet on black over hazard stripes.
-function hdBannerMat() {
+function hdBannerMat(f) {
   const c = document.createElement('canvas'); c.width = 192; c.height = 384; const g = c.getContext('2d');
-  g.fillStyle = '#141414'; g.fillRect(0, 0, 192, 384);
-  for (let i = -4; i < 12; i++) { g.fillStyle = i % 2 ? '#141414' : '#ffd21f'; g.beginPath(); g.moveTo(i * 24, 384); g.lineTo(i * 24 + 24, 384); g.lineTo(i * 24 + 64, 330); g.lineTo(i * 24 + 40, 330); g.fill(); }
-  g.fillStyle = '#ffd21f'; g.beginPath(); g.arc(96, 150, 52, Math.PI, 0); g.lineTo(148, 175); g.lineTo(44, 175); g.closePath(); g.fill();
-  g.fillStyle = '#141414'; g.beginPath(); g.roundRect(56, 128, 80, 18, 6); g.fill();
-  g.fillStyle = '#ffd21f'; g.font = 'bold 22px ui-monospace, Menlo, Consolas, monospace'; g.textAlign = 'center'; g.fillText('VANGUARDS', 96, 240);
-  g.fillRect(30, 256, 132, 4); g.fillRect(30, 30, 132, 4);
+  // (GC 0.43) the fleet's own: its colours, its crest, the Vanguards' name. (It was black and yellow chevrons under a helmet: another game's.)
+  const P = (f && f.primary) || '#2f8f9c', S = (f && f.secondary) || '#f2efe4';
+  g.fillStyle = '#1c2026'; g.fillRect(0, 0, 192, 384); g.fillStyle = P; g.fillRect(0, 0, 192, 46); g.fillRect(0, 330, 192, 54); g.fillStyle = S; g.fillRect(0, 46, 192, 6); g.fillRect(0, 324, 192, 6);
+  try { g.drawImage(logoCanvas(f.logo, 128), 32, 84, 128, 128); } catch { /* no crest yet */ }
+  g.fillStyle = S; g.font = 'bold 22px ui-monospace, Menlo, Consolas, monospace'; g.textAlign = 'center'; g.fillText('VANGUARDS', 96, 262);
+  g.fillRect(30, 276, 132, 4);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   return new THREE.MeshStandardMaterial({ map: t, side: THREE.DoubleSide, roughness: 0.9 });
 }
@@ -63,17 +64,14 @@ function signMat(text, bg, fg) {
   return new THREE.MeshStandardMaterial({ map: t, emissiveMap: t, emissive: '#ffffff', emissiveIntensity: 0.45, roughness: 0.6 });
 }
 // The Head Office flag: an original design for this fan game, a golden globe with wings on deep blue.
-function seFlagMat() {
+function seFlagMat(f) {
   const c = document.createElement('canvas'); c.width = 384; c.height = 256; const g = c.getContext('2d');
-  g.fillStyle = '#16244f'; g.fillRect(0, 0, 384, 256);
-  g.fillStyle = '#f4f4f4'; g.fillRect(0, 210, 384, 12); g.fillStyle = '#b8322a'; g.fillRect(0, 222, 384, 34);
-  g.save(); g.translate(192, 108); g.fillStyle = '#ffd21f'; g.strokeStyle = '#ffd21f'; g.lineWidth = 5;
-  for (const s of [-1, 1]) { g.beginPath(); g.moveTo(s * 40, -6); for (let i = 0; i < 4; i++) { g.lineTo(s * (70 + i * 18), -40 + i * 10); g.lineTo(s * (62 + i * 18), -18 + i * 12); } g.lineTo(s * 40, 22); g.closePath(); g.fill(); }
-  g.beginPath(); g.arc(0, 0, 40, 0, Math.PI * 2); g.fill();
-  g.strokeStyle = '#16244f'; g.lineWidth = 4; g.beginPath(); g.arc(0, 0, 30, 0, Math.PI * 2); g.stroke();
-  g.beginPath(); g.ellipse(0, 0, 13, 30, 0, 0, Math.PI * 2); g.stroke(); g.beginPath(); g.moveTo(-30, 0); g.lineTo(30, 0); g.stroke();
-  g.restore();
-  g.fillStyle = '#ffd21f'; for (const x of [150, 192, 234]) { g.save(); g.translate(x, 178); g.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 4 : 10; g.lineTo(Math.cos(a) * r, Math.sin(a) * r); } g.fill(); g.restore(); }
+  // (GC 0.43) HEAD OFFICE FLIES THE COMPANY'S OWN FLAG: the fleet's colour, a band of its second colour at the hoist and the foot,
+  // its crest in the middle. (It was a winged globe over three stars on navy: another game's flag.)
+  const P = (f && f.primary) || '#2f8f9c', S = (f && f.secondary) || '#f2efe4';
+  g.fillStyle = P; g.fillRect(0, 0, 384, 256); g.fillStyle = S; g.fillRect(0, 0, 54, 256); g.fillRect(54, 214, 330, 10);
+  g.fillStyle = 'rgba(0,0,0,0.28)'; g.fillRect(54, 224, 330, 32);
+  try { g.drawImage(logoCanvas(f.logo, 160), 139, 30, 160, 160); } catch { /* no crest yet */ }
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   return new THREE.MeshStandardMaterial({ map: t, side: THREE.DoubleSide, roughness: 0.9 });
 }
@@ -717,15 +715,15 @@ const MAKE = {
   statue(g, m) {
     box(g, 1.7, 0.2, 1.7, m.concrete, 0, 0.1, 0); box(g, 1.1, 0.7, 1.1, m.white, 0, 0.55, 0);
     plane(g, 0.5, 0.5, m.logo, 0, 0.55, 0.56); box(g, 1.2, 0.06, 1.2, m.concrete, 0, 0.93, 0);
+    // (GC 0.43) THE FLEET'S OWN STATUE: the Employee of the Quarter, in bronze, holding the award up for the cameras. (It was a
+    // caped figure at the salute, which belonged to another game.)
     const f = new THREE.Group(); f.position.set(0, 0.96, 0); f.scale.setScalar(2.1); g.add(f);
-    box(f, 0.07, 0.22, 0.08, m.bronze, -0.05, 0.11, 0); box(f, 0.07, 0.22, 0.08, m.bronze, 0.05, 0.11, 0.04, { rx: -0.3 });
-    box(f, 0.2, 0.24, 0.12, m.bronze, 0, 0.34, 0); ball(f, 0.06, m.bronze, 0, 0.52, 0); add(f, new THREE.SphereGeometry(0.068, 10, 6, 0, 6.3, 0, 1.6), m.bronze, 0, 0.53, 0);
-    box(f, 0.05, 0.2, 0.05, m.bronze, -0.13, 0.34, 0.01, { rz: -0.12 });   // left arm at its side
-    const sh = new THREE.Group(); sh.position.set(0.12, 0.44, 0); sh.rotation.set(-1.05, 0, -0.35); f.add(sh);
-    box(sh, 0.05, 0.12, 0.055, m.bronze, 0, -0.06, 0);
-    const el = new THREE.Group(); el.position.set(0, -0.12, 0); el.rotation.x = -2.1; sh.add(el);
-    box(el, 0.048, 0.11, 0.05, m.bronze, 0, -0.055, 0); box(el, 0.045, 0.045, 0.05, m.bronze, 0, -0.125, 0);
-    add(f, new THREE.PlaneGeometry(0.24, 0.32), m.bronze, 0, 0.3, -0.07, { rx: 0.15 }).material = m.bronze;
+    box(f, 0.07, 0.22, 0.08, m.bronze, -0.05, 0.11, 0); box(f, 0.07, 0.22, 0.08, m.bronze, 0.05, 0.11, 0);
+    box(f, 0.2, 0.24, 0.12, m.bronze, 0, 0.34, 0); ball(f, 0.06, m.bronze, 0, 0.52, 0); box(f, 0.13, 0.03, 0.15, m.bronze, 0, 0.575, 0.01);     // (a cap with a peak)
+    box(f, 0.05, 0.2, 0.05, m.bronze, -0.13, 0.34, 0.01, { rz: -0.12 });   // left arm at its side, a folder under it
+    box(f, 0.03, 0.12, 0.09, m.bronze, -0.165, 0.3, 0.01);
+    box(f, 0.05, 0.22, 0.05, m.bronze, 0.14, 0.55, 0, { rz: 0.16 });   // right arm straight up
+    cyl(f, 0.012, 0.012, 0.06, m.gold, 0.16, 0.69, 0, { seg: 6 }); add(f, new THREE.OctahedronGeometry(0.05), m.gold, 0.16, 0.76, 0);     // the award: a gilded star on its stem
   },
 };
 
@@ -897,10 +895,47 @@ function stdModel(type, k, w, d, m) {
 }
 // the debris a site is cleared of, for the picture of the ground: a few low shapes per tile, coloured by biome
 export const SCRUB_COL = { desert: ['#8a7550', '#6e5d44'], steppe: ['#6b7a3e', '#55623a'], ice: ['#cfd8de', '#a8b6c0'], jungle: ['#3f6a2c', '#2f5222'], ash: ['#4a4442', '#3a3432'] };
-export function buildModel(type, m, merge = false, spec = null) {
-  const g = new THREE.Group();
-  if (spec?.std != null && spec.std < 2) g.add(stdModel(type, spec.std, spec.w, spec.d, m)); else (MAKE[type] || MAKE.hab)(g, m);
+// (GC 0.43) THE BUILDINGS ARE MODELS MADE IN BLENDER. Each building's solid, plain-coloured structure is a model file
+// (in assets/models/buildings.json, made by tools/blender/base.py from the plans tools/blender/dump_base.py writes), drawn with the
+// same material as the people and the ground's models. What moves, lights up, is glass, or carries a picture (a flag with your
+// crest, a sign) is still made here and stands on the model. plain: the old all-code building, as the plans are taken from.
+export const BLD = { data: new Map(), asked: false };
+export function loadBuildings(done) {
+  if (BLD.asked || typeof fetch !== 'function') return; BLD.asked = true;
+  fetch('assets/models/buildings.json').then((r) => (r.ok ? r.json() : null)).then((pack) => {     // (every building and its early forms, in one file)
+    for (const [k, d] of Object.entries(pack || {})) if (d && d.frames) BLD.data.set(k, d);
+    if (BLD.data.size && done) done();
+  }).catch(() => {});
+}
+// the meshes of a building that are its plain structure (the rest is alive in some way and stays as made)
+export function structural(root) {
+  const keep = new Set(), mark = o => o && o.isObject3D && o.traverse(c => keep.add(c)), out = new Set();
+  for (const v of Object.values(root.userData)) (Array.isArray(v) ? v : [v]).forEach(mark);
+  root.traverse(o => {
+    if (!o.isMesh || o.isInstancedMesh || keep.has(o) || Array.isArray(o.material) || o.userData.wave || o.morphTargetInfluences) return;
+    const g = o.geometry, t = o.material; if (!g.attributes.normal || !g.attributes.uv) return;
+    if (t.map || t.alphaMap || t.transparent || t.wireframe || !t.color || (t.emissive && t.emissiveIntensity > 0 && t.emissive.r + t.emissive.g + t.emissive.b > 0.01)) return;
+    out.add(o);
+  });
+  return out;
+}
+function modelled(g, m, type) {
+  for (const o of structural(g)) o.parent.remove(o);
+  const cache = m._bld ||= new Map(); let geo = cache.get(type);
+  if (!geo) {
+    const d = BLD.data.get(type), remap = {};
+    for (const nm of d.pal || []) { const t = nm.startsWith('b_') ? m[nm.slice(2)] : null; if (t && t.isMaterial && t.color) remap[nm] = t.color; }     // (each part in the base's own colour for it, so a new livery dresses the buildings too)
+    geo = staticGeo(d, remap); cache.set(type, geo);
+  }
+  m.model ||= new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0.04, side: THREE.DoubleSide });
+  const mesh = new THREE.Mesh(geo, m.model); mesh.castShadow = true; mesh.receiveShadow = true; mesh.userData.model3 = true; g.add(mesh);
+}
+export function buildModel(type, m, merge = false, spec = null, plain = false) {
+  const g = new THREE.Group(), std = spec?.std != null && spec.std < 2;
+  if (std) g.add(stdModel(type, spec.std, spec.w, spec.d, m)); else (MAKE[type] || MAKE.hab)(g, m);
   if (g.children.length === 1 && g.children[0].userData.crates) g.userData.crates = g.children[0].userData.crates;
+  const file = std ? `${type}-s${spec.std}-${spec.w}x${spec.d}` : type;     // (the early standards, tents and prefabs, are models of their own, each way round)
+  if (!plain && BLD.data.has(file)) modelled(g, m, file);
   if (spec && (spec.design || spec.parts?.length)) decorate(g, m, spec);
   if (merge) mergeStatic(g); return g;
 }
