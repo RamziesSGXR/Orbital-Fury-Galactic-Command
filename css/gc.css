@@ -415,3 +415,10 @@ button small { display: block; font: 9.5px var(--mono); letter-spacing: 0.5px; o
 #th-war .wl { color: var(--dim); font-size: 10px; letter-spacing: 1.5px; }
 #th-war .wc { color: #7dff9b; } #th-war .wc b { font-size: 14px; } #th-war .wc i { font-style: normal; color: var(--dim); font-size: 10px; }
 #th-war .wc.wait { color: var(--dim); } #th-war .wc.wait i { color: var(--amber); }
+
+/* (0.36) the map's layers: sectors, supply lines, names. Each a small switch with its own colour beside it. */
+.lays { display: flex; gap: 3px; margin-left: 10px; pointer-events: auto; }
+.trk .lay { --lc: var(--cyan); display: inline-flex; align-items: center; gap: 5px; font: 600 9.5px var(--head); letter-spacing: 1px; color: var(--dim); background: rgba(8,11,10,0.7); border: 1px solid var(--empty); padding: 0 7px; min-height: 24px; cursor: pointer; opacity: 0.6; }
+.trk .lay i { width: 8px; height: 8px; border: 1px solid var(--lc); display: block; }
+.trk .lay.on { color: var(--text); opacity: 1; } .trk .lay.on i { background: var(--lc); }
+.trk .lay:hover { border-color: var(--lc); }

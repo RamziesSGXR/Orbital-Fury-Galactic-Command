@@ -1,7 +1,7 @@
 // Draws the galaxy map: the three war fronts, the rings of systems and their lanes, and the fleets, which are the
 // pieces of the game. The map can be zoomed and dragged.
 import { C } from './config.js';
-import { Galaxy3D, W, worldRadius } from './view_gl.js';
+import { Galaxy3D, W, worldRadius, LAYER } from './view_gl.js';
 
 const SIZE = { capital: 11, home: 9, sys: 5.5 };
 export const col = o => C.color[o] || C.color.fed;
@@ -16,6 +16,8 @@ function shield(c, x, y, s, stroke, fill) {
 
 export class View {
   constructor(cv) { this.cv = cv; this.ctx = cv.getContext('2d'); this.w = this.h = 1; this.zoom = 1; this.ox = 0; this.oy = 0; this.rot = 0; this.goal = null;
+    // (0.36) what the map shows: the sectors' shading, the lanes, the names. Each can be switched off (screen.js keeps the choice).
+    this.layers = { sec: true, lane: true, name: true };
     // the 3D map under this canvas; without WebGL the map is drawn flat, as it always was
     this.gl = null; try { if (typeof WebGLRenderingContext !== 'undefined') this.gl = new Galaxy3D(cv); } catch (err) { console.warn('3D map unavailable', err); this.gl = null; }
     if (this.gl) { cv.style.position = 'relative'; }
@@ -97,16 +99,21 @@ export class View {
     }
   }
   // 3D: the ships of one fleet, in a wedge behind their leader, added to this frame's list
-  wing(list, x, z, ang, n, color, dim) {
-    const ca = Math.cos(ang), sa = Math.sin(ang), slots = [[0, 0], [-3.6, -2.6], [-3.6, 2.6], [-7.2, -5.2], [-7.2, 5.2], [-7.2, 0]];
-    for (let i = 0; i < Math.min(n, slots.length); i++) { const [f, r] = slots[i]; list.push({ x: x + f * ca - r * sa, z: z + f * sa + r * ca, ang, color, dim }); }
+  wing(list, x, z, ang, n, owner, dim) {
+    const ca = Math.cos(ang), sa = Math.sin(ang), slots = [[0, 0], [-4.6, -3.1], [-4.6, 3.1], [-8.0, -5.8], [-8.0, 5.8], [-8.8, 0]];
+    for (let i = 0; i < Math.min(n, slots.length); i++) { const [f, r] = slots[i]; list.push({ x: x + f * ca - r * sa, z: z + f * sa + r * ca, ang, owner, dim, s: i ? 1.05 : 1.9 }); }
   }
   // 3D: the number under a fleet, and the ring round the one you have picked up
   tag(x, y, label, color, ring) {
-    const c = this.ctx;
-    if (ring) { c.strokeStyle = C.color.amber; c.lineWidth = 1.8; c.beginPath(); c.ellipse(x, y, 22, 13, 0, 0, 7); c.stroke(); }
-    c.font = '600 10px ' + HEAD; const tw = c.measureText(label).width + 6, ly = y + 15;
-    c.fillStyle = 'rgba(12,16,14,0.92)'; c.fillRect(x - tw / 2, ly - 7, tw, 13); c.fillStyle = color; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(label, x, ly);
+    const c = this.ctx, ga = c.globalAlpha;
+    if (ring) { c.strokeStyle = C.color.amber; c.lineWidth = 1.8; c.beginPath(); c.ellipse(x, y, 26, 15, 0, 0, 7); c.stroke(); }
+    // a small plate: the side's colour down its left edge, a ship's mark, and how many ships
+    c.font = '600 11px ' + HEAD; const tw = c.measureText(label).width, w = tw + 21, h = 15, lx = x - w / 2, ly = y + 12;
+    c.fillStyle = 'rgba(8,11,10,0.9)'; c.beginPath(); c.moveTo(lx, ly); c.lineTo(lx + w - 4, ly); c.lineTo(lx + w, ly + 4); c.lineTo(lx + w, ly + h); c.lineTo(lx, ly + h); c.closePath(); c.fill();
+    c.strokeStyle = color; c.globalAlpha = ga * 0.55; c.lineWidth = 1; c.stroke(); c.globalAlpha = ga;
+    c.fillStyle = color; c.fillRect(lx, ly, 2.5, h);
+    c.beginPath(); c.moveTo(lx + 13, ly + h / 2); c.lineTo(lx + 6.5, ly + 3.5); c.lineTo(lx + 8.5, ly + h / 2); c.lineTo(lx + 6.5, ly + h - 3.5); c.closePath(); c.fill();
+    c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillText(label, lx + 16, ly + h / 2 + 0.5);
   }
   along(a, b, f) { const [x1, y1] = this.xy(a), [x2, y2] = this.xy(b); return [x1 + (x2 - x1) * f, y1 + (y2 - y1) * f, Math.atan2(y2 - y1, x2 - x1)]; }
   arrow(a, b, color, dash, ra, rb) {
@@ -118,14 +125,15 @@ export class View {
   }
   // Where a side's fleet sits beside its system: yours below left, the enemy's above right.
   // In 3D a fleet stands beside its world on the board: yours on the capital's side of it, the enemy's on the far side.
-  postW(p, owner) { const l = Math.hypot(p.x, p.y), ux = l > 0.01 ? p.x / l : 0, uz = l > 0.01 ? p.y / l : 1, d = worldRadius(p) + 2.4, s = owner === 'fed' ? -1 : 1; return [p.x * W + s * (ux * d - uz * d * 0.45), p.y * W + s * (uz * d + ux * d * 0.45), Math.atan2(-s * uz, -s * ux)]; }
+  postW(p, owner) { const l = Math.hypot(p.x, p.y), ux = l > 0.01 ? p.x / l : 0, uz = l > 0.01 ? p.y / l : 1, d = worldRadius(p) + 3.2, s = owner === 'fed' ? -1 : 1; return [p.x * W + s * (ux * d - uz * d * 0.45), p.y * W + s * (uz * d + ux * d * 0.45), Math.atan2(-s * uz, -s * ux)]; }
   post(p, owner) { if (this.gl) { const [x, z] = this.postW(p, owner); return this.gl.proj(x, 1.1, z); }
     const [x, y] = this.xy(p), d = (SIZE[p.kind] + 9) * this.k; return owner === 'fed' ? [x - d, y + d * 0.75] : [x + d, y - d * 0.75]; }
 
   draw(g, ui, t) {
     this._glide();
     const c = this.ctx, k = this.k, fl = g.fedLinked(), rad = p => this.gl ? Math.max(4, worldRadius(p) * this.gl.proj(p.x * W, 0, p.y * W)[2] * 1.18 + 2) : SIZE[p.kind] * k, rd = Math.PI / 180, rot = this.rot;
-    const G = this.gl; if (G) { G.setMap(g); G.paint(g, fl); c.clearRect(0, 0, this.w, this.h); } else { c.fillStyle = GROUND; c.fillRect(0, 0, this.w, this.h); }
+    const G = this.gl; const selSec = ui.sel != null ? g.P[ui.sel].sector : -1, L = this.layers;
+    if (G) { G.setMap(g); G.paint(g, fl, selSec, L); c.clearRect(0, 0, this.w, this.h); } else { c.fillStyle = GROUND; c.fillRect(0, 0, this.w, this.h); }
     const ships = [];
     // the three war fronts: the one being played is lit in its enemy's colour
     C.fronts.forEach((fr, fi) => {
@@ -136,9 +144,11 @@ export class View {
       c.globalAlpha = 0.25; c.strokeStyle = TEXT; c.lineWidth = 1; c.setLineDash([2, 5]);
       c.beginPath(); c.moveTo(this.cx, this.cy); c.lineTo(this.cx + Math.cos(a0) * this.R, this.cy + Math.sin(a0) * this.R); c.stroke(); c.setLineDash([]);
       }
-      c.globalAlpha = on ? 1 : 0.5; c.fillStyle = on ? col(fr.f) : DIM; c.font = '600 10px ' + HEAD; c.textAlign = 'center'; c.textBaseline = 'middle';
-      const [hx, hy] = this.xy(g.P[g.map.home[fi]]);   // the front's name sits by its enemy's home: above it, or below for the south
-      c.fillText(fr.name, Math.max(52, Math.min(this.w - 52, hx)), Math.max(72, hy + (G ? -26 : (hy > this.cy ? 34 : -22) * Math.max(1, k))));
+      if (!G) {
+        c.globalAlpha = on ? 1 : 0.5; c.fillStyle = on ? col(fr.f) : DIM; c.font = '600 10px ' + HEAD; c.textAlign = 'center'; c.textBaseline = 'middle';
+        const [hx, hy] = this.xy(g.P[g.map.home[fi]]);   // the front's name sits by its enemy's home: above it, or below for the south
+        c.fillText(fr.name, Math.max(52, Math.min(this.w - 52, hx)), Math.max(72, hy + (G ? -26 : (hy > this.cy ? 34 : -22) * Math.max(1, k))));
+      }
       c.globalAlpha = 1;
     });
     c.strokeStyle = 'rgba(127,233,224,0.07)'; c.lineWidth = 1;
@@ -204,14 +214,14 @@ export class View {
       if (moving.has(key)) continue;
       const p = g.P[s.at], [x, y] = this.post(p, s.owner), bob = s.idle && g.phase === 'plan' ? Math.sin(t * 3 + s.at) * 1.5 : 0;
       c.globalAlpha = s.owner === 'fed' && !s.idle ? 0.55 : 1;
-      if (G) { const [wx, wz, wa] = this.postW(p, s.owner); this.wing(ships, wx, wz, wa, Math.min(6, s.ships), col(s.owner), s.owner === 'fed' && !s.idle); this.tag(x, y, String(s.ships), col(s.owner), s.sel); }
+      if (G) { const [wx, wz, wa] = this.postW(p, s.owner); this.wing(ships, wx, wz, wa, Math.min(6, s.ships), s.owner, s.owner === 'fed' && !s.idle); this.tag(x, y, String(s.ships), col(s.owner), s.sel); }
       else this.fleet(x, y + bob, (s.owner === 'fed' ? p.deg * rd : (p.deg + 180) * rd) + rot, Math.min(6, s.ships), col(s.owner), String(s.ships), s.sel);
       c.globalAlpha = 1;
     }
     // fleets on the move
     for (const a of ui.anims || []) {
       const u = Math.min(1, a.t / 0.6), [x1, y1] = this.post(g.P[a.from], a.owner), [x2, y2] = this.post(g.P[a.to], a.owner);
-      if (G) { const A = this.postW(g.P[a.from], a.owner), B = this.postW(g.P[a.to], a.owner), e = u * u * (3 - 2 * u); this.wing(ships, A[0] + (B[0] - A[0]) * e, A[1] + (B[1] - A[1]) * e, Math.atan2(B[1] - A[1], B[0] - A[0]), Math.min(6, a.ships), col(a.owner), false); this.tag(x1 + (x2 - x1) * e, y1 + (y2 - y1) * e, String(a.ships), col(a.owner), false); }
+      if (G) { const A = this.postW(g.P[a.from], a.owner), B = this.postW(g.P[a.to], a.owner), e = u * u * (3 - 2 * u); this.wing(ships, A[0] + (B[0] - A[0]) * e, A[1] + (B[1] - A[1]) * e, Math.atan2(B[1] - A[1], B[0] - A[0]), Math.min(6, a.ships), a.owner, false); this.tag(x1 + (x2 - x1) * e, y1 + (y2 - y1) * e, String(a.ships), col(a.owner), false); }
       else this.fleet(x1 + (x2 - x1) * u, y1 + (y2 - y1) * u, Math.atan2(y2 - y1, x2 - x1), Math.min(6, a.ships), col(a.owner), String(a.ships));
     }
     if (G) { G.setShips(ships); G.render(t); }
@@ -224,7 +234,11 @@ export class View {
     for (const p of g.P) { const [x, y] = this.xy(p); if (x > -30 && y > -30 && x < this.w + 30 && y < this.h + 30) { const r = rad(p) + 2; worlds.push([x - r, y - r, x + r, y + r, p.id]); } }
     const clear = (box, own) => !placed.some(q => box[0] < q[2] && box[2] > q[0] && box[1] < q[3] && box[3] > q[1]) && !worlds.some(q => q[4] !== own && box[0] < q[2] && box[2] > q[0] && box[1] < q[3] && box[3] > q[1]);
     c.textBaseline = 'top';
-    const order = g.P.filter(p => ui.sel === p.id).concat(g.P.filter(p => ui.sel !== p.id && (p.kind !== 'sys' || hot.has(p.id))), near ? g.P.filter(p => p.kind === 'sys' && !hot.has(p.id) && ui.sel !== p.id) : []);
+    // (0.36) WHICH NAMES. The capital and the enemies' homes are always named, and so is whatever is picked or fought over.
+    // An ordinary system is only named when you have closed in on the map, or when it lies in the sector you have picked.
+    // With the names switched off, only what you have picked is named.
+    const marks = g.P.filter(p => ui.sel !== p.id && (p.kind !== 'sys' || hot.has(p.id))), rest = g.P.filter(p => p.kind === 'sys' && !hot.has(p.id) && ui.sel !== p.id);
+    const order = g.P.filter(p => ui.sel === p.id).concat(L.name ? marks : marks.filter(p => hot.has(p.id)), !L.name ? [] : near ? rest : rest.filter(p => p.sector === selSec));
     for (const p of order) {
       const big = p.kind === 'capital' || p.kind === 'home', [x, y] = this.xy(p), r = rad(p);
       if (x < 8 || x > this.w - 8 || y < 40 || y > this.h - 30) continue;       // off the screen: no name at the edge
@@ -238,17 +252,36 @@ export class View {
       if (!at) continue;
       placed.push(at[3]); c.textAlign = at[2];
       const tx = at[0], ty = at[1];
-      c.fillStyle = ui.sel === p.id ? '#fff3c4' : big ? TEXT : DIM;
-      c.fillText(txt, tx, ty);
+      // names are white, whoever holds the place: the shading under them says whose it is
+      c.fillStyle = ui.sel === p.id ? '#fff3c4' : LAYER.name; c.globalAlpha = ui.sel === p.id || big ? 1 : 0.78;
+      c.shadowColor = 'rgba(0,0,0,0.9)'; c.shadowBlur = 3; c.fillText(txt, tx, ty); c.shadowBlur = 0; c.globalAlpha = 1;
     }
-    // the sectors' names, in what room is left: a sector held whole is written in its holder's colour
-    if (this.R > 300 && g.map.sectors) {
+    // the sectors' names, in what room is left, in their holder's colour made pale (a contested sector's is grey). The picked
+    // sector is always named; the rest once you have closed in a little.
+    if (g.map.sectors && L.name) {
       const own = g.sectorOwners(); c.textAlign = 'center'; c.font = '600 10px ' + HEAD;
-      for (const sc of g.map.sectors) {
-        if (!sc.id) continue; const [x, y] = this.xy(sc); if (x < 40 || y < 50 || x > this.w - 40 || y > this.h - 30) continue;
+      const pale = (hex) => { const n = parseInt(hex.slice(1), 16), f = v => Math.round(v + (255 - v) * 0.5); return `rgb(${f(n >> 16 & 255)},${f(n >> 8 & 255)},${f(n & 255)})`; };
+      for (const sc of [...g.map.sectors].sort((a, b) => (b.id === selSec) - (a.id === selSec))) {
+        const pick = sc.id === selSec; if (!pick && (this.R <= 300 || !sc.id)) continue;
         const o = own.get(sc.id), txt = sc.name.toUpperCase().split('').join('\u200a'), tw = c.measureText(txt).width;
-        for (const dy of [-8, -26, 12, -44, 30]) { const box = [x - tw / 2 - 4, y + dy - 2, x + tw / 2 + 4, y + dy + 13]; if (!clear(box, -1)) continue; placed.push(box); c.globalAlpha = o ? 0.9 : 0.5; c.fillStyle = o ? col(o) : TEXT; c.fillText(txt, x, y + dy); break; }
+        let [x, y] = this.xy(sc);
+        if (pick) { x = Math.max(tw / 2 + 10, Math.min(this.w - tw / 2 - 10, x)); y = Math.max(104, Math.min(this.h - 60, y)); }     // the picked sector's name is kept on the screen
+        else if (x < 40 || y < 50 || x > this.w - 40 || y > this.h - 30) continue;
+        for (const dy of [-8, -26, 12, -44, 30]) { const box = [x - tw / 2 - 4, y + dy - 2, x + tw / 2 + 4, y + dy + 13]; if (!clear(box, -1)) continue; placed.push(box);
+          c.globalAlpha = pick ? 1 : o ? 0.85 : 0.6; c.fillStyle = o ? pale(col(o)) : '#aab2ac'; c.shadowColor = 'rgba(0,0,0,0.9)'; c.shadowBlur = 3; c.fillText(txt, x, y + dy); c.shadowBlur = 0; break; }
       }
+      c.globalAlpha = 1;
+    }
+    // (0.36) the fronts' titles go on last, out on the rim of the board past the enemy's home, and only where they cover no
+    // name: a title never hides a place
+    if (G) {
+      c.textAlign = 'center'; c.font = '600 11px ' + HEAD;
+      C.fronts.forEach((fr, fi) => {
+        const on = g.fi === fi, a = fr.deg * rd, txt = fr.name.split('').join('\u200a'), tw = c.measureText(txt).width;
+        let [x, y] = G.proj(Math.cos(a) * W * 1.03, 0, Math.sin(a) * W * 1.03); x = Math.max(tw / 2 + 12, Math.min(this.w - tw / 2 - 12, x)); y = Math.max(96, Math.min(this.h - 44, y));
+        for (const [dx, dy] of [[0, 0], [0, -18], [0, 18], [0, -36], [0, 36], [0, -54], [0, 54]]) { const box = [x + dx - tw / 2 - 4, y + dy - 2, x + dx + tw / 2 + 4, y + dy + 14]; if (!clear(box, -1)) continue; placed.push(box);
+          c.globalAlpha = on ? 1 : g.atWar(fi) ? 0.7 : 0.4; c.fillStyle = on ? col(fr.f) : '#aab2ac'; c.shadowColor = 'rgba(0,0,0,0.9)'; c.shadowBlur = 3; c.fillText(txt, x + dx, y + dy); c.shadowBlur = 0; break; }
+      });
       c.globalAlpha = 1;
     }
   }

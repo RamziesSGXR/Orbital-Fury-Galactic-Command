@@ -185,14 +185,27 @@ export class Audio {
   // A troop dropship arriving: rotor wash.
   rotor() { if (!this._ok('rotor', 0.5)) return; this._noise(1.4, 500, 140, 0.22, 'bandpass', 0.8); this._tone(70, 50, 1.0, 0.16, 'sawtooth'); }
 
-  // Low ship hum while a mission runs.
+  // (0.36) The ship, heard from inside it and a long way from the fight: no engine drone. A soft low bed (two sines a
+  // shade apart, so it breathes rather than buzzes), air moving in the hull (deep filtered noise that swells and falls
+  // over many seconds) and a faint high tone that comes and goes. All of it well under the guns and the music.
   humStart() {
     const c = this.ctx; if (!c || this.hum) return;
-    const o = c.createOscillator(), o2 = c.createOscillator(), g = c.createGain(), f = c.createBiquadFilter();
-    o.type = 'sawtooth'; o.frequency.value = 55; o2.type = 'sine'; o2.frequency.value = 110.5;
-    f.type = 'lowpass'; f.frequency.value = 220; g.gain.value = 0.035;
-    o.connect(f); o2.connect(f); f.connect(g); g.connect(this.sfxBus);
-    o.start(); o2.start(); this.hum = { o, o2, g };
+    const out = c.createGain(); out.gain.value = 0; out.connect(this.sfxBus); out.gain.linearRampToValueAtTime(1, c.currentTime + 3);
+    const nodes = [];
+    const osc = (type, f) => { const o = c.createOscillator(); o.type = type; o.frequency.value = f; o.start(); nodes.push(o); return o; };
+    const gain = (v, to) => { const g = c.createGain(); g.gain.value = v; g.connect(to); return g; };
+    // the bed
+    const bed = gain(0.011, out); osc('sine', 46).connect(bed); osc('sine', 46.35).connect(bed); osc('sine', 92.4).connect(gain(0.004, out));
+    // air in the hull
+    if (this.noiseBuf) {
+      const s = c.createBufferSource(), f = c.createBiquadFilter(), g = gain(0.016, out); s.buffer = this.noiseBuf; s.loop = true; f.type = 'lowpass'; f.frequency.value = 150; f.Q.value = 0.4;
+      s.connect(f); f.connect(g); s.start(); nodes.push(s);
+      const l = osc('sine', 0.045), lg = c.createGain(); lg.gain.value = 0.008; l.connect(lg); lg.connect(g.gain);
+      const l2 = osc('sine', 0.07), l2g = c.createGain(); l2g.gain.value = 45; l2.connect(l2g); l2g.connect(f.frequency);
+    }
+    // a far, glassy tone: the ship's systems
+    { const g = gain(0.0016, out); osc('sine', 372).connect(g); osc('sine', 558.5).connect(gain(0.0007, out)); const l = osc('sine', 0.031), lg = c.createGain(); lg.gain.value = 0.0014; l.connect(lg); lg.connect(g.gain); }
+    this.hum = { nodes, out };
   }
   // ---------------------------------------------------------------- (0.62.10) the field's own sound
   // The listener is over the middle of the view, as high as the view is wide: zoom in and the field is louder and closer.
@@ -291,8 +304,8 @@ export class Audio {
   humStop() {
     this.scapeStop();
     if (!this.hum) return;
-    try { this.hum.o.stop(); this.hum.o2.stop(); } catch { /* already stopped */ }
-    this.hum = null;
+    const h = this.hum; this.hum = null;
+    try { h.out.gain.cancelScheduledValues(0); h.out.gain.value = 0; h.out.disconnect(); for (const n of h.nodes) n.stop(); } catch { /* already stopped */ }
   }
 }
 

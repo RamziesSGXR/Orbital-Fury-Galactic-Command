@@ -5,6 +5,7 @@ import { C, VERSION } from './config.js';
 import { Game } from './sim.js';
 import { View, drawPlanet, drawBattle } from './view.js';
 import { STEPS, SEED } from './tutorial.js';
+import { LAYER } from './view_gl.js';
 
 const $ = id => document.getElementById(id), N = C.names, HP = C.ship.hp;
 const RES = { fuel: N.fuel, ammo: N.ammo, tech: N.tech, army: N.army }, RS = { fuel: ' FUEL', ammo: ' AMMO', tech: ' TECH', army: ' TROOPS' };
@@ -27,6 +28,7 @@ const MICON = {
 const svg = d => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="square">${d}</svg>`;
 
 let g, view = new View($('map'));
+try { Object.assign(view.layers, JSON.parse(localStorage.getItem('ofgc.layers') || '{}')); } catch { /* no storage, or nothing kept */ }
 const ui = { sel: null, fleet: null, half: false, pend: null, tab: 'int', open: false, speed: 1, mark: 0, tut: null, hint: null, dest: null, anims: [], show: null, seen: null, fx: null, auto: 0, front: -2 };
 window.sgs = { get g() { return g; }, ui, view, refresh: () => refresh() };   // for the browser checks
 export const war = () => g;
@@ -70,6 +72,7 @@ function top() {
 // ---------- whose turn it is ----------
 function turnbar() {
   const h = '<div class="trk">' + C.fronts.map((x, i) => `<span class="${g.fi === i ? 'on' : ''}${g.atWar(i) ? '' : ' off'}" style="--tc:${C.color[x.f]}">${x.short}</span>`).join('') +
+    `<span class="lays">${[['sec', 'SECTORS', C.color.fed], ['lane', 'SUPPLY LINES', LAYER.supply], ['name', 'NAMES', LAYER.name]].map(([k, t, c]) => `<button class="lay${view.layers[k] ? ' on' : ''}" data-a="lay" data-k="${k}" style="--lc:${c}" aria-pressed="${view.layers[k]}" title="Show or hide: ${t.toLowerCase()}"><i></i>${t}</button>`).join('')}</span>` +
     `<button class="plate btn sm" data-a="cam">${view.front != null && view.front >= 0 ? 'WHOLE MAP' : 'THIS FRONT'}</button><button class="plate btn sm q" data-a="help" aria-label="Rules">?</button></div>`;
   // The only words here are what the enemy has just done. How to play is in the tutorial and behind the ? button.
   const sub = ui.show ? `<div class="tsub"><b style="color:${C.color[ui.show.f]}">${N.factions[ui.show.f].toUpperCase()}</b> ${esc(ui.show.text)}</div>` : '';
@@ -440,6 +443,7 @@ document.addEventListener('click', e => {
     case 'site': g.site(ui.sel, d.k); break;
     case 'bplay': if (g.battle && !g.battle.done && !(ui.fx && ui.fx.t < 0.9)) { const ev = g.battlePlay(d.i == null ? null : +d.i); ui.fx = { ev, t: 0 }; ui.auto = 0; } break;
     case 'bclose': ui.fx = null; ui.cards = false; ui.mark = Math.min(ui.mark, g.log.length); g.battleClose(); return step();
+    case 'lay': view.layers[d.k] = !view.layers[d.k]; try { localStorage.setItem('ofgc.layers', JSON.stringify(view.layers)); } catch { /* no storage */ } break;
     case 'cam': view.focus(view.front != null && view.front >= 0 ? -1 : g.fi); break;
     case 'mbuy': if (app && g.buyRes(d.k, app.camp.wallet)) app.keep(); break;
     case 'msell': if (app && g.sellRes(d.k, app.camp.wallet)) app.keep(); break;
