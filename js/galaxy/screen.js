@@ -243,7 +243,7 @@ function tabEmp() {
 function network() {
   const sgn = (n) => (n > 0 ? '+' : '') + (Math.round(n * 10) / 10), led = (L) => L.length ? L.slice().sort((a, b) => b.n - a.n).map((e) => `<div class="sm2 row" style="justify-content:space-between"><span>${e.w}</span><b class="${e.n > 0 ? 'cy' : 'rd2'}">${sgn(e.n)}</b></div>`).join('') : '<div class="sm2 dim">Nothing went out.</div>';
   const posts = g.netPosts(), slots = g.netSlots(), free = slots - g.net.deals.length;
-  let h = `<section><h3>Why the ratings moved</h3><div class="sm2 dim">THIS ROUND SO FAR</div>${led(g.air.now)}<div class="sm2 dim" style="margin-top:6px">LAST ROUND</div>${led(g.air.last)}
+  let h = `<section><h3>Why the ratings moved</h3><div class="sm2 dim">THIS ROUND SO FAR</div>${led(g.air.now)}<details class="fold"><summary class="sm2 dim">LAST ROUND</summary>${led(g.air.last)}</details>
     <div class="sm2 dim" style="margin-top:6px">${posts ? `${posts} post${posts === 1 ? '' : 's'} in profit send${posts === 1 ? 's' : ''} footage: +${g.netFootage().toFixed(1)} a round. Parade grounds, speakers, billboards and flags in a base, and comms on a station, send more.` : 'A station or base in profit sends footage every round.'}</div></section>`;
   h += `<section><h3>Sponsors <span class="dim">${g.net.deals.length} / ${slots}</span></h3>`;
   for (const d of g.net.deals) { const st = g.dealState(d), s = st.s;
@@ -252,10 +252,11 @@ function network() {
       <div class="sm2 dim">Walks if ratings sit under ${s.floor}%, or if this is not done: ${-s.miss} ratings.</div><button class="plate btn sm" data-a="unsign" data-i="${s.id}" style="margin-top:4px">LET GO</button></div>`; }
   if (!g.net.deals.length) h += '<div class="sm2 dim">Nobody is paying for the show.</div>';
   h += `<div class="sm2 dim" style="margin:8px 0 4px">ON OFFER${free > 0 ? '' : slots < 3 ? ` · NO FREE SLOT (${g.netPosts() < 2 ? 'two posts in profit open another' : `ratings of ${C.ratings.high}% open another`})` : ' · NO FREE SLOT'}</div>`;
+  h += `<details class="fold" ${free > 0 ? 'open' : ''}><summary class="sm2 dim">${g.net.offers.length} SPONSOR${g.net.offers.length === 1 ? '' : 'S'} WAITING</summary>`;
   for (const id of g.net.offers) { const s = g.sponsor(id), ok = g.canSign(id);
     h += `<div class="plate" style="padding:8px;margin-bottom:6px"><div class="row" style="justify-content:space-between"><b>${s.name}</b><span>${Math.round(s.pay * g.ratPay())} CR A ROUND</span></div><div class="sm2 dim">"${s.line}"</div>
       <div class="sm2">${s.text} <span class="dim">Within ${s.rounds} rounds.</span></div><button class="plate amber btn sm" data-a="sign" data-i="${s.id}" ${ok ? '' : 'disabled'} style="margin-top:4px">${ok ? 'SIGN' : g.rat < s.floor ? `NEEDS ${s.floor}% RATINGS` : 'NO FREE SLOT'}</button></div>`; }
-  return h + '</section>';
+  return h + '</details></section>';
 }
 function tabUni() {
   const fed = g.P.filter(p => p.owner === 'fed').length, near = new Set(g.fleets.filter(f => f.owner !== 'fed' && g.P[0].adj.includes(f.at)).map(f => f.owner)).size;

@@ -2779,3 +2779,17 @@ body.ui-scifi b { color: #fff; }
 #aud { align-self: flex-end; font-size: 10px; letter-spacing: 2px; color: var(--g-dim); text-align: right; pointer-events: auto; white-space: nowrap; }
 #aud b { font-size: 13px; letter-spacing: 1px; color: #7fe9e0; font-weight: 600; }
 #aud i { font-style: normal; display: inline-block; width: 1em; } #aud.up i { color: #7fe9a0; } #aud.dn i { color: #ff8a6a; } #aud.up b { color: #f5d547; }
+
+/* =====================================================================================================================
+   (GC 0.48) ONE LOOK FOR THE CONTROLS, FIRST PASS: THE BUTTONS BY THE MINIMAP.
+   They were eight small words in a column, two of them changing length as you pressed them. Now: a picture for each (the
+   words are in the tip), two groups with a gap between (what you see, then the game itself), and one sign for "this is on":
+   filled amber, the same as a chosen tab on the war map.
+   ===================================================================================================================== */
+body.rts #hud .mm-btns #btn-sight, body.rts #hud .mm-btns #btn-topo, body.rts #hud .mm-btns #btn-photo, body.rts #hud .mm-btns #btn-info, body.rts #hud .mm-btns #btn-menu { font-size: 0; }
+#btn-sight::before, #btn-topo::before, #btn-photo::before, #btn-info::before, #btn-menu::before { content: ''; width: 15px; height: 15px; flex: none; background: currentColor; -webkit-mask: var(--ic) center / contain no-repeat; mask: var(--ic) center / contain no-repeat; }
+#btn-sight { --ic: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill-rule='evenodd' d='M12 5C6 5 2 12 2 12s4 7 10 7 10-7 10-7-4-7-10-7zm0 11a4 4 0 110-8 4 4 0 010 8z'/%3E%3C/svg%3E"); } #btn-topo { --ic: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M2 20l7-12 4 7 2-3 7 8z'/%3E%3C/svg%3E"); } #btn-photo { --ic: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill-rule='evenodd' d='M4 7h3l2-2h6l2 2h3v12H4zm8 2.5a4 4 0 100 8 4 4 0 000-8z'/%3E%3C/svg%3E"); } #btn-info { --ic: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill-rule='evenodd' d='M12 2a10 10 0 100 20 10 10 0 000-20zm-1 5h2v2h-2zm0 4h2v6h-2z'/%3E%3C/svg%3E"); } #btn-menu { --ic: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z'/%3E%3C/svg%3E"); }
+body.rts #hud .mm-btns #btn-info { margin-top: 8px; }
+body.rts #hud .mm-btns .btn.on { background: var(--yellow); color: #0b0d0c; border-color: var(--yellow); }
+/* an order that cannot be given now steps back, so the ones that can stand out */
+#hud .ord:disabled, #hud .ord.off, #hud .ord.na, #hud .dkb:disabled { opacity: 0.36; }

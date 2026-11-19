@@ -466,3 +466,8 @@ button small { display: block; font: 9.5px var(--mono); letter-spacing: 0.5px; o
 .trk .lay i { width: 8px; height: 8px; border: 1px solid var(--lc); display: block; }
 .trk .lay.on { color: var(--text); opacity: 1; } .trk .lay.on i { background: var(--lc); }
 .trk .lay:hover { border-color: var(--lc); }
+
+/* (0.48) a list that folds away until asked for: one look wherever a panel runs long */
+.fold { margin-top: 6px; } .fold > summary { cursor: pointer; list-style: none; padding: 5px 0; letter-spacing: 1px; } .fold > summary::-webkit-details-marker { display: none; }
+.fold > summary::before { content: '+'; display: inline-block; width: 14px; color: var(--amber); } .fold[open] > summary::before { content: '\2212'; }
+.fold > summary:hover { color: var(--text); }

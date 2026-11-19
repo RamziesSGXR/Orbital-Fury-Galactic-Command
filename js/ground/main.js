@@ -71,8 +71,8 @@ function setPhoto(on) {
 function keepView() { try { localStorage.setItem('ofgc.view', JSON.stringify({ sight: cam.sight, hot: cam.hot, topo: !!cam.topo })); } catch { /* no storage */ } }
 function syncView() {
   const a = $('btn-sight'), b = $('btn-topo'); if (!a || !b) return;
-  a.textContent = cam.sight === 'day' ? 'SIGHT: COLOUR' : cam.sight === 'bhot' ? 'SIGHT: THERMAL B' : 'SIGHT: THERMAL'; a.classList.toggle('on', cam.sight !== 'day');
-  b.textContent = cam.topo ? 'HEIGHT: ON' : 'HEIGHT'; b.classList.toggle('on', !!cam.topo);
+  a.textContent = cam.sight === 'day' ? 'SIGHT: COLOUR' : cam.sight === 'bhot' ? 'SIGHT: THERMAL B' : 'SIGHT: THERMAL'; a.classList.toggle('on', cam.sight !== 'day'); a.title = a.textContent + ' (T)';
+  b.textContent = cam.topo ? 'HEIGHT: ON' : 'HEIGHT'; b.classList.toggle('on', !!cam.topo); b.title = cam.topo ? 'The height of the land is showing' : 'Show the height of the land: colour by height and contour lines';
 }
 function wirePhoto() {
   $('btn-sight').onclick = () => { if (cam.sight === 'day') cam.sight = cam.hot || 'whot'; else { cam.hot = cam.sight; cam.sight = 'day'; } audio.click(); keepView(); syncView(); };
