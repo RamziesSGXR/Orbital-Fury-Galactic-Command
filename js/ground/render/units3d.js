@@ -7,6 +7,8 @@
 // in its corners, standing on the ground at the origin, facing +z, sized so its widest or tallest measure is two units.
 import * as THREE from '../../vendor/three.js';
 import { VIEW } from './view.js';
+import { staticGeo, modelFrames } from '../../model3d.js';
+export { staticGeo, modelFrames };
 import { makeMats, makePerson, poseKit, makeLRV, makeTank, makeDropship, makeCrate } from '../../base/models.js';
 
 const TMP = new THREE.Color(), Q2 = new THREE.Quaternion(), FWD = new THREE.Vector3(0, 0, 1), SIDE = new THREE.Vector3(1, 0, 0);
@@ -123,67 +125,7 @@ const MODELS = {
   // (GC 0.41) vehicles and aircraft, made in Blender (tools/blender/vehicles.py) and dressed in the fleet's colours as the people are
   dship: 'veh_dropship', jet: 'veh_striker', lrv: 'veh_lrv', mech: 'veh_mech', shuttle: 'veh_shuttle', dog: 'veh_dog', uav: 'veh_uav',
 };
-const b64 = (s) => { const b = atob(s), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; };
-// (GC 0.38) SMOOTH WHERE IT CURVES, SHARP WHERE IT FOLDS. A model's corners are lit by the faces round them: a corner takes
-// the lie of every face that shares its vertex and is turned less than `deg` from its own. So a limb, a shell or a bevelled
-// edge is rounded and the edge of a plate stays hard. (Before, every triangle was lit flat: the faceted look.)
-// tris: the model's triangles (vertex numbers); pos: the corners' places, in triangle order. Returns the corners' normals.
-function crease(tris, pos, nv, deg = 44) {
-  const nt = tris.length / 3, fn = new Float32Array(nt * 3), fu = new Float32Array(nt * 3), out = new Float32Array(nt * 9), cosA = Math.cos(deg * Math.PI / 180);
-  for (let t = 0; t < nt; t++) {
-    const o = t * 9, ax = pos[o + 3] - pos[o], ay = pos[o + 4] - pos[o + 1], az = pos[o + 5] - pos[o + 2], bx = pos[o + 6] - pos[o], by = pos[o + 7] - pos[o + 1], bz = pos[o + 8] - pos[o + 2];
-    const x = ay * bz - az * by, y = az * bx - ax * bz, z = ax * by - ay * bx, l = Math.hypot(x, y, z) || 1; fn[t * 3] = x; fn[t * 3 + 1] = y; fn[t * 3 + 2] = z; fu[t * 3] = x / l; fu[t * 3 + 1] = y / l; fu[t * 3 + 2] = z / l;
-  }
-  // which faces meet at each vertex (the same for every frame of a model, so it is kept on the triangle list)
-  let adj = tris._adj;
-  if (!adj) { const start = new Uint32Array(nv + 1); for (let i = 0; i < tris.length; i++) start[tris[i] + 1]++; for (let v = 0; v < nv; v++) start[v + 1] += start[v];
-    const fill = start.slice(0, nv), list = new Uint32Array(tris.length); for (let i = 0; i < tris.length; i++) list[fill[tris[i]]++] = (i / 3) | 0; adj = tris._adj = { start, list }; }
-  for (let i = 0; i < tris.length; i++) {
-    const t = (i / 3) | 0, v = tris[i], ux = fu[t * 3], uy = fu[t * 3 + 1], uz = fu[t * 3 + 2]; let x = 0, y = 0, z = 0;
-    for (let k = adj.start[v]; k < adj.start[v + 1]; k++) { const f = adj.list[k]; if (f === t || ux * fu[f * 3] + uy * fu[f * 3 + 1] + uz * fu[f * 3 + 2] >= cosA) { x += fn[f * 3]; y += fn[f * 3 + 1]; z += fn[f * 3 + 2]; } }
-    const l = Math.hypot(x, y, z) || 1; out[i * 3] = x / l; out[i * 3 + 1] = y / l; out[i * 3 + 2] = z / l;
-  }
-  return out;
-}
-// One set of frames from a model file (or from its lighter copy, d.lod). remap: { a material's name: a colour } to dress it in the fleet's own.
-function frameSet(d, fit, remap) {
-  const tris = new Uint16Array(b64(d.tris).buffer.slice(0)), cols = b64(d.cols), mi = d.mi ? b64(d.mi) : null, nt = d.nt, out = {}, c = new THREE.Color();
-  const col = new Float32Array(nt * 9);
-  for (let t = 0; t < nt; t++) {
-    const nm = mi && d.pal ? d.pal[mi[t]] : null, rc = nm && remap ? remap[nm] : null;
-    if (rc) c.set(rc); else c.setRGB(cols[t * 3] / 255, cols[t * 3 + 1] / 255, cols[t * 3 + 2] / 255, THREE.SRGBColorSpace);
-    for (let k = 0; k < 3; k++) { col[t * 9 + k * 3] = c.r; col[t * 9 + k * 3 + 1] = c.g; col[t * 9 + k * 3 + 2] = c.b; }
-  }
-  const names = Object.keys(d.frames).sort((a, b) => (a === 'stand' ? -1 : b === 'stand' ? 1 : 0));     // (the standing frame sets the size for all of them)
-  for (const name of names) {
-    const q = new Uint16Array(b64(d.frames[name]).buffer.slice(0)), pos = new Float32Array(nt * 9);
-    for (let i = 0; i < nt * 3; i++) { const v = tris[i] * 3; for (let k = 0; k < 3; k++) pos[i * 3 + k] = d.min[k] + q[v + k] / 65535 * d.size[k]; }
-    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.setAttribute('normal', new THREE.BufferAttribute(crease(tris, pos, d.nv), 3));
-    if (!fit.k) { g.computeBoundingBox(); const b = g.boundingBox; fit.x = -(b.min.x + b.max.x) / 2; fit.y = -b.min.y; fit.z = -(b.min.z + b.max.z) / 2; fit.k = 2 / (fit.ask || Math.max(b.max.x - b.min.x, b.max.y - b.min.y, b.max.z - b.min.z) || 1); }
-    g.translate(fit.x, fit.y, fit.z); g.scale(fit.k, fit.k, fit.k); out[name] = g;
-  }
-  return out;
-}
-// d.fit: the model's own say on its size, so a long spear or tail does not shrink its carrier. d.lod: the same creature in far fewer
-// triangles, for when it is small on the screen or the field is crowded.
-// (GC 0.38) A thing that stands still (an objective, a side site), from a model file: its one frame at the size it was made
-// (a footprint radius of about one, standing on the ground). remap as above.
-export function staticGeo(d, remap = null) {
-  const tris = new Uint16Array(b64(d.tris).buffer.slice(0)), cols = b64(d.cols), mi = d.mi ? b64(d.mi) : null, nt = d.nt, c = new THREE.Color();
-  const q = new Uint16Array(b64(d.frames.stand).buffer.slice(0)), pos = new Float32Array(nt * 9), col = new Float32Array(nt * 9);
-  for (let t = 0; t < nt; t++) {
-    const nm = mi && d.pal ? d.pal[mi[t]] : null, rc = nm && remap ? remap[nm] : null;
-    if (rc) c.set(rc); else c.setRGB(cols[t * 3] / 255, cols[t * 3 + 1] / 255, cols[t * 3 + 2] / 255, THREE.SRGBColorSpace);
-    for (let k = 0; k < 3; k++) { const v = tris[t * 3 + k] * 3, o = t * 9 + k * 3; pos[o] = d.min[0] + q[v] / 65535 * d.size[0]; pos[o + 1] = d.min[1] + q[v + 1] / 65535 * d.size[1]; pos[o + 2] = d.min[2] + q[v + 2] / 65535 * d.size[2]; col[o] = c.r; col[o + 1] = c.g; col[o + 2] = c.b; }
-  }
-  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.setAttribute('normal', new THREE.BufferAttribute(crease(tris, pos, d.nv, 40), 3)); return g;
-}
-export function modelFrames(d, remap = null) {
-  const fit = { ask: d.fit || 0, k: 0 }, out = { frames: frameSet(d, fit, remap) };
-  if (d.lod) out.lod = { frames: frameSet(d.lod, fit, remap) };
-  return out;
-}
-
+const PEOPLE = new Set(['van', 'inf', 'civ0', 'civ1', 'civ2']), GROUND_POSES = /^(stand|down|aim|kneel|hit|[wa]\d)$/;     // (GC 0.42: the people's files also hold the base's and the station's poses)
 export class Units3D {
   constructor(scene, livery) {
     this.scene = scene; this.kinds = new Map(); this.used = new Map(); this.all = [];
@@ -206,7 +148,7 @@ export class Units3D {
     this.loaded = {};
     if (typeof fetch === 'function') fetch('assets/models/index.json').then((r) => (r.ok ? r.json() : null)).then((ix) => {     // (the list says which are made, so nothing missing is asked for)
       for (const [k, file] of Object.entries(MODELS)) if (ix && ix.models && ix.models.includes(file))
-        fetch(`assets/models/${file}.json`).then((r) => (r.ok ? r.json() : null)).then((d) => { if (!d || !d.frames) return; const made = modelFrames(d, this.dress(k)); this.def[k] = () => made; this._drop(k); this.loaded[k] = d.nt; VIEW.m3.add(file); }).catch(() => {});
+        fetch(`assets/models/${file}.json`).then((r) => (r.ok ? r.json() : null)).then((d) => { if (!d || !d.frames) return; const made = modelFrames(d, this.dress(k), PEOPLE.has(k) ? GROUND_POSES : null); this.def[k] = () => made; this._drop(k); this.loaded[k] = d.nt; VIEW.m3.add(file); }).catch(() => {});
     }).catch(() => {});
   }
   // The fleet's own colours for the parts of a character model that are named for them (the enemy wears its own).

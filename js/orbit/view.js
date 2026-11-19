@@ -6,6 +6,7 @@
 // The sky is a skybox: it moves with the camera, so stars, sun and moons never slide about when you pan or zoom.
 import * as THREE from './vendor/three.js';
 import { C } from './config.js';
+import { Crowd3D } from '../model3d.js';
 import { buildPart, buildShip, buildRoom, buildSuit, buildFigure, buildRaider, buildStriker, FIGURES, SLOTS, WALK, partPath, wayPoint, onWalk, slotSpot, doorSide, sillY, liftR, FL, LIFT_R } from './parts.js';
 import { paintWorld, WORLDS, WORLD_TYPES } from './planets.js';
 import { RNG } from './rng.js';
@@ -289,6 +290,7 @@ export class View {
     redo(); ensureLogo(f.logo).then(redo);      // an uploaded picture is decoded first; the crest is drawn until it is
     const L = f.look || {};
     if (this.figs) for (const [set, pose] of [[this.figs, 'stand'], [this.figsW, 'walk']]) { const im = set.trooper; im.geometry.dispose(); im.geometry = buildFigure('trooper', pose, L); }
+    if (this.folk && L.uniform) this.folk.redress('trooper', this._fleetLook(L));
   }
   setLivery(L) {
     const M = this.M, D = C.livery;
@@ -549,6 +551,7 @@ export class View {
     this.figOn = this.peopleOn && !life;
     this.agentPts.visible = this.peopleOn;
     for (const f of [...Object.values(this.figs), ...Object.values(this.figsW)]) f.visible = this.figOn;
+    if (this.folk) { this.folk.visible = this.figOn; if (!this.figOn) this.folk.clear(); }
     this.crateIM.visible = this.figOn;
   }
 
@@ -993,9 +996,10 @@ export class View {
   // How big a figure is drawn: the standard height (C.scale) over the height it was modelled at, times the player's own setting.
   personK() { return C.scale.person / C.scale.m / 0.33 * this.peopleK; }
   _agents(now) {
-    const pos = this.agentPts.geometry.attributes.position, col = this.agentPts.geometry.attributes.color;
+    const pos = this.agentPts.geometry.attributes.position, col = this.agentPts.geometry.attributes.color, fig0 = this.figOn && !!this.folk;
     let n = 0;
     const put = (P, c) => { if (n >= pos.count) return; pos.setXYZ(n, P[0], P[1] + 0.1, P[2]); col.setXYZ(n, c[0], c[1], c[2]); n++; };
+    const folk = this.folk, model = fig0 && folk.ready('resident') && folk.ready('trooper'); if (fig0) folk.begin();
     const count = {}, fig = this.figOn, m4 = this._m4, qa = this._qa, qb = this._qb, sc = this._sc, v3 = this._v3, tintc = this._col;
     let crates = 0;
     this.liftRider.clear();
@@ -1012,22 +1016,26 @@ export class View {
       if (fk === 'gunner') { const hp = this.st.parts.get(a.home), ht = hp ? hp.type : ''; fk = ht === 'barracks' ? 'trooper' : ht === 'strikerhangar' || ht === 'dshipbay' ? (a.seed < 0.5 ? 'pilot' : 'gunner') : 'gunner'; }
       const walking = a.path.length > 0 && !P[5], ck = walking ? `w${fk}` : fk;
       const im = (walking ? this.figsW : this.figs)[fk] || this.figs.resident, i = count[ck] = (count[ck] || 0), part = this.st.parts.get(a.at);
-      if (i >= im.instanceMatrix.count) continue;
-      count[ck] = i + 1;
+      if (!model) { if (i >= im.instanceMatrix.count) continue; count[ck] = i + 1; }
       if (P[3] !== null && P[3] !== undefined) qa.setFromAxisAngle(UP, P[3] + Math.sin(now * 9 + a.seed * 30) * 0.1);
       else { qa.set(...part.quat); qb.setFromAxisAngle(UP, P[4] !== null && P[4] !== undefined ? P[4] + Math.sin(now * 0.4 + a.seed * 20) * 0.25 : a.seed * 6.283); qa.multiply(qb); }
       v3.set(P[0], P[1], P[2]);
       const step = Math.sin(now * 7 + a.seed * 40), bob = walking ? 1 - Math.abs(step) * 0.03 : 1;
       const ps = this.personK();
-      m4.compose(v3, qa, sc.set(walking && step < 0 ? -ps : ps, ps * bob, ps)); im.setMatrixAt(i, m4);
+      if (model) {     // (GC 0.42) the person is the model made in Blender, walking on its own legs
+        const k = folk.ready(fk) ? fk : 'resident', s = ps * (0.33 / 1.8) / folk.unit(k), ph = now * 7 + a.seed * 40, st = Math.floor((((ph % 6.2832) + 6.2832) % 6.2832) / 6.2832 * 8) % 8;
+        folk.put(k, walking ? 'w' + st : 'stand', m4.compose(v3, qa, sc.set(s, s, s)));
+      } else { m4.compose(v3, qa, sc.set(walking && step < 0 ? -ps : ps, ps * bob, ps)); im.setMatrixAt(i, m4); }
       if (a.carry && crates < this.crateIM.instanceMatrix.count) { v3.set(0, 0.2 * ps, 0.08 * ps).applyQuaternion(qa).add(sc.set(P[0], P[1], P[2])); m4.compose(v3, qa, sc.set(ps * 1.3, ps * 1.3, ps * 1.3)); this.crateIM.setMatrixAt(crates++, m4); }
     }
+    if (fig0) folk.end();
     for (const r of FIGURES) { const im = this.figs[r], iw = this.figsW[r]; im.count = fig ? count[r] || 0 : 0; im.instanceMatrix.needsUpdate = true; iw.count = fig ? count[`w${r}`] || 0 : 0; iw.instanceMatrix.needsUpdate = true; }
     this.crateIM.count = crates; this.crateIM.instanceMatrix.needsUpdate = true;
     for (const P of this.evaPos) put(P, ROLE_COL.eva);
     this.agentPts.geometry.setDrawRange(0, n);
     pos.needsUpdate = true; col.needsUpdate = true;
   }
+  _fleetLook(L) { const u = new THREE.Color(L.uniform), d = (f) => u.clone().multiplyScalar(f); return { uniform: u, uniform_dark: d(0.78), kit: d(0.62), helmet: d(0.9) }; }
   _figuresInit() {
     // figs: people standing; figsW: people in mid-stride (mirrored left and right as they walk, so the material is two-sided)
     this.figs = {}; this.figsW = {};
@@ -1036,6 +1044,16 @@ export class View {
       const im = new THREE.InstancedMesh(buildFigure(r, pose), mat, 160);
       im.count = 0; im.frustumCulled = false; im.visible = false; this.scene.add(im); set[r] = im;
     }
+    // (GC 0.42) THE SAME PEOPLE AS THE GROUND AND THE BASE: each job is one of the models made in Blender, some in other colours.
+    // The figures above stand in until the files have come.
+    this.folk = new Crowd3D(this.scene, { mat, cap: 48 });
+    const W = /^w\d$/, suit = (top, legs) => ({ c_suit_w: top, c_suit_w_legs: legs });
+    this.folk.load({
+      resident: { file: 'citizen_a', only: W }, resident2: { file: 'citizen_b', only: W }, resident3: { file: 'citizen_c', only: W }, resident4: { file: 'citizen_a', only: W, remap: { c_suit_a: '#7a6aa8', c_suit_a_legs: '#2e3238' } },
+      hauler: { file: 'crew', only: W, remap: suit('#3d7fc4', '#27425e') }, gunner: { file: 'crew', only: W }, aide: { file: 'crew', only: W, remap: suit('#6c7a5e', '#3c4438') },
+      engineer: { file: 'engineer', only: W }, officer: { file: 'inspector', only: W }, medic: { file: 'medic', only: W }, scientist: { file: 'medic', only: W, remap: { c_suit_m_legs: '#3a3f4a', trim: '#9a6cff' } },
+      trooper: { file: 'soldier', only: W, remap: this.faction && this.faction.look && this.faction.look.uniform ? this._fleetLook(this.faction.look) : null }, pilot: { file: 'pilot', only: W },
+    });
     this.lifts = new Map(); this.liftRider = new Map();
     this.crateIM = new THREE.InstancedMesh(new THREE.BoxGeometry(0.09, 0.09, 0.09), new THREE.MeshStandardMaterial({ color: 0xc08a3a, roughness: 0.8, flatShading: true }), 200);
     this.crateIM.count = 0; this.crateIM.frustumCulled = false; this.crateIM.visible = false; this.scene.add(this.crateIM);

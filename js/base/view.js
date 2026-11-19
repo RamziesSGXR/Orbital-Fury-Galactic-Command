@@ -6,6 +6,7 @@ import { BIOMES } from './site.js';
 import { SCRUB_COL, makeMats, mergeStatic, buildModel, makePerson, poseKit, makeForklift, makeTruck, makeLRV, makeTank, makeCrate, makeDropship, wrap } from './models.js';
 const VMAKE = { lift: makeForklift, truck: makeTruck, lrv: makeLRV, tank: makeTank };
 import { Noise } from './noise.js';
+import { Crowd3D } from '../model3d.js';
 import { WL } from './site.js';
 
 // ---------------------------------------------------------------- terrain height, in every shader (0.17)
@@ -84,6 +85,7 @@ export class View {
     for (const g of this.bm.values()) this.world.remove(g); this.bm.clear();
     for (const c of this.chunks?.values() || []) { this.world.remove(c.group); for (const m of c.group.children) m.geometry.dispose(); } this.chunks = new Map();
     this.pm.clear(); if (this.crowd) for (const c of Object.values(this.crowd)) for (const im of c.ims) { this.world.remove(im); im.dispose(); } this.crowd = {};
+    this.dressFolk();
     for (const g of this.vm.values()) this.world.remove(g); this.vm.clear();
     this.ghostKey = '';
     this.faction = f; this.roadsV = -1;   // the gate sign carries the base's name
@@ -1059,7 +1061,48 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
     }
   }
 
+  // ---------------------------------------------------------------- (GC 0.42) THE PEOPLE ARE THE MODELS MADE IN BLENDER: the same
+  // soldier, Vanguard, citizens and crew the ground and the station show, each act one of the model's own poses. Until the files
+  // have come (a moment), the old jointed figure below stands in.
+  dressFolk() {
+    const m = this.m, dark = (c, f) => c.clone().multiplyScalar(f), u = m.uniform.color, prim = m.prim.color;
+    const fleet = { uniform: u, uniform_dark: dark(u, 0.78), kit: dark(u, 0.62), helmet: m.helmet.color, armband: m.armband.color, trim: prim };
+    const K = { troop: { file: 'soldier', remap: fleet }, hd: { file: 'vanguard', remap: fleet }, eng: { file: 'engineer', remap: { trim: prim } }, inspector: { file: 'inspector', remap: { trim: prim } },
+      civ0: { file: 'citizen_a', remap: { trim: prim } }, civ1: { file: 'citizen_b', remap: { trim: prim } }, civ2: { file: 'citizen_c', remap: { trim: prim } } };
+    if (this.folk) this.folk.dispose();
+    this.folk = new Crowd3D(this.world, { cap: 64 }); this.folk.load(K);
+  }
+  syncFolk() {
+    const L = this.life, t = this.t, F = this.folk, far = this.zoom > 20, TAU = Math.PI * 2;
+    this.cam.updateMatrixWorld(); const fr = this.frust ||= new THREE.Frustum(), sph = this.psph ||= new THREE.Sphere(new THREE.Vector3(), 1.2);
+    fr.setFromProjectionMatrix((this.pmat ||= new THREE.Matrix4()).multiplyMatrices(this.cam.projectionMatrix, this.cam.matrixWorldInverse));
+    const M = this.fM ||= new THREE.Matrix4(), Q = this.fQ ||= new THREE.Quaternion(), P = this.fP ||= new THREE.Vector3(), S = this.fS ||= new THREE.Vector3(), UP = this.fU ||= new THREE.Vector3(0, 1, 0);
+    const step = (ph, n) => Math.floor((((ph % TAU) + TAU) % TAU) / TAU * n) % n;
+    F.begin();
+    for (const a of L.actors.values()) {
+      if (a.hidden) continue;
+      const k = F.ready(a.kind) ? a.kind : a.kind.startsWith('civ') ? 'civ0' : 'troop'; if (!F.ready(k)) continue;
+      const wx = this.wx(a.x), wz = this.wx(a.z);
+      sph.center.set(wx, 0.6 + (this.sim.hAt ? this.sim.hAt(a.x, a.z) : 0), wz); if (!fr.intersectsSphere(sph)) continue;
+      const ph = t * 9 + a.seed; let f = 'stand', y = 0;
+      if (a.act === 'lie') f = 'down';
+      else if (!far) switch (a.act) {
+        case 'walk': f = 'w' + step(ph, 8); y = Math.abs(Math.sin(ph)) * 0.012; break;
+        case 'run': f = 'r' + step(ph * 1.4, 8); y = Math.abs(Math.sin(ph * 1.4)) * 0.025; break;
+        case 'drill': f = (F.has(k, 'm0') ? 'm' : 'w') + step(t * 6 + Math.floor(a.x), 8); break;
+        case 'work': case 'build': f = 'k' + step(t * 7 + a.seed, 4); break;
+        case 'inspect': f = 'n' + Math.min(2, Math.floor((Math.sin(t * 1.5 + a.seed) + 1) * 1.5)); break;
+        case 'heart': case 'salute': case 'drink': case 'mourn': case 'look': f = a.act; break;
+        case 'aim': f = F.has(k, 'aim') ? 'aim' : 'stand'; break;
+      }
+      const s = 0.3194 / F.unit(k);     // (a 1.8 m person stands 0.575 of the base's units, as the jointed figure did)
+      P.set(wx, y, wz); Q.setFromAxisAngle(UP, a.yaw); S.setScalar(s); F.put(k, f, M.compose(P, Q, S), null, far);
+    }
+    F.end();
+    if (this.pm.size) { this.pm.clear(); for (const c of Object.values(this.crowd)) for (const im of c.ims) im.count = 0; }
+  }
   syncPeople(dt) {
+    if (this.folk && this.folk.ready('troop') && this.folk.ready('civ0')) return this.syncFolk();
     const L = this.life, t = this.t;
     // only people on screen are posed and drawn; zoomed far out, limbs stop moving (nobody can see them) and a person who
     // has not moved keeps last frame's matrices
