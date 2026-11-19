@@ -1,5 +1,5 @@
 // Every number and every name in the game lives here, so the prototype can be retuned or renamed in one place.
-export const VERSION = '0.43.0';
+export const VERSION = '0.44.0';
 
 export const C = {
   names: {
@@ -183,6 +183,21 @@ export const C = {
     { id: 'clean',  name: 'NOT A SCRATCH',    text: 'Win and lose no more than 2 lives.', test: (r) => r.livesMax - r.livesLeft <= 2 },
     { id: 'star',   name: 'STAR OF THE SHOW', text: 'Win with your ship doing half the damage.', test: (r) => r.share && r.share.player >= 0.5 },
   ],
+  // ---------------------------------------------------------------- THE NETWORK (0.44): RATINGS AS A SYSTEM
+  // The war is a show and the show has backers. A SPONSOR signs for a run of rounds, pays credits every round (more when ratings
+  // are high), and wants one thing on air in that time. Do it and they renew, and ratings rise; miss it, or let ratings sit under
+  // their floor, and they walk and say why in public. You have one slot, a second with two posts in profit (the affiliates), a
+  // third while ratings are high. Every post in profit also sends footage: a little ratings each round. A fight on air draws more
+  // or fewer viewers by what happens in it. Every point gained or lost is written in the ratings ledger, so you can see why.
+  sponsors: [
+    { id: 'cola',   name: 'VICTORY COLA',       line: 'Tastes like winning. Mostly.',          pay: 60,  floor: 30, want: { type: 'aired', n: 2 }, text: 'Win 2 fights on camera.',         rounds: 6, miss: 3 },
+    { id: 'burger', name: 'BIG VICTORY BURGER', line: 'Two patties. One front.',               pay: 50,  floor: 25, want: { type: 'show', n: 1 },  text: 'Put on a parade or a gala.',      rounds: 8, miss: 2 },
+    { id: 'arms',   name: 'HALBERD ARMAMENTS',  line: 'We make the bang. You make the news.',  pay: 90,  floor: 45, want: { type: 'stunt', n: 1 }, text: 'Pull off a sponsor stunt, live.', rounds: 6, miss: 4 },
+    { id: 'ins',    name: 'EVERSURE MUTUAL',    line: 'Covered against everything but this.',  pay: 70,  floor: 40, want: { type: 'hold' },        text: 'Lose no system.',                 rounds: 5, miss: 4 },
+    { id: 'realty', name: 'NEW HORIZON HOMES',  line: 'Lovely worlds. Recently available.',    pay: 80,  floor: 35, want: { type: 'take', n: 3 },  text: 'Take 3 systems.',                 rounds: 6, miss: 3 },
+    { id: 'nine',   name: 'CHANNEL NINE ORBIT', line: 'All war, all the time.',                pay: 110, floor: 60, want: { type: 'aired', n: 4 }, text: 'Win 4 fights on camera.',         rounds: 8, miss: 5 },
+  ],
+  network: { offers: 3, redeal: 6, renew: 2, walkRounds: 2, post: 0.3, postMax: 2, aud: { base: 0.6, span: 0.8 } },
   ratings: { start: 50, stunt: 3, settle: 40, drift: 0.12, take: 1, takeHome: 15, hold: 1, repelled: -1, fall: -1, postLost: -3, found: 1,
              ground: { win: 3, flawless: 3, flawlessAt: 0.8, loss: -2 },
              show: { gain: 4, every: 8, cost: { base: { army: 3 }, station: { fuel: 3 } } },

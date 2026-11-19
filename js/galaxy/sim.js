@@ -43,7 +43,7 @@ export class Game {
     this.stats = { taken: 0, fallen: 0, held: 0, repelled: 0 };
     for (const p of this.P) { p.station = 0; p.base = 0; p.dmg = 0; p.sp = 0; p.bp = 0; }
     this.up = {}; this.due = 0; this.rat = C.ratings.start; this.sack = 0;
-    this.cnt = { take: 0, fall: 0, post: 0, aired: 0 }; this.camp = null; this.campLog = { won: 0, lost: 0 }; this.offers = []; this._dealOffers();
+    this.cnt = { take: 0, fall: 0, post: 0, aired: 0, show: 0, stunt: 0 }; this.net = { deals: [], offers: [], dealt: -99 }; this.air = { now: [], last: [] }; this.camp = null; this.campLog = { won: 0, lost: 0 }; this.offers = []; this._dealOffers(); this._dealSponsors();
     { const n = C.fleet.start.posts[this.opt.posts] || 0, near = this.P.filter(q => q.id && q.ring <= 2).sort((a, b) => a.ring - b.ring || a.id - b.id); for (let i = 0; i < n; i++) { const a = near[i * 2], b = near[i * 2 + 1]; if (a) { a.station = 1; a.sp = 1; } if (b) { b.base = 1; b.bp = 1; } } }      // armoury upgrades bought; credits owed to the war chest
     if (saved) return this._restore(saved);
     this.say('info', `Every world on the map carries the ${N.fed} brand. Long may it sell.`);
@@ -60,7 +60,7 @@ export class Game {
 
   // ---------- saving (only while you are deciding) ----------
   save() {
-    const k = ['seed', 'rs', 'round', 'fi', 'res', 'mkt', 'truth', 'F', 'fleets', 'fid', 'policy', 'priority', 'capHit', 'stats', 'over', 'last', 'up', 'due', 'rat', 'sack', 'aired', 'opt', 'yard', 'cnt', 'camp', 'campLog', 'offers'];
+    const k = ['seed', 'rs', 'round', 'fi', 'res', 'mkt', 'truth', 'F', 'fleets', 'fid', 'policy', 'priority', 'capHit', 'stats', 'over', 'last', 'up', 'due', 'rat', 'sack', 'aired', 'opt', 'yard', 'cnt', 'camp', 'campLog', 'offers', 'net', 'air'];
     const d = { v: 12, log: this.log.slice(-80), P: this.P.map(p => [p.owner, p.dev, p.site, p.built ? 1 : 0, p.station || 0, p.base || 0, p.dmg || 0, p.sp || 0, p.bp || 0]) };
     for (const x of k) d[x] = this[x];
     return d;
@@ -68,7 +68,7 @@ export class Game {
   _restore(d) {
     for (const k in d) if (k !== 'v' && k !== 'P') this[k] = d[k];
     d.P.forEach(([o, dv, st, bu, sn, bs, dm, sp, bp], i) => Object.assign(this.P[i], { owner: o, dev: dv, site: st, built: !!bu, station: sn || 0, base: bs || 0, dmg: dm || 0, sp: sp || 0, bp: bp || 0 }));
-    this.up ||= {}; this.due ||= 0; this.rat ??= C.ratings.start; this.sack ||= 0; this.opt ||= { fleets: 'standard', posts: 'none' }; this.yard ||= 'bal'; this._lootAlias(); this.mkt ||= { fuel: 1, ammo: 1, tech: 1 }; this.cnt ||= { take: 0, fall: 0, post: 0, aired: 0 }; this.campLog ||= { won: 0, lost: 0 }; if (!this.offers || !this.offers.length) this._dealOffers();
+    this.up ||= {}; this.due ||= 0; this.rat ??= C.ratings.start; this.sack ||= 0; this.net ||= { deals: [], offers: [], dealt: -99 }; this.air ||= { now: [], last: [] }; if (this.cnt) { this.cnt.show ||= 0; this.cnt.stunt ||= 0; } this.opt ||= { fleets: 'standard', posts: 'none' }; this.yard ||= 'bal'; this._lootAlias(); this.mkt ||= { fuel: 1, ammo: 1, tech: 1 }; this.cnt ||= { take: 0, fall: 0, post: 0, aired: 0 }; this.campLog ||= { won: 0, lost: 0 }; if (!this.offers || !this.offers.length) this._dealOffers();
     this.phase = this.over ? 'over' : 'plan'; this._sec = null;
     return this;
   }
@@ -535,27 +535,66 @@ export class Game {
     const s = this.campState(); if (!s) return; const c = s.def, hold = c.goal.type === 'hold';
     const won = hold ? !s.broken && s.left <= 1 : s.n >= s.of, lost = !won && (s.broken || s.left <= 1);
     if (!won && !lost) return;
-    if (won) { const P = c.prize; this.campLog.won++; if (P.rat) this.rate(P.rat); if (P.cr) this.due += P.cr; if (P.tech) this.res.tech += P.tech; if (P.ships) this._put('fed', 0, P.ships); this.say('good', `${c.name} is a success. The prize is yours.`); }
-    else { this.campLog.lost++; this.rate(-c.fail); this.say('bad', `${c.name} has failed. The papers are not kind.`); }
+    if (won) { const P = c.prize; this.campLog.won++; if (P.rat) this.rate(P.rat, 'Campaign won'); if (P.cr) this.due += P.cr; if (P.tech) this.res.tech += P.tech; if (P.ships) this._put('fed', 0, P.ships); this.say('good', `${c.name} is a success. The prize is yours.`); }
+    else { this.campLog.lost++; this.rate(-c.fail, 'Campaign failed'); this.say('bad', `${c.name} has failed. The papers are not kind.`); }
     this.camp = null; this._dealOffers();
   }
   // ---------- ratings ----------
-  rate(n) { this.rat = clamp(this.rat + n, 0, 100); }
+  // why: what it was for, as the ratings ledger will say it (entries for the same thing in one round are added up)
+  rate(n, why = 'Other news') { this.rat = clamp(this.rat + n, 0, 100); if (!n || !this.air) return; const e = this.air.now.find((x) => x.w === why); if (e) e.n += n; else this.air.now.push({ w: why, n }); }
+  // ---------------------------------------------------------------- THE NETWORK (0.44): sponsors, footage, viewers
+  netPosts() { const fl = this.fedLinked(); let n = 0; for (const p of this.P) if (p.owner === 'fed' && fl.has(p.id)) n += (p.station && p.sp ? 1 : 0) + (p.base && p.bp ? 1 : 0); return n; }
+  netSlots() { return 1 + (this.netPosts() >= 2 ? 1 : 0) + (this.rat >= C.ratings.high ? 1 : 0); }
+  sponsor(id) { return C.sponsors.find((s) => s.id === id); }
+  _cntOf(t) { return this.cnt[t === 'hold' ? 'fall' : t] || 0; }
+  dealState(d) { const s = this.sponsor(d.id), w = s.want, hold = w.type === 'hold', n = this._cntOf(w.type) - d.at; return { s, left: d.end - this.round, n: hold ? n : Math.min(n, w.n), need: hold ? 0 : w.n, ok: hold ? n === 0 : n >= w.n, pay: Math.round(s.pay * this.ratPay()) }; }
+  canSign(id) { const s = this.sponsor(id); return this.ready() && !!s && this.net.offers.includes(id) && this.net.deals.length < this.netSlots() && this.rat >= s.floor; }
+  sign(id) {
+    if (!this.canSign(id)) return false; const s = this.sponsor(id);
+    this.net.offers = this.net.offers.filter((x) => x !== id); this.net.deals.push({ id, at: this._cntOf(s.want.type), end: this.round + s.rounds, low: 0 });
+    this.say('good', `Publicity Office: ${s.name} signs for ${s.rounds} rounds. "${s.line}"`); return true;
+  }
+  unsign(id) { const i = this.net.deals.findIndex((d) => d.id === id); if (i < 0 || !this.ready()) return false; const s = this.sponsor(id); this.net.deals.splice(i, 1); this.rate(-1, 'Sponsor let go'); this.say('bad', `Publicity Office: ${s.name} is let go. Their lawyers send regards.`); return true; }
+  _dealSponsors() {
+    const have = new Set([...this.net.deals.map((d) => d.id), ...this.net.offers]), pool = C.sponsors.filter((s) => !have.has(s.id));
+    while (this.net.offers.length < C.network.offers && pool.length) this.net.offers.push(pool.splice((this.seed + this.round * 13 + pool.length * 7) % pool.length, 1)[0].id);
+    this.net.dealt = this.round;
+  }
+  _netRound() {
+    const N = C.network, posts = this.netPosts(), gone = (d) => { this.net.deals = this.net.deals.filter((x) => x !== d); };
+    if (posts) this.rate(Math.min(N.postMax, posts * N.post), posts === 1 ? 'Footage from a post' : `Footage from ${posts} posts`);
+    for (const d of [...this.net.deals]) {
+      const st = this.dealState(d), s = st.s; this.due += st.pay; d.low = this.rat < s.floor ? (d.low || 0) + 1 : 0;
+      if (d.low >= N.walkRounds) { gone(d); this.rate(-s.miss, `${s.name} walked`); this.say('bad', `${s.name} pulls its money: ratings under ${s.floor}% for ${N.walkRounds} rounds.`); }
+      else if (s.want.type === 'hold' && !st.ok) { gone(d); this.rate(-s.miss, `${s.name} walked`); this.say('bad', `${s.name} walks: a system fell, and the contract had a clause.`); }
+      else if (this.round >= d.end) {
+        if (st.ok) { this.rate(N.renew, `${s.name} renewed`); d.at = this._cntOf(s.want.type); d.end = this.round + s.rounds; this.say('good', `${s.name} renews for ${s.rounds} more rounds. Their people are thrilled, in writing.`); }
+        else { gone(d); this.rate(-s.miss, `${s.name} walked`); this.say('bad', `${s.name} walks: "${s.text}" was not done. They have told the press.`); }
+      }
+    }
+    if (this.round - this.net.dealt >= N.redeal) this.net.offers = [];
+    if (this.net.offers.length < N.offers) this._dealSponsors();
+  }
+  // How many watched a fight that went out live, 0 to 1: a fight with a lot in it draws more (kills a minute, bases burned, a close call that still came off).
+  audience(res, win, left) { if (!res) return 0.5; const kpm = res.minutes > 0 ? (res.kills || 0) / res.minutes : 0; return clamp(0.25 + Math.min(0.35, kpm / 40) + (res.baseTotal ? 0.2 * Math.min(1, (res.bases || 0) / res.baseTotal) : 0.1) + (win ? (left < 0.4 ? 0.2 : 0.1) : 0), 0, 1); }
+  _aired(win, left, res) { const G = C.ratings.ground, A = C.network.aud; return win ? Math.max(1, Math.round((G.win + (left >= G.flawlessAt ? G.flawless : 0)) * (A.base + A.span * this.audience(res, win, left)))) : G.loss; }
   ratBand() { const R = C.ratings; return this.rat >= R.high ? 'high' : this.rat < R.sack ? 'sack' : this.rat < R.low ? 'low' : 'mid'; }
   ratYield() { const b = this.ratBand(); return b === 'mid' ? 1 : C.ratings.yield[b]; }
   // what the sponsors pay follows the ratings: half at nothing, half again at a hundred
   ratPay() { const P = C.ratings.pay; return P.min + (P.max - P.min) * this.rat / 100; }
   _ratRound() {
     const R = C.ratings;
-    if (this.rat > R.settle) this.rate(-Math.max(0.5, (this.rat - R.settle) * R.drift));
+    this._netRound();
+    if (this.rat > R.settle) this.rate(-Math.max(0.5, (this.rat - R.settle) * R.drift), 'Old news');
     if (this.rat < R.sack) { this.sack++; if (this.sack >= R.sackRounds) return this._end('lost', `Ratings under ${R.sack}% for ${R.sackRounds} rounds. The board has replaced you.`); this.say('bad', `Ratings Office: under ${R.sack}%. The board meets in ${R.sackRounds - this.sack} round${R.sackRounds - this.sack === 1 ? '' : 's'}.`); }
     else this.sack = 0;
+    this.air.last = this.air.now; this.air.now = [];     // (the ledger turns over: last round's is whole, this round's begins)
   }
   // A SHOW: a parade at a base, a gala at a station. The post must be linked and in profit, and not have put one on lately.
   showCost(kind) { return C.ratings.show.cost[kind]; }
   canShow(pid, kind) { const p = this.P[pid]; return this.ready() && !!p && p.owner === 'fed' && !!p[kind] && !! p[kind === 'station' ? 'sp' : 'bp'] && this.fedLinked().has(pid) && this.round - (p['show' + kind] ?? -99) >= C.ratings.show.every && this.canPay(this.showCost(kind)); }
   show(pid, kind) {
-    if (!this.canShow(pid, kind)) return false; const p = this.P[pid]; this._pay(this.showCost(kind)); p['show' + kind] = this.round; this.rate(C.ratings.show.gain);
+    if (!this.canShow(pid, kind)) return false; const p = this.P[pid]; this._pay(this.showCost(kind)); p['show' + kind] = this.round; this.cnt.show = (this.cnt.show || 0) + 1; this.rate(C.ratings.show.gain, kind === 'base' ? 'Parade' : 'Gala');
     const L = kind === 'base' ? [`A parade at ${p.name}. Nine bands, one tune.`, `${p.name} marches past the cameras. Twice, for the second angle.`, `A parade at ${p.name}. The flypast was only slightly late.`]
                               : [`A gala over ${p.name}. The canapés were in formation.`, `${p.name} station opens its doors to the press. Most of them.`, `A gala over ${p.name}. The sponsors' speeches ran long.`];
     this.say('good', 'Publicity Office: ' + L[(this.round + pid) % L.length]); return true;
@@ -589,7 +628,7 @@ export class Game {
   buy(id, wallet) { if (!this.canBuy(id, wallet.bal)) return false; const n = this.nextLevel(id); wallet.bal -= n.cr; wallet.spent = (wallet.spent || 0) + n.cr; this.loot[n.mat] -= n.n; this.up[id] = this.lv(id) + 1; return true; }
   // FOUND a station over, or a base on, a system of yours: paid for from the war's resources.
   canFound(pid, kind) { const p = this.P[pid]; return this.ready() && !!p && p.owner === 'fed' && p.id !== 0 && !p[kind] && this.fedLinked().has(pid) && this.canPay(C.link.found[kind]); }
-  found(pid, kind) { if (!this.canFound(pid, kind)) return false; this._pay(C.link.found[kind]); this.P[pid][kind] = 1; this._sec = null; this.rate(C.ratings.found); this.say('good', `A ${kind} is founded at ${this.P[pid].name}.`); return true; }
+  found(pid, kind) { if (!this.canFound(pid, kind)) return false; this._pay(C.link.found[kind]); this.P[pid][kind] = 1; this._sec = null; this.rate(C.ratings.found, 'New post'); this.say('good', `A ${kind} is founded at ${this.P[pid].name}.`); return true; }
   // A battle fought on the ground instead of with cards. `win` is whether you won it; `left` (0 to 1) is how much of
   // the winner's strength is still standing. The map is settled exactly as after a card battle.
   // The sponsors' stunt for the fight in front of you, if it is the one that will be aired this round.
@@ -604,7 +643,7 @@ export class Game {
     const p = this.P[b.pid], lv = (p.station || 0) + (p.base || 0); let rat = 0;
     if (win && b.kind === 'def' && lv) { out.chips.push({ k: N.army, v: lv * C.support.evac }); if (live) rat += C.support.evacRatings; out.notes.push(`${p.name}: the ${p.base ? 'base' : 'station'} is held and its people are out.`); }
     const st = this.stunt(); if (st) { let ok = false; if (win && res) { try { ok = !!st.test(res); } catch { ok = false; } } if (ok) rat += C.ratings.stunt; out.notes.push(`Sponsor stunt, "${st.name}": ${ok ? 'done, live' : 'not done'}.`); }
-    if (live) rat += win ? G.win + (flawless ? G.flawless : 0) : G.loss; else out.notes.push('Not aired: one ground fight a round goes out live.');
+    if (live) { rat += this._aired(win, left, res); if (res) out.notes.push(`Overnights: ${Math.round(this.audience(res, win, left) * 100)}% of sets tuned in.`); } else out.notes.push('Not aired: one ground fight a round goes out live.');
     if (rat) out.chips.push({ k: 'RATINGS', v: rat, pct: true });
     if (live && flawless) out.notes.push(`A flawless action, live: the footage shows ${N.factions[b.f]}'s plan.`);
     const K = win ? C.groundWin : C.groundLoss, n = C.battle.engage, deal = Math.ceil((b.you.fire * n + 3) * K.deal), take = Math.ceil((b.foe.fire * n + 2) * K.take * (win ? 1 - 0.7 * left : 1));
@@ -617,11 +656,11 @@ export class Game {
     const was = { fuel: this.res.fuel, ammo: this.res.ammo, tech: this.res.tech, army: this.res.army, rat: this.rat };     // (0.25) to show what the fight brought and cost
     this.res.ammo = Math.max(0, this.res.ammo - C.groundAmmo);
     if (win) this.loot[b.f] += Math.round(left * C.post.groundLoot);
-    { const p = this.P[b.pid], lv = (p.station || 0) + (p.base || 0); if (win && b.kind === 'def' && lv) { const n = lv * C.support.evac; this.res.army = Math.min(Math.max(this.resMax(), this.res.army), this.res.army + n); if (this.aired !== this.round) this.rate(C.support.evacRatings); this.say('good', `${p.name}: the ${p.base ? 'base' : 'station'} is held and its people are out. ${n} troops rejoin the fight.`); } }
-    const st = this.stunt(); if (st && win && res) { let ok = false; try { ok = !!st.test(res); } catch { ok = false; } if (ok) { this.rate(C.ratings.stunt); this.say('good', `Publicity Office: ${st.name}, live. The sponsors are delighted.`); } }
+    { const p = this.P[b.pid], lv = (p.station || 0) + (p.base || 0); if (win && b.kind === 'def' && lv) { const n = lv * C.support.evac; this.res.army = Math.min(Math.max(this.resMax(), this.res.army), this.res.army + n); if (this.aired !== this.round) this.rate(C.support.evacRatings, 'People brought out'); this.say('good', `${p.name}: the ${p.base ? 'base' : 'station'} is held and its people are out. ${n} troops rejoin the fight.`); } }
+    const st = this.stunt(); if (st && win && res) { let ok = false; try { ok = !!st.test(res); } catch { ok = false; } if (ok) { this.cnt.stunt = (this.cnt.stunt || 0) + 1; this.rate(C.ratings.stunt, 'Sponsor stunt'); this.say('good', `Publicity Office: ${st.name}, live. The sponsors are delighted.`); } }
     if (this.aired !== this.round && win && left >= C.ratings.ground.flawlessAt) this.F[b.f].seen = this.round + C.plans.leakRounds;     // the footage shows more than they meant it to
     if (this.aired !== this.round && win) this.cnt.aired++;
-    if (this.aired !== this.round) { this.aired = this.round; const G = C.ratings.ground; this.rate(win ? G.win + (left >= G.flawlessAt ? G.flawless : 0) : G.loss); if (win && left >= G.flawlessAt) this.say('good', 'Publicity Office: a flawless action, live. The footage is everywhere.'); }
+    if (this.aired !== this.round) { this.aired = this.round; const G = C.ratings.ground; this.rate(this._aired(win, left, res), win ? 'Fight won on air' : 'Fight lost on air'); if (win && left >= G.flawlessAt) this.say('good', 'Publicity Office: a flawless action, live. The footage is everywhere.'); }
     // one hard engagement: each side's fire over a full engagement, scaled by how the ground went
     const K = win ? C.groundWin : C.groundLoss, n = C.battle.engage;
     const deal = Math.ceil((b.you.fire * n + 3) * K.deal), take = Math.ceil((b.foe.fire * n + 2) * K.take * (win ? 1 - 0.7 * left : 1));
@@ -656,7 +695,7 @@ export class Game {
     if (b.kind === 'atk') {
       if (b.win) {
         if (theirs) { theirs.ships = Math.floor(theirs.ships / 2); this._retreat(theirs, b.pid); }
-        this.cnt.take++; if (p.station || p.base) this.cnt.post++; this._capture(p, 'fed'); this.stats.taken++; this.rate(p.kind === 'home' ? C.ratings.takeHome : C.ratings.take);
+        this.cnt.take++; if (p.station || p.base) this.cnt.post++; this._capture(p, 'fed'); this.stats.taken++; this.rate(p.kind === 'home' ? C.ratings.takeHome : C.ratings.take, 'Systems taken');
         mine.ships = Math.max(1, left(b.you, 0)); this.moves.push({ owner: 'fed', from: mine.at, to: b.pid, ships: mine.ships }); this._drop(mine); this._put('fed', b.pid, mine.ships, true, mine);
         b.result = `${p.name} is yours.`; this.say('good', `${p.name} taken from ${fn}.`);
         gain(p.kind === 'home' ? C.loot.home : C.loot.attack); this._truth('fed', 'newsreel', `${p.name} taken`);
@@ -664,19 +703,19 @@ export class Game {
       } else {
         mine.ships = Math.floor(mine.ships / 2); if (mine.ships <= 0) this._drop(mine);
         if (theirs) theirs.ships = Math.max(1, left(b.foe, b.fort));
-        this.stats.repelled++; this.rate(C.ratings.repelled);
+        this.stats.repelled++; this.rate(C.ratings.repelled, 'Assaults thrown back');
         b.result = `The attack on ${p.name} is beaten off. Half the fleet is lost.`; this.say('bad', `The attack on ${p.name} failed.`);
         this._truth(f, 'triumph', 'it repelled you');
       }
     } else if (b.win) {
       if (theirs) { theirs.ships = Math.floor(theirs.ships / 2); if (theirs.ships <= 0) this._drop(theirs); }
       if (mine) { mine.ships = left(b.you, b.fort); if (mine.ships <= 0) this._drop(mine); }
-      this.stats.held++; this.rate(C.ratings.hold);
+      this.stats.held++; this.rate(C.ratings.hold, 'Defences held');
       b.result = `${p.name} holds.`; this.say('good', `${p.name} held against ${fn}.`);
       gain(C.loot.defend); this._truth('fed', 'heroes', `${p.name} held`);
     } else {
       if (b.pid === 0) { b.result = `${N.capital} has fallen.`; return this._end('lost', `${N.capital} fell to ${fn}.`); }
-      this.rate(C.ratings.fall + (p.station || p.base ? C.ratings.postLost : 0)); this.cnt.fall++; this._capture(p, f); this.stats.fallen++;
+      this.rate(C.ratings.fall + (p.station || p.base ? C.ratings.postLost : 0), 'Systems lost'); this.cnt.fall++; this._capture(p, f); this.stats.fallen++;
       if (mine) { mine.ships = Math.floor(mine.ships / 2); this._retreat(mine, b.pid); }
       theirs.ships = Math.max(1, left(b.foe, 0)); this.moves.push({ owner: f, from: theirs.at, to: b.pid, ships: theirs.ships }); this._drop(theirs); this._put(f, b.pid, theirs.ships);
       b.result = `${p.name} has fallen.`; this.say('bad', `${p.name} fell to ${fn}.`);
