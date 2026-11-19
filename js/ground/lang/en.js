@@ -19,7 +19,7 @@ export default {
   'ui.rotate': 'Turn sideways for a wider view.',
 
   // ---------- title ----------
-  'title.eyebrow': 'Head Office Special Forces',
+  'title.eyebrow': 'Private Fleet Fire Support',
   'title.tag': 'Fire-Support Ship fire control',
   'title.callsign': 'CALLSIGN',
   'title.optional': 'Optional',
@@ -606,7 +606,7 @@ export default {
   'map.follow': 'FOLLOW SQUAD',
   'map.back': 'BACK',
   'credits.eyebrow': 'Credits',
-  'credits.lede': 'A free fan game made for the <b>Head Office Special Forces</b> community. You are the gunner on a Fire-Support Ship, covering four Vanguards from orbit.',
+  'credits.lede': 'A free fan game made for the <b>SESF</b> community. You are the gunner on a Fire-Support Ship, covering four Vanguards from orbit.',
   'credits.project': 'SOURCE CODE',
   'credits.ver': 'Version {v}. Part of Orbital Fury: Galactic Command.',
   'credits.body': '<div class="cr-col cr-c1"><section><h4>CREATED BY</h4><dl class="cr-list"><dt>Design and direction</dt><dd><b>Ramzies</b></dd><dt>Community</dt><dd><b>SESF</b><small>Testing, ideas and feedback.</small></dd><dt>AI tools</dt><dd><b>Claude (Anthropic)</b><small>Used as a coding assistant.</small></dd></dl></section></div>',
@@ -2303,7 +2303,7 @@ export default {
     'rudolph|Ride\'s here! Last one on buys the drinks!',
   ],
   // ---------- 0.27: the SESF campaign, its cast, and the after action reports ----------
-  'cp.eyebrow': 'HEAD OFFICE SPECIAL FORCES · CAMPAIGN',
+  'cp.eyebrow': 'PRIVATE FLEET FIRE SUPPORT · CAMPAIGN',
   // ---------- 0.28: the command radio's chatter (lines between the cast, now and then; an exchange is 'who|text' lines joined by ' || ') ----------
   'cast.u.tharsis': 'Base Tharsis · fire control net',
   'cast.u.dship': 'Dropship flight · Base Tharsis',

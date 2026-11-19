@@ -284,7 +284,7 @@ export const C = {
   // (C.faction is the factions aboard.)
   founding: {
     def: {
-      name: 'Head Office Special Forces', station: 'Orbital Station', motto: 'Victory, delivered.', primary: '#22262a', secondary: '#ffe600',
+      name: 'The Command', station: 'Orbital Station', motto: 'Victory, delivered.', primary: '#22262a', secondary: '#ffe600',
       logo: { shape: 'shield', symbol: 'striker', bg: '#1b2a1a', fg: '#ffe600', rim: '#ffe600', text: '', pattern: 'none', pc: '#ffe600' },
       look: { uniform: '#5d6a4a', helmet: '#4c5a3c', armband: '#ffe600', crest: true },
     },

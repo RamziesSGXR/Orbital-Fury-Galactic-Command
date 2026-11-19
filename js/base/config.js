@@ -344,7 +344,7 @@ export const RANKS = [[0, 'PVT'], [2, 'CPL'], [5, 'SGT'], [9, 'LT'], [14, 'CPT']
 export const PLANETS = ['Veritas Minor', "Hadrian's Reach", 'Calypso IV', 'New Lincoln', 'Ostara', 'Breckenridge Prime', 'Lumen Fields', "Castor's Rest", 'Halcyon Drift', 'Merit'];
 
 export const FACTION_DEFAULT = {
-  name: 'Head Office Special Forces', base: 'Fort Sanctuary', motto: 'Victory, delivered.',
+  name: 'The Command', base: 'Fort Sanctuary', motto: 'Victory, delivered.',
   primary: '#2e4a2a', secondary: '#ffe600',
   logo: { shape: 'shield', symbol: 'striker', bg: '#1b2a1a', fg: '#ffe600', rim: '#ffe600', text: '' },
 };

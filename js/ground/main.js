@@ -2456,7 +2456,9 @@ applySettings();
 renderer.resize();
 // (0.53) operations saved before the new campaign are cleared, once; the title says so
 const wipedOld = GCX ? false : S.resetOldSaves();
-if (GCX) gcStart(); else { if (FURY) { lookStart(FURY); $('btn-gc-exit').onclick = () => { audio.click(); audio.humStop(); FURY.onExit(); }; } toTitle(); }
+// (GC 0.39.1) the name over the title is the player's own command (the fleet is its own brand), not a house name
+function brand() { const n = FURY && FURY.livery && String(FURY.livery.name || '').replace(/[<>&]/g, '').trim(); if (!n) return; for (const [id, tail] of [['tt-brand', ' · Fire Support'], ['cp-brand', ' · FIRE SUPPORT · CAMPAIGN']]) { const el = $(id); if (el) { el.removeAttribute('data-t'); el.textContent = (id === 'cp-brand' ? n.toUpperCase() : n) + tail; } } }
+if (GCX) gcStart(); else { if (FURY) { lookStart(FURY); brand(); $('btn-gc-exit').onclick = () => { audio.click(); audio.humStop(); FURY.onExit(); }; } toTitle(); }
 if (wipedOld) { $('tt-wiped').textContent = t('title.wiped'); $('tt-wiped').classList.remove('hidden'); }
 requestAnimationFrame((t) => { lastT = t / 1000; frame(t); });
 
