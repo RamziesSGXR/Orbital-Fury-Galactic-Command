@@ -10,6 +10,7 @@ import { VIEW } from './view.js';
 
 const CAP = 900;
 const M4 = new THREE.Matrix4(), Q = new THREE.Quaternion(), UP = new THREE.Vector3(0, 1, 0), P = new THREE.Vector3(), S = new THREE.Vector3(), COL = new THREE.Color();
+const Q2 = new THREE.Quaternion(), FWD = new THREE.Vector3(0, 0, 1);
 const mat = (c) => new THREE.MeshLambertMaterial({ color: c });
 const BOX = new THREE.BoxGeometry(1, 1, 1), CYL = new THREE.CylinderGeometry(0.5, 0.5, 1, 7), CONE = new THREE.ConeGeometry(0.5, 1, 7), BLOB = new THREE.IcosahedronGeometry(0.5, 0), DOME = new THREE.SphereGeometry(0.5, 9, 5, 0, Math.PI * 2, 0, Math.PI / 2), TOR = new THREE.TorusGeometry(0.5, 0.14, 5, 10);
 const part = (g, geo, m, x, y, z, sx = 1, sy = 1, sz = 1, rx = 0, ry = 0, rz = 0) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.scale.set(sx, sy, sz); o.rotation.set(rx, ry, rz); g.add(o); return o; };
@@ -117,6 +118,10 @@ export class Props3D {
     for (const u of list) {
       const m = this._kind(u.k); if (!m) continue; const n = this.used.get(m) || 0; if (n >= m.instanceMatrix.count) continue;
       Q.setFromAxisAngle(UP, u.rot || 0); P.set(u.x, ground(u.x, u.y) - (u.sink || 0) + (u.up || 0), u.y); S.set(u.l || u.s, u.h || u.s, u.s);     // (GC 0.41) l: a thing laid along a line is stretched to its length
+      if (u.l) {     // (GC 0.44) and it runs with the slope: each end on the ground where it is, not level through a hillside
+        const c = Math.cos(u.rot || 0) * u.l, sn = Math.sin(u.rot || 0) * u.l, h1 = ground(u.x + c, u.y - sn), h0 = ground(u.x - c, u.y + sn), a = Math.atan2(h1 - h0, 2 * u.l);
+        Q.multiply(Q2.setFromAxisAngle(FWD, a)); P.y = (h0 + h1) / 2 - (u.sink || 0) + (u.up || 0); S.x = u.l / Math.max(0.5, Math.cos(a));
+      }
       m.setMatrixAt(n, M4.compose(P, Q, S)); COL.set(u.tint || '#ffffff'); if (u.dim != null && u.dim < 1) COL.multiplyScalar(u.dim); if (u.flash) COL.multiplyScalar(2.4); m.setColorAt(n, COL);
       this.used.set(m, n + 1);
     }

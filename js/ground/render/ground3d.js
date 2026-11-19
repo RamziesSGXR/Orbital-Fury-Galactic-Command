@@ -9,6 +9,7 @@ import * as THREE from '../../vendor/three.js';
 import { Units3D, Fx3D } from './units3d.js';
 import { Props3D } from './props3d.js';
 
+const WILD = /^(tree|rock|bush|stump|log|crater|mine)/;     // (what grows or lies on the land takes it as it is)
 export const V3 = { tilt: 56, fov: 30, amp: 22, grid: 112, blocks: 420, sides: 8 };     // degrees above the horizon; the lens; metres of relief either way of the middle height; cells across the sheet
 const RAD = Math.PI / 180;
 
@@ -76,13 +77,27 @@ export class Ground3D {
     try { this.props = new Props3D(this.scene); } catch (err) { console.warn('3D props unavailable', err); this.props = null; }
   }
   // metres above the middle height at a point of the map
-  y(x, z) { return (this.h(x, z) - 0.5) * 2 * this.amp; }
+  // (GC 0.44) NOTHING BURIED, NOTHING FLOATING. The land is levelled under whatever is built on it: inside a thing's footprint the
+  // ground is at the height of its middle, and it eases back to the hill's own shape over the next stretch. Units, shots and the
+  // land's own mesh all ask here, so everything agrees on where the ground is.
+  y(x, z) {
+    let h = (this.h(x, z) - 0.5) * 2 * this.amp; const P = this.pads;
+    if (P) for (let i = 0; i < P.length; i += 4) {
+      const dx = x - P[i], dz = z - P[i + 1], r = P[i + 2], R = r * 1.9, d2 = dx * dx + dz * dz; if (d2 >= R * R) continue;
+      const d = Math.sqrt(d2), t = d <= r ? 1 : 1 - (d - r) / (R - r); h += (P[i + 3] - h) * t * t * (3 - 2 * t);
+    }
+    return h;
+  }
+  _level(list) {
+    const P = this.pads || (this.pads = []); P.length = 0; if (!list) return;
+    for (const u of list) { if (u.l || !(u.s >= 3) || WILD.test(u.k)) continue; P.push(u.x, u.y, u.s * 1.05, (this.h(u.x, u.y) - 0.5) * 2 * this.amp); }
+  }
   // Lay this frame's sheet on the land and take the picture.
   //   sheet: the canvas the battle was drawn on, S pixels square, the camera's point at its middle, `scale` pixels to a metre
   //   W, H: the screen, in the same pixels; fy: how far down the screen the camera's point sits (0 to 1); yaw: how far round
   //   the gunship has flown; sun: { lx, ly } the way the light falls on the map, if the hour has a sun
   frame(o) {
-    const { sheet, S, scale, camX, camY, yaw, W, H, fy, sun } = o; this.h = o.height;
+    const { sheet, S, scale, camX, camY, yaw, W, H, fy, sun } = o; this.h = o.height; this._level(o.props);
     if (this.W !== W || this.H !== H) { this.W = W; this.H = H; this.r.setSize(W, H, false); }
     if (!this.tex || this.tex.image !== sheet) { if (this.tex) this.tex.dispose(); this.tex = new THREE.CanvasTexture(sheet); this.tex.premultiplyAlpha = true; this.tex.generateMipmaps = false; this.tex.minFilter = THREE.LinearFilter; this.tex.magFilter = THREE.LinearFilter; this.uOver.value = this.tex; }
     this.tex.needsUpdate = true;
