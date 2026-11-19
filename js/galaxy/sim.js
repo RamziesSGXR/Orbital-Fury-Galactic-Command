@@ -580,7 +580,8 @@ export class Game {
     if (this.net.offers.length < N.offers) this._dealSponsors();
   }
   // How many watched a fight that went out live, 0 to 1: a fight with a lot in it draws more (kills a minute, bases burned, a close call that still came off).
-  audience(res, win, left) { if (!res) return 0.5; const kpm = res.minutes > 0 ? (res.kills || 0) / res.minutes : 0; return clamp(0.25 + Math.min(0.35, kpm / 40) + (res.baseTotal ? 0.2 * Math.min(1, (res.bases || 0) / res.baseTotal) : 0.1) + (win ? (left < 0.4 ? 0.2 : 0.1) : 0), 0, 1); }
+  audience(res, win, left) { if (!res) return 0.5; if (res.aud >= 0) return clamp(res.aud + (win ? 0.05 : 0), 0, 1);     // (0.47: the ground's own viewer meter, when the fight was played)
+    const kpm = res.minutes > 0 ? (res.kills || 0) / res.minutes : 0; return clamp(0.25 + Math.min(0.35, kpm / 40) + (res.baseTotal ? 0.2 * Math.min(1, (res.bases || 0) / res.baseTotal) : 0.1) + (win ? (left < 0.4 ? 0.2 : 0.1) : 0), 0, 1); }
   _aired(win, left, res) { const G = C.ratings.ground, A = C.network.aud; return win ? Math.max(1, Math.round((G.win + (left >= G.flawlessAt ? G.flawless : 0)) * (A.base + A.span * this.audience(res, win, left)))) : G.loss; }
   ratBand() { const R = C.ratings; return this.rat >= R.high ? 'high' : this.rat < R.sack ? 'sack' : this.rat < R.low ? 'low' : 'mid'; }
   ratYield() { const b = this.ratBand(); return b === 'mid' ? 1 : C.ratings.yield[b]; }

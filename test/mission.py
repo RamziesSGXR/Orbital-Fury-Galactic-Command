@@ -29,6 +29,9 @@ with sync_playwright() as pw:
     assert f.evaluate("__game.state") == 'play', 'the mission did not start'
     pg.keyboard.press('Enter'); pg.wait_for_timeout(12000)     # the squad lands and fights a while
     print('fought:', f.evaluate("({ t: Math.round(__game.mission.t), alive: __game.mission.alive.length, kills: __game.mission.kills || 0, obj: __game.mission.objectives.map(o => o.type) })"))
+    aud = f.evaluate("(() => { const e = document.getElementById('aud'); return [e.textContent.trim(), e.classList.contains('hidden'), Math.round(e.getBoundingClientRect().width)]; })()"); print('viewers:', aud)
+    assert not aud[1] and aud[2] > 40 and 'M' in aud[0], 'the viewers readout is not showing'
+    pg.screenshot(path=f'{out}/mission-viewers-{how}.png')
     f.evaluate("__game.mission.finish('%s')" % how)
     for i in range(80):
         if f.evaluate("__game.state") == 'debrief': break

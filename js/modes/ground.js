@@ -37,7 +37,7 @@ const mode = {
         if (g.wallet.bal > credits0) g.wallet.bal = credits0 + earned;     // a share of what the ground earns reaches the war
         snap = null;
         const left = win ? clamp(r.livesLeft / Math.max(1, r.livesMax), 0, 1) : 0;
-        const res = { minutes: r.minutes, kills: r.kills, bases: r.bases, baseTotal: r.baseTotal, livesLeft: r.livesLeft, livesMax: r.livesMax, share: r.share };
+        const res = { minutes: r.minutes, kills: r.kills, bases: r.bases, baseTotal: r.baseTotal, livesLeft: r.livesLeft, livesMax: r.livesMax, share: r.share, aud: r.aud };
         setTimeout(() => ui.leave({ win, left, res }), 0);
       },
       // the landing was called off before it was fought: nothing bought or earned is kept

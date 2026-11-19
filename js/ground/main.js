@@ -1106,6 +1106,25 @@ function persist() {
 const doneN = (s) => (s && s.missions ? s.missions.filter((r) => S.carriesOn(r.outcome)).length : 0);
 // (0.26) the tutorial is one mission: its ranks come with kills
 const killsN = () => (mission && mission.stats ? mission.stats.kills.L + mission.stats.kills.M + mission.stats.kills.H : 0);
+// ---------------------------------------------------------------- (GC 0.47) THE VIEWERS
+// The fight goes out live. How many are watching moves with what is on the screen: kills in the last stretch, bases burning, a
+// squad in trouble that is still on its feet. It sinks when nothing happens. The share the fight held, with a weight for its
+// best moment, is what the war's ratings are given (res.aud); Orbital Fury mode shows it for its own sake.
+const AUD = { m: null, v: 0.3, peak: 0.3, sum: 0, n: 0, k0: 0, rate: 0, next: 0, max: 1, was: 0.3 };
+const audShare = () => (AUD.n ? Math.max(0, Math.min(1, 0.6 * AUD.sum / AUD.n + 0.4 * AUD.peak)) : 0.5);
+function audTick() {
+  const el = $('aud'); if (!el) return;
+  if (!LOOK3 || !mission || state !== 'play') { el.classList.add('hidden'); return; }
+  if (AUD.m !== mission) Object.assign(AUD, { m: mission, v: 0.3, peak: 0.3, sum: 0, n: 0, k0: killsN(), rate: 0, next: 0, max: 1, was: 0.3 });
+  const t = mission.t || 0; if (t < AUD.next) return; AUD.next = t + 1;     // (once for each second of the fight; a paused fight holds its crowd)
+  const k = killsN(), alive = mission.alive ? mission.alive.length : 0; AUD.max = Math.max(AUD.max, alive);
+  AUD.rate = AUD.rate * 0.9 + (k - AUD.k0) * 6; AUD.k0 = k;     // (kills a minute, eased over about ten seconds)
+  const bases = mission.baseTotal ? (mission.stats.bases || 0) / mission.baseTotal : 0, danger = alive > 0 ? 1 - alive / AUD.max : 0;
+  const want = Math.max(0.05, Math.min(1, 0.2 + Math.min(0.4, AUD.rate / 40) + 0.2 * bases + 0.15 * danger));
+  AUD.was = AUD.v; AUD.v += (want - AUD.v) * 0.08; AUD.sum += AUD.v; AUD.n++; AUD.peak = Math.max(AUD.peak, AUD.v);
+  el.classList.remove('hidden'); $('aud-n').textContent = (AUD.v * 12).toFixed(1) + 'M';     // (a full house is twelve million sets)
+  const d = AUD.v - AUD.was; el.classList.toggle('up', d > 0.002); el.classList.toggle('dn', d < -0.002); $('aud-d').textContent = d > 0.002 ? '\u25B2' : d < -0.002 ? '\u25BC' : '';
+}
 function tierNow() { if (GCX) return GCX.tier; if (!session) return TIER_MAX; return session.tutorial ? 0 : tierFor(doneN(session)); }     // (0.53: the tutorial's armory is the standard one, at the first rank)
 let armFocus = false;
 function msShow(focus) { goShop(focus); }     // (the tutorial's session is never kept)
@@ -1389,7 +1408,7 @@ function lsGlass(now) {
 function finishLastStand() {
   endHandled = true; setPlacing(null); setDrawing(false); setTac(false); disarm(); setHideUi(false); deselect();
   soft = false; hud.setSoft(false);
-  const res = lastRes = mission.result();
+  const res = lastRes = mission.result(); if (LOOK3) res.aud = audShare();
   if (tut) { tut.close(); tut = null; }
   S.save('tutDone', true);
   UI.fillGlass(res, aarStand(res, session && session.callsign));
@@ -2290,7 +2309,7 @@ function frame(ts) {
   if (cap && ts - frameAt < 1000 / cap - 4) return;
   frameAt = ts; frame.n = (frame.n || 0) + 1;
   const now = ts / 1000;
-  const dt = Math.min(0.25, Math.max(0, now - lastT)); lastT = now;
+  const dt = Math.min(0.25, Math.max(0, now - lastT)); lastT = now; audTick();
   { const sc = musicScene(); music.update(dt, sc, musicHeat(dt), { run: state === 'play' ? mission : null, crowd: crowdV, mood: state === 'final' || state === 'glass' ? 'lose' : state === 'play' && mission && mission.over ? (mission.outcome === 'victory' || mission.outcome === 'complete' ? 'win' : 'lose') : endMood, faction: mission && mission.faction ? (gunFight() || hype() ? 'gun' : mission.faction.id) : null }); }
   if (!renderer.W) return;
 
