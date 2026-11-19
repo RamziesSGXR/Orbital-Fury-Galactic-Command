@@ -214,7 +214,7 @@ export class Units3D {
       else if (u.tumble != null) { Q.multiply(Q2.setFromAxisAngle(SIDE, -u.tumble)); P.y += Math.abs(Math.sin(u.tumble)) * 0.16 * u.r - (u.sink || 0) * 0.6 * u.r; }     // (GC 0.29) a body: turned over backwards about its feet, lying on the ground, sinking away as it fades
       else if (u.walk != null && K.frames) P.y += Math.abs(Math.sin(u.walk)) * 0.04 * u.r;     // (a person's legs do the walking: only the rise of each step)
       else if (u.walk != null) { const s = Math.sin(u.walk); P.y += Math.abs(s) * 0.1 * u.r; Q.multiply(Q2.setFromAxisAngle(FWD, s * 0.11)); }     // (GC 0.26) on the move: a step's rise and a sway from foot to foot, until the models are given legs that walk
-      m.setMatrixAt(n, M4.compose(P, Q, S)); COL.set(u.tint || '#ffffff'); if (u.dim != null && u.dim < 1) COL.multiplyScalar(u.dim); m.setColorAt(n, COL);
+      m.setMatrixAt(n, M4.compose(P, Q, S)); COL.set(u.tint || '#ffffff'); if (u.dim != null && u.dim < 1) COL.multiplyScalar(u.dim); if (u.flash) COL.multiplyScalar(2.6); m.setColorAt(n, COL);     // (flash: just hit, far brighter than it could be lit)
       this.used.set(m, n + 1);
     }
     let total = 0;

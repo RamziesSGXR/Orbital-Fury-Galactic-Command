@@ -103,7 +103,7 @@ export class Props3D {
     for (const u of list) {
       const m = this._kind(u.k); if (!m) continue; const n = this.used.get(m) || 0; if (n >= CAP) continue;
       Q.setFromAxisAngle(UP, u.rot || 0); P.set(u.x, ground(u.x, u.y) - (u.sink || 0), u.y); S.set(u.s, u.h || u.s, u.s);
-      m.setMatrixAt(n, M4.compose(P, Q, S)); COL.set(u.tint || '#ffffff'); if (u.dim != null && u.dim < 1) COL.multiplyScalar(u.dim); m.setColorAt(n, COL);
+      m.setMatrixAt(n, M4.compose(P, Q, S)); COL.set(u.tint || '#ffffff'); if (u.dim != null && u.dim < 1) COL.multiplyScalar(u.dim); if (u.flash) COL.multiplyScalar(2.4); m.setColorAt(n, COL);
       this.used.set(m, n + 1);
     }
     let total = 0;

@@ -60,7 +60,18 @@ function setPhoto(on) {
     photoKeep = null; photoDrag = null; if (state === 'play') { paused = false; audio.unlock(); }
   }
 }
+// (0.37) THE SIGHT AND THE HEIGHT VIEW, as buttons by the mini-map (and still on T and H). The sight is plain colour or
+// infrared (T goes round white-hot, black-hot and colour; the button goes between colour and the infrared last used). The
+// height view colours the land by its height and draws contour lines on it. Both choices are kept for the next mission.
+function keepView() { try { localStorage.setItem('ofgc.view', JSON.stringify({ sight: cam.sight, hot: cam.hot, topo: !!cam.topo })); } catch { /* no storage */ } }
+function syncView() {
+  const a = $('btn-sight'), b = $('btn-topo'); if (!a || !b) return;
+  a.textContent = cam.sight === 'day' ? 'SIGHT: COLOUR' : cam.sight === 'bhot' ? 'SIGHT: THERMAL B' : 'SIGHT: THERMAL'; a.classList.toggle('on', cam.sight !== 'day');
+  b.textContent = cam.topo ? 'HEIGHT: ON' : 'HEIGHT'; b.classList.toggle('on', !!cam.topo);
+}
 function wirePhoto() {
+  $('btn-sight').onclick = () => { if (cam.sight === 'day') cam.sight = cam.hot || 'whot'; else { cam.hot = cam.sight; cam.sight = 'day'; } audio.click(); keepView(); syncView(); };
+  $('btn-topo').onclick = () => { cam.topo = !cam.topo; audio.click(); keepView(); syncView(); };
   $('btn-photo').onclick = () => setPhoto(true); $('photo-done').onclick = () => setPhoto(false);
   window.addEventListener('keydown', (e) => {
     if (e.target && e.target.closest && e.target.closest('input, textarea')) return;
@@ -79,7 +90,8 @@ function wirePhoto() {
 }
 function gcStart() {
   wirePhoto();
-  cam.sight = GCX.sight || 'whot'; cam.livery = GCX.livery || null; cam.orbit = GCX.orbit ?? 0.004; cam.g3d = GCX.flat ? false : true;     // the land in 3D under the circling view     // the circling view: slow, as from high up; a full turn takes about twenty-six minutes of mission time
+  { let k = {}; try { k = JSON.parse(localStorage.getItem('ofgc.view') || '{}') || {}; } catch { /* nothing kept */ } cam.sight = GCX.sight || k.sight || 'whot'; cam.hot = k.hot || 'whot'; cam.topo = !!k.topo; syncView(); }
+  cam.livery = GCX.livery || null; cam.orbit = GCX.orbit ?? 1; cam.g3d = GCX.flat ? false : true;     // the land in 3D under the circling view     // the circling view: slow, as from high up; a full turn takes about twenty-six minutes of mission time
   // what the war sends down with you: reinforcements from a station and the ratings, a garrison from a base
   if (GCX.support) { C.vanguards.lives = Math.max(8, C.vanguards.lives + (GCX.support.lives | 0)); if (GCX.support.garrison > 0) { C.infantry.defendChance = 1; C.infantry.defendN += GCX.support.garrison | 0; } }
   session = S.newSession(GCX.callsign, GCX.level, GCX.op);
@@ -303,9 +315,10 @@ const input = new Input(canvas, $('minimap'), cam, {
   },
   boxCancel: () => { box = null; },
   armory: () => { if (live() || UI.isOn('s-armory') || UI.isOn('s-pause')) openArmory(); },
-  polarity: () => { if (GCX && cam.g3d) { cam.sight = cam.sight === 'whot' ? 'bhot' : cam.sight === 'bhot' ? 'day' : 'whot'; return; }     // (GC 0.22) the sight: white-hot, black-hot, colour
+  polarity: () => { if (GCX && cam.g3d) { cam.sight = cam.sight === 'whot' ? 'bhot' : cam.sight === 'bhot' ? 'day' : 'whot'; if (cam.sight !== 'day') cam.hot = cam.sight; keepView(); syncView(); return; }     // (GC 0.22) the sight: white-hot, black-hot, colour
     settings.polarity = settings.polarity === 'white' ? 'black' : 'white'; onSettingChange('polarity'); },
-  relief: () => { settings.relief = !settings.relief; onSettingChange('relief'); if (mission) hud.notice(t(settings.relief ? 'set.reliefOn' : 'set.reliefOff'), 'info'); },
+  relief: () => { if (GCX && cam.g3d) { cam.topo = !cam.topo; keepView(); syncView(); return; }     // (0.37) in 3D the height view is put on by the graphics card: nothing is rebuilt
+    settings.relief = !settings.relief; onSettingChange('relief'); if (mission) hud.notice(t(settings.relief ? 'set.reliefOn' : 'set.reliefOff'), 'info'); },
   info: () => openInfo(),
   radio: () => { if (state === 'play' && mission && hud.radioOn) hud.radioToggle(); },
   map: () => { if (state !== 'play' || !mission || (UI.anyOverlay() && !UI.isOn('s-map'))) return false; if (UI.isOn('s-map')) closeMap(); else openMap(); return true; },     // (0.20: Tab, M and L)
@@ -2210,12 +2223,21 @@ function debugReport() {
   L.push(`screen ${innerWidth}x${innerHeight} @${devicePixelRatio}  layout ${applyLayout.last || '?'}  lang ${settings.lang}`);
   L.push(`settings quality ${settings.quality} fps ${settings.fps || 'auto'} 3d ${settings.relief3d} smooth ${settings.smooth !== false}`);
   L.push(`fps ${fps.toFixed(0)}  ${gameLine()}`);
+  try { L.push(perfLine()); } catch { /* no readout */ }
   L.push(`hold: paused ${paused} soft ${soft} cinema ${!!cinema.on} card ${!!(tut && tut.held)} tac ${tac} speed ${speed}  step faults ${simFails}`);
   if (m) L.push(`enemies ${m.enemies.length} groups ${m.groups.length} allies ${m.alive.length} infantry ${m.infantryAlive.length} squads ${m.infantry.squads.length} posts ${(m.posts || []).length} shells ${m.shells.length} over ${m.over}`);
   L.push('');
   if (!errLog.length) L.push('no errors logged');
   for (const e of errLog.slice().reverse()) { L.push(`[${e.at}] v${e.v} ${e.where} x${e.n || 1}: ${e.msg}`); L.push(`  ${e.game}`); if (e.stack) L.push(e.stack.split('\n').map((s) => '  ' + s.trim().replace(/\(?file:\/\/[^)\s]*\/|\(?https?:\/\/[^)\s]*\//g, '(')).join('\n')); }
   return L.join('\n');
+}
+// (0.37) where a frame's time goes, for the readout and the report: the game's own working-out, and the drawing (of which
+// the 3D part), each smoothed over a second or so; and what the picture is drawn at
+const perfT = { sim: 0, draw: 0 };
+function perfLine() {
+  const g = renderer._g3; let gpu = '';
+  try { if (g && !perfLine.gpu) { const gl = g.r.getContext(), e = gl.getExtension('WEBGL_debug_renderer_info'); perfLine.gpu = String(e ? gl.getParameter(e.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)).slice(0, 70); } gpu = perfLine.gpu || ''; } catch { /* not told */ }
+  return `time: game ${perfT.sim.toFixed(1)} ms  drawing ${perfT.draw.toFixed(1)} ms (3D ${(renderer.t3 || 0).toFixed(1)})  picture ${renderer.W}x${renderer.H}  sheet ${renderer._wc ? renderer._wc.width : 0}` + (g ? `  calls ${g.r.info.render.calls}  post ${g.post ? 'on' : 'off'}` : '  3D off') + (gpu ? `\ngpu: ${gpu}` : '');
 }
 function debugPaint(now) {
   const on = DEBUG || settings.debug || debugBroke, d = $('debug');
@@ -2227,6 +2249,7 @@ function debugPaint(now) {
   if (debugBroke) $('debug-warn').textContent = t('dbg.broke');
   $('debug-t').textContent = `v${C.share.version}  fps ${fps.toFixed(0)}  ${gameLine()}` +
     `\nhold: ${paused ? (soft ? 'soft pause' : 'pause') : cinema.on ? 'cinematic' : tut && tut.held ? 'tutorial card' : 'none'}  speed ${speed}  faults ${simFails}` +
+    '\n' + perfLine() +
     (m ? `\nenemies ${m.enemies.length}  allies ${m.alive.length}  infantry ${m.infantryAlive.length}  posts ${(m.posts || []).length}  P ${m.pressure.toFixed(2)}  fx ${renderer.fx.length}  cr ${m.wallet.bal}` : '') +
     (last ? `\nlast error (${errLog.length} kept): ${last.where} x${last.n || 1}: ${last.msg}` : '');
 }
@@ -2288,7 +2311,9 @@ function frame(ts) {
       // (0.62.2) a step that throws used to take the whole frame down with it: the picture stopped, and since the pause skips
       // the step the game looked alive again the moment it was paused and froze again on resume. Now the step is caught and
       // the frame carries on drawing, so the player keeps the map, the pause and the menu whatever happens in here.
+      const _s0 = performance.now();
       try { simulate(dt, now); ambient(mission, dt); if (castRadio && !mission.over) castRadio.tick(mission); } catch (err) { simBroke(err); }
+      perfT.sim += (performance.now() - _s0 - perfT.sim) * 0.08;
     }
     else if (tut && tut.held && mission.events.length) { for (const ev of mission.events) onEvent(ev, now); mission.events.length = 0; }   // (an order given with a card up counts)
     // The camera is the player's. It follows the squad only when locked on, and moves to a callout only when the player asks to
@@ -2329,7 +2354,9 @@ function frame(ts) {
     const ga = placing ? ghostAt || (input.touch ? null : aimWorld()) : null;     // (0.22: the ghost of what is being placed)
     const tw = !paused && state === 'play' && !mission.over && !cinema.on && !(tut && tut.held);
     if (tw) { try { tween(mission, acc / STEP); } catch (err) { simBroke(err); } }
+    const _d0 = performance.now();
     try { renderer.draw(mission, cam, { now, aim: drawing || box ? null : { x: p.aimX, y: p.aimY }, armed, placing, ghost: ga, plan: planQ, draw: stroke, snap: (x, y) => snap(x, y), sel, box, pface: placeFace, pshape: placeShape }); } catch (err) { drawBroke(err); } finally { if (tw) untween(mission); }
+    perfT.draw += (performance.now() - _d0 - perfT.draw) * 0.08;
     if (sel) placeSel(); else if (insp) placeInsp();
     sizeMini();
     // (0.42) the minimap at 10 a second, and not at all while it is folded away

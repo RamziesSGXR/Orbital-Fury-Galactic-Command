@@ -35,6 +35,10 @@ const uiRgb = () => (typeof document !== 'undefined' && document.body.classList.
 // (0.58) the colours a hit throws off, by faction: the main colour, then the bright one
 const FP_LIFE = 9, FP_MAX = 6000;     // (0.58) footprints: how long one lasts, how many at most
 const BURST = { bugs: ['#a9d63a', '#f2ff9a'], bots: ['#ff9a3a', '#fff0c0'], lizards: ['#b26cff', '#7af6ff'] };
+// (0.37) the ship's pass over the fight: how far the view swings either side of the middle (radians), and how steeply it looks down at the ends and in the middle (degrees)
+const PASS = { swing: 0.66, low: 53, high: 62 };
+// (0.37) worn down: a unit or a building darkens and reddens as its health goes, so its state is read off the thing itself
+const WOUND = (o) => { const f = o.maxHp > 0 ? o.hp / o.maxHp : 1; return f > 0.8 ? null : f > 0.55 ? '#dcc4b6' : f > 0.3 ? '#bd8f7e' : '#9a5d4f'; };
 const TASK_LABEL = { base: 'lab.base', radio: 'lab.radio', propaganda: 'lab.prop', rescue: 'lab.rescue', arty: 'lab.artySite', jammer: 'lab.jam', spore: 'lab.spore' };
 const slotCd = (m, i) => { const st = slotStats(m, i); return st ? st.cd : 0; };
 
@@ -103,12 +107,12 @@ export class Renderer {
       if (this.decal) g.drawImage(this.decal, 0, 0, n, n);
       if (tint) { g.globalCompositeOperation = 'multiply'; g.fillStyle = tint; g.fillRect(0, 0, n, n); g.globalCompositeOperation = 'source-over'; }
       if (wash) bakeWash(g, n, wash);
-      this.groundKey = key; this.groundTerrain = T; this.groundDecal = this.decal;
+      this.groundKey = key; this.groundTerrain = T; this.groundDecal = this.decal; this.groundRev = (this.groundRev || 0) + 1;
     }
     return this.groundCv;
   }
-  _scorch(x, y, r, black) { scorch(this.decal, x, y, r, black); if (this.groundCv && this.groundDecal === this.decal) scorch(this.groundCv, x, y, r, black); }
-  _mark(x, y, r, black) { mark(this.decal, x, y, r, black); if (this.groundCv && this.groundDecal === this.decal) mark(this.groundCv, x, y, r, black); }
+  _scorch(x, y, r, black) { scorch(this.decal, x, y, r, black); if (this.groundCv && this.groundDecal === this.decal) { scorch(this.groundCv, x, y, r, black); this.groundRev = (this.groundRev || 0) + 1; } }
+  _mark(x, y, r, black) { mark(this.decal, x, y, r, black); if (this.groundCv && this.groundDecal === this.decal) { mark(this.groundCv, x, y, r, black); this.groundRev = (this.groundRev || 0) + 1; } }
 
   _buildOverlay() {
     const { W, H, dpr } = this, ov = this.ov;
@@ -317,7 +321,7 @@ export class Renderer {
   // Camera transform (without screen shake). Main calls this before converting the mouse to a world position.
   updateView(cam, now) {
     const R0 = this._real, scale = (R0 ? R0.W : this.W) / cam.view;     // (GC 0.16) while the world is drawn turned, onto its own bigger sheet, the scale is still the screen's
-    const camX = cam.x + Math.sin(now * 0.314) * 3, camY = cam.y + Math.cos(now * 0.314) * 2; // gentle gunship sway
+    const camX = cam.x, camY = cam.y;     // (0.37) the view holds still: the sway that went round and round is gone (and with it, the picture moving while paused)
     // (0.19.1) the camera's point sits in the middle of the room left above the sheet (focusY: a fraction of the height)
     // tx, ty place the world on the sheet being drawn on. px, py are where the camera's point is on the SCREEN and yaw how far the
     // view is turned about it: what the pointer and the labels go by.
@@ -347,14 +351,19 @@ export class Renderer {
   // point, as from a gunship circling the fight. The world is drawn as it always was, upright, onto a square sheet big
   // enough to cover the screen at any angle; the sheet is then laid on the screen turned; and everything read (labels, tags,
   // arrows, the reticle) is drawn after it, upright, at its turned place. Text drawn in the world is turned back upright.
-  _sheet(real) {
+  _sheet(real, cap = 0) {
     const fy = real.focusY || 0.5, S = Math.min(this._g3 ? 3072 : 4096, Math.ceil(Math.max(2 * Math.hypot(real.W / 2, real.H * Math.max(fy, 1 - fy)) + 4, this._g3 ? real.H * 2.5 : 0, this._g3 ? real.W * 1.5 : 0)));     // (through the tilted lens the far ground is further off: the sheet reaches further)
+    // (0.37) the sheet is see-through (in 3D the ground's own picture lies under it) and, in 3D, smaller than it is drawn:
+    // everything is drawn as if the sheet were S pixels square, onto a canvas of S * q (no more than `cap` across). The
+    // drawing code knows nothing of it: the sheet's own setTransform puts the q in.
+    const q = cap && S > cap ? cap / S : 1; this._wq = q;
     if (!this._wc) {
-      this._wc = document.createElement('canvas'); const x = this._wc.getContext('2d', { alpha: false }), ft = x.fillText.bind(x), st = x.strokeText.bind(x);
+      this._wc = document.createElement('canvas'); const x = this._wc.getContext('2d'), ft = x.fillText.bind(x), st = x.strokeText.bind(x), sT = x.setTransform.bind(x);
       const up = (fn) => (text, px, py) => { const a = this.yaw || 0; if (!a) return fn(text, px, py); x.save(); x.translate(px, py); x.rotate(-a); fn(text, 0, 0); x.restore(); };
       x.fillText = up(ft); x.strokeText = up(st); this._wx = x;
+      x.setTransform = (a, b, c, d, e, f) => { const k = this._wq || 1; return sT(a * k, b * k, c * k, d * k, e * k, f * k); }; x.resetTransform = () => x.setTransform(1, 0, 0, 1, 0, 0);
     }
-    if (this._wc.width !== S) { this._wc.width = S; this._wc.height = S; }
+    const B = Math.round(S * q); if (this._wc.width !== B) { this._wc.width = B; this._wc.height = B; }
     return S;
   }
   // (GC 0.19) What stands up off the land, for the 3D ground: everything solid within `half` metres of the camera's point.
@@ -389,32 +398,39 @@ export class Renderer {
         if (o.kind === 'pillar') out.push({ k: 'pillar', x: o.x, y: o.y, s: 0.6 * o.s, h: (o.broken ? 0.45 : 1) * o.h * o.s, rot: o.a, tint: RC });
         else if ((o.kind === 'banner' || o.kind === 'flag') && !dn) out.push({ k: o.kind, x: o.x, y: o.y, s: o.s, rot: o.a, tint: pal.enemy }); }
     }
-    const fk = { bugs: 'hive', bots: 'fab', lizards: 'camp' }[m.faction.id] || 'fab', hit = (o, at) => (t - (at ?? -99) < 0.1 ? '#ffffff' : null);
+    const fk = { bugs: 'hive', bots: 'fab', lizards: 'camp' }[m.faction.id] || 'fab', hit = (o) => WOUND(o), fl = (o) => t - (o.hurtAt ?? -99) < 0.1;
     for (const b of m.bases || []) {
       if (b.destroyed || !near(b)) continue;
       if (b.spawners) {
         if (!b.seen) continue;     // (still under its smoke)
-        for (const sp of b.spawners) if (!sp.dead) out.push({ k: fk, x: sp.x, y: sp.y, s: Math.max(2.2, sp.r * 1.35), rot: (b.id * 1.7 + sp.x) % 6.28, tint: hit(sp, sp.hurtAt) });
-        for (const T of b.turrets || []) if (!T.dead) out.push({ k: 'turret', x: T.x, y: T.y, s: Math.max(1.3, T.r * 1.1), rot: face(T.face), tint: hit(T, T.hurtAt) || pal.enemy });
+        for (const sp of b.spawners) if (!sp.dead) out.push({ k: fk, x: sp.x, y: sp.y, s: Math.max(2.2, sp.r * 1.35), rot: (b.id * 1.7 + sp.x) % 6.28, tint: hit(sp), flash: fl(sp) });
+        for (const T of b.turrets || []) if (!T.dead) out.push({ k: 'turret', x: T.x, y: T.y, s: Math.max(1.3, T.r * 1.1), rot: face(T.face), tint: hit(T) || pal.enemy, flash: fl(T) });
       } else out.push({ k: b.cannon ? 'cannon' : b.node ? 'node' : fk, x: b.x, y: b.y, s: Math.max(2.2, (b.r || 8) * (b.cannon ? 0.8 : b.node ? 0.6 : 0.85)), rot: b.cannon ? face(b.face) : (b.id * 1.7) % 6.28, tint: hit(b, b.lastHit) });
     }
     { const pk = { bugs: ['spire', 'hive'], bots: ['node', 'fab'], lizards: ['totem', 'camp'] }[m.faction.id] || ['node', 'fab'];     // the enemy's side sites
-      for (const p of m.pois || []) if (!p.done && near(p)) out.push({ k: pk[(p.id || 0) % 2], x: p.x, y: p.y, s: Math.max(2.4, (p.r || 12) * 0.42), rot: ((p.id || 1) * 2.3) % 6.28, tint: hit(p, p.hurtAt), dim: m.visLevel(p.x, p.y) > 0 ? 1 : 0.7 }); }
+      for (const p of m.pois || []) if (!p.done && near(p)) out.push({ k: pk[(p.id || 0) % 2], x: p.x, y: p.y, s: Math.max(2.4, (p.r || 12) * 0.42), rot: ((p.id || 1) * 2.3) % 6.28, tint: hit(p), flash: fl(p), dim: m.visLevel(p.x, p.y) > 0 ? 1 : 0.7 }); }
     for (const q of m.loot || []) if (!q.done && q.kind !== 'wreck' && near(q)) out.push({ k: 'crate', x: q.x, y: q.y, s: Math.max(1.3, (q.r || 3) * 0.55), rot: ((q.id || 1) * 1.9) % 6.28 });     // what can be picked up
-    for (const p of m.posts || []) { const d = P3_POST[p.what]; if (d && !p.dead && !p.ghost && near(p)) out.push({ k: d[0], x: p.x, y: p.y, s: d[1], rot: face(p.face), tint: hit(p, p.hurtAt) }); }
-    for (const a of m.assets || []) if (a.kind === 'turret' && !a.dead && near(a)) out.push({ k: 'aturret', x: a.x, y: a.y, s: 1.5, rot: face(a.face), tint: hit(a, a.hurtAt) });
+    for (const p of m.posts || []) { const d = P3_POST[p.what]; if (d && !p.dead && !p.ghost && near(p)) out.push({ k: d[0], x: p.x, y: p.y, s: d[1], rot: face(p.face), tint: hit(p), flash: fl(p) }); }
+    for (const a of m.assets || []) if (a.kind === 'turret' && !a.dead && near(a)) out.push({ k: 'aturret', x: a.x, y: a.y, s: 1.5, rot: face(a.face), tint: hit(a), flash: fl(a) });
     return out;
+  }
+  pass(m, cam) {
+    const u = cam.orbit ? Math.max(0, Math.min(1, m.t / (m.limitSec || 1800))) * 2 - 1 : 0;
+    cam.yaw = cam.orbit ? (cam.yaw0 || 0) + u * PASS.swing : 0; cam.passTilt = cam.orbit ? PASS.low + (PASS.high - PASS.low) * (1 - u * u) : 0; this.yaw = cam.yaw;
   }
   draw(m, cam, ui) {
     if (this._real) { const r = this._real; this.ctx = r.ctx; this.W = r.W; this.H = r.H; this.focusY = r.focusY; this._real = null; }     // (a frame that threw half way: put the screen back)
-    cam.yaw = cam.orbit ? (cam.yaw0 || 0) + m.t * cam.orbit : 0; this.yaw = cam.yaw;
+    // (0.37) ONE PASS. The ship is in low orbit and crosses over the fight once in the mission's time: it comes up on one
+    // side, is nearest overhead half way through, and goes down the other. So the view swings slowly and steadily one way
+    // (never round in a circle) and looks most steeply down in the middle. It runs on the mission's clock: paused, it is still.
+    this.pass(m, cam);
     // (GC 0.18) the land in 3D, when the camera asks for it and the machine can do it; without it, the turned sheet of 0.16
     if (cam.g3d && this._g3 === undefined) { try { this._g3 = new Ground3D(cam.livery); } catch (err) { console.warn('3D ground unavailable', err); this._g3 = null; } }
     const g3 = cam.g3d ? this._g3 : null; this._g3on = false; VIEW.p3 = !!(g3 && g3.props);
     const U3 = this._u3 || (this._u3 = []); U3.length = 0; const u3 = g3 && g3.units ? U3 : null;
     const D3 = this._d3 || (this._d3 = []), S3 = this._s3l || (this._s3l = []), B3 = this._b3 || (this._b3 = []); D3.length = S3.length = B3.length = 0; this._s3 = u3 ? S3 : null; const X3 = this._x3l || (this._x3l = []); X3.length = 0; this._x3 = u3 && g3.fx ? X3 : null; VIEW.air = u3; VIEW.drops = u3 ? D3 : null; const T3 = this._t3l || (this._t3l = []), O3 = this._o3l || (this._o3l = []), DM3 = this._dm3l || (this._dm3l = []); T3.length = O3.length = DM3.length = 0; this._t3 = this._x3 ? T3 : null; this._o3 = this._x3 ? O3 : null; this._dm3 = this._x3 ? DM3 : null; const SM3 = this._sm3l || (this._sm3l = []); SM3.length = 0; this._sm3 = this._x3 ? SM3 : null;     // (GC 0.25) the troops' fire, what is lobbed, the shields     // (GC 0.22) what falls, the ship's shells, the strobes     // (GC 0.20) who stands up in 3D this frame, and is not drawn on the sheet
     let real = null;
-    if (cam.yaw || g3) { real = { ctx: this.ctx, W: this.W, H: this.H, focusY: this.focusY }; const S = this._sheet(real); this._real = real; this.ctx = this._wx; this.W = S; this.H = S; this.focusY = 0.5; }
+    if (cam.yaw || g3) { real = { ctx: this.ctx, W: this.W, H: this.H, focusY: this.focusY }; const S = this._sheet(real, g3 ? (this.quality === 'low' || this.perf.low ? 1536 : 2048) : 0); this._real = real; this.ctx = this._wx; this.W = S; this.H = S; this.focusY = 0.5; }
     let ctx = this.ctx, W = this.W, H = this.H;
     const now = ui.now, t = m.t;
     // (0.62.10) how big things are drawn by the height of their ground (relief.js elevK): elev.size either way of the middle
@@ -430,14 +446,14 @@ export class Renderer {
     const w2sx = g3 ? (x, y) => g3p(x, y)[0] : (x, y) => ppx + (x - v.camX) * scale * yc - (y - v.camY) * scale * ys, w2sy = g3 ? (x, y) => g3p(x, y)[1] : (x, y) => ppy + (x - v.camX) * scale * ys + (y - v.camY) * scale * yc;
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+    if (g3) ctx.clearRect(0, 0, W, H); else { ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H); }     // (0.37) in 3D the sheet is see-through: the ground's own picture lies under it
     ctx.setTransform(scale, 0, 0, scale, tx, ty);
     // (0.38) the hour's light (light.js): its wash baked into the ground, the lights in view, and the night on the ground with them
     // carved out of it (only the ground: every unit, building and label is drawn over it, so nothing is harder to see)
     const lit = this.settings.lighting !== false, lowFx = this.quality === 'low' || this.perf.low, hq = Math.round(todAt(m) * 4) / 4;
     const amb = lit ? ambient(todAt(m)) : null; this._dark = amb ? amb.dark || 0 : 0;
     this._sun = amb && amb.sun ? { lx: amb.sun.lx, ly: amb.sun.ly, k: Math.max(0.25, 1 - amb.dark * 1.7) } : null;     // (0.62.10) for what is lit on the ground afterwards (craters)
-    this._layers(ctx, scale, W, H, tx, ty, skyTint(hq).col, lit ? washKey(hq) : null);   // the tint (and the wash) move in quarter-hour steps
+    this._layers(ctx, scale, W, H, tx, ty, skyTint(hq).col, lit ? washKey(hq) : null, !!g3);   // the tint (and the wash) move in quarter-hour steps
     if (amb) this.light.collect(m, this.fx, this.fxNow(m), { x0: -tx / scale, y0: -ty / scale, x1: (W - tx) / scale, y1: (H - ty) / scale }, this.settings, amb);
 
     // Everything the squad cannot see is dimmed, so what they can see reads as a bright pool around them. (0.38) At night the fog's
@@ -606,14 +622,14 @@ export class Renderer {
         if (u3) {     // (GC 0.35) in 3D it arrives as itself: the Molt's and the Talon's climb out of the ground, the Foundry's comes down onto it; the cracks and dust stay on the land
           const arr = arriving(e, t), k = arr && e.arriveUntil > e.arriveAt ? Math.max(0, Math.min(1, (t - e.arriveAt) / (e.arriveUntil - e.arriveAt))) : 1, rise = k < 1 ? (fid === 'bots' ? (1 - k) ** 2 * 90 : -(1 - k) * br * 2.4) : 0;
           if (arr) drawBossArrival(ctx, e, fid, br, pal.enemy, now, px, t, () => {});
-          u3.push({ k: fid + ':boss', alt: fid + ':H', atk: e.aimUntil > t, x: e.x, y: e.y, r: br * 1.15, face: e.face, tint: t - e.hurtAt < 0.06 ? '#ffffff' : null, dim: e.vis >= 2 ? 1 : 0.6, walk: (e.vx || 0) ** 2 + (e.vy || 0) ** 2 > 0.1 ? t * 5 + e.id : null , up: rise });
+          u3.push({ k: fid + ':boss', alt: fid + ':H', atk: e.aimUntil > t, x: e.x, y: e.y, r: br * 1.15, face: e.face, tint: WOUND(e), flash: t - e.hurtAt < 0.1, dim: e.vis >= 2 ? 1 : 0.6, walk: (e.vx || 0) ** 2 + (e.vy || 0) ** 2 > 0.1 ? t * 5 + e.id : null , up: rise });
         }
         else if (arriving(e, t)) drawBossArrival(ctx, e, fid, br, pal.enemy, now, px, t, body);     // (0.55.1) its arrival
         else if (flat) body(e);
         else raiseUnit(ctx, br * 0.34, wallE, (c) => drawBossBody(c, e, fid, br, pal.enemy, now, px, t - e.hurtAt < 0.06, t));
       }
       else if (u3) { if ((e.atk || 0) > (e._pa ?? 0) + 0.15) e._at = t; e._pa = e.atk || 0;     // (GC 0.31) its attack timer has just been wound again: it has just struck
-        u3.push({ k: fid + ':' + (e.sub || e.v || e.kind), alt: fid + ':' + e.kind, lod: far3.includes(e.kind), jump: !!e.air, atk: t - (e._at ?? -9) < 0.3, x: e.x, y: e.y, r: enemyR(e, SUBTYPES[e.kind], px) * 1.25, face: e.face, tint: t - e.hurtAt < 0.06 ? '#ffffff' : null, dim: e.vis >= 2 ? 1 : 0.6, up: e.air ? e.air * 4 : 0, walk: !e.air && (e.vx || 0) ** 2 + (e.vy || 0) ** 2 > 0.1 ? t * (fid === 'bugs' ? 15 : 10) + e.id : null }); }
+        u3.push({ k: fid + ':' + (e.sub || e.v || e.kind), alt: fid + ':' + e.kind, lod: far3.includes(e.kind), jump: !!e.air, atk: t - (e._at ?? -9) < 0.3, x: e.x, y: e.y, r: enemyR(e, SUBTYPES[e.kind], px) * 1.25, face: e.face, tint: WOUND(e), flash: t - e.hurtAt < 0.1, dim: e.vis >= 2 ? 1 : 0.6, up: e.air ? e.air * 4 : 0, walk: !e.air && (e.vx || 0) ** 2 + (e.vy || 0) ** 2 > 0.1 ? t * (fid === 'bugs' ? 15 : 10) + e.id : null }); }
       else drawEnemyBody(ctx, e, fid, enemyR(e, SUBTYPES[e.kind], px), pal.enemy, now, px, t - e.hurtAt < 0.06);
       if (up) dropUnit(ctx, up);
       ctx.globalAlpha = 1;
@@ -733,13 +749,39 @@ export class Renderer {
     drawMotherSky(ctx, m, now, px, labels, scale);
     drawGunSky(ctx, m, now, px);     // (0.53.5) the mothership over the defence gun, over everything on the ground
     // (0.38) the lights' colour over everything, then the hour's wash
+    // (0.37) WHAT THE AIM IS ON, AND WHAT IS PICKED: its name and its health, under the name. This is where a unit's health is
+    // read now (there are no bars beside units): point at a thing, or pick it. A building that is badly hit smokes.
+    if (!hideUi) for (const at of this._namesFor) {
+      let best = null, bd = 2.5, kind = '', br = 2;
+      const see = (o, r, k) => { const d = Math.hypot(o.x - at.x, o.y - at.y) - r; if (d < bd) { bd = d; best = o; kind = k; br = r; } };
+      for (const e of m.enemies) if (!e.dead && !e.boss && e.vis >= 1) see(e, e.r || 1.5, 'e');
+      for (const a of m.alive) if (!a.dead) see(a, a.r || 1.2, 'a');
+      for (const a of m.infantryAlive || []) if (!a.dead) see(a, a.r || 1.2, 'a');
+      for (const b of m.bases || []) if (!b.destroyed) { for (const sp of b.spawners || []) if (!sp.dead) see(sp, sp.r || 5, 's'); for (const T of b.turrets || []) if (!T.dead) see(T, T.r || 2, 's'); }
+      for (const p of m.posts || []) if (!p.dead && !p.ghost) see(p, p.r || 2.5, 'p');
+      if (!best || !(best.maxHp > 0)) continue;
+      const f = Math.max(0, Math.min(1, best.hp / best.maxHp)), foe = kind === 'e' || kind === 's', col = foe ? pal.enemy : pal.ally, bar = { f, col: foe ? '#ff4a4a' : f > 0.35 ? '#7dff9b' : '#ff4a4a', h: 3 };
+      const has = labels.find((l) => Math.abs(l.x - best.x) < 1.5 && Math.abs(l.y - best.y) < 1.5 && (l.nm || l.bars));
+      if (has) { if (!has.bars) has.bars = [bar]; continue; }
+      const name = kind === 'e' ? tr(`kind.${m.faction.id}.${best.sub || best.v || best.kind}`) : kind === 'a' ? String(best.name || best.code || '').toUpperCase() : '';
+      labels.push({ x: best.x, y: best.y, dy: -br * scale * 1.5 - 8, text: name || `${Math.round(f * 100)}%`, col, pri: 3, bars: [bar] });
+    }
+    if (this._sm3) {
+      const smoke = (o, r) => { if (!(o.maxHp > 0) || o.hp > o.maxHp * 0.5) return; const bad = o.hp < o.maxHp * 0.25, n = bad ? 3 : 2;
+        for (let k = 0; k < n; k++) { const q = ((t * (bad ? 0.5 : 0.36) + k / n + (o.id || 0) * 0.37) % 1 + 1) % 1; this._sm3.push({ x: o.x + Math.sin((o.id || 0) * 3.1 + k * 2.4) * r * 0.3 + q * 1.5, y: o.y + Math.cos((o.id || 0) * 1.7 + k) * r * 0.3, r: r * (0.35 + 0.7 * q), up: r * 0.6 + q * (bad ? 11 : 8), p: 0.15 + q * 0.85, col: bad ? '#2c2c2c' : '#4a4e4a' }); } };
+      const hx = W / scale / 2, nearC = (o) => Math.abs(o.x - v.camX) < hx && Math.abs(o.y - v.camY) < hx;
+      for (const b of m.bases || []) if (!b.destroyed) { for (const sp of b.spawners || []) if (!sp.dead && nearC(sp)) smoke(sp, sp.r || 5); for (const T of b.turrets || []) if (!T.dead && nearC(T)) smoke(T, (T.r || 2) * 1.2); }
+      for (const p of m.posts || []) if (!p.dead && !p.ghost && nearC(p)) smoke(p, 2.4);
+    }
     if (amb) this.light.glow(ctx, amb, lowFx);
 
     // ---- screen space ----
     if (real) {     // lay the turned world on the screen
       const wc = this._wc, S = this.W; this.ctx = real.ctx; this.W = real.W; this.H = real.H; this.focusY = real.focusY; this._real = null; ctx = this.ctx; W = this.W; H = this.H;
       ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
-      if (g3) { g3.frame({ sheet: wc, S, scale, camX: v.camX, camY: v.camY, yaw: cam.yaw, tilt: cam.tilt, W, H, fy: this.focusY || 0.5, sun: this._sun, height: (x, y) => m.terrain.height(x, y), blocks: this._blocks(m, v.camX, v.camY, S / scale / 2), props: VIEW.p3 ? this._props(m, v.camX, v.camY, S / scale / 2, pal) : null, lit: 1 - Math.min(0.6, (this._dark || 0) * 0.75), units: U3, drops: D3, shells: S3, strobes: B3, blasts: X3, bolts: T3, orbs: O3, domes: DM3, puffs: SM3, hot: cam.sight === 'whot' || cam.sight === 'bhot' }); ctx.filter = cam.sight === 'whot' ? 'grayscale(1) contrast(1.25) brightness(0.82)' : cam.sight === 'bhot' ? 'grayscale(1) invert(1) contrast(1.2) brightness(0.9)' : 'none'; ctx.drawImage(g3.cv, 0, 0); ctx.filter = 'none'; this._g3on = true; }     // (the sight: infrared white-hot, black-hot, or plain colour)
+      if (g3) { const t0 = performance.now(); g3.frame({ sheet: wc, S, scale, camX: v.camX, camY: v.camY, yaw: cam.yaw, tilt: cam.tilt || cam.passTilt, W, H, fy: this.focusY || 0.5, sun: this._sun, height: (x, y) => m.terrain.height(x, y), blocks: this._blocks(m, v.camX, v.camY, S / scale / 2), props: VIEW.p3 ? this._props(m, v.camX, v.camY, S / scale / 2, pal) : null, lit: 1 - Math.min(0.6, (this._dark || 0) * 0.75), units: U3, drops: D3, shells: S3, strobes: B3, blasts: X3, bolts: T3, orbs: O3, domes: DM3, puffs: SM3, hot: cam.sight === 'whot' || cam.sight === 'bhot', sight: cam.sight, topo: !!cam.topo, ground: this.groundCv, groundRev: this.groundRev || 0, size: SIZE, post: !(this.quality === 'low' || this.perf.low) });
+        if (!g3.sighted) ctx.filter = cam.sight === 'whot' ? 'grayscale(1) contrast(1.25) brightness(0.82)' : cam.sight === 'bhot' ? 'grayscale(1) invert(1) contrast(1.2) brightness(0.9)' : 'none';     // (only where the graphics card could not put the sight on itself)
+        ctx.drawImage(g3.cv, 0, 0); ctx.filter = 'none'; this._g3on = true; this.t3 = (this.t3 || 0) + (performance.now() - t0 - (this.t3 || 0)) * 0.08; }     // (the sight: infrared white-hot, black-hot, or plain colour)
       else { ctx.translate(v.px, v.py); ctx.rotate(cam.yaw); ctx.drawImage(wc, -S / 2, -S / 2); }
     }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -1100,13 +1142,13 @@ export class Renderer {
     ctx.textAlign = 'left';
   }
 
-  _layers(ctx, scale, W, H, tx, ty, tint = null, wash = null) {
+  _layers(ctx, scale, W, H, tx, ty, tint = null, wash = null, under = false) {
     // Visible world rect, clipped to the map.
     const x0 = Math.max(0, -tx / scale), y0 = Math.max(0, -ty / scale);
     const x1 = Math.min(SIZE, (W - tx) / scale), y1 = Math.min(SIZE, (H - ty) / scale);
     if (x1 <= x0 || y1 <= y0) return;
     const img = this._ground(tint, wash);
-    if (img) { const k = img.width / SIZE; ctx.globalAlpha = 1; ctx.drawImage(img, x0 * k, y0 * k, (x1 - x0) * k, (y1 - y0) * k, x0, y0, x1 - x0, y1 - y0); }
+    if (img && !under) { const k = img.width / SIZE; ctx.globalAlpha = 1; ctx.drawImage(img, x0 * k, y0 * k, (x1 - x0) * k, (y1 - y0) * k, x0, y0, x1 - x0, y1 - y0); }     // (under: in 3D the ground is its own picture on the land, not drawn here)
     ctx.globalAlpha = 1;
     // Map edge
     ctx.strokeStyle = 'rgba(255,60,60,0.5)'; ctx.lineWidth = 2 / scale; ctx.strokeRect(0, 0, SIZE, SIZE);

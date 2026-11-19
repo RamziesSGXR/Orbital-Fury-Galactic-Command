@@ -2771,3 +2771,6 @@ body.ui-scifi b { color: #fff; }
   #s-shop .item .it-btns { min-width: 104px; }
   #s-shop .item:not(.open) .it-btns .btn.buy { min-height: 40px; padding: 4px 8px; }
 }
+
+/* (GC 0.37) the sight and the height view, by the mini-map: lit when on */
+#btn-sight.on, #btn-topo.on { color: #0b0d0c; background: var(--yellow); border-color: var(--yellow); }

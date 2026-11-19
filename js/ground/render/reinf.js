@@ -16,7 +16,7 @@ function rgba(hex, a) {
 }
 function ring(ctx, x, y, r) { ctx.beginPath(); ctx.arc(x, y, Math.max(0.01, r), 0, TAU); }
 function hpBar(ctx, x, y, w, h, f, col) {
-  if (document.body.classList.contains('hide-ui')) return;     // (0.54) Hide UI: no health bars
+  if (!VIEW.bars || document.body.classList.contains('hide-ui')) return;     // (0.54) Hide UI: no health bars; (GC 0.37) nor beside units at all, unless asked for
   ctx.fillStyle = 'rgba(0,0,0,0.65)'; ctx.fillRect(x - w / 2, y, w, h);
   ctx.fillStyle = col; ctx.fillRect(x - w / 2, y, w * Math.max(0, Math.min(1, f)), h);
 }
