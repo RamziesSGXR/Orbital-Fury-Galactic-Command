@@ -61,13 +61,13 @@ export class Game {
   // ---------- saving (only while you are deciding) ----------
   save() {
     const k = ['seed', 'rs', 'round', 'fi', 'res', 'mkt', 'truth', 'F', 'fleets', 'fid', 'policy', 'priority', 'capHit', 'stats', 'over', 'last', 'up', 'due', 'rat', 'sack', 'aired', 'opt', 'yard', 'cnt', 'camp', 'campLog', 'offers', 'net', 'air'];
-    const d = { v: 12, log: this.log.slice(-80), P: this.P.map(p => [p.owner, p.dev, p.site, p.built ? 1 : 0, p.station || 0, p.base || 0, p.dmg || 0, p.sp || 0, p.bp || 0]) };
+    const d = { v: 12, log: this.log.slice(-80), P: this.P.map(p => [p.owner, p.dev, p.site, p.built ? 1 : 0, p.station || 0, p.base || 0, p.dmg || 0, p.sp || 0, p.bp || 0, p.sa || 0, p.ba || 0]) };
     for (const x of k) d[x] = this[x];
     return d;
   }
   _restore(d) {
     for (const k in d) if (k !== 'v' && k !== 'P') this[k] = d[k];
-    d.P.forEach(([o, dv, st, bu, sn, bs, dm, sp, bp], i) => Object.assign(this.P[i], { owner: o, dev: dv, site: st, built: !!bu, station: sn || 0, base: bs || 0, dmg: dm || 0, sp: sp || 0, bp: bp || 0 }));
+    d.P.forEach(([o, dv, st, bu, sn, bs, dm, sp, bp, sa, ba], i) => Object.assign(this.P[i], { owner: o, dev: dv, site: st, built: !!bu, station: sn || 0, base: bs || 0, dmg: dm || 0, sp: sp || 0, bp: bp || 0, sa: sa || 0, ba: ba || 0 }));
     this.up ||= {}; this.due ||= 0; this.rat ??= C.ratings.start; this.sack ||= 0; this.net ||= { deals: [], offers: [], dealt: -99 }; this.air ||= { now: [], last: [] }; if (this.cnt) { this.cnt.show ||= 0; this.cnt.stunt ||= 0; } this.opt ||= { fleets: 'standard', posts: 'none' }; this.yard ||= 'bal'; this._lootAlias(); this.mkt ||= { fuel: 1, ammo: 1, tech: 1 }; this.cnt ||= { take: 0, fall: 0, post: 0, aired: 0 }; this.campLog ||= { won: 0, lost: 0 }; if (!this.offers || !this.offers.length) this._dealOffers();
     this.phase = this.over ? 'over' : 'plan'; this._sec = null;
     return this;
@@ -475,8 +475,9 @@ export class Game {
   // (0.28) What a post gives the war each round, for showing inside the post while you run it.
   //   kind: 'station' | 'base'; level and profit: how the post stands right now (it may have changed since you went in)
   //   each: { k (what), v (how much a round), wait (true: only once the post is in profit), text (for what is not a number) }
-  postGives(pid, kind, level = 1, profit = false) {
+  postGives(pid, kind, level = 1, profit = false, air = 0) {
     const p = this.P[pid], pol = C.policy[this.policy], out = [], r1 = (n) => Math.round(n * 10) / 10;
+    out.push({ k: 'RATINGS', v: r1(C.network.post + C.network.air * air), wait: !profit });     // (0.46) footage: more for what is built here to be seen
     if (kind === 'base') {
       out.push({ k: N.army, v: r1(C.post.train.army * level * pol.troops) });
       const d = this.deposit(p); if (d) out.push({ k: N[C.product[d]], v: r1(C.deposit.per + this.lv('b_rigs') + (profit ? C.deposit.profit : 0)) });
@@ -544,6 +545,9 @@ export class Game {
   rate(n, why = 'Other news') { this.rat = clamp(this.rat + n, 0, 100); if (!n || !this.air) return; const e = this.air.now.find((x) => x.w === why); if (e) e.n += n; else this.air.now.push({ w: why, n }); }
   // ---------------------------------------------------------------- THE NETWORK (0.44): sponsors, footage, viewers
   netPosts() { const fl = this.fedLinked(); let n = 0; for (const p of this.P) if (p.owner === 'fed' && fl.has(p.id)) n += (p.station && p.sp ? 1 : 0) + (p.base && p.bp ? 1 : 0); return n; }
+  // footage a round: every post in profit sends some, and more for what it has built to be seen (a base's parade ground, speakers,
+  // billboards and flags; a station's comms)
+  netFootage() { const N = C.network, fl = this.fedLinked(); let n = 0; for (const p of this.P) if (p.owner === 'fed' && fl.has(p.id)) n += (p.station && p.sp ? N.post + N.air * (p.sa || 0) : 0) + (p.base && p.bp ? N.post + N.air * (p.ba || 0) : 0); return Math.min(N.postMax, n); }
   netSlots() { return 1 + (this.netPosts() >= 2 ? 1 : 0) + (this.rat >= C.ratings.high ? 1 : 0); }
   sponsor(id) { return C.sponsors.find((s) => s.id === id); }
   _cntOf(t) { return this.cnt[t === 'hold' ? 'fall' : t] || 0; }
@@ -562,7 +566,7 @@ export class Game {
   }
   _netRound() {
     const N = C.network, posts = this.netPosts(), gone = (d) => { this.net.deals = this.net.deals.filter((x) => x !== d); };
-    if (posts) this.rate(Math.min(N.postMax, posts * N.post), posts === 1 ? 'Footage from a post' : `Footage from ${posts} posts`);
+    if (posts) this.rate(this.netFootage(), posts === 1 ? 'Footage from a post' : `Footage from ${posts} posts`);
     for (const d of [...this.net.deals]) {
       const st = this.dealState(d), s = st.s; this.due += st.pay; d.low = this.rat < s.floor ? (d.low || 0) + 1 : 0;
       if (d.low >= N.walkRounds) { gone(d); this.rate(-s.miss, `${s.name} walked`); this.say('bad', `${s.name} pulls its money: ratings under ${s.floor}% for ${N.walkRounds} rounds.`); }

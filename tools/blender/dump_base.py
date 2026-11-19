@@ -6,13 +6,14 @@ from playwright.sync_api import sync_playwright
 out = sys.argv[1] if len(sys.argv) > 1 else '/tmp/base_plans.json'
 JS = r"""
 async () => {
-  const THREE = await import('/js/vendor/three.js'), { buildModel, structural } = await import('/js/base/models.js'), { B } = await import('/js/base/config.js');
+  const THREE = await import('/js/vendor/three.js'), MOD = await import('/js/base/models.js'), { buildModel, structural } = MOD, { B } = await import('/js/base/config.js');
   const m = gc.mode.view.m, key = new Map(); for (const [k, v] of Object.entries(m)) if (v && v.isMaterial) key.set(v, k);
   const r3 = (x) => Math.round(x * 1000) / 1000, res = {}, stats = {};
   // every building as it stands when finished, and as it stands at the two early standards (tents, then prefabs), each way round
   const jobs = []; for (const type of Object.keys(B)) { jobs.push([type, null]); for (const k of [0, 1]) for (const [w, d] of B[type].w === B[type].d ? [[B[type].w, B[type].d]] : [[B[type].w, B[type].d], [B[type].d, B[type].w]]) jobs.push([`${type}-s${k}-${w}x${d}`, { std: k, w, d }, type]); }
-  for (const [name, spec, of] of jobs) {
-    const type = of || name; let g; try { g = buildModel(type, m, false, spec, true); } catch (e) { stats[name] = 'failed: ' + e.message; continue; } g.updateMatrixWorld(true);
+  for (const v of ['Forklift', 'Truck', 'Tank', 'Crate']) jobs.push(['veh-' + v.toLowerCase(), null, null, MOD['make' + v]]);     // (the base's own vehicles; the scout car and dropship are the ground's models)
+  for (const [name, spec, of, veh] of jobs) {
+    const type = of || name; let g; try { g = veh ? veh(m, true) : buildModel(type, m, false, spec, true); } catch (e) { stats[name] = 'failed: ' + e.message; continue; } g.updateMatrixWorld(true);
     const parts = []; let kept = 0;
     const solid = structural(g);
     g.traverse((o) => {
@@ -23,7 +24,7 @@ async () => {
       else { const a = geo.attributes.position, v = [], q = new THREE.Vector3(); for (let i = 0; i < a.count; i++) { q.fromBufferAttribute(a, i).applyMatrix4(o.matrixWorld); v.push(r3(q.x), r3(q.y), r3(q.z)); }
         parts.push({ t: 'raw', v, i: geo.index ? Array.from(geo.index.array) : null, k, c, g: geo.type }); }
     });
-    res[name] = { w: B[type].w, d: B[type].d, parts }; if (!spec || typeof stats[name] === 'string') stats[name] = [parts.length, kept];
+    res[name] = { w: veh ? 1 : B[type].w, d: veh ? 1 : B[type].d, parts }; if (!spec || typeof stats[name] === 'string') stats[name] = [parts.length, kept];
   }
   return { res, stats };
 }

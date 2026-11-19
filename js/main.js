@@ -320,7 +320,7 @@ function leaveTheatre(out = {}) {
     let level = Math.min(out.level, cur);
     if (out.level > cur) { if (rec[key + 'Up'] !== g.round) { level = cur + 1; rec[key + 'Up'] = g.round; app.toast(`${p.name}: ${key} raised to ${level} on the map.`); } else app.toast(`${p.name}: the map takes one new ${key === 'station' ? 'tier' : 'charter'} a round. The rest is waiting for next round.`, 4000); }
     else if (out.level < cur) level = out.level;
-    War.setSite(p.id, key, Math.max(1, level), !!out.profit); rec[kind] = out;
+    War.setSite(p.id, key, Math.max(1, level), !!out.profit, out.air || 0); rec[kind] = out;
   }
   state = 'war'; show('s-war'); War.show(true); app.keep();
   if (kind === 'ground' && out.abandon) app.toast('The landing is called off. The fleets still face each other.');
@@ -338,7 +338,7 @@ export const frameUi = {
   reset(kind, args) {
     this.args = args; this.paused = false; this.speed = 1;
     $('th-kind').textContent = solo ? SOLO_NAME[kind] : { ground: 'FIRE SUPPORT', orbit: 'STATION COMMAND', base: 'BASE COMMAND' }[kind]; this.war(null); clearInterval(this._wt);
-    if (kind !== 'ground') this._wt = setInterval(() => { try { const g = War.war(); if (!mode || !mode.report || !g || (state !== 'orbit' && state !== 'base')) return; const r = mode.report(), key = state === 'orbit' ? 'station' : 'base'; this.war(g.postGives(args.system.id, key, Math.max(1, Math.min(r.level || 1, (args.system[key] || 0) + 1)), !!r.profit)); } catch (err) { /* the post is still opening */ } }, 700);
+    if (kind !== 'ground') this._wt = setInterval(() => { try { const g = War.war(); if (!mode || !mode.report || !g || (state !== 'orbit' && state !== 'base')) return; const r = mode.report(), key = state === 'orbit' ? 'station' : 'base'; this.war(g.postGives(args.system.id, key, Math.max(1, Math.min(r.level || 1, (args.system[key] || 0) + 1)), !!r.profit, r.air || 0)); } catch (err) { /* the post is still opening */ } }, 700);
     $('th-where').textContent = args.system.name; $('th-stats').innerHTML = ''; $('th-bar').innerHTML = ''; $('th-tabs').innerHTML = '';
     $('th-feed').innerHTML = ''; $('th-desk').innerHTML = ''; $('th-msg').classList.remove('show'); $('th-side').classList.add('hidden'); $('th-sel').classList.add('hidden'); $('th-tip').classList.add('hidden');
     $('th-pause').textContent = 'II'; $('th-speed').textContent = '1×'; $('th-leave').textContent = kind === 'ground' ? 'ABORT' : solo ? 'MAIN MENU' : 'TO THE MAP';

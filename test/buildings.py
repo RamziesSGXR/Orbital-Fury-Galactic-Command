@@ -18,7 +18,14 @@ with sync_playwright() as pw:
       for (const t of Object.keys(B)) { try { const g = buildModel(t, v.m, true); let has = false; g.traverse(o => { if (o.userData.model3) has = true; }); if (!has) bad.push(t); } catch (e) { bad.push(t + ': ' + e.message); } }
       return { files: BLD.data.size, standing: all, modelled: on, kindsWithoutModel: bad }; })()""")
     print('buildings from the models:', info)
-    pg.evaluate("(() => { const v = gc.mode.view; v.target.x = 0; v.target.z = 2; v.zoom = v.zoomT = 7; v.pitch = 0.6; })()"); pg.wait_for_timeout(2500)
+    veh = pg.evaluate("""(async () => { const M = await import('/js/base/models.js'), v = gc.mode.view, out = {};
+      for (const k of ['Forklift', 'Truck', 'LRV', 'Tank', 'Crate', 'Dropship']) { const g = M['make' + k](v.m); let has = false; g.traverse(o => { if (o.userData.model3) has = true; }); const b = new (await import('/js/vendor/three.js')).Box3().setFromObject(g); out[k] = [has, +(b.max.z - b.min.z).toFixed(2)]; }
+      return out; })()""")
+    print('vehicles from the models (and their length):', veh); assert all(x[0] for x in veh.values()), 'a vehicle is still all code'
+    pg.evaluate("""(async () => { const M = await import('/js/base/models.js'), v = gc.mode.view; let i = 0;
+      for (const k of ['Forklift', 'Truck', 'LRV', 'Tank', 'Dropship']) { const g = M['make' + k](v.m); g.position.set(-3 + i * 1.5, 0, 4); g.rotation.y = 0.6; v.world.add(g); i++; } })()""")
+
+    pg.evaluate("(() => { const v = gc.mode.view; v.target.x = 0; v.target.z = 3.5; v.zoom = v.zoomT = 6; v.pitch = 0.6; })()"); pg.wait_for_timeout(2500)
     pg.screenshot(path=f'{out}/buildings-base.png')
     assert info['files'] >= 71 and not info['kindsWithoutModel'], 'buildings are missing their models'
     br.close()

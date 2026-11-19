@@ -8,6 +8,8 @@ import { View } from '../base/view.js';
 import { REQUESTS } from '../base/desk.js';
 import { ensureLogo } from '../base/logo.js';
 import { words } from '../core/words.js';
+// (0.46) what a base puts on air: every parade ground, speaker, billboard, banner, flag and monument standing is footage for the war's ratings
+const SHOWS = new Set(['parade', 'speaker', 'billboard', 'banner', 'hdbanner', 'flag', 'seflag', 'statue', 'monument', 'memorial', 'lecture', 'truth', 'plaque']);
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
@@ -178,7 +180,7 @@ const mode = {
     else ui.feed(`BASE: Welcome back, Commander. Day ${Math.floor((sim.time || { day: 1 }).day)}.`, 'radio');
   },
   store() { if (sim && args) { try { app.siteSave('base', args.system.id, sim.save()); } catch (err) { console.error(err); } } },
-  report() { const s = sim.stage || 0, r = sim.rates(), net = r.crNet + r.supNet; return { profit: sim.flow.days.length > 0 && net > 0, net, level: Math.min(4, s + 1), charter: C.STAGES[s].name, troops: sim.troops.length }; },
+  report() { const s = sim.stage || 0, r = sim.rates(), net = r.crNet + r.supNet; return { air: Math.min(5, sim.b.filter((b) => b.done && !b.off && SHOWS.has(b.type)).length), profit: sim.flow.days.length > 0 && net > 0, net, level: Math.min(4, s + 1), charter: C.STAGES[s].name, troops: sim.troops.length }; },
   leave() { mode.store(); mode.off = true; held.clear(); if (view) { view.setGhost(null); view.showLine(null); view.showPlots(null); } },
   frame(dt, now, real) {
     if (!sim) return;

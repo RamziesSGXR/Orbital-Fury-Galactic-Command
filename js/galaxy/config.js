@@ -1,5 +1,5 @@
 // Every number and every name in the game lives here, so the prototype can be retuned or renamed in one place.
-export const VERSION = '0.45.0';
+export const VERSION = '0.46.0';
 
 export const C = {
   names: {
@@ -197,7 +197,7 @@ export const C = {
     { id: 'realty', name: 'NEW HORIZON HOMES',  line: 'Lovely worlds. Recently available.',    pay: 80,  floor: 35, want: { type: 'take', n: 3 },  text: 'Take 3 systems.',                 rounds: 6, miss: 3 },
     { id: 'nine',   name: 'CHANNEL NINE ORBIT', line: 'All war, all the time.',                pay: 110, floor: 60, want: { type: 'aired', n: 4 }, text: 'Win 4 fights on camera.',         rounds: 8, miss: 5 },
   ],
-  network: { offers: 3, redeal: 6, renew: 2, walkRounds: 2, post: 0.3, postMax: 2, aud: { base: 0.6, span: 0.8 } },
+  network: { offers: 3, redeal: 6, renew: 2, walkRounds: 2, post: 0.3, air: 0.1, postMax: 3, aud: { base: 0.6, span: 0.8 } },
   ratings: { start: 50, stunt: 3, settle: 40, drift: 0.12, take: 1, takeHome: 15, hold: 1, repelled: -1, fall: -1, postLost: -3, found: 1,
              ground: { win: 3, flawless: 3, flawlessAt: 0.8, loss: -2 },
              show: { gain: 4, every: 8, cost: { base: { army: 3 }, station: { fuel: 3 } } },

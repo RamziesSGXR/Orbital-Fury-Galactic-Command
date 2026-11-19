@@ -900,18 +900,19 @@ export const SCRUB_COL = { desert: ['#8a7550', '#6e5d44'], steppe: ['#6b7a3e', '
 // (in assets/models/buildings.json, made by tools/blender/base.py from the plans tools/blender/dump_base.py writes), drawn with the
 // same material as the people and the ground's models. What moves, lights up, is glass, or carries a picture (a flag with your
 // crest, a sign) is still made here and stands on the model. plain: the old all-code building, as the plans are taken from.
-export const BLD = { data: new Map(), asked: false };
+export const BLD = { data: new Map(), veh: {}, asked: false };
 export function loadBuildings(done) {
   if (BLD.asked || typeof fetch !== 'function') return; BLD.asked = true;
   fetch('assets/models/buildings.json').then((r) => (r.ok ? r.json() : null)).then((pack) => {     // (every building and its early forms, in one file)
     for (const [k, d] of Object.entries(pack || {})) if (d && d.frames) BLD.data.set(k, d);
-    if (BLD.data.size && done) done();
-  }).catch(() => {});
+    return Promise.all(['veh_lrv', 'veh_dropship'].map((f) => fetch(`assets/models/${f}.json`).then((r) => (r.ok ? r.json() : null)).then((d) => { if (d && d.frames) BLD.veh[f] = d; }).catch(() => {})));
+  }).then(() => { if (BLD.data.size && done) done(); }).catch(() => {});
 }
 // the meshes of a building that are its plain structure (the rest is alive in some way and stays as made)
 export function structural(root) {
   const keep = new Set(), mark = o => o && o.isObject3D && o.traverse(c => keep.add(c)), out = new Set();
   for (const v of Object.values(root.userData)) (Array.isArray(v) ? v : [v]).forEach(mark);
+  root.traverse(o => { if (o !== root && o.userData.veh) mark(o); });     // (a vehicle parked in a building is its own thing, not part of the building)
   root.traverse(o => {
     if (!o.isMesh || o.isInstancedMesh || keep.has(o) || Array.isArray(o.material) || o.userData.wave || o.morphTargetInfluences) return;
     const g = o.geometry, t = o.material; if (!g.attributes.normal || !g.attributes.uv) return;
@@ -1133,7 +1134,7 @@ export function poseKit(g, act, ph = 0, legs = act) {
   else if (act === 'ready') { gun.position.set(0.16 * PK, 1.13 * PK, 0.17 * PK); gun.rotation.set(0.3, -0.45, 0, 'YXZ'); A(p.armR, 0.45, -0.3, -1.75); A(p.armL, -0.6, 0.55, -0.25); }
   else { gun.position.set(0.02 * PK, 1.25 * PK, -0.275 * PK); gun.rotation.set(-0.95, Math.PI / 2, 0, 'YXZ'); }
 }
-export function makeForklift(m) {
+function makeForklift0(m) {
   const g = new THREE.Group();
   box(g, 0.3, 0.16, 0.42, m.lift, 0, 0.13, -0.04);
   for (const [x, z] of [[-0.15, 0.1], [0.15, 0.1], [-0.15, -0.18], [0.15, -0.18]]) cyl(g, 0.06, 0.06, 0.05, m.rubber, x, 0.06, z, { rz: Math.PI / 2, seg: 10 });
@@ -1146,7 +1147,7 @@ export function makeForklift(m) {
   const cargo = new THREE.Group(); g.add(cargo); box(cargo, 0.22, 0.18, 0.2, m.crate, 0, 0.17, 0.36); g.userData.cargo = cargo;
   return g;
 }
-export function makeTruck(m) {
+function makeTruck0(m) {
   const g = new THREE.Group();
   box(g, 0.34, 0.06, 0.82, m.dark, 0, 0.12, 0);
   box(g, 0.34, 0.13, 0.24, m.prim, 0, 0.195, 0.28); box(g, 0.34, 0.03, 0.24, m.prim, 0, 0.385, 0.28); box(g, 0.34, 0.12, 0.03, m.prim, 0, 0.31, 0.175);
@@ -1158,7 +1159,7 @@ export function makeTruck(m) {
   for (const [x, z] of [[-0.18, 0.28], [0.18, 0.28], [-0.18, -0.1], [0.18, -0.1], [-0.18, -0.28], [0.18, -0.28]]) cyl(g, 0.07, 0.07, 0.06, m.rubber, x, 0.07, z, { rz: Math.PI / 2, seg: 10 });
   return g;
 }
-export function makeLRV(m) {   // fast recon vehicle: open frame, roll cage, a mounted gun
+function makeLRV0(m) {   // fast recon vehicle: open frame, roll cage, a mounted gun
   const g = new THREE.Group();
   box(g, 0.36, 0.1, 0.7, m.olive, 0, 0.16, 0); box(g, 0.34, 0.08, 0.2, m.oliveDark, 0, 0.24, 0.24);
   for (const x of [-0.15, 0.15]) { box(g, 0.025, 0.24, 0.025, m.steel, x, 0.33, 0.05); box(g, 0.025, 0.2, 0.025, m.steel, x, 0.31, -0.25); box(g, 0.025, 0.025, 0.32, m.steel, x, 0.45, -0.1); }
@@ -1168,7 +1169,7 @@ export function makeLRV(m) {   // fast recon vehicle: open frame, roll cage, a m
   box(g, 0.06, 0.03, 0.01, m.glowY, -0.12, 0.2, 0.355); box(g, 0.06, 0.03, 0.01, m.glowY, 0.12, 0.2, 0.355);
   return g;
 }
-export function makeTank(m) {
+function makeTank0(m) {
   const g = new THREE.Group();
   for (const x of [-0.24, 0.24]) { box(g, 0.14, 0.16, 0.95, m.rubber, x, 0.09, 0); box(g, 0.15, 0.04, 0.9, m.oliveDark, x, 0.19, 0); }
   box(g, 0.38, 0.16, 0.85, m.olive, 0, 0.22, 0); box(g, 0.4, 0.04, 0.3, m.oliveDark, 0, 0.3, 0.32, { rx: -0.3 });
@@ -1178,10 +1179,10 @@ export function makeTank(m) {
   g.userData.turret = turret;
   return g;
 }
-export function makeCrate(m) {
+function makeCrate0(m) {
   const g = new THREE.Group(); box(g, 0.3, 0.26, 0.3, m.crate, 0, 0.13, 0); box(g, 0.31, 0.05, 0.31, m.hazard, 0, 0.19, 0); return g;
 }
-export function makeDropship(m) {
+function makeDropship0(m) {
   const g = new THREE.Group();
   box(g, 0.8, 0.65, 2.3, m.dship, 0, 0.75, 0); box(g, 0.7, 0.45, 0.5, m.glass, 0, 0.85, 1.25, { rx: 0.3 });
   box(g, 0.35, 0.3, 1.4, m.dship, 0, 0.95, -1.7); box(g, 0.06, 0.6, 0.6, m.dship, 0, 1.3, -2.25);
@@ -1195,3 +1196,35 @@ export function makeDropship(m) {
   g.userData.engines = engines;
   return g;
 }
+
+// (GC 0.46) THE BASE'S VEHICLES ARE MODELS TOO. The scout car and the dropship are the very ones the ground game shows
+// (veh_lrv, veh_dropship), fitted to the size the base draws them at and dressed in the fleet's colours. The truck, the forklift,
+// the tank and the crate are made in Blender from their plans, like the buildings. Wheels that turn, turrets, cargo, lights and
+// glass stay the game's own. plain: the old all-code vehicle, as the plans are taken from.
+const VEH_FILE = { lrv: 'veh_lrv', dropship: 'veh_dropship' };
+function vehicle(kind, g, m, plain) {
+  g.userData.veh = kind; if (plain) return g;
+  const d = BLD.veh[VEH_FILE[kind]];
+  if (d) {
+    const solid = structural(g); if (!solid.size) return g;
+    g.updateMatrixWorld(true); const was = new THREE.Box3(); for (const o of solid) was.expandByObject(o);
+    const cache = m._bld ||= new Map(); let geo = cache.get('fit-' + kind);
+    if (!geo) {
+      const u = m.uniform ? m.uniform.color : new THREE.Color('#6b7a5a'), dk = (f) => u.clone().multiplyScalar(f), remap = { uniform: u, uniform_dark: dk(0.78), kit: dk(0.62) };
+      if (m.prim) remap.trim = m.prim.color; if (m.armband) remap.armband = m.armband.color;
+      geo = staticGeo(d, remap); geo.computeBoundingBox(); const b = geo.boundingBox, k = (was.max.z - was.min.z) / (b.max.z - b.min.z);     // (the same length, nose to tail)
+      geo.translate(-(b.min.x + b.max.x) / 2, -b.min.y, -(b.min.z + b.max.z) / 2); geo.scale(k, k, k); geo.translate((was.min.x + was.max.x) / 2, was.min.y, (was.min.z + was.max.z) / 2);
+      cache.set('fit-' + kind, geo);
+    }
+    for (const o of solid) o.parent.remove(o);
+    m.model ||= new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0.04, side: THREE.DoubleSide });
+    const mesh = new THREE.Mesh(geo, m.model); mesh.castShadow = true; mesh.receiveShadow = true; mesh.userData.model3 = true; g.add(mesh);
+  } else if (BLD.data.has('veh-' + kind)) modelled(g, m, 'veh-' + kind);
+  return g;
+}
+export const makeForklift = (m, plain) => vehicle('forklift', makeForklift0(m), m, plain);
+export const makeTruck = (m, plain) => vehicle('truck', makeTruck0(m), m, plain);
+export const makeLRV = (m, plain) => vehicle('lrv', makeLRV0(m), m, plain);
+export const makeTank = (m, plain) => vehicle('tank', makeTank0(m), m, plain);
+export const makeCrate = (m, plain) => vehicle('crate', makeCrate0(m), m, plain);
+export const makeDropship = (m, plain) => vehicle('dropship', makeDropship0(m), m, plain);

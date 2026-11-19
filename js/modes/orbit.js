@@ -139,7 +139,7 @@ const mode = {
     else ui.feed(`HEAD OFFICE: Welcome back, Commander. Week ${st.week()}, day ${st.dow()}.`, 'radio');
   },
   store() { if (st && args) app.siteSave('orbit', args.system.id, st.save()); },
-  report() { let net = 0; try { net = st.ledger().credits.net; } catch { /* no accounts yet */ } return { profit: net > 0.05, net, level: Math.min(4, st.tier + 1), tier: C.tiers[st.tier].name, cap: st.capability() }; },
+  report() { let net = 0; try { net = st.ledger().credits.net; } catch { /* no accounts yet */ } return { air: Math.min(5, [...st.parts.values()].filter((p) => p.state !== 'building' && C.parts[p.type] && C.parts[p.type].group === 'comms').length), profit: net > 0.05, net, level: Math.min(4, st.tier + 1), tier: C.tiers[st.tier].name, cap: st.capability() }; },
   leave() { mode.store(); mode.off = true; view.showPorts(null); view.setGhost(null, null, 0); },
   frame(dt, now, real) {
     if (!st) return;

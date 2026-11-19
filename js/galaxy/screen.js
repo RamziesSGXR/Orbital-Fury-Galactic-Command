@@ -244,7 +244,7 @@ function network() {
   const sgn = (n) => (n > 0 ? '+' : '') + (Math.round(n * 10) / 10), led = (L) => L.length ? L.slice().sort((a, b) => b.n - a.n).map((e) => `<div class="sm2 row" style="justify-content:space-between"><span>${e.w}</span><b class="${e.n > 0 ? 'cy' : 'rd2'}">${sgn(e.n)}</b></div>`).join('') : '<div class="sm2 dim">Nothing went out.</div>';
   const posts = g.netPosts(), slots = g.netSlots(), free = slots - g.net.deals.length;
   let h = `<section><h3>Why the ratings moved</h3><div class="sm2 dim">THIS ROUND SO FAR</div>${led(g.air.now)}<div class="sm2 dim" style="margin-top:6px">LAST ROUND</div>${led(g.air.last)}
-    <div class="sm2 dim" style="margin-top:6px">${posts ? `${posts} post${posts === 1 ? '' : 's'} in profit send${posts === 1 ? 's' : ''} footage: +${Math.min(C.network.postMax, posts * C.network.post).toFixed(1)} a round.` : 'A station or base in profit sends footage every round.'}</div></section>`;
+    <div class="sm2 dim" style="margin-top:6px">${posts ? `${posts} post${posts === 1 ? '' : 's'} in profit send${posts === 1 ? 's' : ''} footage: +${g.netFootage().toFixed(1)} a round. Parade grounds, speakers, billboards and flags in a base, and comms on a station, send more.` : 'A station or base in profit sends footage every round.'}</div></section>`;
   h += `<section><h3>Sponsors <span class="dim">${g.net.deals.length} / ${slots}</span></h3>`;
   for (const d of g.net.deals) { const st = g.dealState(d), s = st.s;
     h += `<div class="plate" style="padding:8px;margin-bottom:6px"><div class="row" style="justify-content:space-between"><b>${s.name}</b><span class="cy">+${st.pay} CR</span></div><div class="sm2 dim">"${s.line}"</div>
@@ -564,6 +564,6 @@ export function show(on) { active = on; if (on) { view.resize(); if (view.front 
 // A battle settled on the ground comes back here: the result goes on the map and the battle screen shows it.
 export function groundResult(win, left, res) { if (g && g.battle && !g.battle.done) { g.battleResolve(win, left, res); ui.fx = null; ui.cards = false; } }
 // A station or a base has changed: its tier or rank goes on the system.
-export function setSite(pid, kind, level, profit) { if (g && g.P[pid]) { g.P[pid][kind] = level; g.P[pid][kind === 'station' ? 'sp' : 'bp'] = profit ? 1 : 0; g._sec = null; } }
+export function setSite(pid, kind, level, profit, air = 0) { if (g && g.P[pid]) { g.P[pid][kind] = level; g.P[pid][kind === 'station' ? 'sp' : 'bp'] = profit ? 1 : 0; g.P[pid][kind === 'station' ? 'sa' : 'ba'] = air || 0; g._sec = null; } }
 export function redraw() { if (g && active) refresh(); }
 export function lostSites() { const l = (g && g.lostSites) || []; if (g) g.lostSites = []; return l; }
