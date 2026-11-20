@@ -2795,3 +2795,64 @@ body.rts #hud .mm-btns .btn.on { background: rgba(245, 213, 71, 0.08); color: va
 body.rts #hud .mm-btns .btn { color: var(--g-dim); } body.rts #hud .mm-btns .btn:hover { color: var(--g); }
 /* an order that cannot be given now steps back, so the ones that can stand out */
 #hud .ord:disabled, #hud .ord.off, #hud .ord.na, #hud .dkb:disabled { opacity: 0.36; }
+
+/* =====================================================================================================================
+   (GC 0.49) THE GROUND FIGHT LAID OUT AS THE WAR MAP IS (a desktop with room: body.hud2, set by dockGame in main.js).
+   Each corner has one job. Top right: the game's own buttons beside the clock. Over the minimap: what you see, by name
+   (the three sights, the height view, photo mode, the free camera), on a solid backing. Along the bottom: the command
+   panel, showing only what applies: with no Infantry down it is the drop alone; with Infantry, the squads on one row and
+   the orders with the formations on the next. "On" is the thin amber line everywhere. Phones, tablets and small windows
+   keep their own layouts.
+   ===================================================================================================================== */
+.mm-l { display: none; }
+#gamebar { display: none; }
+body.rts:not(.hud2) #hud .mm-btns .sgt { display: none !important; }
+body.rts.hud2 #hud { --bb: 112px; --mbw: 0px; --rcol: max(var(--mmp), 228px); }
+/* top right: pause, speed, info, menu */
+body.rts.hud2 #hud #gamebar { display: flex; gap: 4px; position: absolute; top: 0; right: calc(100% + var(--g)); pointer-events: auto; }
+body.rts.hud2 #hud #gamebar .btn { display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; min-height: 0; padding: 0; font-size: 13px; color: var(--g); }
+body.rts.hud2 #hud #gamebar #btn-info, body.rts.hud2 #hud #gamebar #btn-menu { font-size: 0; }
+body.rts.hud2 #hud #gamebar .btn::before { width: 18px; height: 18px; }
+body.rts.hud2 #hud #gamebar .btn.on { color: var(--yellow); border-color: var(--yellow); background-color: rgba(40, 36, 10, 0.95); }
+/* over the minimap: the sights and the views, by name */
+body.rts.hud2 #hud .mm-wrap { flex-direction: column-reverse; align-items: stretch; }
+body.rts.hud2 #hud #minimap { align-self: flex-end; }
+body.rts.hud2 #hud .mm-btns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; width: auto; padding: 5px 6px 6px; background: rgba(10, 13, 12, 0.9); border-top: 1px solid var(--cy-d); }
+body.rts.hud2 #hud .mm-btns .mm-l { display: block; grid-column: 1 / -1; font-size: 8.5px; letter-spacing: 1px; color: rgba(230, 234, 220, 0.62); }
+body.rts.hud2 #hud .mm-btns #btn-sight, body.rts.hud2 #hud .mm-btns #btn-mini, body.rts.hud2 #hud .mm-btns #btn-shop { display: none; }
+body.rts.hud2 #hud .mm-btns .btn, body.rts.hud2 #hud .mm-btns #btn-topo, body.rts.hud2 #hud .mm-btns #btn-photo, body.rts.hud2 #hud .mm-btns #btn-follow { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; width: auto; height: 40px; min-height: 0; padding: 0; margin: 0; font-size: 8.5px; letter-spacing: 0.04em; color: #e6eadc; visibility: visible; position: static; }
+body.rts.hud2 #hud .mm-btns .btn::before { content: ''; width: 16px; height: 16px; flex: none; background: currentColor; -webkit-mask: var(--ic) center / contain no-repeat; mask: var(--ic) center / contain no-repeat; }
+body.rts.hud2 #hud .mm-btns .btn.on, body.rts.hud2 #hud .mm-btns #btn-follow.free { color: var(--yellow); border-color: var(--yellow); background-color: rgba(40, 36, 10, 0.95); box-shadow: none; }
+body.rts.hud2 #hud .mm-btns #btn-follow .n { display: none; }
+body.rts.hud2 #hud .mm-btns #btn-follow::after { content: 'FREE CAM'; }
+.sgt[data-sight="day"] { --ic: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='square'%3E%3Cpath d='M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6L17 7M7 17l-1.4 1.4'/%3E%3C/svg%3E"); } .sgt[data-sight="whot"] { --ic: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='square'%3E%3Cpath d='M12 5a7 7 0 1 0 0 14a7 7 0 1 0 0-14M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6'/%3E%3C/svg%3E"); } .sgt[data-sight="bhot"] { --ic: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='square'%3E%3Cpath d='M12 5a7 7 0 1 0 0 14a7 7 0 1 0 0-14M7 7l10 10M5.5 10l8.5 8.5M10 5.5l8.5 8.5'/%3E%3C/svg%3E"); }
+body.rts.hud2 #hud .mm-btns #btn-follow { --ic: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='square'%3E%3Cpath d='M12 3v18M3 12h18M12 3l-2 2M12 3l2 2M12 21l-2-2M12 21l2-2M3 12l2-2M3 12l2 2M21 12l-2-2M21 12l-2 2'/%3E%3C/svg%3E"); }
+body.rts.hud2 #hud #aud { padding: 2px 6px; background: rgba(10, 13, 12, 0.72); }
+/* along the bottom: only what applies */
+body.rts.hud2 #hud #tactical[data-tab="units"] .tc-u { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); grid-auto-rows: minmax(0, 1fr); align-content: stretch; gap: 5px 10px; }
+body.rts.hud2 #hud #tactical .tc-u .tc-l { display: none; }
+body.rts.hud2 #hud #tactical .tc-u .tc-sqs { grid-column: 1 / -1; display: grid; }
+body.rts.hud2 #hud #tactical #squads { grid-auto-rows: minmax(0, 1fr); height: 100%; }
+body.rts.hud2 #hud #tactical #squads .sqb, body.rts.hud2 #hud #tactical #squads .sqa { height: 100%; min-height: 0; }
+body.rts.hud2 #hud #tactical .tc-u .tac-ord { grid-column: 1; height: 100%; }
+body.rts.hud2 #hud #tactical .tc-u .tac-form { grid-column: 2; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; margin: 0; height: 100%; }
+body.rts.hud2 #hud #tactical .tc-u .tac-sq { display: none; grid-column: 1 / -1; height: 100%; }
+body.rts.hud2 #hud #tactical.pick .tc-u .tac-sq { display: grid; }
+body.rts.hud2 #hud #tactical .tco, body.rts.hud2 #hud #tactical[data-tab="units"] .frm, body.rts.hud2 #hud #tactical .tcq { height: 100%; min-height: 0; }
+body.rts.hud2 #hud #tactical .tco { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; padding: 0 2px; }
+body.rts.hud2 #hud #tactical .tco .n { margin: 0; }
+body.rts.hud2 #hud #tactical .tco::before { content: ''; width: 15px; height: 15px; flex: none; background: currentColor; -webkit-mask: var(--ic) center / contain no-repeat; mask: var(--ic) center / contain no-repeat; }
+body.rts.hud2 #hud #tactical.pick .tco::before { display: none; }
+.tco.auto { --ic: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='square'%3E%3Cpath d='M5 12a7 7 0 1 1 7 7M12 9v3l2 2'/%3E%3C/svg%3E"); } .tco.move { --ic: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='square'%3E%3Cpath d='M4 12h14M13 6l6 6-6 6'/%3E%3C/svg%3E"); } .tco.protect { --ic: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='square'%3E%3Cpath d='M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6z'/%3E%3C/svg%3E"); } .tco.attack { --ic: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='square'%3E%3Cpath d='M12 3v5M12 16v5M3 12h5M16 12h5M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8'/%3E%3C/svg%3E"); } .tco.escort { --ic: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='square'%3E%3Cpath d='M4 7l5 5-5 5M12 7l5 5-5 5'/%3E%3C/svg%3E"); } .tco.infantry { --ic: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='square'%3E%3Cpath d='M12 3v12M8 11l4 4 4-4M5 20h14'/%3E%3C/svg%3E"); } .tco.pickup { --ic: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='square'%3E%3Cpath d='M12 21V9M8 13l4-4 4 4M5 4h14'/%3E%3C/svg%3E"); }
+/* no Infantry on the ground: the drop, and nothing that cannot be used */
+body.rts.hud2 #hud #tactical.no-inf .tc-u .tc-sqs, body.rts.hud2 #hud #tactical.no-inf .tc-u .tac-form, body.rts.hud2 #hud #tactical.no-inf .tc-u .tac-sq, body.rts.hud2 #hud #tactical.no-inf .tco:not(.infantry) { display: none; }
+body.rts.hud2 #hud #tactical.no-inf .tc-u .tac-ord { grid-column: 1 / -1; grid-template-columns: minmax(0, 220px); align-content: center; }
+body.rts.hud2 #hud #tactical.no-inf .tco.infantry { height: 56px; flex-direction: row; gap: 10px; }
+body.rts.hud2 #hud #tactical.no-inf .tco.infantry::before { width: 20px; height: 20px; }
+body.rts.hud2 #hud #tactical.no-inf .tco.infantry .n { font-size: 11px; } body.rts.hud2 #hud #tactical.no-inf .tco.infantry .s { font-size: 10px; }
+/* the resource bar: a mark for each figure, the same marks the war's top bar will take */
+body.rts.hud2 #hud #topbar .bigcr::before { content: ''; display: inline-block; width: 14px; height: 14px; margin-right: 5px; vertical-align: -1px; background: currentColor; opacity: 0.8; -webkit-mask: var(--ic) center / contain no-repeat; mask: var(--ic) center / contain no-repeat; }
+#bigcr { --ic: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='square'%3E%3Cpath d='M12 4l7 4v8l-7 4-7-4V8z'/%3E%3C/svg%3E"); } #lives { --ic: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='square'%3E%3Cpath d='M12 5v14M5 12h14'/%3E%3C/svg%3E"); } #infantryc { --ic: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='square'%3E%3Cpath d='M12 4a3 3 0 1 0 0 6a3 3 0 1 0 0-6M5 20c0-4 3-6 7-6s7 2 7 6'/%3E%3C/svg%3E"); }
+body.rts.hud2 #hud #topbar #alertc::before { display: none; }
+body.rts.hud2 #hud #tactical[data-tab="units"] .frm { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 0 2px; }
+body.rts.hud2 #hud #tactical[data-tab="units"] .frm .n { margin: 0; font-size: 8.5px; max-width: 100%; }

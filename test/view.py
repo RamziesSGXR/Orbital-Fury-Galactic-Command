@@ -33,7 +33,9 @@ with sync_playwright() as pw:
     # 1. the sight: infrared to begin with, colour at a click, and the height view
     assert f.evaluate("__game.cam.sight") == 'whot', 'the sight should start in infrared'
     pg.screenshot(path=f'{out}/view-1-thermal.png')
-    f.click('#btn-sight'); pg.wait_for_timeout(400); assert f.evaluate("__game.cam.sight") == 'day'; pg.screenshot(path=f'{out}/view-2-colour.png')
+    f.click('.sgt[data-sight=day]'); pg.wait_for_timeout(400); assert f.evaluate("__game.cam.sight") == 'day'     # (0.49: a desktop names the three sights, one button each)
+    f.click('.sgt[data-sight=bhot]'); pg.wait_for_timeout(300); assert f.evaluate("__game.cam.sight") == 'bhot'; f.click('.sgt[data-sight=day]'); pg.wait_for_timeout(300)
+    assert f.evaluate("document.getElementById('btn-pause').parentElement.id") == 'gamebar', 'pause should sit in the top bar on a desktop'; pg.screenshot(path=f'{out}/view-2-colour.png')
     f.click('#btn-topo'); pg.wait_for_timeout(400); assert f.evaluate("__game.cam.topo") is True; pg.screenshot(path=f'{out}/view-3-height.png')
     f.click('#btn-topo'); pg.wait_for_timeout(200)
     print('sight put on by the graphics card:', f.evaluate("!!__game.renderer._g3.sighted"), '| kept:', f.evaluate("localStorage.getItem('ofgc.view')"))

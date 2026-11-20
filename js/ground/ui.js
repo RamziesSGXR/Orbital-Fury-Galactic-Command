@@ -1152,6 +1152,7 @@ export class Hud {
   // (0.18) the troops mode: the orders (as the HUD's, with what each squad is doing), and the squads the selection can join
   _tacUnits(m) {
     const sf = m.infantry, any = m.infantryAlive.length > 0, selN = sf.sel === -2 ? (sf.pick || []).length : sf.sel >= 0 ? sf.squads[sf.sel].n : 0;
+    { const tc = $('tactical'); tc.classList.toggle('no-inf', !any); tc.classList.toggle('pick', any && sf.sel === -2 && selN > 0); }     // (GC 0.49: a desktop shows only what applies)
     document.querySelectorAll('#tactical .tco').forEach((b) => {
       const o = b.dataset.o, src = this.ord[o];
       const n = o === 'disband' ? t('hud.disband') : src ? src.el.querySelector('.n').textContent : o;

@@ -44,6 +44,8 @@ body.photo #showui { display: none !important; }</style>
     <button id="showui" class="btn icon" type="button"><span data-t="hud.showUi">SHOW UI</span> <kbd data-k="hideUi">F2</kbd></button>
     <!-- top right: the clock, the mission and the difficulty, the score; the objective under it -->
     <div class="hud-tr">
+      <!-- (GC 0.49) a desktop: pause, speed, info and menu sit here, beside the clock, as the menu does on the war map (main.js moves them) -->
+      <div id="gamebar"></div>
       <div id="mbox" class="panel fadeable">
         <div class="mb-top"><div id="timer">30:00</div><div class="mb-id"><b id="mb-num"></b><span id="mb-diff"></span></div></div>
         <div id="opname"></div>
@@ -66,6 +68,12 @@ body.photo #showui { display: none !important; }</style>
       <div class="mm-wrap">
         <canvas id="minimap" class="fadeable" width="240" height="240" data-tt="hud.miniTitle"></canvas>
         <div class="tl-btns mm-btns">
+        <!-- (GC 0.49) a desktop: the sights by name, one button each, over the minimap; then the height view, photo mode and the free camera -->
+        <span class="mm-l gc-only">SIGHT</span>
+        <button class="btn icon gc-only sgt" type="button" data-sight="day" title="Sight: plain colour (T goes round the three)">COLOUR</button>
+        <button class="btn icon gc-only sgt" type="button" data-sight="whot" title="Sight: infrared, what is hot shows white (T goes round the three)">WHITE-HOT</button>
+        <button class="btn icon gc-only sgt" type="button" data-sight="bhot" title="Sight: infrared, what is hot shows black (T goes round the three)">BLACK-HOT</button>
+        <span class="mm-l">VIEW</span>
         <button id="btn-sight" class="btn icon gc-only" type="button" title="The sight: plain colour or infrared (T)">SIGHT</button>
         <button id="btn-topo" class="btn icon gc-only" type="button" title="Show the height of the land: colour by height and contour lines">HEIGHT</button>
         <button id="btn-photo" class="btn icon gc-only" type="button" title="Photo mode (F4)">PHOTO</button>

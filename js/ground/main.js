@@ -72,11 +72,14 @@ function keepView() { try { localStorage.setItem('ofgc.view', JSON.stringify({ s
 function syncView() {
   const a = $('btn-sight'), b = $('btn-topo'); if (!a || !b) return;
   a.textContent = cam.sight === 'day' ? 'SIGHT: COLOUR' : cam.sight === 'bhot' ? 'SIGHT: THERMAL B' : 'SIGHT: THERMAL'; a.classList.toggle('on', cam.sight !== 'day'); a.title = a.textContent + ' (T)';
-  b.textContent = cam.topo ? 'HEIGHT: ON' : 'HEIGHT'; b.classList.toggle('on', !!cam.topo); b.title = cam.topo ? 'The height of the land is showing' : 'Show the height of the land: colour by height and contour lines';
+  b.textContent = 'HEIGHT'; b.classList.toggle('on', !!cam.topo);
+  for (const s of document.querySelectorAll('.mm-btns .sgt')) s.classList.toggle('on', s.dataset.sight === cam.sight);     // (0.49: a desktop names the three sights, one button each)
+  b.title = cam.topo ? 'The height of the land is showing' : 'Show the height of the land: colour by height and contour lines';
 }
 function wirePhoto() {
   $('btn-sight').onclick = () => { if (cam.sight === 'day') cam.sight = cam.hot || 'whot'; else { cam.hot = cam.sight; cam.sight = 'day'; } audio.click(); keepView(); syncView(); };
   $('btn-topo').onclick = () => { cam.topo = !cam.topo; audio.click(); keepView(); syncView(); };
+  for (const s of document.querySelectorAll('.mm-btns .sgt')) s.onclick = () => { cam.sight = s.dataset.sight; if (cam.sight !== 'day') cam.hot = cam.sight; audio.click(); keepView(); syncView(); };
   $('btn-photo').onclick = () => setPhoto(true); $('photo-done').onclick = () => setPhoto(false);
   window.addEventListener('keydown', (e) => {
     if (e.target && e.target.closest && e.target.closest('input, textarea')) return;
@@ -171,6 +174,16 @@ function pickLayout() {
   const want = settings.layout;
   return want === 'phone' || want === 'tab' || want === 'desk' ? want : short < 540 ? 'phone' : coarse ? 'tab' : 'desk';
 }
+// (GC 0.49) A desktop with room lays the ground fight out as the war map is: status and the game's own buttons along the top, what
+// you see by the minimap, orders along the bottom. Pause, speed, info and menu move up beside the clock (and back again for a
+// tablet, a phone or a small window, whose layouts place them by the minimap). The body gets hud2 for the stylesheet.
+function dockGame(on) {
+  const b = document.body, bar = $('gamebar'), box = document.querySelector('#hud .mm-btns'); if (!bar || !box) return;
+  if (b.classList.contains('hud2') === on && (bar.childElementCount > 0) === on) return;
+  b.classList.toggle('hud2', on);
+  if (on) for (const id of ['btn-pause', 'btn-speed', 'btn-info', 'btn-menu']) bar.appendChild($(id));
+  else { box.insertBefore($('btn-info'), $('btn-shop')); for (const id of ['btn-menu', 'btn-speed', 'btn-pause']) box.insertBefore($(id), $('btn-follow')); }
+}
 function applyLayout() {
   const b = document.body, lay = pickLayout(), port = window.innerHeight > window.innerWidth;
   for (const k of ['phone', 'tab', 'desk']) b.classList.toggle('lay-' + k, k === lay);
@@ -181,6 +194,7 @@ function applyLayout() {
   if (renderer.phone !== (lay === 'phone')) { renderer.phone = lay === 'phone'; renderer.resize(); }     // (0.42: the phone's resolution cap)
   if (typeof state !== 'undefined' && state === 'play' && mission && hud.radioOn !== radioWanted()) hud.radioShow(radioWanted());     // (0.42.1)
   b.classList.toggle('lay-port', port); b.classList.toggle('lay-land', !port);
+  { const z = Number(settings.uiScale) || 1; dockGame(lay === 'desk' && window.innerWidth / z >= 1000 && window.innerHeight / z > 520); }
   if (lay !== applyLayout.last) { applyLayout.last = lay; if (state === 'play') hud.layout(true); if (mission && tac && hud.tcTab === 'armory') drawArmory(); }
   return lay;
 }
