@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Galactic Command: pixel look test</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #0b0e10; color: #d8dee2; font: 14px/1.5 ui-monospace, Menlo, Consolas, monospace; }
+  #start { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
+  #card { max-width: 560px; padding: 28px 32px; border: 1px solid #3a444b; background: #12171a; }
+  h1 { font-size: 18px; letter-spacing: 0.12em; margin: 0 0 4px; color: #ffb040; }
+  p { margin: 10px 0; color: #aab4ba; } b { color: #e8eef1; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+  button { font: inherit; letter-spacing: 0.08em; padding: 10px 16px; background: #1b2226; color: #e8eef1; border: 1px solid #55626a; cursor: pointer; }
+  button:hover { border-color: #ffb040; color: #ffb040; }
+  kbd { border: 1px solid #55626a; padding: 0 5px; color: #e8eef1; }
+  #g-frame { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; }
+</style>
+</head>
+<body>
+<div id="start"><div id="card">
+  <h1>PIXEL LOOK TEST</h1>
+  <p>One ground mission against <b>the Foundry</b>, whole: armoury, briefing, the fight, the debrief. A test build: nothing here is saved and the war is not touched.</p>
+  <p>What is different: the picture is taken small and kept in hard pixels with a dark line round things, and people, creatures and machines are drawn at their own size, with the camera closer.</p>
+  <p><kbd>F6</kbd> pixel look off / on &nbsp; <kbd>F7</kbd> true scale off / on &nbsp; mouse wheel: closer and farther</p>
+  <div class="row" id="objs"></div>
+  <p id="last"></p>
+</div></div>
+<script type="module">
+import { newKit, newWallet } from './js/ground/data/kit.js';
+const q = new URLSearchParams(location.search), $ = (id) => document.getElementById(id);
+const OBJ = [['fortress', 'ASSAULT A FORTRESS'], ['nuke', 'LAUNCH SITE'], ['evac', 'EVACUATION'], ['vip', 'PICK UP A VIP']];
+const livery = { name: 'Test Command', primary: '#2f8f9c', secondary: '#f2efe4', logo: { shape: 'shield', bg: '#2f8f9c', sym: 'star', fg: '#f2efe4' } };
+let frame = null;
+function done(text) { if (frame) { frame.remove(); frame = null; } window.gcGround = null; $('start').style.display = 'flex'; $('last').textContent = text; }
+function go(obj) {
+  const seed = Number(q.get('seed')) || (Math.random() * 1e9) | 0;
+  window.gcGround = {
+    kit: newKit(), wallet: newWallet(Number(q.get('cr')) || 6000), tier: 2, hints: true, level: Number(q.get('level')) || 2, support: null, livery,
+    faction: 'bots', biome: q.get('biome') || 'grass', seed, obj, post: null, op: 'Operation Pixel', callsign: 'TEST',
+    sight: 'day', pixel: Number(q.get('lines')) || true, scale: q.has('scale') ? Number(q.get('scale')) : 0.4,
+    preview: () => ({ chips: [], notes: [] }),
+    onResult: (r) => setTimeout(() => done(`Last mission: ${r.outcome}, ${r.kills} kills, ${Math.round(r.minutes)} minutes.`), 0),
+    onAbort: () => setTimeout(() => done('Last mission: called off.'), 0),
+  };
+  $('start').style.display = 'none';
+  frame = document.createElement('iframe'); frame.id = 'g-frame'; frame.title = 'Ground battle'; frame.setAttribute('allow', 'autoplay; fullscreen');
+  frame.onload = () => { try { frame.contentWindow.focus(); } catch { /* not yet */ } };
+  frame.src = 'ground.html' + (q.has('debug') ? '?debug' : ''); document.body.appendChild(frame);
+}
+for (const [k, label] of OBJ) { const b = document.createElement('button'); b.textContent = label; b.onclick = () => go(k); $('objs').appendChild(b); }
+if (q.get('go')) go(q.get('go'));
+</script>
+</body>
+</html>

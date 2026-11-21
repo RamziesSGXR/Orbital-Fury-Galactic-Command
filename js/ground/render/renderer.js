@@ -684,6 +684,7 @@ export class Renderer {
     if (fine) setRelief(2);
     const crowd = this.perf.low ? 150 : 300, dotKinds = u3 ? '' : nOn > crowd * 2 ? 'LM' : nOn > crowd ? 'L' : '', lod0 = [], lod1 = [], hot = [];
     // (GC 0.33) in 3D: which sizes are drawn as their lighter models, by how small they are on the screen and how crowded the field is
+    const KU = VIEW.ts || 1, pxU = VIEW.ts ? () => 0 : px;     // (pixel test) at true scale nothing is held to a size in pixels
     const far3 = !u3 ? '' : scale < 4 || nOn > 400 ? 'LMH' : scale < 7.5 || nOn > 160 ? 'LM' : scale < 9.5 || nOn > 90 ? 'L' : '';
     for (const e of m.enemies) {
       if (e.dead || e.vis <= 0) continue;
@@ -712,14 +713,14 @@ export class Renderer {
         if (u3) {     // (GC 0.35) in 3D it arrives as itself: the Molt's and the Talon's climb out of the ground, the Foundry's comes down onto it; the cracks and dust stay on the land
           const arr = arriving(e, t), k = arr && e.arriveUntil > e.arriveAt ? Math.max(0, Math.min(1, (t - e.arriveAt) / (e.arriveUntil - e.arriveAt))) : 1, rise = k < 1 ? (fid === 'bots' ? (1 - k) ** 2 * 90 : -(1 - k) * br * 2.4) : 0;
           if (arr) drawBossArrival(ctx, e, fid, br, pal.enemy, now, px, t, () => {});
-          u3.push({ k: fid + ':boss', alt: fid + ':H', atk: e.aimUntil > t, x: e.x, y: e.y, r: br * 1.15, face: e.face, tint: WOUND(e), flash: t - e.hurtAt < 0.1, dim: e.vis >= 2 ? 1 : 0.6, walk: (e.vx || 0) ** 2 + (e.vy || 0) ** 2 > 0.1 ? t * 5 + e.id : null , up: rise });
+          u3.push({ k: fid + ':boss', alt: fid + ':H', atk: e.aimUntil > t, x: e.x, y: e.y, r: (VIEW.ts ? e.r * 1.5 * KU : br) * 1.15, face: e.face, tint: WOUND(e), flash: t - e.hurtAt < 0.1, dim: e.vis >= 2 ? 1 : 0.6, walk: (e.vx || 0) ** 2 + (e.vy || 0) ** 2 > 0.1 ? t * 5 + e.id : null , up: rise });
         }
         else if (arriving(e, t)) drawBossArrival(ctx, e, fid, br, pal.enemy, now, px, t, body);     // (0.55.1) its arrival
         else if (flat) body(e);
         else raiseUnit(ctx, br * 0.34, wallE, (c) => drawBossBody(c, e, fid, br, pal.enemy, now, px, t - e.hurtAt < 0.06, t));
       }
       else if (u3) { if ((e.atk || 0) > (e._pa ?? 0) + 0.15) e._at = t; e._pa = e.atk || 0;     // (GC 0.31) its attack timer has just been wound again: it has just struck
-        u3.push({ k: fid + ':' + (e.sub || e.v || e.kind), alt: fid + ':' + e.kind, lod: far3.includes(e.kind), jump: !!e.air, atk: t - (e._at ?? -9) < 0.3, x: e.x, y: e.y, r: enemyR(e, SUBTYPES[e.kind], px) * 1.25, face: e.face, tint: WOUND(e), flash: t - e.hurtAt < 0.1, dim: e.vis >= 2 ? 1 : 0.6, up: e.air ? e.air * 4 : 0, walk: !e.air && (e.vx || 0) ** 2 + (e.vy || 0) ** 2 > 0.1 ? t * (fid === 'bugs' ? 15 : 10) + e.id : null }); }
+        u3.push({ k: fid + ':' + (e.sub || e.v || e.kind), alt: fid + ':' + e.kind, lod: far3.includes(e.kind), jump: !!e.air, atk: t - (e._at ?? -9) < 0.3, x: e.x, y: e.y, r: enemyR(e, SUBTYPES[e.kind], pxU) * 1.25 * KU, face: e.face, tint: WOUND(e), flash: t - e.hurtAt < 0.1, dim: e.vis >= 2 ? 1 : 0.6, up: e.air ? e.air * 4 : 0, walk: !e.air && (e.vx || 0) ** 2 + (e.vy || 0) ** 2 > 0.1 ? t * (fid === 'bugs' ? 15 : 10) + e.id : null }); }
       else drawEnemyBody(ctx, e, fid, enemyR(e, SUBTYPES[e.kind], px), pal.enemy, now, px, t - e.hurtAt < 0.06);
       if (up) dropUnit(ctx, up);
       ctx.globalAlpha = 1;
@@ -766,7 +767,8 @@ export class Renderer {
       const phase = this.settings.reduceFlash ? ((now + a.id * 0.13) % 2) / 2 : ((now + (a.id % 5) * 0.07) % 1);
       const on = this.settings.reduceFlash ? phase < 0.15 : phase < 0.18;
       const r = Math.max(H_ ? 2.6 : 1.9, px(H_ ? 7 : 5)) * elevK(a.x, a.y);     // (0.62.10) sized by the ground he stands on
-      if (on && !hideUi && u3) B3.push({ x: a.x, y: a.y, h: r * (H_ ? 1.95 : 1.7), r: H_ ? 0.34 : 0.28 });     // (in 3D the strobe is a point of light on his back, not a ring on the ground)
+      const r3 = VIEW.ts ? (H_ ? 2.6 : 1.9) * KU : r;     // (pixel test) his size as a model: his own, when things are at true scale
+      if (on && !hideUi && u3) B3.push({ x: a.x, y: a.y, h: r3 * (H_ ? 1.95 : 1.7), r: (H_ ? 0.34 : 0.28) * (VIEW.ts ? 0.6 : 1) });     // (in 3D the strobe is a point of light on his back, not a ring on the ground)
       else if (on && !hideUi) {   // the IR strobe on the backpack flashes a ring
         ctx.strokeStyle = pal.ally; ctx.lineWidth = px(1.2); ctx.globalAlpha = 0.6;
         ctx.beginPath(); ctx.arc(a.x, a.y, r * 2.1, 0, TAU); ctx.stroke(); ctx.globalAlpha = 1;
@@ -778,8 +780,8 @@ export class Renderer {
       }
       else if (!flat) up = liftUnit(ctx, a.x, a.y, r, r * (H_ ? 0.5 : 0.42), wallA);
       else if (!VIEW.sh) { ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.ellipse(a.x + r * 0.45, a.y + r * 0.35, r * 0.95, r * 0.7, 0, 0, TAU); ctx.fill(); }     // (0.59) its shadow
-      if (!fine && u3 && a.mech && a.mech.hp > 0 && VIEW.m3.has('veh_mech')) u3.push({ k: 'mech', x: a.x, y: a.y, r: r * 1.9, face: a.aimUntil > t ? a.aimA : a.face, flash: t - (a.hurtAt ?? -9) < 0.1, walk: (a.mv || 0) > 0.5 ? t * 7 + a.id : null });     // (GC 0.41) in a mech suit: the suit is what is seen
-      else if (!fine) { if (u3) u3.push(allyFig(m, a, t, r * (H_ ? 1.25 : 1.1), tm ? tm.color : null, far3 !== '')); else drawAllyBody(ctx, a, r, pal.ally, tm ? tm.color : null, on, now, px, t); }
+      if (!fine && u3 && a.mech && a.mech.hp > 0 && VIEW.m3.has('veh_mech')) u3.push({ k: 'mech', x: a.x, y: a.y, r: r3 * 1.9, face: a.aimUntil > t ? a.aimA : a.face, flash: t - (a.hurtAt ?? -9) < 0.1, walk: (a.mv || 0) > 0.5 ? t * 7 + a.id : null });     // (GC 0.41) in a mech suit: the suit is what is seen
+      else if (!fine) { if (u3) u3.push(allyFig(m, a, t, r3 * (H_ ? 1.25 : 1.1), tm ? tm.color : null, far3 !== '')); else drawAllyBody(ctx, a, r, pal.ally, tm ? tm.color : null, on, now, px, t); }
       if (up) dropUnit(ctx, up);
       if (t - a.hurtAt < 0.1 && !hideUi) { ctx.strokeStyle = '#ff6a6a'; ctx.lineWidth = px(1.5); ctx.beginPath(); ctx.arc(a.x, a.y, r * 1.3, 0, TAU); ctx.stroke(); }
       if (H_ && !hideUi && u3) { /* in 3D he wears his team's colour himself: no ring */ }
@@ -870,7 +872,7 @@ export class Renderer {
     if (real) {     // lay the turned world on the screen
       const wc = this._wc, S = this.W; this.ctx = real.ctx; this.W = real.W; this.H = real.H; this.focusY = real.focusY; this._real = null; ctx = this.ctx; W = this.W; H = this.H;
       ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
-      if (g3) { const t0 = performance.now(); g3.frame({ sheet: wc, S, scale, camX: v.camX, camY: v.camY, yaw: cam.yaw, tilt: cam.tilt || cam.passTilt, W, H, fy: this.focusY || 0.5, sun: this._sun, height: (x, y) => m.terrain.height(x, y), blocks: this._blocks(m, v.camX, v.camY, S / scale / 2), props: VIEW.p3 ? this._props(m, v.camX, v.camY, S / scale / 2, pal) : null, lit: 1 - Math.min(0.6, (this._dark || 0) * 0.75), units: U3, drops: D3, shells: S3, strobes: B3, blasts: X3, bolts: T3, orbs: O3, domes: DM3, puffs: SM3, hot: cam.sight === 'whot' || cam.sight === 'bhot', rings: this._rings, sight: cam.sight, topo: !!cam.topo, ground: this.groundCv, groundRev: this.groundRev || 0, size: SIZE, post: !(this.quality === 'low' || this.perf.low), shadows: VIEW.sh });
+      if (g3) { const t0 = performance.now(); g3.frame({ sheet: wc, S, scale, camX: v.camX, camY: v.camY, yaw: cam.yaw, tilt: cam.tilt || cam.passTilt, W, H, fy: this.focusY || 0.5, sun: this._sun, height: (x, y) => m.terrain.height(x, y), blocks: this._blocks(m, v.camX, v.camY, S / scale / 2), props: VIEW.p3 ? this._props(m, v.camX, v.camY, S / scale / 2, pal) : null, lit: 1 - Math.min(0.6, (this._dark || 0) * 0.75), units: U3, drops: D3, shells: S3, strobes: B3, blasts: X3, bolts: T3, orbs: O3, domes: DM3, puffs: SM3, hot: cam.sight === 'whot' || cam.sight === 'bhot', pixel: cam.pixel || 0, gunUp: 3.6 * (VIEW.ts || 1), rings: this._rings, sight: cam.sight, topo: !!cam.topo, ground: this.groundCv, groundRev: this.groundRev || 0, size: SIZE, post: !(this.quality === 'low' || this.perf.low), shadows: VIEW.sh });
         if (!g3.sighted) ctx.filter = cam.sight === 'whot' ? 'grayscale(1) brightness(1.3) contrast(1.15)' : cam.sight === 'bhot' ? 'grayscale(1) brightness(1.3) invert(1) contrast(1.12)' : 'none';     // (only where the graphics card could not put the sight on itself)
         ctx.drawImage(g3.cv, 0, 0); ctx.filter = 'none'; this._g3on = true; this.t3 = (this.t3 || 0) + (performance.now() - t0 - (this.t3 || 0)) * 0.08; }     // (the sight: infrared white-hot, black-hot, or plain colour)
       else { ctx.translate(v.px, v.py); ctx.rotate(cam.yaw); ctx.drawImage(wc, -S / 2, -S / 2); }
@@ -1680,7 +1682,7 @@ export class Renderer {
     if (tt < 0.06 && f.kind !== 'slash' && f.kind !== 'glob' && f.kind !== 'zap') {
       const q = 1 - tt / 0.06, s = Math.max(f.big ? 4.2 : 2.4, px(f.big ? 9 : 5)) * (0.7 + 0.3 * q), ang = Math.atan2(dy, dx);
       const core = f.side === 'e' ? f.col : '#ffe9b0';
-      if (this._o3) this._o3.push({ x: f.x + dx / (d || 1) * 1.6, y: f.y + dy / (d || 1) * 1.6, up: 4.6, r: s * 0.32 * (0.5 + 0.5 * q), col: core });     // (GC 0.27) in 3D the flash is at the muzzle, not on the ground
+      if (this._o3) this._o3.push({ x: f.x + dx / (d || 1) * 1.6, y: f.y + dy / (d || 1) * 1.6, up: 4.6 * (VIEW.ts || 1), r: s * 0.32 * (0.5 + 0.5 * q) * (VIEW.ts ? 0.6 : 1), col: core });     // (GC 0.27) in 3D the flash is at the muzzle, not on the ground
       else {
       ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(ang);
       const g = ctx.createRadialGradient(0, 0, 0, 0, 0, s);
@@ -1730,7 +1732,7 @@ export class Renderer {
     let lift = 0;
     if (f.kind === 'shell' && f.fl >= 1) lift = Math.sin(Math.PI * hp) * Math.min(26, d * 0.3);   // lobbed shells arc up and come down
     if (this._o3 && (f.kind === 'glob' || f.kind === 'shell')) {     // (GC 0.25) in 3D: a ball of light through the air, a lobbed one high over the ground
-      this._o3.push({ x: hx, y: hy, up: 3.6 + lift * 1.6, r: Math.max(f.kind === 'shell' ? 0.7 : 0.6, px(2.6)), col: f.kind === 'shell' ? '#fff2d0' : f.col });
+      this._o3.push({ x: hx, y: hy, up: 3.6 * (VIEW.ts || 1) + lift * 1.6, r: Math.max(f.kind === 'shell' ? 0.7 : 0.6, px(2.6)), col: f.kind === 'shell' ? '#fff2d0' : f.col });
       if (f.kind === 'shell' && lift === 0) { const tp = Math.max(0, hp - f.len / d); this._t3.push({ x: f.x + dx * tp, y: f.y + dy * tp, x2: hx, y2: hy, w: Math.max(px(f.w), 0.3), col: f.col }); }
       return;
     }

@@ -290,7 +290,7 @@ export class Fx3D {
     // bolts: [{ x, y, x2, y2 (tail to head, on the map), w (metres), col, up, up2 }]   orbs: [{ x, y, up, r, col }]   domes: [{ x, y, r, k (0 to 1, how bright) }]
     let bn = 0;
     for (const s of o.bolts || []) {
-      if (bn >= 600) break; this.a.set(s.x, ground(s.x, s.y) + (s.up ?? 3.6), s.y); this.b.set(s.x2, ground(s.x2, s.y2) + (s.up2 ?? s.up ?? 3.6), s.y2);     // (figures are drawn large to be seen from the air: their guns are about this high)
+      if (bn >= 600) break; const gu = o.gunUp ?? 3.6; this.a.set(s.x, ground(s.x, s.y) + (s.up ?? gu), s.y); this.b.set(s.x2, ground(s.x2, s.y2) + (s.up2 ?? s.up ?? gu), s.y2);     // (figures are drawn large to be seen from the air: their guns are about this high)
       this.dir.subVectors(this.b, this.a); const len = this.dir.length(); if (len < 0.05) continue; Q.setFromUnitVectors(this.z, this.dir.normalize());
       P.addVectors(this.a, this.b).multiplyScalar(0.5); S.set(s.w, s.w, len); this.bolt.setMatrixAt(bn, M4.compose(P, Q, S)); COL.set(s.col || '#ffe9b0'); this.bolt.setColorAt(bn++, COL);
     }

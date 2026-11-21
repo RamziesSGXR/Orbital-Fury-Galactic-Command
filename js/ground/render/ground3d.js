@@ -142,13 +142,52 @@ export class Ground3D {
       if (on && (sc.right !== half || !this._shOk)) { sc.left = -half; sc.right = half; sc.top = half; sc.bottom = -half; sc.near = 10; sc.far = 1400; sc.updateProjectionMatrix(); this._shOk = true; } }
     this.scene.fog.near = d * 1.35; this.scene.fog.far = d * 6;
     // the ship's gun hangs under the gunship, off to the right of the sight: its shells come in from the edge of the picture
-    if (this.fx) { const e = C.matrixWorld.elements; this.gun.set(C.position.x + e[0] * d * 0.5 - e[4] * d * 0.22, C.position.y + e[1] * d * 0.5 - e[5] * d * 0.22, C.position.z + e[2] * d * 0.5 - e[6] * d * 0.22); this.fx.frame({ drops: o.drops, shells: o.shells, strobes: o.strobes, blasts: o.blasts, bolts: o.bolts, orbs: o.orbs, domes: o.domes, puffs: o.puffs, rings: o.rings, eye: this.cam.quaternion, gun: this.gun }, (x, z) => this.y(x, z)); }
+    if (this.fx) { const e = C.matrixWorld.elements; this.gun.set(C.position.x + e[0] * d * 0.5 - e[4] * d * 0.22, C.position.y + e[1] * d * 0.5 - e[5] * d * 0.22, C.position.z + e[2] * d * 0.5 - e[6] * d * 0.22); this.fx.frame({ gunUp: o.gunUp, drops: o.drops, shells: o.shells, strobes: o.strobes, blasts: o.blasts, bolts: o.bolts, orbs: o.orbs, domes: o.domes, puffs: o.puffs, rings: o.rings, eye: this.cam.quaternion, gun: this.gun }, (x, z) => this.y(x, z)); }
     // (0.37) the picture is taken onto a target, and the sight (infrared white-hot, black-hot, or plain colour) is put on as it
     // is copied to the screen: one cheap step on the graphics card, where it used to be a filter on the finished canvas
+    // (pixel test) THE PIXEL LOOK: the same 3D picture taken small (about 300 lines), every pixel kept square and hard, its colours
+    // cut to a few steps with a fine checker between them, and a dark line round whatever stands in front of something farther off.
+    const px = o.pixel ? this._pixel(W, H, o.pixel) : null;
+    if (px) { const u = px.mat.uniforms; u.uMode.value = o.sight === 'whot' ? 1 : o.sight === 'bhot' ? 2 : 0; u.uNear.value = C.near; u.uFar.value = C.far; this.sighted = true;
+      this.r.setRenderTarget(px.rt); this.r.render(this.scene, C); this.r.setRenderTarget(null); this.r.render(px.scene, px.cam); this.at = { camX, camY }; return; }
     const po = o.post === false ? null : this._post(W, H); this.sighted = !!po;
     if (po) { po.mat.uniforms.uMode.value = o.sight === 'whot' ? 1 : o.sight === 'bhot' ? 2 : 0; this.r.setRenderTarget(po.rt); this.r.render(this.scene, C); this.r.setRenderTarget(null); this.r.render(po.scene, po.cam); }
     else this.r.render(this.scene, C);
     this.at = { camX, camY };
+  }
+  _pixel(W, H, lines) {
+    if (this.pix === null) return null;
+    const k = Math.max(2, Math.round(H / (lines > 1 ? lines : 300))), w = Math.ceil(W / k), h = Math.ceil(H / k);
+    if (!this.pix) {
+      try {
+        const half = this.r.extensions.has('EXT_color_buffer_float') || this.r.extensions.has('EXT_color_buffer_half_float');
+        const rt = new THREE.WebGLRenderTarget(w, h, { type: half ? THREE.HalfFloatType : THREE.UnsignedByteType, depthBuffer: true, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter });
+        rt.depthTexture = new THREE.DepthTexture(w, h); rt.depthTexture.minFilter = rt.depthTexture.magFilter = THREE.NearestFilter;
+        const mat = new THREE.ShaderMaterial({ uniforms: { t: { value: rt.texture }, d: { value: rt.depthTexture }, uMode: { value: 0 }, uRes: { value: new THREE.Vector2(w, h) }, uNear: { value: 5 }, uFar: { value: 6000 } }, depthTest: false, depthWrite: false,
+          vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+          fragmentShader: `uniform sampler2D t; uniform sampler2D d; uniform int uMode; uniform vec2 uRes; uniform float uNear; uniform float uFar; varying vec2 vUv;
+            vec3 enc(vec3 c) { return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c)); }
+            vec3 film(vec3 x) { x *= 1.05; return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0); }
+            float dist(vec2 uv) { float z = texture2D(d, uv).x * 2.0 - 1.0; return 2.0 * uNear * uFar / (uFar + uNear - z * (uFar - uNear)); }
+            void main() {
+              vec2 cell = floor(vUv * uRes), uv = (cell + 0.5) / uRes, st = 1.0 / uRes;
+              vec3 lin = texture2D(t, uv).rgb; vec3 c = enc(uMode > 0 ? clamp(lin, 0.0, 1.0) : film(max(lin, 0.0)));
+              // the line: a neighbour of this pixel stands well in front of it
+              float z0 = dist(uv), near = min(min(dist(uv + vec2(st.x, 0.0)), dist(uv - vec2(st.x, 0.0))), min(dist(uv + vec2(0.0, st.y)), dist(uv - vec2(0.0, st.y))));
+              float edge = step(1.2 + z0 * 0.01, z0 - near);     // (the line is drawn on what lies behind, so a small figure keeps every pixel of its own colours)
+              if (uMode == 0) { float l = dot(c, vec3(0.2126, 0.7152, 0.0722)); c = mix(vec3(l), c, 0.96); }
+              else { float l = dot(c, vec3(0.2126, 0.7152, 0.0722)); l = pow(l, 0.7); if (uMode == 2) l = 1.0 - l; l = clamp((l - 0.5) * 1.15 + 0.56, 0.0, 1.0) * 0.9; c = vec3(l); }
+              // a few steps of each colour, a checker between two steps where the colour falls between them
+              float ch = mod(cell.x + cell.y, 2.0) * 0.5 + mod(cell.x, 2.0) * 0.25 - 0.375, n = uMode > 0 ? 10.0 : 15.0;
+              c = floor(clamp(c, 0.0, 1.0) * n + 0.5 + ch * 0.45) / n;
+              c = mix(c, c * 0.22, edge * (uMode > 0 ? 0.6 : 1.0));
+              gl_FragColor = vec4(clamp(c, 0.0, 1.0), 1.0); }` });
+        const scene = new THREE.Scene(), quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mat); quad.frustumCulled = false; scene.add(quad);
+        this.pix = { rt, mat, scene, cam: new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1), w, h };
+      } catch (err) { console.warn('no pixel pass', err); this.pix = null; return null; }
+    }
+    const P = this.pix; if (P.w !== w || P.h !== h) { P.rt.setSize(w, h); P.w = w; P.h = h; P.mat.uniforms.uRes.value.set(w, h); }
+    return P;
   }
   _post(W, H) {
     if (this.post === null || window.__nopost) return null;

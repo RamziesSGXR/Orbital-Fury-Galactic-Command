@@ -107,7 +107,8 @@ export class Launch {
       ctx.beginPath(); ctx.ellipse(b.x + b.z * 0.12, b.y + b.z * 0.12, r * 1.1 * (1 - Math.min(0.4, b.z * 0.01)), r * 0.9 * (1 - Math.min(0.4, b.z * 0.01)), 0, 0, TAU); ctx.fill();
       if (VIEW.air) {     // (GC 0.29) in 3D: the unit's own model, turning over in the air, then lying where it came down and sinking away
         const lie = Math.PI / 2, tumble = b.fell ? lie * Math.min(1, (b.age / 0.35) ** 2) : b.landed ? lie : b.rot * 1.3;
-        VIEW.air.push({ k: b.ally ? (b.type === 'H' ? 'van' : 'inf') : fid + ':' + (b.as || b.kind), alt: fid + ':' + b.kind, x: b.x, y: b.y, r: r * (b.ally ? 1.2 : 1.25), face: b.fell || b.landed ? b.rot : b.rot * 0.35, up: b.z * 0.5, tumble, sink: 1 - b.fade, pose: b.fell || b.landed ? (b.ally ? 'down' : 'dead') : null,     // (GC 0.35) the fallen lie as their own model has them lie: an enemy over on its side, limbs curled
+        const r3 = !VIEW.ts ? r : (b.ally ? (b.type === 'H' ? 2.6 : 1.9) : b.boss ? (b.r0 || 10) * 1.5 * 0.92 : enemyR(proxy, SUBTYPES[b.kind] || SUBTYPES.L, () => 0)) * VIEW.ts;     // (pixel test) at true scale
+        VIEW.air.push({ k: b.ally ? (b.type === 'H' ? 'van' : 'inf') : fid + ':' + (b.as || b.kind), alt: fid + ':' + b.kind, x: b.x, y: b.y, r: r3 * (b.ally ? 1.2 : 1.25), face: b.fell || b.landed ? b.rot : b.rot * 0.35, up: b.z * 0.5, tumble, sink: 1 - b.fade, pose: b.fell || b.landed ? (b.ally ? 'down' : 'dead') : null,     // (GC 0.35) the fallen lie as their own model has them lie: an enemy over on its side, limbs curled
           tint: b.ally && b.type === 'H' && b.team !== undefined && m.teams[b.team] ? m.teams[b.team].color : null, dim: 0.75 });
         continue;
       }

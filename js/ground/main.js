@@ -33,6 +33,7 @@ import { squadCentres, FORMS, targetSquads } from './sim/infantry.js';
 import { fireSlot, refreshAim } from './sim/player.js';
 import { LAST_STAND } from './sim/laststand.js';
 import { Tutorial } from './tutorial.js';
+import { VIEW } from './render/view.js';
 import { Cinema } from './render/cinema.js';
 
 const $ = (id) => document.getElementById(id);
@@ -41,7 +42,7 @@ const $ = (id) => document.getElementById(id);
 // fight (`window.parent.gcGround`: which enemy, ground, mission and threat level, and the campaign's own armoury and
 // credits) and takes back how it went. There is no title, no saved operation and no second mission: the armoury, the
 // briefing, the mission and its debrief, then back to the map.
-const GCX = (() => { try { return window.parent !== window ? window.parent.gcGround || null : null; } catch { return null; } })();
+const GCX = (() => { try { return window.parent !== window ? window.parent.gcGround || null : null; } catch { return null; } })() || window.gcGroundSelf || null;     // (pixel test: selftest.js stands in for the war)
 if (GCX) document.documentElement.classList.add('gc');
 // (GC 0.39) ORBITAL FURY MODE: this game whole, opened from Galactic Command's main menu. Its own missions, difficulty, saves
 // and never-ending play, with the new look: the land and everything on it in 3D, the pass overhead, the sight and height switches.
@@ -101,6 +102,10 @@ function lookStart(src) {
   wirePhoto();
   { let k = {}; try { k = JSON.parse(localStorage.getItem('ofgc.view') || '{}') || {}; } catch { /* nothing kept */ } cam.sight = src.sight || k.sight || 'whot'; cam.hot = k.hot || 'whot'; cam.topo = !!k.topo; syncView(); }
   if (src.hints != null) settings.cards = src.hints ? (settings.cards === 'off' ? 'side' : settings.cards) : 'off';     // (GC 0.40) the hints switch on the main menu is the one switch: it turns the tip cards down here on and off too
+  // (pixel test) the pixel look and true scale, when the game was opened with them: closer to the ground, since people are their own size.
+  // F6 turns the pixel look off and on, F7 the scale, so each can be set against the look as it was.
+  if (src.pixel) { cam.pixel = src.pixel === true ? 300 : src.pixel; VIEW.ts = src.scale ?? 0.4; C.world.viewWidth = 170; C.world.zoomMin = 40; const keep = { pixel: cam.pixel, ts: VIEW.ts };
+    window.addEventListener('keydown', (e) => { if (e.repeat) return; if (e.code === 'F6') { e.preventDefault(); cam.pixel = cam.pixel ? 0 : keep.pixel; } if (e.code === 'F7') { e.preventDefault(); VIEW.ts = VIEW.ts ? 0 : keep.ts; } }, true); }
   cam.livery = src.livery || null; cam.orbit = src.orbit ?? 1; cam.g3d = src.flat ? false : true;     // the land in 3D under the circling view     // the circling view: slow, as from high up; a full turn takes about twenty-six minutes of mission time
 }
 function gcStart() {
