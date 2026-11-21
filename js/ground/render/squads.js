@@ -2,7 +2,7 @@
 // player is drawing. Every function draws in world space (meters).
 import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
-import { VIEW } from './view.js';
+import { VIEW, trueR } from './view.js';
 import { SQUAD_COLOR, classifyStroke } from '../sim/infantry.js';
 
 const TAU = Math.PI * 2;
@@ -247,8 +247,8 @@ export function drawDropships(ctx, m, now, px, labels, scale, pal) {
     ctx.fillStyle = 'rgba(0,0,0,0.18)'; dshipBody(ctx, p.x + off * 1.05, p.y + off * 0.76, ang, s * 1.08); ctx.fill();
     ctx.fillStyle = 'rgba(0,0,0,0.42)'; dshipBody(ctx, p.x + off * 1.05, p.y + off * 0.76, ang, s * 0.92); ctx.fill();
     if (VIEW.air) {     // (GC 0.24) in 3D it is a craft in the air over its shadow, its crate slung under it
-      VIEW.air.push({ k: 'dship', x: p.x, y: p.y, r: 8, face: ang, up: 6 + alt * 46 });
-      if (p.cargo && !p.cargo.landed) VIEW.air.push({ k: 'crate', x: p.x, y: p.y, r: 2.2, face: ang, up: 1.5 + alt * 46 });
+      VIEW.air.push({ k: 'dship', x: p.x, y: p.y, r: trueR('dship', 8), face: ang, up: 6 + alt * 46 });
+      if (p.cargo && !p.cargo.landed) VIEW.air.push({ k: 'crate', x: p.x, y: p.y, r: trueR('crate', 2.2), face: ang, up: (VIEW.ts ? 3.5 : 1.5) + alt * 46 });
     } else {
     // the craft: dark halo, then a bright thermal body, its rockets burning (pushing it along on the way in and out, straight down
     // over the spot)

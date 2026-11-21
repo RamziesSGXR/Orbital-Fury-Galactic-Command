@@ -8,7 +8,7 @@ import { drawSquadOrders, drawInfantryMark, drawStroke, drawDropships, drawMiniI
 
 import { slotStats } from '../sim/player.js';
 import { drawAllyBody, drawEnemyBody, enemyR, drawBossBody, bossR, drawTurretArt, setRelief } from './units.js';
-import { VIEW } from './view.js';
+import { VIEW, TRUE, trueR } from './view.js';
 import { inCover } from '../sim/cover.js';
 import { Ground3D } from './ground3d.js';
 import { liftUnit, dropUnit, unitShadow, shadeHex, raise, raiseUnit, setFlat, isFlat, reliefFrame, reliefClear, setElev, elevK } from './relief.js';
@@ -490,6 +490,7 @@ export class Renderer {
     for (const q of m.loot || []) if (!q.done && q.kind !== 'wreck' && near(q)) out.push({ k: 'crate', x: q.x, y: q.y, s: Math.max(1.3, (q.r || 3) * 0.55), rot: ((q.id || 1) * 1.9) % 6.28 });     // what can be picked up
     for (const p of m.posts || []) { const d = P3_POST[p.what]; if (d && !p.dead && !p.ghost && near(p)) out.push({ k: d[0], x: p.x, y: p.y, s: d[1], rot: face(p.face), tint: hit(p), flash: fl(p) }); }
     for (const a of m.assets || []) if (a.kind === 'turret' && !a.dead && near(a)) out.push({ k: 'aturret', x: a.x, y: a.y, s: 1.5, rot: face(a.face), tint: hit(a), flash: fl(a) });
+    if (VIEW.ts) for (const u of out) { const q = TRUE.prop[u.k]; if (!q) continue; const k = q[0] ? q[0] : q[1] / (u.s || 1); u.s *= k; if (u.h) u.h *= k; if (u.sink) u.sink *= k; }     // (scale test) at their own size
     return out;
   }
   // A circle being stroked on the sheet, taken for the 3D picture instead: true if it was (so the stroke is left out).
@@ -684,7 +685,7 @@ export class Renderer {
     if (fine) setRelief(2);
     const crowd = this.perf.low ? 150 : 300, dotKinds = u3 ? '' : nOn > crowd * 2 ? 'LM' : nOn > crowd ? 'L' : '', lod0 = [], lod1 = [], hot = [];
     // (GC 0.33) in 3D: which sizes are drawn as their lighter models, by how small they are on the screen and how crowded the field is
-    const KU = VIEW.ts || 1, pxU = VIEW.ts ? () => 0 : px;     // (pixel test) at true scale nothing is held to a size in pixels
+    const KU = VIEW.ts ? TRUE.foe : 1, pxU = VIEW.ts ? () => 0 : px;     // (pixel test) at true scale nothing is held to a size in pixels
     const far3 = !u3 ? '' : scale < 4 || nOn > 400 ? 'LMH' : scale < 7.5 || nOn > 160 ? 'LM' : scale < 9.5 || nOn > 90 ? 'L' : '';
     for (const e of m.enemies) {
       if (e.dead || e.vis <= 0) continue;
@@ -767,8 +768,8 @@ export class Renderer {
       const phase = this.settings.reduceFlash ? ((now + a.id * 0.13) % 2) / 2 : ((now + (a.id % 5) * 0.07) % 1);
       const on = this.settings.reduceFlash ? phase < 0.15 : phase < 0.18;
       const r = Math.max(H_ ? 2.6 : 1.9, px(H_ ? 7 : 5)) * elevK(a.x, a.y);     // (0.62.10) sized by the ground he stands on
-      const r3 = VIEW.ts ? (H_ ? 2.6 : 1.9) * KU : r;     // (pixel test) his size as a model: his own, when things are at true scale
-      if (on && !hideUi && u3) B3.push({ x: a.x, y: a.y, h: r3 * (H_ ? 1.95 : 1.7), r: (H_ ? 0.34 : 0.28) * (VIEW.ts ? 0.6 : 1) });     // (in 3D the strobe is a point of light on his back, not a ring on the ground)
+      const r3 = VIEW.ts ? TRUE.man : r;     // (pixel test) his size as a model: his own, when things are at true scale
+      if (on && !hideUi && u3) B3.push({ x: a.x, y: a.y, h: r3 * (VIEW.ts ? 1.6 : H_ ? 1.95 : 1.7), r: (H_ ? 0.34 : 0.28) * (VIEW.ts ? 0.6 : 1) });     // (in 3D the strobe is a point of light on his back, not a ring on the ground)
       else if (on && !hideUi) {   // the IR strobe on the backpack flashes a ring
         ctx.strokeStyle = pal.ally; ctx.lineWidth = px(1.2); ctx.globalAlpha = 0.6;
         ctx.beginPath(); ctx.arc(a.x, a.y, r * 2.1, 0, TAU); ctx.stroke(); ctx.globalAlpha = 1;
@@ -780,8 +781,8 @@ export class Renderer {
       }
       else if (!flat) up = liftUnit(ctx, a.x, a.y, r, r * (H_ ? 0.5 : 0.42), wallA);
       else if (!VIEW.sh) { ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.ellipse(a.x + r * 0.45, a.y + r * 0.35, r * 0.95, r * 0.7, 0, 0, TAU); ctx.fill(); }     // (0.59) its shadow
-      if (!fine && u3 && a.mech && a.mech.hp > 0 && VIEW.m3.has('veh_mech')) u3.push({ k: 'mech', x: a.x, y: a.y, r: r3 * 1.9, face: a.aimUntil > t ? a.aimA : a.face, flash: t - (a.hurtAt ?? -9) < 0.1, walk: (a.mv || 0) > 0.5 ? t * 7 + a.id : null });     // (GC 0.41) in a mech suit: the suit is what is seen
-      else if (!fine) { if (u3) u3.push(allyFig(m, a, t, r3 * (H_ ? 1.25 : 1.1), tm ? tm.color : null, far3 !== '')); else drawAllyBody(ctx, a, r, pal.ally, tm ? tm.color : null, on, now, px, t); }
+      if (!fine && u3 && a.mech && a.mech.hp > 0 && VIEW.m3.has('veh_mech')) u3.push({ k: 'mech', x: a.x, y: a.y, r: trueR('mech', r3 * 1.9), face: a.aimUntil > t ? a.aimA : a.face, flash: t - (a.hurtAt ?? -9) < 0.1, walk: (a.mv || 0) > 0.5 ? t * 7 + a.id : null });     // (GC 0.41) in a mech suit: the suit is what is seen
+      else if (!fine) { if (u3) u3.push(allyFig(m, a, t, VIEW.ts ? r3 : r3 * (H_ ? 1.25 : 1.1), tm ? tm.color : null, far3 !== '')); else drawAllyBody(ctx, a, r, pal.ally, tm ? tm.color : null, on, now, px, t); }
       if (up) dropUnit(ctx, up);
       if (t - a.hurtAt < 0.1 && !hideUi) { ctx.strokeStyle = '#ff6a6a'; ctx.lineWidth = px(1.5); ctx.beginPath(); ctx.arc(a.x, a.y, r * 1.3, 0, TAU); ctx.stroke(); }
       if (H_ && !hideUi && u3) { /* in 3D he wears his team's colour himself: no ring */ }
@@ -872,7 +873,7 @@ export class Renderer {
     if (real) {     // lay the turned world on the screen
       const wc = this._wc, S = this.W; this.ctx = real.ctx; this.W = real.W; this.H = real.H; this.focusY = real.focusY; this._real = null; ctx = this.ctx; W = this.W; H = this.H;
       ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
-      if (g3) { const t0 = performance.now(); g3.frame({ sheet: wc, S, scale, camX: v.camX, camY: v.camY, yaw: cam.yaw, tilt: cam.tilt || cam.passTilt, W, H, fy: this.focusY || 0.5, sun: this._sun, height: (x, y) => m.terrain.height(x, y), blocks: this._blocks(m, v.camX, v.camY, S / scale / 2), props: VIEW.p3 ? this._props(m, v.camX, v.camY, S / scale / 2, pal) : null, lit: 1 - Math.min(0.6, (this._dark || 0) * 0.75), units: U3, drops: D3, shells: S3, strobes: B3, blasts: X3, bolts: T3, orbs: O3, domes: DM3, puffs: SM3, hot: cam.sight === 'whot' || cam.sight === 'bhot', pixel: cam.pixel || 0, gunUp: 3.6 * (VIEW.ts || 1), rings: this._rings, sight: cam.sight, topo: !!cam.topo, ground: this.groundCv, groundRev: this.groundRev || 0, size: SIZE, post: !(this.quality === 'low' || this.perf.low), shadows: VIEW.sh });
+      if (g3) { const t0 = performance.now(); g3.frame({ sheet: wc, S, scale, camX: v.camX, camY: v.camY, yaw: cam.yaw, tilt: cam.tilt || cam.passTilt, W, H, fy: this.focusY || 0.5, sun: this._sun, height: (x, y) => m.terrain.height(x, y), blocks: this._blocks(m, v.camX, v.camY, S / scale / 2), props: VIEW.p3 ? this._props(m, v.camX, v.camY, S / scale / 2, pal) : null, lit: 1 - Math.min(0.6, (this._dark || 0) * 0.75), units: U3, drops: D3, shells: S3, strobes: B3, blasts: X3, bolts: T3, orbs: O3, domes: DM3, puffs: SM3, hot: cam.sight === 'whot' || cam.sight === 'bhot', pixel: cam.pixel || 0, gunUp: VIEW.ts ? 1.4 : 3.6, rings: this._rings, sight: cam.sight, topo: !!cam.topo, ground: this.groundCv, groundRev: this.groundRev || 0, size: SIZE, post: !(this.quality === 'low' || this.perf.low), shadows: VIEW.sh });
         if (!g3.sighted) ctx.filter = cam.sight === 'whot' ? 'grayscale(1) brightness(1.3) contrast(1.15)' : cam.sight === 'bhot' ? 'grayscale(1) brightness(1.3) invert(1) contrast(1.12)' : 'none';     // (only where the graphics card could not put the sight on itself)
         ctx.drawImage(g3.cv, 0, 0); ctx.filter = 'none'; this._g3on = true; this.t3 = (this.t3 || 0) + (performance.now() - t0 - (this.t3 || 0)) * 0.08; }     // (the sight: infrared white-hot, black-hot, or plain colour)
       else { ctx.translate(v.px, v.py); ctx.rotate(cam.yaw); ctx.drawImage(wc, -S / 2, -S / 2); }
@@ -1536,7 +1537,7 @@ export class Renderer {
           ctx.closePath(); ctx.fillStyle = fill; ctx.fill(); if (line) { ctx.strokeStyle = line; ctx.lineWidth = px(1); ctx.stroke(); }
         };
         ctx.save(); ctx.translate(x + s * 1.05, y + s * 0.76); ctx.rotate(ang); jet('rgba(0,0,0,0.22)'); ctx.restore();     // its shadow (0.61.3: down and to the right, as every other)
-        if (VIEW.air) { VIEW.air.push({ k: 'jet', x, y, r: 9, face: ang, up: 38 }); continue; }     // (GC 0.24) in 3D the Striker is a jet in the air over its shadow
+        if (VIEW.air) { VIEW.air.push({ k: 'jet', x, y, r: trueR('jet', 9), face: ang, up: 38 }); continue; }     // (GC 0.24) in 3D the Striker is a jet in the air over its shadow
         ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
         ctx.strokeStyle = 'rgba(255,255,255,0.28)'; ctx.lineWidth = px(1.2); ctx.beginPath(); ctx.moveTo(-s * 0.95, 0); ctx.lineTo(-s * 4.5, 0); ctx.stroke();     // the trail
         jet('rgba(214,222,228,0.95)', 'rgba(30,40,48,0.7)');
@@ -1590,7 +1591,7 @@ export class Renderer {
       } else if (f.k === 'shuttle') {
         // a shuttle full of civilians lifting out of the hangar
         const k = p, x = f.x + Math.cos(f.ang) * (6 + k * k * 260), y = f.y + Math.sin(f.ang) * (6 + k * k * 260) - k * 30, s = 7 * (1 + k * 0.6);
-        if (VIEW.air && VIEW.m3.has('veh_shuttle')) { VIEW.air.push({ k: 'shuttle', x: f.x + Math.cos(f.ang) * (6 + k * k * 260), y: f.y + Math.sin(f.ang) * (6 + k * k * 260), r: 9, face: f.ang, up: 1 + k * k * 90 }); continue; }     // (GC 0.41) in 3D: the shuttle itself, climbing away
+        if (VIEW.air && VIEW.m3.has('veh_shuttle')) { VIEW.air.push({ k: 'shuttle', x: f.x + Math.cos(f.ang) * (6 + k * k * 260), y: f.y + Math.sin(f.ang) * (6 + k * k * 260), r: trueR('shuttle', 9), face: f.ang, up: 1 + k * k * 90 }); continue; }     // (GC 0.41) in 3D: the shuttle itself, climbing away
         ctx.save(); ctx.translate(x, y); ctx.rotate(f.ang);
         ctx.fillStyle = `rgba(235,240,245,${1 - k * 0.5})`; ctx.beginPath(); ctx.moveTo(s, 0); ctx.lineTo(-s * 0.7, -s * 0.55); ctx.lineTo(-s * 0.45, 0); ctx.lineTo(-s * 0.7, s * 0.55); ctx.closePath(); ctx.fill();
         ctx.fillStyle = `rgba(255,200,140,${0.8 * (1 - k)})`; ctx.beginPath(); ctx.arc(-s * 0.6, 0, s * 0.25, 0, TAU); ctx.fill();
@@ -1682,7 +1683,7 @@ export class Renderer {
     if (tt < 0.06 && f.kind !== 'slash' && f.kind !== 'glob' && f.kind !== 'zap') {
       const q = 1 - tt / 0.06, s = Math.max(f.big ? 4.2 : 2.4, px(f.big ? 9 : 5)) * (0.7 + 0.3 * q), ang = Math.atan2(dy, dx);
       const core = f.side === 'e' ? f.col : '#ffe9b0';
-      if (this._o3) this._o3.push({ x: f.x + dx / (d || 1) * 1.6, y: f.y + dy / (d || 1) * 1.6, up: 4.6 * (VIEW.ts || 1), r: s * 0.32 * (0.5 + 0.5 * q) * (VIEW.ts ? 0.6 : 1), col: core });     // (GC 0.27) in 3D the flash is at the muzzle, not on the ground
+      if (this._o3) this._o3.push({ x: f.x + dx / (d || 1) * 1.6, y: f.y + dy / (d || 1) * 1.6, up: VIEW.ts ? 1.5 : 4.6, r: s * 0.32 * (0.5 + 0.5 * q) * (VIEW.ts ? 0.6 : 1), col: core });     // (GC 0.27) in 3D the flash is at the muzzle, not on the ground
       else {
       ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(ang);
       const g = ctx.createRadialGradient(0, 0, 0, 0, 0, s);
@@ -1732,7 +1733,7 @@ export class Renderer {
     let lift = 0;
     if (f.kind === 'shell' && f.fl >= 1) lift = Math.sin(Math.PI * hp) * Math.min(26, d * 0.3);   // lobbed shells arc up and come down
     if (this._o3 && (f.kind === 'glob' || f.kind === 'shell')) {     // (GC 0.25) in 3D: a ball of light through the air, a lobbed one high over the ground
-      this._o3.push({ x: hx, y: hy, up: 3.6 * (VIEW.ts || 1) + lift * 1.6, r: Math.max(f.kind === 'shell' ? 0.7 : 0.6, px(2.6)), col: f.kind === 'shell' ? '#fff2d0' : f.col });
+      this._o3.push({ x: hx, y: hy, up: (VIEW.ts ? 1.4 : 3.6) + lift * 1.6, r: Math.max(f.kind === 'shell' ? 0.7 : 0.6, px(2.6)), col: f.kind === 'shell' ? '#fff2d0' : f.col });
       if (f.kind === 'shell' && lift === 0) { const tp = Math.max(0, hp - f.len / d); this._t3.push({ x: f.x + dx * tp, y: f.y + dy * tp, x2: hx, y2: hy, w: Math.max(px(f.w), 0.3), col: f.col }); }
       return;
     }

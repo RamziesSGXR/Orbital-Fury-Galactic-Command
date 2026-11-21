@@ -8,3 +8,15 @@
 // (pixel test) ts: true scale. 0: people and creatures drawn far larger than life and never smaller than a few pixels (as always);
 // a number: they are their own size times this and shrink with distance like everything else.
 export const VIEW = { quiet: false, squad: false, p3: false, air: null, drops: null, fx3: null, ts: 0, bars: false, m3: new Set(), sh: false };     // (GC 0.38) m3: the objectives and side sites whose models have come, so their flat drawings are left out
+
+// (scale test) TRUE SIZES. With VIEW.ts on, each thing is the size it would be beside a two-metre soldier, not a mark big enough
+// to pick out from orbit. `r` is half its longest side in metres (half its height, for a person).
+//   people: the Vanguard and the trooper are the same height; a citizen a little less
+//   craft and vehicles: by kind (a scout car 4.8 m long, a dropship 13 m, the dog 1.2 m ...)
+//   what stands on the ground: a share of its old size by kind; trees, rocks, buildings and sites are left as they are
+export const TRUE = {
+  man: 1.0, civ: 0.92, foe: 0.36,
+  air: { dship: 6.5, crate: 0.9, jet: 8, shuttle: 8, dog: 0.6, lrv: 2.4, uav: 1.6, mech: 2.0, 'edrop:ship': 8.5, 'edrop:warp': 11 },
+  prop: { crate: [0, 0.8], mine: [0, 0.3], shieldgen: [0, 1.6], aturret: [0, 0.9], 'post:mg': [0.7], 'post:sam': [0.8], 'post:arty': [0.85], 'post:tower': [0.85], turret: [0.8], side_howitzer: [0.6], site_charge: [0, 1.0] },     // [a share of its size] or [0, metres]
+};
+export const trueR = (k, r) => (VIEW.ts && TRUE.air[k] ? TRUE.air[k] : r);

@@ -2,7 +2,7 @@
 // evacuation site and its civilians, and the extraction pad with its dropship. Every function draws in metres; px(n) is n screen
 // pixels in metres at the current zoom.
 import { t as tr } from '../i18n.js';
-import { VIEW } from './view.js';
+import { VIEW, TRUE, trueR } from './view.js';
 import { CONFIG as C } from '../config.js';
 import { dshipBody, dshipDetail } from './squads.js';
 import { drawCivBody } from './units.js';
@@ -93,7 +93,8 @@ export function drawHoles(ctx, m, now, px, labels, scale, pal) {
 const CRAFT = { ship: { r: 11, pods: [[3.9, 8.2], [3.9, -8.2], [-7, 8.2], [-7, -8.2]], podUp: 4.4 }, warp: { r: 14, coreUp: 2.4 } };
 const upOf = (d) => 5 + d.alt * 48;
 function craft3(d, ang, now, t, hit, col) {
-  const K = CRAFT[d.kind === 'ship' ? 'ship' : 'warp'], fall = d.state === 'down' ? d.fallT : 0, up = upOf(d), hover = d.state === 'hover';
+  const K0 = CRAFT[d.kind === 'ship' ? 'ship' : 'warp'], R = trueR(d.kind === 'ship' ? 'edrop:ship' : 'edrop:warp', K0.r), q = R / K0.r, K = q === 1 ? K0 : { r: R, pods: K0.pods && K0.pods.map((p) => [p[0] * q, p[1] * q]), podUp: K0.podUp * q, coreUp: K0.coreUp * q };     // (scale test: its lights move in with it)
+  const fall = d.state === 'down' ? d.fallT : 0, up = upOf(d), hover = d.state === 'hover';
   const fx = Math.cos(ang), fy = Math.sin(ang), F = VIEW.fx3;
   VIEW.air.push({ k: d.kind === 'ship' ? 'edrop:ship' : 'edrop:warp', x: d.x, y: d.y, r: K.r, face: ang + fall * 4, up, pose: hover ? 'hover' : null, flash: hit, dim: d.vis >= 2 ? 1 : 0.6,
     pitch: fall ? Math.min(0.55, fall * 0.6) : hover ? 0 : 0.06, roll: fall ? fall * 0.8 : 0 });
@@ -101,13 +102,13 @@ function craft3(d, ang, now, t, hit, col) {
   const hurt = d.maxHp ? 1 - d.hp / d.maxHp : 0;
   if (d.kind === 'ship') {
     if (!fall) for (let i = 0; i < 4; i++) { const p = K.pods[i], k = 0.75 + 0.25 * Math.sin(now * 31 + i * 1.9);     // fire under each engine (straight down over the drop, swung back under way)
-      const bx = hover ? 0 : -1.6; F.orbs.push({ x: d.x + fx * (p[0] + bx) - fy * p[1], y: d.y + fy * (p[0] + bx) + fx * p[1], up: up + K.podUp - (hover ? 1.4 : 0.4), r: (hover ? 1.7 : 1.3) * k, col: '#ff8a4a' }); }
+      const bx = hover ? 0 : -1.6; F.orbs.push({ x: d.x + fx * (p[0] + bx) - fy * p[1], y: d.y + fy * (p[0] + bx) + fx * p[1], up: up + K.podUp - (hover ? 1.4 : 0.4) * q, r: (hover ? 1.7 : 1.3) * k * q, col: '#ff8a4a' }); }
   } else {
-    if (!fall) F.orbs.push({ x: d.x, y: d.y, up: up + K.coreUp, r: 1.5 + 0.3 * Math.sin(now * 5), col });     // the crystal
+    if (!fall) F.orbs.push({ x: d.x, y: d.y, up: up + K.coreUp, r: (1.5 + 0.3 * Math.sin(now * 5)) * q, col });     // the crystal
     if (hover && d.left >= 0) { const k = 0.6 + 0.4 * Math.sin(now * 9);     // the shaft its riders come down
       F.bolts.push({ x: d.x, y: d.y, x2: d.x + 0.01, y2: d.y, up: up + K.coreUp, up2: 0.4, w: 0.7 + 0.5 * k, col }); F.orbs.push({ x: d.x, y: d.y, up: 1.0, r: 1.5 + 0.7 * k, col }); }
     if (d.maxShield && d.shield > 0 && !fall) { const f = d.shield / d.maxShield, sh = t - (d.shieldAt || -9) < 0.15;     // the shield
-      F.orbs.push({ x: d.x, y: d.y, up: up + 3.5, r: K.r * 1.08, col: sh ? '#2a4058' : f > 0.5 ? '#0b1219' : '#070c11' }); }     // (light added to the picture: kept very faint, so the barge is seen through it)
+      F.orbs.push({ x: d.x, y: d.y, up: up + 3.5 * q, r: K.r * 1.08, col: sh ? '#2a4058' : f > 0.5 ? '#0b1219' : '#070c11' }); }     // (light added to the picture: kept very faint, so the barge is seen through it)
   }
   if (fall || hurt > 0.45) { const n = fall ? 5 : 3;     // smoke behind it; thick and black as it goes down
     for (let k = 0; k < n; k++) { const q = (now * (fall ? 1.5 : 0.9) + k / n) % 1, back = fall ? 0 : q * 16;
@@ -270,7 +271,7 @@ export function drawEvac(ctx, m, now, px, labels, scale) {
   const parked = Math.max(0, Math.min(2, Math.ceil((E.need - o.saved) / E.shuttle)));
   for (let i = 0; i < parked; i++) shuttle(ctx, 14, i === 0 ? -5.5 : 5.5, 0, 6, 'rgba(235,240,245,0.95)', 'rgba(40,50,60,0.9)', px);
   ctx.restore();
-  for (const c of m.civs) if (!c.dead && !c.safe) { if (VIEW.air) VIEW.air.push({ k: 'civ' + (c.id % 3), x: c.x, y: c.y, r: VIEW.ts ? 2.2 * VIEW.ts : Math.max(2.2, px(6)), face: c.face || 0, walk: m.t * 9 + c.id }); else drawCivBody(ctx, c, now, px); }     // (GC 0.27) in 3D the citizens are the game's own, walking
+  for (const c of m.civs) if (!c.dead && !c.safe) { if (VIEW.air) VIEW.air.push({ k: 'civ' + (c.id % 3), x: c.x, y: c.y, r: VIEW.ts ? TRUE.civ : Math.max(2.2, px(6)), face: c.face || 0, walk: m.t * 9 + c.id }); else drawCivBody(ctx, c, now, px); }     // (GC 0.27) in 3D the citizens are the game's own, walking
   for (const c of m.civs) if (c.dead) { ctx.strokeStyle = 'rgba(255,90,90,0.55)'; ctx.lineWidth = px(1.2); const r = Math.max(1, px(3)); ctx.beginPath(); ctx.moveTo(c.x - r, c.y - r); ctx.lineTo(c.x + r, c.y + r); ctx.moveTo(c.x + r, c.y - r); ctx.lineTo(c.x - r, c.y + r); ctx.stroke(); }
   if (!o.done) {
     labels.push({ x: o.sx, y: o.sy, dy: -26, text: tr(o.state === 'run' ? (o.open ? 'lab.shelterOpen' : 'lab.shelterShut') : 'lab.shelter'), col, pri: 2 });
@@ -355,7 +356,7 @@ export function drawExtractionDropship(ctx, m, now, px) {
   if (ex.state === 'boarding') {   // the ramp at the back
     ctx.fillStyle = 'rgba(220,235,245,0.6)'; ctx.fillRect(x - 2.5, y + s * 0.95, 5, 6);
   }
-  if (VIEW.air) { VIEW.air.push({ k: 'dship', x, y, r: 8, face: ang, up: 1.5 + alt * 60 }); return; }     // (GC 0.24) in 3D
+  if (VIEW.air) { VIEW.air.push({ k: 'dship', x, y, r: trueR('dship', 8), face: ang, up: 1.5 + alt * 60 }); return; }     // (GC 0.24) in 3D
   // (0.39) the rockets: hard down coming in to land and climbing out, idling on the pad
   const thrust = ex.state === 'boarding' ? 0.3 : 1, down = ex.state === 'away' ? Math.max(0, 1 - (t - ex.awayAt) / 1.5) : 1;
   dshipDetail(ctx, x, y, ang, s, now, thrust, down, null);
