@@ -103,10 +103,10 @@ function lookStart(src) {
   { let k = {}; try { k = JSON.parse(localStorage.getItem('ofgc.view') || '{}') || {}; } catch { /* nothing kept */ } cam.sight = src.sight || k.sight || 'whot'; cam.hot = k.hot || 'whot'; cam.topo = !!k.topo; syncView(); }
   if (src.hints != null) settings.cards = src.hints ? (settings.cards === 'off' ? 'side' : settings.cards) : 'off';     // (GC 0.40) the hints switch on the main menu is the one switch: it turns the tip cards down here on and off too
   // (GC 0.51) TRUE SCALE is how the ground is drawn in 3D: everyone and everything at its own size beside a two-metre soldier
-  // (render/view.js TRUE), not marks big enough to pick out from orbit, and the camera closer to the ground to suit. F7 puts the
-  // old sizes back and brings these again, to compare. The pixel look stays a test: only when the game is opened with it (F6).
+  // (render/view.js TRUE), not marks big enough to pick out from orbit, and the camera closer to the ground to suit.
+  // The pixel look stays a test: only when the game is opened with it (F6 turns it off and on there).
   if (!src.flat) { cam.pixel = src.pixel === true ? 300 : src.pixel || 0; VIEW.ts = src.scale === 0 ? 0 : 1; if (VIEW.ts) { C.world.viewWidth = 170; C.world.zoomMin = 40; }
-    window.addEventListener('keydown', (e) => { if (e.repeat) return; if (e.code === 'F6' && src.pixel) { e.preventDefault(); cam.pixel = cam.pixel ? 0 : (src.pixel === true ? 300 : src.pixel); } if (e.code === 'F7') { e.preventDefault(); VIEW.ts = VIEW.ts ? 0 : 1; } }, true); }
+    window.addEventListener('keydown', (e) => { if (e.repeat) return; if (e.code === 'F6' && src.pixel) { e.preventDefault(); cam.pixel = cam.pixel ? 0 : (src.pixel === true ? 300 : src.pixel); } }, true); }
   cam.livery = src.livery || null; cam.orbit = src.orbit ?? 1; cam.g3d = src.flat ? false : true;     // the land in 3D under the circling view     // the circling view: slow, as from high up; a full turn takes about twenty-six minutes of mission time
 }
 function gcStart() {
