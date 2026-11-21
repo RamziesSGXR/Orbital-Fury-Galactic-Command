@@ -9,6 +9,7 @@ import { drawSquadOrders, drawInfantryMark, drawStroke, drawDropships, drawMiniI
 import { slotStats } from '../sim/player.js';
 import { drawAllyBody, drawEnemyBody, enemyR, drawBossBody, bossR, drawTurretArt, setRelief } from './units.js';
 import { VIEW } from './view.js';
+import { inCover } from '../sim/cover.js';
 import { Ground3D } from './ground3d.js';
 import { liftUnit, dropUnit, unitShadow, shadeHex, raise, raiseUnit, setFlat, isFlat, reliefFrame, reliefClear, setElev, elevK } from './relief.js';
 import { Launch } from './launch.js';
@@ -50,6 +51,35 @@ function wallsArt(ctx, walls) {
   for (const q of walls) { const ux = -Math.sin(q.ang), uy = Math.cos(q.ang); ctx.beginPath(); ctx.moveTo(q.x - ux * L / 2, q.y - uy * L / 2); ctx.lineTo(q.x + ux * L / 2, q.y + uy * L / 2); ctx.stroke(); }
 }
 const RAISE_B = { steps: 22, wall: 0.58, shadow: 0.3 };
+// HOW ONE OF YOURS STANDS, THIS MOMENT (GC 0.50). The rules say where he is, how fast he is going (sim/gait.js), when he last
+// fired and whether he is behind something; this picks the frame of his model that shows it.
+//   on the move   walking; running when he is going fast and not shooting; walking with the rifle up when he is
+//   in a fight    rifle up, and it kicks with every shot. Behind a wall, a rock or in a post he kneels to it; so does anyone
+//                 just hit in the open, and two troopers in three (as before). Vanguards stand to shoot unless they have cover.
+//   between shots, behind cover   down low with his head in, coming up for a look now and then
+//   nothing doing  standing easy, looking about
+// His stride comes from the ground he has covered, so a foot stays where it was put down; the figure is drawn far larger than
+// life, so the step is as long as that figure's would be.
+const RUN_AT = 4.6;     // metres a second: faster than this and not shooting, he runs
+function allyFig(m, a, t, R0, tint, lod) {
+  const H_ = a.type === 'H', mv = a.mv || 0, moving = !a.down && mv > 0.5, shot = t - (a.shotAt ?? -99), hurt = t - (a.hurtAt ?? -99);
+  const aiming = !a.down && a.aimUntil > t, fight = aiming || (!a.down && shot < 2.2), run = moving && !fight && mv > RUN_AT;
+  const cyc = R0 * (run ? 2.3 : 1.35), ph = (a.gait || 0) / cyc * TAU + a.id * 1.7, st = Math.floor((((ph % TAU) + TAU) % TAU) / TAU * 8) % 8;
+  let pose = null;
+  if (a.down) pose = 'down';
+  else if (hurt < 0.18) pose = 'hit';
+  else if (moving) pose = (fight ? 'a' : run ? 'r' : 'w') + st;
+  else {
+    const cover = !!a.post || inCover(m, a.x, a.y), kick = shot < 0.09 || t - (a.bigAt ?? -99) < 0.22;
+    if (fight) { const low = cover || hurt < 2.5 || (!H_ && a.id % 3 !== 0); pose = low ? (kick ? 'kfire' : 'kneel') : (kick ? 'fire' : 'aim'); }
+    else if (cover && (shot < 12 || hurt < 12 || a.engaged)) pose = ((t * 0.21 + a.id * 0.37) % 1) < 0.22 ? 'peek' : 'duck';
+    else { const q = (t * 0.11 + a.id * 0.61) % 1; pose = q < 0.3 ? 'n' + Math.floor(q / 0.1) : 'stand'; }
+  }
+  // he faces what he is shooting at for as long as he is in the fight (he used to turn away between bursts)
+  const face = aiming || (fight && !moving && a.aimA !== undefined) ? a.aimA : a.face;
+  return { k: H_ ? 'van' : 'inf', x: a.x, y: a.y, r: R0, face, tint, lod, aim: fight, pose, tumble: a.down ? Math.PI / 2 : undefined, walk: moving ? ph : null };
+}
+
 export class Renderer {
   constructor(canvas) {
     this.cv = canvas;
@@ -487,7 +517,7 @@ export class Renderer {
     if (cam.g3d && this._g3 === undefined) { try { this._g3 = new Ground3D(cam.livery); } catch (err) { console.warn('3D ground unavailable', err); this._g3 = null; } }
     const g3 = cam.g3d ? this._g3 : null; this._g3on = false; VIEW.p3 = !!(g3 && g3.props); { const RL = this._rl || (this._rl = []); RL.length = 0; this._rings = g3 && g3.fx ? RL : null; } VIEW.sh = !!(g3 && g3.units) && !(this.quality === 'low' || this.perf.low || (this.perf.tier || 0) >= 2);     // (GC 0.38) sh: the sun throws real shadows this frame
     const U3 = this._u3 || (this._u3 = []); U3.length = 0; const u3 = g3 && g3.units ? U3 : null;
-    const D3 = this._d3 || (this._d3 = []), S3 = this._s3l || (this._s3l = []), B3 = this._b3 || (this._b3 = []); D3.length = S3.length = B3.length = 0; this._s3 = u3 ? S3 : null; const X3 = this._x3l || (this._x3l = []); X3.length = 0; this._x3 = u3 && g3.fx ? X3 : null; VIEW.air = u3; VIEW.drops = u3 ? D3 : null; const T3 = this._t3l || (this._t3l = []), O3 = this._o3l || (this._o3l = []), DM3 = this._dm3l || (this._dm3l = []); T3.length = O3.length = DM3.length = 0; this._t3 = this._x3 ? T3 : null; this._o3 = this._x3 ? O3 : null; this._dm3 = this._x3 ? DM3 : null; const SM3 = this._sm3l || (this._sm3l = []); SM3.length = 0; this._sm3 = this._x3 ? SM3 : null;     // (GC 0.25) the troops' fire, what is lobbed, the shields     // (GC 0.22) what falls, the ship's shells, the strobes     // (GC 0.20) who stands up in 3D this frame, and is not drawn on the sheet
+    const D3 = this._d3 || (this._d3 = []), S3 = this._s3l || (this._s3l = []), B3 = this._b3 || (this._b3 = []); D3.length = S3.length = B3.length = 0; this._s3 = u3 ? S3 : null; const X3 = this._x3l || (this._x3l = []); X3.length = 0; this._x3 = u3 && g3.fx ? X3 : null; VIEW.air = u3; VIEW.drops = u3 ? D3 : null; const T3 = this._t3l || (this._t3l = []), O3 = this._o3l || (this._o3l = []), DM3 = this._dm3l || (this._dm3l = []); T3.length = O3.length = DM3.length = 0; this._t3 = this._x3 ? T3 : null; this._o3 = this._x3 ? O3 : null; this._dm3 = this._x3 ? DM3 : null; const SM3 = this._sm3l || (this._sm3l = []); SM3.length = 0; this._sm3 = this._x3 ? SM3 : null; VIEW.fx3 = this._x3 ? { orbs: O3, bolts: T3, puffs: SM3 } : null;     // (GC 0.25) the troops' fire, what is lobbed, the shields     // (GC 0.22) what falls, the ship's shells, the strobes     // (GC 0.20) who stands up in 3D this frame, and is not drawn on the sheet
     let real = null;
     if (cam.yaw || g3) { real = { ctx: this.ctx, W: this.W, H: this.H, focusY: this.focusY }; const S = this._sheet(real, g3 ? (this.quality === 'low' || this.perf.low ? 1536 : 2048) : 0); this._real = real; this.ctx = this._wx; this.W = S; this.H = S; this.focusY = 0.5; }
     let ctx = this.ctx, W = this.W, H = this.H;
@@ -748,8 +778,8 @@ export class Renderer {
       }
       else if (!flat) up = liftUnit(ctx, a.x, a.y, r, r * (H_ ? 0.5 : 0.42), wallA);
       else if (!VIEW.sh) { ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.ellipse(a.x + r * 0.45, a.y + r * 0.35, r * 0.95, r * 0.7, 0, 0, TAU); ctx.fill(); }     // (0.59) its shadow
-      if (!fine && u3 && a.mech && a.mech.hp > 0 && VIEW.m3.has('veh_mech')) u3.push({ k: 'mech', x: a.x, y: a.y, r: r * 1.9, face: a.aimUntil > t ? a.aimA : a.face, flash: t - (a.hurtAt ?? -9) < 0.1, walk: (a.vx || 0) ** 2 + (a.vy || 0) ** 2 > 0.1 ? t * 7 + a.id : null });     // (GC 0.41) in a mech suit: the suit is what is seen
-      else if (!fine) { if (u3) u3.push({ k: H_ ? 'van' : 'inf', x: a.x, y: a.y, r: r * (H_ ? 1.25 : 1.1), face: a.aimUntil > t ? a.aimA : a.face, tint: tm ? tm.color : null, lod: far3 !== '', aim: !a.down && a.aimUntil > t, pose: a.down ? 'down' : t - (a.hurtAt ?? -9) < 0.18 ? 'hit' : (!H_ && a.aimUntil > t && (a.vx || 0) ** 2 + (a.vy || 0) ** 2 <= 0.1 && a.id % 3 !== 0) ? 'kneel' : null, tumble: a.down ? Math.PI / 2 : undefined, walk: a.down ? null : (a.vx || 0) ** 2 + (a.vy || 0) ** 2 > 0.1 ? t * 11 + a.id : null }); else drawAllyBody(ctx, a, r, pal.ally, tm ? tm.color : null, on, now, px, t); }
+      if (!fine && u3 && a.mech && a.mech.hp > 0 && VIEW.m3.has('veh_mech')) u3.push({ k: 'mech', x: a.x, y: a.y, r: r * 1.9, face: a.aimUntil > t ? a.aimA : a.face, flash: t - (a.hurtAt ?? -9) < 0.1, walk: (a.mv || 0) > 0.5 ? t * 7 + a.id : null });     // (GC 0.41) in a mech suit: the suit is what is seen
+      else if (!fine) { if (u3) u3.push(allyFig(m, a, t, r * (H_ ? 1.25 : 1.1), tm ? tm.color : null, far3 !== '')); else drawAllyBody(ctx, a, r, pal.ally, tm ? tm.color : null, on, now, px, t); }
       if (up) dropUnit(ctx, up);
       if (t - a.hurtAt < 0.1 && !hideUi) { ctx.strokeStyle = '#ff6a6a'; ctx.lineWidth = px(1.5); ctx.beginPath(); ctx.arc(a.x, a.y, r * 1.3, 0, TAU); ctx.stroke(); }
       if (H_ && !hideUi && u3) { /* in 3D he wears his team's colour himself: no ring */ }

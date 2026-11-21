@@ -11,8 +11,8 @@ const r = new THREE.WebGLRenderer({ antialias: true }); r.setSize(W, H); documen
 const scene = new THREE.Scene(); scene.add(new THREE.AmbientLight(0xffffff, 1.7)); const sun = new THREE.DirectionalLight(0xffffff, 2.2); sun.position.set(4, 8, 5); scene.add(sun);
 const floor = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshLambertMaterial({ color: q.get('floor') || '#6f6a52' })); floor.rotation.x = -Math.PI / 2; scene.add(floor);
 const mat = new THREE.MeshLambertMaterial({ vertexColors: true });
-const ROWS = [['molt_L', 'molt_leaper', 'molt_M', 'molt_shellback', 'molt_H', 'molt_elder'], ['foundry_L', 'foundry_M', 'foundry_rocketeer', 'foundry_foreman', 'foundry_H', 'foundry_siege'], ['talon_L', 'talon_M', 'talon_bombardier', 'talon_herd', 'talon_H', 'talon_thunder'], ['soldier', 'vanguard', 'citizen_a', 'citizen_b', 'citizen_c']];
-const SIZE = { L: 2.2, M: 4, H: 7, leaper: 2.2, shellback: 4.8, elder: 13, rocketeer: 4, foreman: 4.3, siege: 13, bombardier: 4, herd: 5.2, thunder: 13, soldier: 2.2, vanguard: 2.6, a: 2.2, b: 2.2, c: 2.2 }, R = new Proxy({}, { get: (_, k) => SIZE[k] || 3 }), only = q.get('only'), LOD = q.get('lod');
+const ROWS = [['molt_L', 'molt_leaper', 'molt_M', 'molt_shellback', 'molt_H', 'molt_elder'], ['foundry_L', 'foundry_M', 'foundry_rocketeer', 'foundry_foreman', 'foundry_H', 'foundry_siege'], ['talon_L', 'talon_M', 'talon_bombardier', 'talon_herd', 'talon_H', 'talon_thunder'], ['soldier', 'vanguard', 'citizen_a', 'citizen_b', 'citizen_c'], ['drop_foundry', 'drop_talon']];
+const SIZE = { L: 2.2, M: 4, H: 7, leaper: 2.2, shellback: 4.8, elder: 13, rocketeer: 4, foreman: 4.3, siege: 13, bombardier: 4, herd: 5.2, thunder: 13, soldier: 2.2, vanguard: 2.6, foundry: 9, talon: 11, a: 2.2, b: 2.2, c: 2.2 }, R = new Proxy({}, { get: (_, k) => SIZE[k] || 3 }), only = q.get('only'), LOD = q.get('lod');
 const ix = await (await fetch('../assets/models/index.json')).json(), shown = [], names = [];
 let z = 0;
 for (const row of ROWS) {

@@ -124,8 +124,10 @@ const MODELS = {
   van: 'vanguard', inf: 'soldier', civ0: 'citizen_a', civ1: 'citizen_b', civ2: 'citizen_c',
   // (GC 0.41) vehicles and aircraft, made in Blender (tools/blender/vehicles.py) and dressed in the fleet's colours as the people are
   dship: 'veh_dropship', jet: 'veh_striker', lrv: 'veh_lrv', mech: 'veh_mech', shuttle: 'veh_shuttle', dog: 'veh_dog', uav: 'veh_uav',
+  // (GC 0.50) the enemy's own craft (tools/blender/craft.py): the Foundry's dropship and the Talon's war barge, each under way (`stand`) and over its drop (`hover`)
+  'edrop:ship': 'drop_foundry', 'edrop:warp': 'drop_talon',
 };
-const PEOPLE = new Set(['van', 'inf', 'civ0', 'civ1', 'civ2']), GROUND_POSES = /^(stand|down|aim|kneel|hit|[wa]\d)$/;     // (GC 0.42: the people's files also hold the base's and the station's poses)
+const PEOPLE = new Set(['van', 'inf', 'civ0', 'civ1', 'civ2']), GROUND_POSES = /^(stand|down|aim|kneel|hit|fire|kfire|duck|peek|[warn]\d)$/;     // (GC 0.42: the people's files also hold the base's and the station's poses; GC 0.50: running, firing, down behind cover and looking about are shown on the ground too)
 export class Units3D {
   constructor(scene, livery) {
     this.scene = scene; this.kinds = new Map(); this.used = new Map(); this.all = [];
@@ -174,7 +176,8 @@ export class Units3D {
     else m = inst(made, CAP);
     this.kinds.set(k, m); return m;
   }
-  // list: [{ k (kind), x, y (the map's), r (footprint, metres), face (radians on the map), tint (a colour or null), dim (0 to 1), walk (the step's phase in radians while it moves, else null) }]; ground(x, y): metres up
+  // list: [{ k (kind), x, y (the map's), r (footprint, metres), face (radians on the map), tint (a colour or null), dim (0 to 1), walk (the step's phase in radians while it moves, else null),
+  //          pose (a frame asked for by name: shown if the model has it, else the frame walk and aim would give) }]; ground(x, y): metres up
   // hot: through an infrared sight a body is warm and shows bright whatever it wears
   frame(list, ground, hot = false) {
     this.mat.emissive.setScalar(hot ? 0.62 : 0);
@@ -188,6 +191,7 @@ export class Units3D {
       }
       const n = this.used.get(m) || 0; if (n >= m.instanceMatrix.count) continue;
       Q.setFromAxisAngle(UP, Math.PI / 2 - (u.face || 0)); P.set(u.x, ground(u.x, u.y) + (u.up || 0), u.y); S.setScalar(u.r);
+      if (u.pitch) Q.multiply(Q2.setFromAxisAngle(SIDE, u.pitch)); if (u.roll) Q.multiply(Q2.setFromAxisAngle(FWD, u.roll));     // (GC 0.50) a craft nosing over and rolling as it falls
       if (posed) P.y -= (u.sink || 0) * 0.3 * u.r;     // (it lies as its own model has it lie: only the sinking away is left to do)
       else if (u.tumble != null) { Q.multiply(Q2.setFromAxisAngle(SIDE, -u.tumble)); P.y += Math.abs(Math.sin(u.tumble)) * 0.16 * u.r - (u.sink || 0) * 0.6 * u.r; }     // (GC 0.29) a body: turned over backwards about its feet, lying on the ground, sinking away as it fades
       else if (u.walk != null && K.frames) P.y += Math.abs(Math.sin(u.walk)) * 0.04 * u.r;     // (a person's legs do the walking: only the rise of each step)

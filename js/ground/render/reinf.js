@@ -85,6 +85,35 @@ export function drawHoles(ctx, m, now, px, labels, scale, pal) {
 }
 
 // ---------------------------------------------------------------- dropships and war barges
+// (GC 0.50) THE ENEMY'S CRAFT IN 3D. The Foundry's dropship and the Talon's war barge as their own models in the air: under way
+// on the way in and out, and over the drop with engines down and doors up (the barge's claws spread from its crystal). Fire
+// under the dropship's four engines; the barge's crystal alight, and a shaft of its light to the ground while riders come down
+// it; its shield a shell of faint light that flares when struck. Hurt, either trails smoke. Shot down, it noses over, rolls
+// and spins into the ground burning.
+const CRAFT = { ship: { r: 11, pods: [[3.9, 8.2], [3.9, -8.2], [-7, 8.2], [-7, -8.2]], podUp: 4.4 }, warp: { r: 14, coreUp: 2.4 } };
+const upOf = (d) => 5 + d.alt * 48;
+function craft3(d, ang, now, t, hit, col) {
+  const K = CRAFT[d.kind === 'ship' ? 'ship' : 'warp'], fall = d.state === 'down' ? d.fallT : 0, up = upOf(d), hover = d.state === 'hover';
+  const fx = Math.cos(ang), fy = Math.sin(ang), F = VIEW.fx3;
+  VIEW.air.push({ k: d.kind === 'ship' ? 'edrop:ship' : 'edrop:warp', x: d.x, y: d.y, r: K.r, face: ang + fall * 4, up, pose: hover ? 'hover' : null, flash: hit, dim: d.vis >= 2 ? 1 : 0.6,
+    pitch: fall ? Math.min(0.55, fall * 0.6) : hover ? 0 : 0.06, roll: fall ? fall * 0.8 : 0 });
+  if (!F) return;
+  const hurt = d.maxHp ? 1 - d.hp / d.maxHp : 0;
+  if (d.kind === 'ship') {
+    if (!fall) for (let i = 0; i < 4; i++) { const p = K.pods[i], k = 0.75 + 0.25 * Math.sin(now * 31 + i * 1.9);     // fire under each engine (straight down over the drop, swung back under way)
+      const bx = hover ? 0 : -1.6; F.orbs.push({ x: d.x + fx * (p[0] + bx) - fy * p[1], y: d.y + fy * (p[0] + bx) + fx * p[1], up: up + K.podUp - (hover ? 1.4 : 0.4), r: (hover ? 1.7 : 1.3) * k, col: '#ff8a4a' }); }
+  } else {
+    if (!fall) F.orbs.push({ x: d.x, y: d.y, up: up + K.coreUp, r: 1.5 + 0.3 * Math.sin(now * 5), col });     // the crystal
+    if (hover && d.left >= 0) { const k = 0.6 + 0.4 * Math.sin(now * 9);     // the shaft its riders come down
+      F.bolts.push({ x: d.x, y: d.y, x2: d.x + 0.01, y2: d.y, up: up + K.coreUp, up2: 0.4, w: 0.7 + 0.5 * k, col }); F.orbs.push({ x: d.x, y: d.y, up: 1.0, r: 1.5 + 0.7 * k, col }); }
+    if (d.maxShield && d.shield > 0 && !fall) { const f = d.shield / d.maxShield, sh = t - (d.shieldAt || -9) < 0.15;     // the shield
+      F.orbs.push({ x: d.x, y: d.y, up: up + 3.5, r: K.r * 1.08, col: sh ? '#2a4058' : f > 0.5 ? '#0b1219' : '#070c11' }); }     // (light added to the picture: kept very faint, so the barge is seen through it)
+  }
+  if (fall || hurt > 0.45) { const n = fall ? 5 : 3;     // smoke behind it; thick and black as it goes down
+    for (let k = 0; k < n; k++) { const q = (now * (fall ? 1.5 : 0.9) + k / n) % 1, back = fall ? 0 : q * 16;
+      F.puffs.push({ x: d.x - fx * (4 + back) + Math.sin(k * 2.4 + now) * 1.2, y: d.y - fy * (4 + back), r: 2.2 + q * (fall ? 6 : 4), up: up + 4 + q * (fall ? 14 : 5), p: Math.min(0.99, q), col: fall ? '#1c1a18' : '#3a3836' }); }
+    if (fall) F.orbs.push({ x: d.x, y: d.y, up: up + 3, r: 3.2 + 1.2 * Math.sin(now * 23), col: '#ff7a2a' }); }
+}
 function dropshipBody(ctx, s) {
   ctx.beginPath();
   ctx.moveTo(s, 0); ctx.lineTo(s * 0.55, -s * 0.22); ctx.lineTo(-s * 0.8, -s * 0.26); ctx.lineTo(-s, -s * 0.12); ctx.lineTo(-s, s * 0.12); ctx.lineTo(-s * 0.8, s * 0.26); ctx.lineTo(s * 0.55, s * 0.22); ctx.closePath();
@@ -101,14 +130,20 @@ export function drawDrops(ctx, m, now, px, labels, scale, pal) {
     const spin = d.state === 'down' ? d.fallT * 4 : 0;
     // shadow on the ground: farther from the craft the higher it is
     const off = 4 + d.alt * 30;
+    // (GC 0.50) in 3D it is its own model in the air (tools/blender/craft.py), and the sun gives it its shadow when shadows are on
+    const m3 = VIEW.air && VIEW.m3.has(d.kind === 'ship' ? 'drop_foundry' : 'drop_talon');
+    if (!(m3 && VIEW.sh)) {
     ctx.save(); ctx.translate(d.x + off * 1.05, d.y + off * 0.76); ctx.rotate(ang + spin);
     ctx.fillStyle = 'rgba(0,0,0,0.18)'; (d.kind === 'ship' ? dropshipBody : warpBody)(ctx, s * 1.05); ctx.fill();
     ctx.fillStyle = 'rgba(0,0,0,0.42)'; (d.kind === 'ship' ? dropshipBody : warpBody)(ctx, s * 0.88); ctx.fill();
     ctx.restore();
+    }
     if (d.vis <= 0 && d.state !== 'down') continue;
-    ctx.save(); ctx.translate(d.x, d.y); ctx.rotate(ang + spin);
     const hit = t - d.hurtAt < 0.1;
-    if (d.kind === 'ship') {
+    if (m3) craft3(d, ang, now, t, hit, col);
+    ctx.save(); ctx.translate(d.x, d.y); ctx.rotate(ang + spin);
+    if (m3) { /* drawn in the air */ }
+    else if (d.kind === 'ship') {
       // engine glow at the back
       ctx.fillStyle = `rgba(255,170,120,${0.5 + 0.4 * Math.sin(now * 20)})`;
       for (const g of [-1, 1]) { ring(ctx, -s * 0.62, g * s * 0.43, s * 0.14); ctx.fill(); }
@@ -129,12 +164,12 @@ export function drawDrops(ctx, m, now, px, labels, scale, pal) {
     }
     ctx.restore();
     if (d.state === 'down') {
-      ctx.fillStyle = `rgba(255,170,80,${0.6})`; ring(ctx, d.x, d.y, s * 0.4 * (1 + d.fallT)); ctx.fill();
+      if (!m3) { ctx.fillStyle = `rgba(255,170,80,${0.6})`; ring(ctx, d.x, d.y, s * 0.4 * (1 + d.fallT)); ctx.fill(); }     // (in 3D it burns in the air as it falls)
       labels.push({ x: d.x, y: d.y, dy: -s * scale - 8, text: tr(d.kind === 'ship' ? 'lab.dropshipDown' : 'lab.warpDown'), col: '#7dff9b', pri: 2 });
       continue;
     }
     // the drop: troops jumping off, or a teleport beam
-    if (d.state === 'hover' && d.left >= 0) {
+    if (d.state === 'hover' && d.left >= 0 && !(m3 && d.kind === 'ship')) {
       if (d.kind === 'warp') {
         const k = (now * 1.6) % 1;
         ctx.strokeStyle = rgba(col, 0.75 * (1 - k)); ctx.lineWidth = px(2); ring(ctx, d.x, d.y, 4 + k * 12); ctx.stroke();
@@ -150,7 +185,7 @@ export function drawDrops(ctx, m, now, px, labels, scale, pal) {
       ring(ctx, d.x, d.y, s * 1.3); ctx.stroke(); ctx.setLineDash([]);
     }
     // (0.31) a war barge's shield: a bubble round it that flares when hit, and its own bar over the health
-    if (d.maxShield && d.shield > 0) {
+    if (d.maxShield && d.shield > 0 && !m3) {
       const f = d.shield / d.maxShield, sh = t - (d.shieldAt || -9) < 0.15, Rb = s * 1.25;
       ctx.fillStyle = `rgba(150,200,255,${(sh ? 0.16 : 0.05) + 0.05 * f})`; ring(ctx, d.x, d.y, Rb); ctx.fill();
       ctx.strokeStyle = `rgba(190,225,255,${sh ? 0.95 : 0.3 + 0.4 * f})`; ctx.lineWidth = px(sh ? 2 : 1.2); ring(ctx, d.x, d.y, Rb); ctx.stroke();

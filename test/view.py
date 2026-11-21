@@ -28,7 +28,7 @@ with sync_playwright() as pw:
         if f.evaluate("__game.state") == 'play': break
         pg.wait_for_timeout(500); f.evaluate(go)
     assert f.evaluate("__game.state") == 'play', 'the mission did not start'
-    pg.keyboard.press('Enter'); pg.wait_for_timeout(7000)
+    pg.keyboard.press('Enter'); pg.wait_for_timeout(7000); f.wait_for_function("__game.mission.alive.length > 0", timeout=60000)     # (the squad is down: on a slow machine that is later than seven seconds)
     f.evaluate("(() => { const m = __game.mission, c = __game.cam, sq = m.alive[0]; c.follow = false; c.x = sq.x; c.y = sq.y; c.view = 170; for (const e of m.enemies) if (!e.dead) e.vis = 2; })()"); pg.wait_for_timeout(600)
     # 1. the sight: infrared to begin with, colour at a click, and the height view
     assert f.evaluate("__game.cam.sight") == 'whot', 'the sight should start in infrared'
