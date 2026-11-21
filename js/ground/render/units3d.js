@@ -304,6 +304,7 @@ export class Fx3D {
     // puffs: [{ x, y, r, up, p (0 new to 1 gone), col }]; o.eye: the camera's turn, so each puff faces it
     const sn = [0, 0, 0, 0]; let st = 0;
     if (o.eye) for (const s of o.puffs || []) {
+      if (!(s.p >= 0) || !Number.isFinite(s.r)) continue;     // (0.49.1) a puff with no age or size is left out, not drawn from a mesh that is not there
       const bi = Math.min(3, Math.floor(s.p * 4)), im = this.smoke[bi]; if (sn[bi] >= 90) continue;
       P.set(s.x, ground(s.x, s.y) + (s.up || 0) + s.r * 0.45, s.y); S.set(s.r, s.r * 0.85, s.r); im.setMatrixAt(sn[bi], M4.compose(P, o.eye, S)); COL.set(s.col || '#4a4e4a'); im.setColorAt(sn[bi]++, COL); st++;
     }

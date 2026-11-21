@@ -99,7 +99,10 @@ export class Ground3D {
   frame(o) {
     const { sheet, S, scale, camX, camY, yaw, W, H, fy, sun } = o; this.h = o.height; this._level(o.props);
     if (this.W !== W || this.H !== H) { this.W = W; this.H = H; this.r.setSize(W, H, false); }
-    if (!this.tex || this.tex.image !== sheet) { if (this.tex) this.tex.dispose(); this.tex = new THREE.CanvasTexture(sheet); this.tex.premultiplyAlpha = true; this.tex.generateMipmaps = false; this.tex.minFilter = THREE.LinearFilter; this.tex.magFilter = THREE.LinearFilter; this.uOver.value = this.tex; }
+    // (0.49.1) The sheet's canvas changes size (the window, the zoom, or the quality stepping down) while staying the same canvas.
+    // The graphics card keeps a texture at the size it was first sent, so a resized sheet went into a corner of the old one: the
+    // dark of the unseen and the rings lay shrunk and off to one side of where they belong. A new size is a new texture.
+    if (!this.tex || this.tex.image !== sheet || this._tw !== sheet.width || this._th !== sheet.height) { if (this.tex) this.tex.dispose(); this._tw = sheet.width; this._th = sheet.height; this.tex = new THREE.CanvasTexture(sheet); this.tex.premultiplyAlpha = true; this.tex.generateMipmaps = false; this.tex.minFilter = THREE.LinearFilter; this.tex.magFilter = THREE.LinearFilter; this.uOver.value = this.tex; }
     this.tex.needsUpdate = true;
     // the ground's own picture: sent again only when it has changed (the hour's light, a new scorch mark), and then no more than four times a second
     if (o.ground) {
@@ -142,18 +145,20 @@ export class Ground3D {
       if (on && (sc.right !== half || !this._shOk)) { sc.left = -half; sc.right = half; sc.top = half; sc.bottom = -half; sc.near = 10; sc.far = 1400; sc.updateProjectionMatrix(); this._shOk = true; } }
     this.scene.fog.near = d * 1.35; this.scene.fog.far = d * 6;
     // the ship's gun hangs under the gunship, off to the right of the sight: its shells come in from the edge of the picture
-    if (this.fx) { const e = C.matrixWorld.elements; this.gun.set(C.position.x + e[0] * d * 0.5 - e[4] * d * 0.22, C.position.y + e[1] * d * 0.5 - e[5] * d * 0.22, C.position.z + e[2] * d * 0.5 - e[6] * d * 0.22); this.fx.frame({ gunUp: o.gunUp, drops: o.drops, shells: o.shells, strobes: o.strobes, blasts: o.blasts, bolts: o.bolts, orbs: o.orbs, domes: o.domes, puffs: o.puffs, rings: o.rings, eye: this.cam.quaternion, gun: this.gun }, (x, z) => this.y(x, z)); }
+    let fxErr = null;     // (0.49.1) a fault in the effects must not stop the picture being drawn: it is kept, the frame is drawn, then it is passed on to the report
+    if (this.fx) { const e = C.matrixWorld.elements; this.gun.set(C.position.x + e[0] * d * 0.5 - e[4] * d * 0.22, C.position.y + e[1] * d * 0.5 - e[5] * d * 0.22, C.position.z + e[2] * d * 0.5 - e[6] * d * 0.22); try { this.fx.frame({ gunUp: o.gunUp, drops: o.drops, shells: o.shells, strobes: o.strobes, blasts: o.blasts, bolts: o.bolts, orbs: o.orbs, domes: o.domes, puffs: o.puffs, rings: o.rings, eye: this.cam.quaternion, gun: this.gun }, (x, z) => this.y(x, z)); } catch (err) { fxErr = err; } }
     // (0.37) the picture is taken onto a target, and the sight (infrared white-hot, black-hot, or plain colour) is put on as it
     // is copied to the screen: one cheap step on the graphics card, where it used to be a filter on the finished canvas
     // (pixel test) THE PIXEL LOOK: the same 3D picture taken small (about 300 lines), every pixel kept square and hard, its colours
     // cut to a few steps with a fine checker between them, and a dark line round whatever stands in front of something farther off.
     const px = o.pixel ? this._pixel(W, H, o.pixel) : null;
     if (px) { const u = px.mat.uniforms; u.uMode.value = o.sight === 'whot' ? 1 : o.sight === 'bhot' ? 2 : 0; u.uNear.value = C.near; u.uFar.value = C.far; this.sighted = true;
-      this.r.setRenderTarget(px.rt); this.r.render(this.scene, C); this.r.setRenderTarget(null); this.r.render(px.scene, px.cam); this.at = { camX, camY }; return; }
+      this.r.setRenderTarget(px.rt); this.r.render(this.scene, C); this.r.setRenderTarget(null); this.r.render(px.scene, px.cam); this.at = { camX, camY }; if (fxErr) throw fxErr; return; }
     const po = o.post === false ? null : this._post(W, H); this.sighted = !!po;
     if (po) { po.mat.uniforms.uMode.value = o.sight === 'whot' ? 1 : o.sight === 'bhot' ? 2 : 0; this.r.setRenderTarget(po.rt); this.r.render(this.scene, C); this.r.setRenderTarget(null); this.r.render(po.scene, po.cam); }
     else this.r.render(this.scene, C);
     this.at = { camX, camY };
+    if (fxErr) throw fxErr;
   }
   _pixel(W, H, lines) {
     if (this.pix === null) return null;

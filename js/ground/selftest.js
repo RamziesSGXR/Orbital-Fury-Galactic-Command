@@ -15,6 +15,6 @@ if (on && !(() => { try { return window.parent !== window && window.parent.gcGro
     kit: newKit(), wallet: newWallet(6000), tier: 2, hints: true, level: 2, support: null,
     livery: { name: 'Test Command', primary: '#2f8f9c', secondary: '#f2efe4', logo: { shape: 'shield', bg: '#2f8f9c', sym: 'star', fg: '#f2efe4' } },
     faction: 'bots', biome: 'grass', seed: (Math.random() * 1e9) | 0, obj, post: null, op: 'Operation Pixel', callsign: 'TEST',
-    sight: 'day', pixel: !plain, scale: 0.4, preview: () => ({ chips: [], notes: [] }), onResult: again, onAbort: again,
+    sight: 'day', pixel: !plain, preview: () => ({ chips: [], notes: [] }), onResult: again, onAbort: again,
   };
 }

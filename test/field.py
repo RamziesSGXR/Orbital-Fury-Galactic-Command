@@ -27,7 +27,7 @@ with sync_playwright() as pw:
         if f.evaluate("__game.state") == 'play': break
         pg.wait_for_timeout(500); f.evaluate(go)
     assert f.evaluate("__game.state") == 'play', 'the mission did not start'
-    pg.keyboard.press('Enter'); pg.wait_for_timeout(6500)
+    pg.keyboard.press('Enter'); pg.wait_for_timeout(6500); f.wait_for_function("__game.mission.alive.length > 0", timeout=90000)     # (0.49.1) wait for the squad to be down, however slow the machine
     got = f.evaluate("(async () => { const V = (await import('./js/ground/render/view.js')).VIEW; return [...V.m3].filter(n => /^veh_|prop_(wire|trench|cover|lz|bridge|worksite|mine|shieldgen)/.test(n)).sort(); })()")
     print('models that came:', len(got), got); assert len(got) >= 17, 'not every vehicle and field work model was loaded'
     f.evaluate("(() => { const g = __game; if (g.settings) g.settings.quality = 'high'; g.renderer.quality = 'high'; g.renderer.qset = 'high'; g.renderer.perf.low = false; g.renderer.perf.tier = 0; })()")

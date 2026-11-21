@@ -27,7 +27,7 @@ with sync_playwright() as pw:
         if f.evaluate("__game.state") == 'play': break
         pg.wait_for_timeout(500); f.evaluate(go)
     assert f.evaluate("__game.state") == 'play', 'the mission did not start'
-    pg.keyboard.press('Enter'); pg.wait_for_timeout(6000)
+    pg.keyboard.press('Enter'); pg.wait_for_timeout(6000); f.wait_for_function("__game.mission.alive.length > 0", timeout=90000)     # (0.49.1) wait for the squad to be down, however slow the machine
     pg.wait_for_timeout(6000)
     look = "((o, v) => { const c = __game.cam; c.follow = false; c.x = o.x; c.y = o.y; c.view = v; })"
     print('models loaded (triangles):', f.evaluate("__game.renderer._g3.units.loaded"))

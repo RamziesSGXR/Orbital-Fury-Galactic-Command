@@ -38,7 +38,7 @@ function go(obj) {
   window.gcGround = {
     kit: newKit(), wallet: newWallet(Number(q.get('cr')) || 6000), tier: 2, hints: true, level: Number(q.get('level')) || 2, support: null, livery,
     faction: 'bots', biome: q.get('biome') || 'grass', seed, obj, post: null, op: 'Operation Pixel', callsign: 'TEST',
-    sight: 'day', pixel: q.get('pixel') === '0' ? 0 : Number(q.get('lines')) || true, scale: q.has('scale') ? Number(q.get('scale')) : 0.4,
+    sight: 'day', pixel: q.get('pixel') === '0' ? 0 : Number(q.get('lines')) || true,
     preview: () => ({ chips: [], notes: [] }),
     onResult: (r) => setTimeout(() => done(`Last mission: ${r.outcome}, ${r.kills} kills, ${Math.round(r.minutes)} minutes.`), 0),
     onAbort: () => setTimeout(() => done('Last mission: called off.'), 0),

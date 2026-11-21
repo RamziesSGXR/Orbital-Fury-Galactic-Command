@@ -102,10 +102,11 @@ function lookStart(src) {
   wirePhoto();
   { let k = {}; try { k = JSON.parse(localStorage.getItem('ofgc.view') || '{}') || {}; } catch { /* nothing kept */ } cam.sight = src.sight || k.sight || 'whot'; cam.hot = k.hot || 'whot'; cam.topo = !!k.topo; syncView(); }
   if (src.hints != null) settings.cards = src.hints ? (settings.cards === 'off' ? 'side' : settings.cards) : 'off';     // (GC 0.40) the hints switch on the main menu is the one switch: it turns the tip cards down here on and off too
-  // (pixel test) the pixel look and true scale, when the game was opened with them: closer to the ground, since people are their own size.
-  // F6 turns the pixel look off and on, F7 the scale, so each can be set against the look as it was.
-  if (src.pixel || src.scale) { cam.pixel = src.pixel === true ? 300 : src.pixel || 0; VIEW.ts = src.scale ?? 0.4; C.world.viewWidth = 170; C.world.zoomMin = 40; const keep = { pixel: cam.pixel || 300, ts: VIEW.ts || 0.4 };     // (either may be asked for without the other)
-    window.addEventListener('keydown', (e) => { if (e.repeat) return; if (e.code === 'F6') { e.preventDefault(); cam.pixel = cam.pixel ? 0 : keep.pixel; } if (e.code === 'F7') { e.preventDefault(); VIEW.ts = VIEW.ts ? 0 : keep.ts; } }, true); }
+  // (GC 0.51) TRUE SCALE is how the ground is drawn in 3D: everyone and everything at its own size beside a two-metre soldier
+  // (render/view.js TRUE), not marks big enough to pick out from orbit, and the camera closer to the ground to suit. F7 puts the
+  // old sizes back and brings these again, to compare. The pixel look stays a test: only when the game is opened with it (F6).
+  if (!src.flat) { cam.pixel = src.pixel === true ? 300 : src.pixel || 0; VIEW.ts = src.scale === 0 ? 0 : 1; if (VIEW.ts) { C.world.viewWidth = 170; C.world.zoomMin = 40; }
+    window.addEventListener('keydown', (e) => { if (e.repeat) return; if (e.code === 'F6' && src.pixel) { e.preventDefault(); cam.pixel = cam.pixel ? 0 : (src.pixel === true ? 300 : src.pixel); } if (e.code === 'F7') { e.preventDefault(); VIEW.ts = VIEW.ts ? 0 : 1; } }, true); }
   cam.livery = src.livery || null; cam.orbit = src.orbit ?? 1; cam.g3d = src.flat ? false : true;     // the land in 3D under the circling view     // the circling view: slow, as from high up; a full turn takes about twenty-six minutes of mission time
 }
 function gcStart() {

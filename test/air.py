@@ -27,7 +27,7 @@ with sync_playwright() as pw:
         if f.evaluate("__game.state") == 'play': break
         pg.wait_for_timeout(500); f.evaluate(go)
     assert f.evaluate("__game.state") == 'play', 'the mission did not start'
-    pg.keyboard.press('Enter'); pg.wait_for_timeout(9000)
+    pg.keyboard.press('Enter'); pg.wait_for_timeout(9000); f.wait_for_function("__game.mission.alive.length > 0", timeout=90000)     # (0.49.1) wait for the squad to be down, however slow the machine
     f.evaluate("(() => { const c = __game.cam, a = __game.mission.alive[0]; c.follow = false; c.x = a.x; c.y = a.y; c.view = 120; })()")
     # an Infantry drop called onto the middle of the picture: its dropship comes in
     pg.keyboard.press('g'); pg.wait_for_timeout(300); pg.mouse.click(700, 330); pg.wait_for_timeout(2500)

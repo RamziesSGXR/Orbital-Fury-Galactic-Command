@@ -862,7 +862,8 @@ export class Renderer {
     }
     if (this._sm3) {
       const smoke = (o, r) => { if (!(o.maxHp > 0) || o.hp > o.maxHp * 0.5) return; const bad = o.hp < o.maxHp * 0.25, n = bad ? 3 : 2;
-        for (let k = 0; k < n; k++) { const q = ((t * (bad ? 0.5 : 0.36) + k / n + (o.id || 0) * 0.37) % 1 + 1) % 1; this._sm3.push({ x: o.x + Math.sin((o.id || 0) * 3.1 + k * 2.4) * r * 0.3 + q * 1.5, y: o.y + Math.cos((o.id || 0) * 1.7 + k) * r * 0.3, r: r * (0.35 + 0.7 * q), up: r * 0.6 + q * (bad ? 11 : 8), p: 0.15 + q * 0.85, col: bad ? '#2c2c2c' : '#4a4e4a' }); } };
+        const id = Number.isFinite(Number(o.id)) ? Number(o.id) : o.x * 0.61 + o.y * 0.37;     // (0.49.1) a base turret's id is text ('3.t0'): as a number it was NaN, the puff had no age, and the 3D frame died on it
+        for (let k = 0; k < n; k++) { const q = ((t * (bad ? 0.5 : 0.36) + k / n + id * 0.37) % 1 + 1) % 1; this._sm3.push({ x: o.x + Math.sin(id * 3.1 + k * 2.4) * r * 0.3 + q * 1.5, y: o.y + Math.cos(id * 1.7 + k) * r * 0.3, r: r * (0.35 + 0.7 * q), up: r * 0.6 + q * (bad ? 11 : 8), p: 0.15 + q * 0.85, col: bad ? '#2c2c2c' : '#4a4e4a' }); } };
       const hx = W / scale / 2, nearC = (o) => Math.abs(o.x - v.camX) < hx && Math.abs(o.y - v.camY) < hx;
       for (const b of m.bases || []) if (!b.destroyed) { for (const sp of b.spawners || []) if (!sp.dead && nearC(sp)) smoke(sp, sp.r || 5); for (const T of b.turrets || []) if (!T.dead && nearC(T)) smoke(T, (T.r || 2) * 1.2); }
       for (const p of m.posts || []) if (!p.dead && !p.ghost && nearC(p)) smoke(p, 2.4);
@@ -1017,6 +1018,10 @@ export class Renderer {
   // under: (0.38) given, it lays the mask on instead (the night's light, with the fog in it)
   _fog(ctx, m, scale, tx, ty, under = null) {
     // A quarter-size mask: soft by nature, so a small canvas scaled up looks the same and costs a sixteenth of the pixels.
+    // (GC 0.49.1) The mask takes the shape of what is being drawn on. It was sized for the screen alone, but in 3D (and in the
+    // turned view) the world is drawn on a square sheet: the screen-shaped mask was stretched over the square, so what the squad
+    // could see was lit as a long patch off to one side of them, more so the wider the window ("a spotlight").
+    { const mw = Math.ceil(this.W / 4), mh = Math.ceil(this.H / 4); if (this.fog.width !== mw || this.fog.height !== mh) { this.fog.width = mw; this.fog.height = mh; } }
     const fc = this.fog.getContext('2d'), fw = this.fog.width, fh = this.fog.height, h = fw / this.W;
     fc.globalCompositeOperation = 'source-over';
     fc.clearRect(0, 0, fw, fh);
