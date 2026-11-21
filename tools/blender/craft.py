@@ -1,8 +1,8 @@
 # THE ENEMY'S CRAFT (GC 0.50): what brings their reinforcements down. Run in Blender after gc_kit.py:
 #   exec(open(ROOT + r'\gc_kit.py').read()); exec(open(ROOT + r'\scripts\craft.py').read())
 #   drop_foundry   the Foundry's dropship: a slab of red iron on four swivelling engines, the troop bay hung under it
-#   drop_talon     the Talon's war barge: a bone shell with horns at the prow, lanterns round its rim and the crystal that
-#                  sends its riders down slung under the belly
+#   drop_talon     the Talon's war barge: a hull of bone with horns at the prow, shields and lanterns along its sides, fins
+#                  to ride the air on, and the crystal that sends its riders down slung under the keel
 # Both face -Y (the game's forward) and are sized by the game (fitted to their longest side). They wear their faction's
 # own colours (the same material names as its creatures). Two frames each:
 #   stand   under way: the Foundry's engines swung back to push, its doors shut; the barge's claws closed on its crystal
@@ -59,23 +59,29 @@ def df_pose(hover):
 # ---------------------------------------------------------------- the Talon's war barge
 def drop_talon():
     root = start('drop_talon', 'dt_')
-    blob('shell', r=1.0, scale=(1.9, 2.45, 0.5), loc=(0, 0, 1.38), sub=2, m=bone, parent=root); blob('under', r=1.0, scale=(1.62, 2.15, 0.36), loc=(0, 0, 1.1), sub=2, m=hide, parent=root)
-    yl('ridge', [(-2.2, 0.1, 0.08, 1.62), (-1.0, 0.3, 0.2, 1.8), (0.8, 0.34, 0.22, 1.82), (2.3, 0.08, 0.08, 1.66)], 6, hide2, root)
-    box('howdah', (1.0, 1.2, 0.42), (0, 0.5, 2.06), m=leather, parent=root, bevel=0.04, taper=0.8); box('roof', (1.2, 1.4, 0.08), (0, 0.5, 2.32), m=wood, parent=root, bevel=0.02)
-    cyl('pole', (0, 1.0, 2.3), (0, 1.0, 3.2), 0.03, m=wood, parent=root, sides=4); box('pennant', (0.03, 0.6, 0.34), (0, 1.32, 3.0), m=hide, parent=root, taper=0.3)
-    spike('tail', (0, 2.1, 1.45), (0, 3.5, 2.0), 0.24, m=tdark, parent=root, flat=0.6)
+    # a hull of bone, sharp at the prow and high at the stern, decked in hide
+    yl('hull', [(-3.1, 0.06, 0.06, 1.74), (-2.3, 0.72, 0.3, 1.52), (-0.9, 1.5, 0.5, 1.36), (0.9, 1.62, 0.55, 1.36), (2.2, 1.12, 0.46, 1.52), (3.0, 0.42, 0.26, 1.84)], 10, bone, root)
+    yl('deck', [(-2.5, 0.4, 0.07, 1.78), (-0.9, 1.22, 0.1, 1.8), (0.9, 1.32, 0.1, 1.84), (2.3, 0.8, 0.09, 1.94), (2.9, 0.3, 0.06, 2.06)], 8, hide, root)
+    yl('keel', [(-2.6, 0.1, 0.12, 1.26), (-0.6, 0.3, 0.22, 0.98), (1.2, 0.3, 0.22, 0.98), (2.6, 0.1, 0.12, 1.34)], 6, tdark, root)
+    box('howdah', (1.1, 1.3, 0.5), (0, 0.6, 2.14), m=leather, parent=root, bevel=0.04, taper=0.8); box('roof', (1.4, 1.6, 0.09), (0, 0.6, 2.46), m=wood, parent=root, bevel=0.02); box('roofcap', (0.7, 0.8, 0.1), (0, 0.6, 2.56), m=hide2, parent=root, bevel=0.03, taper=0.6)
+    cyl('pole', (0, 1.2, 2.5), (0, 1.2, 3.5), 0.035, m=wood, parent=root, sides=4); box('pennant', (0.03, 0.7, 0.4), (0, 1.58, 3.26), m=lime, parent=root, taper=0.3)
+    spike('stern', (0, 2.6, 1.9), (0, 3.9, 2.9), 0.26, m=tdark, parent=root, flat=0.5); spike('ram', (0, -2.6, 1.5), (0, -4.0, 1.34), 0.2, m=bone, parent=root, flat=0.7)
     for s in (-1, 1):
-        spike('horn', (s * 0.95, -1.75, 1.38), (s * 0.3, -3.45, 1.66), 0.22, m=bone, parent=root, flat=0.8); spike('tusk', (s * 1.4, -1.2, 1.3), (s * 1.15, -2.5, 1.2), 0.12, m=bone, parent=root)
-        spike('sail', (s * 1.6, 0.3, 1.4), (s * 3.1, 1.5, 1.72), 0.34, m=hide, parent=root, flat=0.22); spike('sailb', (s * 1.5, 1.2, 1.38), (s * 2.4, 2.4, 1.6), 0.24, m=tdark, parent=root, flat=0.22)
-        spike('tailfin', (s * 0.4, 2.0, 1.4), (s * 1.0, 3.1, 1.75), 0.14, m=bone, parent=root, flat=0.3)
-        for y in (-1.1, -0.2, 0.7, 1.6): box('shield', (0.07, 0.62, 0.5), (s * (1.84 - 0.16 * abs(y - 0.2)), y, 1.32), m=scale, parent=root, bevel=0.03, taper=0.7, rot=(0, s * R(-22), 0))
-    for i in range(8):     # lanterns round the rim
-        a = i * TAU / 8 + TAU / 16; x, y = math.sin(a) * 1.72, -math.cos(a) * 2.22
-        blob('lantern', r=0.16, loc=(x, y, 1.14), sub=1, m=lime, parent=root); cyl('bracket', (x * 0.93, y * 0.93, 1.3), (x, y, 1.2), 0.04, m=tblack, parent=root, sides=4)
-    blob('core', r=0.52, scale=(1, 1, 0.9), loc=(0, 0, 0.72), sub=1, m=cyan, parent=root); cyl('socket', (0, 0, 1.0), (0, 0, 0.8), 0.62, m=tblack, parent=root, sides=10, r2=0.5)
-    for i in range(4):     # four claws that hold the crystal shut, and spread to let it work
-        a = i * TAU / 4 + TAU / 8; c = joint('claw%d' % i, (math.sin(a) * 0.62, -math.cos(a) * 0.62, 0.92), root); c.rotation_euler = (0, 0, a)
-        spike('clawp', (0, 0, 0), (0, 0.42, -0.72), 0.13, m=bone, parent=c, flat=0.6)
+        # the horns: out from the bows, forward and up
+        loft('horn', [((s * 0.75, -2.0, 1.66), 0.22, 0.2), ((s * 1.25, -2.8, 1.9), 0.17, 0.15), ((s * 1.15, -3.6, 2.3), 0.1, 0.09), ((s * 0.8, -4.1, 2.75), 0.01, 0.01)], sides=6, m=bone, parent=root)
+        # the fins it rides the air on: out from the sides and swept back
+        spike('sail', (s * 1.5, 0.2, 1.5), (s * 3.3, 1.7, 1.86), 0.42, m=hide2, parent=root, flat=0.16); spike('sailb', (s * 1.4, 1.3, 1.5), (s * 2.5, 2.7, 1.74), 0.3, m=tdark, parent=root, flat=0.18)
+        spike('sternfin', (s * 0.4, 2.5, 1.9), (s * 1.1, 3.5, 2.3), 0.14, m=bone, parent=root, flat=0.3)
+        for i, y in enumerate((-1.5, -0.7, 0.1, 0.9, 1.7)):     # shields hung along the gunwale, a lantern under every other one
+            x = s * (1.62 - 0.36 * abs(y - 0.2) ** 1.6 / 2.2)
+            box('shield', (0.08, 0.66, 0.56), (x, y, 1.72), m=scale, parent=root, bevel=0.03, taper=0.7, rot=(0, s * R(-16), 0)); box('boss', (0.06, 0.2, 0.2), (x + s * 0.05, y, 1.74), m=bone, parent=root, bevel=0.03)
+            if i % 2 == 0: cyl('chain', (x, y, 1.46), (x, y, 1.16), 0.02, m=tblack, parent=root, sides=4); blob('lantern', r=0.15, loc=(x, y, 1.06), sub=1, m=lime, parent=root)
+    blob('lantern', r=0.17, loc=(0, -2.9, 1.42), sub=1, m=lime, parent=root); blob('lantern', r=0.17, loc=(0, 2.9, 1.62), sub=1, m=lime, parent=root)
+    # the crystal that sends its riders down, slung under the keel in four claws
+    cyl('socket', (0, 0.1, 1.02), (0, 0.1, 0.8), 0.66, m=tblack, parent=root, sides=10, r2=0.52); blob('core', r=0.5, scale=(1, 1, 0.9), loc=(0, 0.1, 0.62), sub=1, m=cyan, parent=root)
+    for i in range(4):     # they hold it shut under way, and spread to let it work
+        a = i * TAU / 4 + TAU / 8; c = joint('claw%d' % i, (math.sin(a) * 0.62, 0.1 - math.cos(a) * 0.62, 0.9), root); c.rotation_euler = (0, 0, a)
+        spike('clawp', (0, 0, 0), (0, 0.44, -0.78), 0.13, m=bone, parent=c, flat=0.6)
     rest(root); return root
 def dt_pose(hover):
     zero(J('root'))
@@ -87,6 +93,6 @@ for name, make, pose in (('drop_foundry', drop_foundry, df_pose), ('drop_talon',
     OUT[name] = export(name, CUR, {'stand': (lambda p=pose: p(False)), 'hover': (lambda p=pose: p(True))}, lod=0)
     ROOTS.append((PRE, r, pose))
 # side by side for the picture: the dropship hovering, the barge under way
-for i, (pre, r, pose) in enumerate(ROOTS): PRE = pre; pose(i == 0); r.location = (i * 7.4 - 3.7, 0, 0)
-PIC = [shot('craft', dist=19, target=(0, 0, 1.3), az=28, el=24, res=(1700, 760)), shot('craft_under', dist=19, target=(0, 0, 1.3), az=205, el=-16, res=(1700, 760))]
+for i, (pre, r, pose) in enumerate(ROOTS): PRE = pre; pose(i == 0); r.location = (i * 8.4 - 4.2, 0, 0)
+PIC = [shot('craft', dist=27, target=(0, 0, 1.4), az=30, el=26, res=(1700, 800)), shot('craft_back', dist=27, target=(0, 0, 1.4), az=150, el=34, res=(1700, 800))]
 bpy.ops.wm.save_as_mainfile(filepath=os.path.join(ROOT, 'craft.blend'))
