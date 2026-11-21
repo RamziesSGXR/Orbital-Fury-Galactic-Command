@@ -27,7 +27,7 @@ with sync_playwright() as pw:
         if f.evaluate("__game.state") == 'play': break
         pg.wait_for_timeout(500); f.evaluate(go)
     assert f.evaluate("__game.state") == 'play', 'the mission did not start'
-    pg.keyboard.press('Enter'); pg.wait_for_timeout(6000)
+    pg.keyboard.press('Enter'); pg.wait_for_timeout(6000); f.wait_for_function("__game.mission.alive.length > 0", timeout=90000)     # (0.49.1) on a slow machine the squad is not down in six seconds
     names = f.evaluate("[...__game.renderer._g3.props.files.keys()].sort()"); print('models that came:', len(names), names)
     assert len(names) >= 16, 'not every objective model was loaded'
     f.evaluate("(() => { const g = __game; if (g.settings) g.settings.quality = 'high'; g.renderer.quality = 'high'; g.renderer.qset = 'high'; g.renderer.perf.low = false; g.renderer.perf.tier = 0; })()")

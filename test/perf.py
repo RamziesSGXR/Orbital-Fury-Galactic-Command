@@ -26,7 +26,7 @@ with sync_playwright() as pw:
         if f.evaluate("__game.state") == 'play': break
         pg.wait_for_timeout(500); f.evaluate(go)
     if len(sys.argv) > 4: f.evaluate(sys.argv[4])
-    pg.keyboard.press('Enter'); pg.wait_for_timeout(9000)
+    pg.keyboard.press('Enter'); pg.wait_for_timeout(9000); f.wait_for_function("__game.mission.alive.length > 0", timeout=90000)     # (0.49.1) wait for the squad to be down, however slow the machine
     # a busy picture: the camera on the thick of the enemy, everything seen
     f.evaluate("(() => { const m = __game.mission, c = __game.cam; for (const e of m.enemies) if (!e.dead) e.vis = 2; const b = m.enemies.find(e => !e.dead); c.follow = false; c.x = b.x; c.y = b.y; c.view = 150; })()")
     pg.wait_for_timeout(1000)
