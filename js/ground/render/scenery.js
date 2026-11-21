@@ -88,10 +88,12 @@ export function drawSceneryGround(ctx, m, now, px, scale, vb) {
     ctx.lineCap = 'butt';
   }
   // the shadows of everything tall, first, so nothing's shadow falls over another's body
+  // (0.52) in 3D they are models and the sun throws their shadows, from where the sun is at that hour: no drawn shadow, which lay
+  // down and to the right whatever the hour and came apart from the model as the view moved
   const pa = new Path2D();
-  each(sc, vb, 'rocks', (q) => { if (!q.broken) shadowPath(pa, q.x, q.y, q.r * 1.05, q.r * 0.8, q.h); });
-  each(sc, vb, 'trees', (t) => treeShadow(pa, t));
-  each(sc, vb, 'marks', (o) => { if (standing(o)) shadowPath(pa, o.x, o.y, (o.kind === 'pillar' ? 0.9 : 0.35) * o.s, (o.kind === 'pillar' ? 0.9 : 0.35) * o.s, (o.kind === 'banner' ? 7 : o.kind === 'flag' ? 5 : o.h) * o.s); });
+  if (!VIEW.p3) each(sc, vb, 'rocks', (q) => { if (!q.broken) shadowPath(pa, q.x, q.y, q.r * 1.05, q.r * 0.8, q.h); });
+  if (!VIEW.p3) each(sc, vb, 'trees', (t) => treeShadow(pa, t));
+  if (!VIEW.p3) each(sc, vb, 'marks', (o) => { if (standing(o)) shadowPath(pa, o.x, o.y, (o.kind === 'pillar' ? 0.9 : 0.35) * o.s, (o.kind === 'pillar' ? 0.9 : 0.35) * o.s, (o.kind === 'banner' ? 7 : o.kind === 'flag' ? 5 : o.h) * o.s); });
   ctx.fillStyle = 'rgba(0,0,0,0.27)'; ctx.fill(pa, 'nonzero');
   // rocks: the side (dark, below), the top (lit), a highlight on the upper-left edge
   if (!VIEW.p3) each(sc, vb, 'rocks', (q) => {

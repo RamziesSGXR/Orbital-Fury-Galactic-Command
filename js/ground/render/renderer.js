@@ -8,7 +8,8 @@ import { drawSquadOrders, drawInfantryMark, drawStroke, drawDropships, drawMiniI
 
 import { slotStats } from '../sim/player.js';
 import { drawAllyBody, drawEnemyBody, enemyR, drawBossBody, bossR, drawTurretArt, setRelief } from './units.js';
-import { VIEW, TRUE, trueR } from './view.js';
+import { VIEW, TRUE, trueR, quietDashes } from './view.js';
+import { drawDamage } from './sideart.js';
 import { inCover } from '../sim/cover.js';
 import { Ground3D } from './ground3d.js';
 import { liftUnit, dropUnit, unitShadow, shadeHex, raise, raiseUnit, setFlat, isFlat, reliefFrame, reliefClear, setElev, elevK } from './relief.js';
@@ -452,18 +453,18 @@ export class Renderer {
     { const M3 = VIEW.m3, turn = (o) => (((o.id || 1) * 2.3 + o.x * 0.01) % 6.28), put = (k, x, y, s2, rot, o) => { if (M3.has(k) && Math.abs(x - cx) < half && Math.abs(y - cy) < half) out.push({ k, x, y, s: s2, rot, tint: o ? hit(o) : null, flash: o ? fl(o) : false }); };
       if (this._g3 && this._g3.props) this._g3.props.setAccent(pal.enemy);
       for (const o of m.objectives || []) {
-        if (o.type === 'nuke') put('site_silo', o.x, o.y, Math.max(7, (o.r || 10) * 0.8), turn(o));
-        else if (o.type === 'vip') { if (!o.picked) put('site_crash', o.x, o.y, 11, ((o.x * 7 + o.y) | 0) % 6.28); put('site_pad', o.dx, o.dy, 11.5, 0); }
-        else if (o.type === 'oil') put('site_derrick', o.x, o.y, Math.max(8, (o.r || 12) * 0.75), turn(o));
+        if (o.type === 'nuke') put('site_silo', o.x, o.y, 14, turn(o));     // (0.52) the launch site at its true size: an apron 28 m across, not four fifths of the ground to be held (72 m, with a missile 17 m thick that hid whoever held it)
+        else if (o.type === 'vip') { if (!o.picked) put('site_crash', o.x, o.y, 7.5, ((o.x * 7 + o.y) | 0) % 6.28); put('site_pad', o.dx, o.dy, 11.5, 0); }     // (0.52: the wreck is the size of the shuttle that flies, 16 m)
+        else if (o.type === 'oil') put('site_derrick', o.x, o.y, Math.max(8, (o.r || 12) * 0.45), turn(o));     // (0.52) the rig is what is solid (C.solids.oil), so whoever holds the site stands outside it
       }
       { const hb = m.democharge; if (hb && (hb.state === 'landed' || hb.state === 'armed')) put('site_charge', hb.x, hb.y, 2.2, 0.6); }
-      for (const q of m.loot || []) if (q.kind === 'wreck') put('site_wreck', q.x, q.y, Math.max(4.5, (q.r || 4) * 1.3), turn(q));
+      for (const q of m.loot || []) if (q.kind === 'wreck') put('site_wreck', q.x, q.y, Math.max(3, (q.r || 4) * 0.5), turn(q));     // (0.52) no bigger than its solid part: whoever searches it stands beside it, not inside it
       for (const sd of m.sides || []) {
         if (sd.done || sd.failed || sd.hidden) { if (sd.kind === 'radio' && sd.done) put('side_radio', sd.x, sd.y, Math.max(5, sd.r * 0.7), turn(sd)); continue; }
         if (sd.kind === 'radio') put('side_radio', sd.x, sd.y, Math.max(5, sd.r * 0.7), turn(sd));
         else if (sd.kind === 'arty') put('side_howitzer', sd.x, sd.y, 5, Math.PI / 2 - (sd.face || 0));
         else if (sd.kind === 'jammer') put('side_jam_' + sd.fac, sd.x, sd.y, Math.max(4, sd.r * 0.6), turn(sd));
-        else if (sd.kind === 'rescue') put('side_redoubt', sd.x, sd.y, Math.max(6, sd.r * 0.62), turn(sd));
+        else if (sd.kind === 'rescue') put('side_redoubt', sd.x, sd.y, 8, turn(sd));     // (0.52) true size: a ring of sandbags chest high, 13 m across
       }
     }
     { const pk = { bugs: ['spire', 'hive'], bots: ['node', 'fab'], lizards: ['totem', 'camp'] }[m.faction.id] || ['node', 'fab'];     // the enemy's side sites
@@ -490,7 +491,7 @@ export class Renderer {
     for (const q of m.loot || []) if (!q.done && q.kind !== 'wreck' && near(q)) out.push({ k: 'crate', x: q.x, y: q.y, s: Math.max(1.3, (q.r || 3) * 0.55), rot: ((q.id || 1) * 1.9) % 6.28 });     // what can be picked up
     for (const p of m.posts || []) { const d = P3_POST[p.what]; if (d && !p.dead && !p.ghost && near(p)) out.push({ k: d[0], x: p.x, y: p.y, s: d[1], rot: face(p.face), tint: hit(p), flash: fl(p) }); }
     for (const a of m.assets || []) if (a.kind === 'turret' && !a.dead && near(a)) out.push({ k: 'aturret', x: a.x, y: a.y, s: 1.5, rot: face(a.face), tint: hit(a), flash: fl(a) });
-    if (VIEW.ts) for (const u of out) { const q = TRUE.prop[u.k]; if (!q) continue; const k = q[0] ? q[0] : q[1] / (u.s || 1); u.s *= k; if (u.h) u.h *= k; if (u.sink) u.sink *= k; }     // (scale test) at their own size
+    if (VIEW.ts) for (const u of out) { const fw = TRUE.field[u.k]; if (fw) { u.s = fw[0]; u.h = fw[1] * (u.k === 'wire' ? u.h / 3.2 : 1); continue; } const q = TRUE.prop[u.k]; if (!q) continue; const k = q[0] ? q[0] : q[1] / (u.s || 1); u.s *= k; if (u.h) u.h *= k; if (u.sink) u.sink *= k; }     // (scale test) at their own size
     return out;
   }
   // A circle being stroked on the sheet, taken for the 3D picture instead: true if it was (so the stroke is left out).
@@ -516,7 +517,7 @@ export class Renderer {
     this.pass(m, cam);
     // (GC 0.18) the land in 3D, when the camera asks for it and the machine can do it; without it, the turned sheet of 0.16
     if (cam.g3d && this._g3 === undefined) { try { this._g3 = new Ground3D(cam.livery); } catch (err) { console.warn('3D ground unavailable', err); this._g3 = null; } }
-    const g3 = cam.g3d ? this._g3 : null; this._g3on = false; VIEW.p3 = !!(g3 && g3.props); { const RL = this._rl || (this._rl = []); RL.length = 0; this._rings = g3 && g3.fx ? RL : null; } VIEW.sh = !!(g3 && g3.units) && !(this.quality === 'low' || this.perf.low || (this.perf.tier || 0) >= 2);     // (GC 0.38) sh: the sun throws real shadows this frame
+    const g3 = cam.g3d ? this._g3 : null; this._g3on = false; VIEW.p3 = !!(g3 && g3.props); { const RL = this._rl || (this._rl = []); RL.length = 0; this._rings = g3 && g3.fx ? RL : null; } VIEW.sh = !!(g3 && g3.units);     // (0.52) in 3D the sun's own shadows, always: at low quality their map is smaller, but the old drawn shadows never come back beside models     // (GC 0.38) sh: the sun throws real shadows this frame
     const U3 = this._u3 || (this._u3 = []); U3.length = 0; const u3 = g3 && g3.units ? U3 : null;
     const D3 = this._d3 || (this._d3 = []), S3 = this._s3l || (this._s3l = []), B3 = this._b3 || (this._b3 = []); D3.length = S3.length = B3.length = 0; this._s3 = u3 ? S3 : null; const X3 = this._x3l || (this._x3l = []); X3.length = 0; this._x3 = u3 && g3.fx ? X3 : null; VIEW.air = u3; VIEW.drops = u3 ? D3 : null; const T3 = this._t3l || (this._t3l = []), O3 = this._o3l || (this._o3l = []), DM3 = this._dm3l || (this._dm3l = []); T3.length = O3.length = DM3.length = 0; this._t3 = this._x3 ? T3 : null; this._o3 = this._x3 ? O3 : null; this._dm3 = this._x3 ? DM3 : null; const SM3 = this._sm3l || (this._sm3l = []); SM3.length = 0; this._sm3 = this._x3 ? SM3 : null; VIEW.fx3 = this._x3 ? { orbs: O3, bolts: T3, puffs: SM3 } : null;     // (GC 0.25) the troops' fire, what is lobbed, the shields     // (GC 0.22) what falls, the ship's shells, the strobes     // (GC 0.20) who stands up in 3D this frame, and is not drawn on the sheet
     let real = null;
@@ -560,6 +561,7 @@ export class Renderer {
     drawAoEdge(ctx, m, px, -tx / scale, -ty / scale, (W - tx) / scale, (H - ty) / scale);
     const labels = this.labels; labels.length = 0;
     const hideUi = document.body.classList.contains('hide-ui');     // (0.54) Hide UI: no outlines, rings or health bars either
+    quietDashes(ctx, hideUi ? 1 : (C.rings && C.rings.dash != null ? C.rings.dash : 0)); VIEW.loud = !!ui.placing;     // (0.52, from Orbital Fury 0.62.24/25) a dashed line is the player's own mark or a red warning, or it is not drawn
     const nm = (i0) => { for (let i = i0; i < labels.length; i++) labels[i].nm = true; };     // (0.54) names of buildings and enemies: hidden unless Settings > Show names, or selected / under the aim
     const aim = ui.aim;
     VIEW.quiet = !!ui.placing; VIEW.squad = !!(m.infantry && (m.infantry.sel >= 0 || m.infantry.sel === -2 || (m.infantry.multi && m.infantry.multi.length)));     // (0.61.5)
@@ -591,29 +593,28 @@ export class Renderer {
             const a = b.id * 1.7 + k * 1.26 + now * 0.08, rr = r * (0.45 + 0.12 * k), sx = b.x + Math.cos(a) * r * 0.45, sy = b.y + Math.sin(a * 1.3) * r * 0.4;
             ctx.fillStyle = `rgba(120,124,118,${0.16 + 0.04 * Math.sin(now * 0.7 + k)})`; ctx.beginPath(); ctx.arc(sx, sy, rr, 0, TAU); ctx.fill();
           }
-          ctx.strokeStyle = 'rgba(255,90,70,0.35)'; ctx.lineWidth = px(1.2); ctx.setLineDash([px(4), px(5)]); ctx.beginPath(); ctx.arc(b.x, b.y, r * 1.15, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+          // (0.52: no dashed ring round a base)
           labels.push({ x: b.x, y: b.y, dy: -r * scale * 1.3 - 4, text: tr('lab.hidden'), col: 'rgba(255,150,130,0.75)' });
         } else {
-          ctx.strokeStyle = 'rgba(255,90,70,0.28)'; ctx.lineWidth = px(1); ctx.setLineDash([px(3), px(5)]); ctx.beginPath(); ctx.arc(b.x, b.y, r * 1.15, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
           for (const sp of b.spawners) {
             const sb = { ...b, x: sp.x, y: sp.y, r: Math.max(sp.r * 1.5, px(6)), hp: sp.hp, maxHp: sp.maxHp, spawners: undefined };
             if (sp.dead) { drawBaseRuin(ctx, sb, now, px); continue; }
             if (!VIEW.p3) raise(ctx, sp, sb.x, sb.y, sb.r * 1.7, sb.r * 0.42, (c) => drawBaseArt(c, sb, m.faction.id, pal.enemy, inZ, now, px), { ...RAISE_B, live: true, sig: inZ ? 1 : 0 });
-            if (sp.hp < sp.maxHp && !hideUi) { const bw = sb.r * 2.2; ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(sp.x - bw / 2, sp.y + sb.r * 1.25, bw, px(3)); ctx.fillStyle = pal.enemy; ctx.fillRect(sp.x - bw / 2, sp.y + sb.r * 1.25, bw * Math.max(0, sp.hp / sp.maxHp), px(3)); }
+            if (!VIEW.p3) drawDamage(ctx, sp.x, sp.y, sb.r, sp.hp / sp.maxHp, (b.id || 1) * 7 + b.spawners.indexOf(sp), now, px);     // (0.52) its damage shows on it: no bar (in 3D the model darkens, smokes and burns)
             if (t - (sp.hurtAt ?? -99) < 0.12) { ctx.strokeStyle = '#fff'; ctx.lineWidth = px(2); ctx.beginPath(); ctx.arc(sp.x, sp.y, sb.r * 1.1, 0, TAU); ctx.stroke(); }
             if (sp.maxShield && sp.shield > 0) {      // (0.55) the lizards' light shield: a bubble that flares when hit
               const f = sp.shield / sp.maxShield, hit = t - (sp.shieldAt ?? -9) < 0.15, R = sb.r * 1.55;
               if (this._dm3) this._dm3.push({ x: sp.x, y: sp.y, r: R * 1.05, k: (hit ? 0.9 : 0.25) + 0.3 * f }); else {
               ctx.fillStyle = `rgba(150,200,255,${(hit ? 0.2 : 0.05) + 0.06 * f})`; ctx.beginPath(); ctx.arc(sp.x, sp.y, R, 0, TAU); ctx.fill();
               ctx.strokeStyle = `rgba(190,225,255,${hit ? 0.95 : 0.3 + 0.4 * f})`; ctx.lineWidth = px(hit ? 2 : 1.2); ctx.beginPath(); ctx.arc(sp.x, sp.y, R, 0, TAU); ctx.stroke(); }
-              if (f < 1 && !hideUi) { const bw = sb.r * 2.2; ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(sp.x - bw / 2, sp.y + sb.r * 1.25 - px(4), bw, px(2.5)); ctx.fillStyle = '#8fd0ff'; ctx.fillRect(sp.x - bw / 2, sp.y + sb.r * 1.25 - px(4), bw * f, px(2.5)); }
+              // (0.52: no bar for the shield either; the bubble fades as it weakens)
             }
           }
           for (const T of b.turrets || []) {      // (0.55) a bot base's turrets
             const R = Math.max(T.r, px(5));
             if (T.dead) { ctx.fillStyle = 'rgba(30,30,30,0.7)'; ctx.beginPath(); ctx.arc(T.x, T.y, R, 0, TAU); ctx.fill(); continue; }
             if (!VIEW.p3) raise(ctx, T, T.x, T.y, R * 2.6, R * 0.7, (c) => drawTurretArt(c, T.x, T.y, T.face || 0, R, pal.enemy, px, t - (T.hurtAt ?? -99) < 0.1, t - (T.firedAt ?? -9)), { ...RAISE_B, live: true, sig: Math.round((T.face || 0) * 12) * 4 + (t - (T.hurtAt ?? -99) < 0.1 ? 1 : 0) + (t - (T.firedAt ?? -9) < 0.12 ? 2 : 0) });
-            if (T.hp < T.maxHp && !hideUi) { const bw = R * 2.4; ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(T.x - bw / 2, T.y + R * 1.5, bw, px(3)); ctx.fillStyle = pal.enemy; ctx.fillRect(T.x - bw / 2, T.y + R * 1.5, bw * T.hp / T.maxHp, px(3)); }
+            if (!VIEW.p3) drawDamage(ctx, T.x, T.y, R * 1.2, T.hp / T.maxHp, (b.id || 1) * 13 + (Number(T.id) || 0), now, px);
           }
         }
         if (tgBs.has(b) && !hideUi) this._bracket(ctx, b.x, b.y, r * 1.5, px(1.8), pal.ally);
@@ -628,11 +629,7 @@ export class Renderer {
       if (tgBs.has(b) && !hideUi) this._bracket(ctx, b.x, b.y, r * 1.5, px(1.8), pal.ally);
       if (b.cannon && !b.destroyed) labels.push({ x: b.x, y: b.y, dy: -r * scale * 1.3 - 18, text: tr('lab.cannon'), col: pal.enemy, pri: 2 });
       if (b === sqBase && !b.fortress && !b.cannon) labels.push({ x: b.x, y: b.y, dy: -r * scale * 1.3 - 4, text: tr('lab.base'), col: 'rgba(215,230,220,0.9)' });
-      if ((b.hp < b.maxHp || b.fortress) && !hideUi) {
-        const bw = r * 2.2, f = b.hp / b.maxHp;
-        ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(b.x - bw / 2, b.y + r * 1.25, bw, px(4));
-        ctx.fillStyle = pal.enemy; ctx.fillRect(b.x - bw / 2, b.y + r * 1.25, bw * f, px(4));
-      }
+      if (!VIEW.p3 && b.maxHp > 0) drawDamage(ctx, b.x, b.y, r, b.hp / b.maxHp, b.id || 1, now, px);     // (0.52) a base, cannon or node shows its damage on itself: no bar
     }
 
     nm(nm0);
@@ -648,11 +645,11 @@ export class Renderer {
     drawHoles(ctx, m, now, px, labels, scale, pal);
     drawObjectives(ctx, m, now, px, labels, scale, pal);
     drawEvac(ctx, m, now, px, labels, scale);
-    drawSquadOrders(ctx, m, now, px, labels, scale, pal);
+    { const l0 = VIEW.loud; VIEW.loud = true; drawSquadOrders(ctx, m, now, px, labels, scale, pal); VIEW.loud = l0; }     // (orders are what the player asked to see)
 
     // Inbound strikes, drops and warnings, and laser beams
     const outl = !!(this.settings && this.settings.showBlasts); setShowBlasts(outl);
-    drawMarkers(ctx, m, now, px, labels, scale, outl);
+    { const l0 = VIEW.loud; VIEW.loud = true; drawMarkers(ctx, m, now, px, labels, scale, outl); VIEW.loud = l0; }     // (the player's own strikes and pods coming down)
     for (const bm of m.beams) {
       if (t < bm.start) continue;
       const r = Math.max(bm.width / 2, px(5));
@@ -826,6 +823,7 @@ export class Renderer {
     drawMotherGround(ctx, m, now, labels, scale);
     drawDrops(ctx, m, now, px, labels, scale, pal);
     drawSupply(ctx, m, now, px, labels, scale, (team) => (m.teams[team] ? m.teams[team].color : '#9dffb8'));
+    VIEW.loud = true;     // (0.52) from here on it is the player's own marks: a line being drawn, the aim
     if (ui.draw) drawStroke(ctx, m, now, px, labels, scale, ui.draw);
 
     // (0.22) The plan made in the pause: each order, build, drop and call where it will go, numbered in the order they go out
@@ -861,12 +859,15 @@ export class Renderer {
       labels.push({ x: best.x, y: best.y, dy: -br * scale * 1.5 - 8, text: name || `${Math.round(f * 100)}%`, col, pri: 3, bars: [bar] });
     }
     if (this._sm3) {
-      const smoke = (o, r) => { if (!(o.maxHp > 0) || o.hp > o.maxHp * 0.5) return; const bad = o.hp < o.maxHp * 0.25, n = bad ? 3 : 2;
+      const smoke = (o, r) => { if (!(o.maxHp > 0) || o.hp > o.maxHp * 0.55) return; const bad = o.hp < o.maxHp * 0.3, n = bad ? 3 : 2;     // (0.52) under about half it smokes; under a third the smoke is black and it burns
         const id = Number.isFinite(Number(o.id)) ? Number(o.id) : o.x * 0.61 + o.y * 0.37;     // (0.49.1) a base turret's id is text ('3.t0'): as a number it was NaN, the puff had no age, and the 3D frame died on it
-        for (let k = 0; k < n; k++) { const q = ((t * (bad ? 0.5 : 0.36) + k / n + id * 0.37) % 1 + 1) % 1; this._sm3.push({ x: o.x + Math.sin(id * 3.1 + k * 2.4) * r * 0.3 + q * 1.5, y: o.y + Math.cos(id * 1.7 + k) * r * 0.3, r: r * (0.35 + 0.7 * q), up: r * 0.6 + q * (bad ? 11 : 8), p: 0.15 + q * 0.85, col: bad ? '#2c2c2c' : '#4a4e4a' }); } };
+        for (let k = 0; k < n; k++) { const q = ((t * (bad ? 0.5 : 0.36) + k / n + id * 0.37) % 1 + 1) % 1; this._sm3.push({ x: o.x + Math.sin(id * 3.1 + k * 2.4) * r * 0.3 + q * 1.5, y: o.y + Math.cos(id * 1.7 + k) * r * 0.3, r: r * (0.35 + 0.7 * q), up: r * 0.6 + q * (bad ? 11 : 8), p: 0.15 + q * 0.85, col: bad ? '#2c2c2c' : '#4a4e4a' }); }
+        if (bad && this._o3) for (let k = 0; k < 3; k++) { const fl = 0.6 + 0.4 * Math.sin(t * (9 + k * 2.3) + id + k * 2.1); this._o3.push({ x: o.x + Math.sin(id * 2.3 + k * 2.1) * r * 0.35, y: o.y + Math.cos(id * 1.3 + k * 2.6) * r * 0.35, up: r * (0.25 + 0.2 * k) + fl * 0.3, r: r * 0.16 * fl, col: k % 2 ? '#ff7a2a' : '#ffc14a' }); } };
       const hx = W / scale / 2, nearC = (o) => Math.abs(o.x - v.camX) < hx && Math.abs(o.y - v.camY) < hx;
       for (const b of m.bases || []) if (!b.destroyed) { for (const sp of b.spawners || []) if (!sp.dead && nearC(sp)) smoke(sp, sp.r || 5); for (const T of b.turrets || []) if (!T.dead && nearC(T)) smoke(T, (T.r || 2) * 1.2); }
       for (const p of m.posts || []) if (!p.dead && !p.ghost && nearC(p)) smoke(p, 2.4);
+      for (const b of m.bases || []) if (!b.destroyed && !b.spawners && nearC(b)) smoke(b, (b.r || 8) * 0.5);     // (0.52) a cannon, a node or a single base
+      for (const q of m.pois || []) if (!q.done && nearC(q)) smoke(q, (q.r || 12) * 0.3);     // and the enemy's side sites
     }
     if (amb) this.light.glow(ctx, amb, lowFx);
 
@@ -874,7 +875,7 @@ export class Renderer {
     if (real) {     // lay the turned world on the screen
       const wc = this._wc, S = this.W; this.ctx = real.ctx; this.W = real.W; this.H = real.H; this.focusY = real.focusY; this._real = null; ctx = this.ctx; W = this.W; H = this.H;
       ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
-      if (g3) { const t0 = performance.now(); g3.frame({ sheet: wc, S, scale, camX: v.camX, camY: v.camY, yaw: cam.yaw, tilt: cam.tilt || cam.passTilt, W, H, fy: this.focusY || 0.5, sun: this._sun, height: (x, y) => m.terrain.height(x, y), blocks: this._blocks(m, v.camX, v.camY, S / scale / 2), props: VIEW.p3 ? this._props(m, v.camX, v.camY, S / scale / 2, pal) : null, lit: 1 - Math.min(0.6, (this._dark || 0) * 0.75), units: U3, drops: D3, shells: S3, strobes: B3, blasts: X3, bolts: T3, orbs: O3, domes: DM3, puffs: SM3, hot: cam.sight === 'whot' || cam.sight === 'bhot', pixel: cam.pixel || 0, gunUp: VIEW.ts ? 1.4 : 3.6, rings: this._rings, sight: cam.sight, topo: !!cam.topo, ground: this.groundCv, groundRev: this.groundRev || 0, size: SIZE, post: !(this.quality === 'low' || this.perf.low), shadows: VIEW.sh });
+      if (g3) { const t0 = performance.now(); g3.frame({ sheet: wc, S, scale, camX: v.camX, camY: v.camY, yaw: cam.yaw, tilt: cam.tilt || cam.passTilt, W, H, fy: this.focusY || 0.5, sun: this._sun, height: (x, y) => m.terrain.height(x, y), blocks: this._blocks(m, v.camX, v.camY, S / scale / 2), props: VIEW.p3 ? this._props(m, v.camX, v.camY, S / scale / 2, pal) : null, lit: 1, dark: this._dark > 0.005 ? this.light.mask : this.fog, /* (0.52) the models take the night from the same mask as the ground, light by light: not one dimmer for all of them */ units: U3, drops: D3, shells: S3, strobes: B3, blasts: X3, bolts: T3, orbs: O3, domes: DM3, puffs: SM3, hot: cam.sight === 'whot' || cam.sight === 'bhot', pixel: cam.pixel || 0, gunUp: VIEW.ts ? 1.4 : 3.6, rings: this._rings, sight: cam.sight, topo: !!cam.topo, ground: this.groundCv, groundRev: this.groundRev || 0, size: SIZE, post: !(this.quality === 'low' || this.perf.low), shadows: VIEW.sh, shadowRes: this.quality === 'low' || this.perf.low ? 1024 : (this.perf.tier || 0) >= 1 ? 2048 : 4096 });
         if (!g3.sighted) ctx.filter = cam.sight === 'whot' ? 'grayscale(1) brightness(1.3) contrast(1.15)' : cam.sight === 'bhot' ? 'grayscale(1) brightness(1.3) invert(1) contrast(1.12)' : 'none';     // (only where the graphics card could not put the sight on itself)
         ctx.drawImage(g3.cv, 0, 0); ctx.filter = 'none'; this._g3on = true; this.t3 = (this.t3 || 0) + (performance.now() - t0 - (this.t3 || 0)) * 0.08; }     // (the sight: infrared white-hot, black-hot, or plain colour)
       else { ctx.translate(v.px, v.py); ctx.rotate(cam.yaw); ctx.drawImage(wc, -S / 2, -S / 2); }
@@ -1541,7 +1542,7 @@ export class Renderer {
           ctx.lineTo(-s * 0.3, s * 0.12); ctx.lineTo(-s * 0.5, s * 0.82); ctx.lineTo(-s * 0.32, s * 0.82); ctx.lineTo(s * 0.12, s * 0.12); ctx.lineTo(s * 0.55, s * 0.09);
           ctx.closePath(); ctx.fillStyle = fill; ctx.fill(); if (line) { ctx.strokeStyle = line; ctx.lineWidth = px(1); ctx.stroke(); }
         };
-        ctx.save(); ctx.translate(x + s * 1.05, y + s * 0.76); ctx.rotate(ang); jet('rgba(0,0,0,0.22)'); ctx.restore();     // its shadow (0.61.3: down and to the right, as every other)
+        if (!VIEW.air) { ctx.save(); ctx.translate(x + s * 1.05, y + s * 0.76); ctx.rotate(ang); jet('rgba(0,0,0,0.22)'); ctx.restore(); }     // its shadow (0.61.3: down and to the right, as every other; 0.52: in 3D the sun's own)
         if (VIEW.air) { VIEW.air.push({ k: 'jet', x, y, r: trueR('jet', 9), face: ang, up: 38 }); continue; }     // (GC 0.24) in 3D the Striker is a jet in the air over its shadow
         ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
         ctx.strokeStyle = 'rgba(255,255,255,0.28)'; ctx.lineWidth = px(1.2); ctx.beginPath(); ctx.moveTo(-s * 0.95, 0); ctx.lineTo(-s * 4.5, 0); ctx.stroke();     // the trail

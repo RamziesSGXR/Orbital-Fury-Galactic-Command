@@ -244,8 +244,10 @@ export function drawDropships(ctx, m, now, px, labels, scale, pal) {
     }
     // shadow on the ground, further from the craft the higher it is
     const off = 4 + alt * 26;
+    if (!VIEW.air) {     // (0.52) in 3D the sun gives the craft its shadow: no drawn one
     ctx.fillStyle = 'rgba(0,0,0,0.18)'; dshipBody(ctx, p.x + off * 1.05, p.y + off * 0.76, ang, s * 1.08); ctx.fill();
     ctx.fillStyle = 'rgba(0,0,0,0.42)'; dshipBody(ctx, p.x + off * 1.05, p.y + off * 0.76, ang, s * 0.92); ctx.fill();
+    }
     if (VIEW.air) {     // (GC 0.24) in 3D it is a craft in the air over its shadow, its crate slung under it
       VIEW.air.push({ k: 'dship', x: p.x, y: p.y, r: trueR('dship', 8), face: ang, up: 6 + alt * 46 });
       if (p.cargo && !p.cargo.landed) VIEW.air.push({ k: 'crate', x: p.x, y: p.y, r: trueR('crate', 2.2), face: ang, up: (VIEW.ts ? 3.5 : 1.5) + alt * 46 });

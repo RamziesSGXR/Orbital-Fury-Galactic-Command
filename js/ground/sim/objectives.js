@@ -153,11 +153,11 @@ export function objectiveGoal(m) {
   const o = activeObjective(m);
   if (!o) return null;
   if (o.type === 'fortress') { const hg = demochargeGoal(m, o); return hg ? { o, ...hg } : { o, base: nextPart(m, o) }; }
-  if (o.type === 'oil') return { o, x: o.x, y: o.y, stop: 12 };
+  if (o.type === 'oil') return { o, x: o.x, y: o.y, stop: 15 };     // (0.52) clear of the rig, which is solid to its edge: they hold the ground round it, in the open, where they can move and shoot
   if (o.type === 'gun') return { o, x: o.x, y: o.y, stop: 14 };
   if (o.type === 'cannon') return { o, base: o.base };
   if (o.type === 'dome') return { o, base: nextDomePart(m, o) };
-  if (o.type === 'nuke') return { o, x: o.x, y: o.y, stop: 14 };
+  if (o.type === 'nuke') return { o, x: o.x, y: o.y, stop: 20 };     // (0.52) clear of the launch pad (14 m, solid to its edge): nobody stands on the site itself
   if (o.type === 'evac') return { o, x: o.x, y: o.y, stop: 16 };
   const going = o.state === 'carry' || o.state === 'deliver';
   return { o, x: going ? o.dx : o.vip.x, y: going ? o.dy : o.vip.y, stop: going ? 12 : 8 };

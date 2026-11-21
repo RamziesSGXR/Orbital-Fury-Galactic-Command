@@ -39,6 +39,7 @@ export class Ground3D {
     // (0.37) THE LAND'S TWO PICTURES. The ground itself (the map's own image) is a picture that is sent to the graphics card
     // once and stays there; what is drawn on the ground this frame (zones, tracks, the dark where nobody is looking) is a
     // second, see-through picture laid over it. Before, the two were one picture, drawn and sent whole every frame.
+    this.uDark = { value: null }; this.uDkOn = { value: 0 }; this.uDkO = { value: new THREE.Vector3() };     // (0.52) the dark of the night and of the unseen, for the models (see _night)
     this.uGround = { value: null }; this.uOver = { value: null }; this.uInv = { value: 1 / 1600 }; this.uTopo = { value: 0 }; this.uAmp = { value: V3.amp };
     const two = (mat) => { mat.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, { tGround: this.uGround, tOver: this.uOver, uInv: this.uInv, uTopo: this.uTopo, uAmp: this.uAmp });
@@ -102,6 +103,16 @@ export class Ground3D {
     // (0.49.1) The sheet's canvas changes size (the window, the zoom, or the quality stepping down) while staying the same canvas.
     // The graphics card keeps a texture at the size it was first sent, so a resized sheet went into a corner of the old one: the
     // dark of the unseen and the rings lay shrunk and off to one side of where they belong. A new size is a new texture.
+    // (0.52) THE NIGHT ON THE MODELS. The ground has always gone dark at night with the light of every torch, lamp and blast
+    // carved out of it, but that was painted on the ground alone: people and buildings stood fully lit in the dark, and a
+    // flashlight lit the grass and not the man in its beam. The same mask (the night with its lights cut out, and the dark of
+    // the unseen) is now given to every model's material, read at the place the model stands: what the ground is, they are.
+    { const dk = o.dark || null, L0 = S / scale;
+      if (dk && dk.width > 0) {
+        if (!this.dtex || this.dtex.image !== dk || this._dw !== dk.width || this._dh !== dk.height) { if (this.dtex) this.dtex.dispose(); this._dw = dk.width; this._dh = dk.height; this.dtex = new THREE.CanvasTexture(dk); this.dtex.generateMipmaps = false; this.dtex.minFilter = THREE.LinearFilter; this.dtex.magFilter = THREE.LinearFilter; this.uDark.value = this.dtex; }
+        this.dtex.needsUpdate = true; this.uDkOn.value = 1; this.uDkO.value.set(camX - L0 / 2, camY - L0 / 2, 1 / L0);
+      } else this.uDkOn.value = 0;
+      this._night(); }
     if (!this.tex || this.tex.image !== sheet || this._tw !== sheet.width || this._th !== sheet.height) { if (this.tex) this.tex.dispose(); this._tw = sheet.width; this._th = sheet.height; this.tex = new THREE.CanvasTexture(sheet); this.tex.premultiplyAlpha = true; this.tex.generateMipmaps = false; this.tex.minFilter = THREE.LinearFilter; this.tex.magFilter = THREE.LinearFilter; this.uOver.value = this.tex; }
     this.tex.needsUpdate = true;
     // the ground's own picture: sent again only when it has changed (the hour's light, a new scorch mark), and then no more than four times a second
@@ -141,8 +152,23 @@ export class Ground3D {
     // the light falls the way the map's own shading says it does (from the north-west when the hour has no sun)
     const lx = sun ? sun.lx : -0.6, lz = sun ? sun.ly : -0.6; this.sun.position.set(camX + lx * 400, ly + 300, camY + lz * 400); this.sun.target.position.set(camX, ly, camY); this.sun.target.updateMatrixWorld();
     // the shadows' own camera: square on the ground in view, no wider than it need be (so a shadow keeps its edge)
-    { const on = o.shadows !== false, sh = this.sun.shadow, sc = sh.camera, half = Math.max(60, Math.min(S / scale / 2, d * 1.15)); if (this.sun.castShadow !== on) { this.sun.castShadow = on; this.mat.needsUpdate = true; this.bmat.needsUpdate = true; }
-      if (on && (sc.right !== half || !this._shOk)) { sc.left = -half; sc.right = half; sc.top = half; sc.bottom = -half; sc.near = 10; sc.far = 1400; sc.updateProjectionMatrix(); this._shOk = true; } }
+    // (0.52) At true scale a soldier is two metres tall, and the shadows were made for people three times that: the map was spread
+    // over more ground than the screen shows (a quarter of a metre to a texel), offset half a metre off every surface (so a
+    // person's shadow stood apart from his feet), and slid under the view as it moved (so edges crawled). Now it covers what is
+    // on screen and no more, the offsets follow the texel's size, and it moves in whole texels, so a shadow stays where it is.
+    { const on = o.shadows !== false, sh = this.sun.shadow, sc = sh.camera, half = Math.max(30, Math.min(320, Math.max(W / scale * 0.62, H / scale * 0.9))), res = Math.min(o.shadowRes || 2048, this.r.capabilities.maxTextureSize >= 8192 ? 4096 : 2048);
+      if (this.sun.castShadow !== on) { this.sun.castShadow = on; this.mat.needsUpdate = true; this.bmat.needsUpdate = true; }
+      if (sh.mapSize.x !== res) { sh.mapSize.set(res, res); if (sh.map) { sh.map.dispose(); sh.map = null; } }
+      if (on) {
+        const tex = 2 * half / res, dx = lx * 400, dy = 300, dz = lz * 400, dl = Math.hypot(dx, dy, dz), nx = dx / dl, ny = dy / dl, nz = dz / dl;     // towards the sun
+        let rx = nz, rz = -nx; const rl = Math.hypot(rx, rz) || 1; rx /= rl; rz /= rl;     // across the light (level)
+        const ux = ny * rz, uy = nz * rx - nx * rz, uz = -ny * rx;     // and up it
+        const a = camX * rx + camY * rz, b = camX * ux + ly * uy + camY * uz, da = Math.round(a / tex) * tex - a, db = Math.round(b / tex) * tex - b;
+        const tx = camX + rx * da + ux * db, ty = ly + uy * db, tz = camY + rz * da + uz * db;
+        this.sun.position.set(tx + dx, ty + dy, tz + dz); this.sun.target.position.set(tx, ty, tz); this.sun.target.updateMatrixWorld();
+        sh.normalBias = Math.min(0.5, tex * 1.6); sh.bias = -0.0004;
+        if (sc.right !== half || !this._shOk) { sc.left = -half; sc.right = half; sc.top = half; sc.bottom = -half; sc.near = 10; sc.far = 1400; sc.updateProjectionMatrix(); this._shOk = true; }
+      } }
     this.scene.fog.near = d * 1.35; this.scene.fog.far = d * 6;
     // the ship's gun hangs under the gunship, off to the right of the sight: its shells come in from the edge of the picture
     let fxErr = null;     // (0.49.1) a fault in the effects must not stop the picture being drawn: it is kept, the frame is drawn, then it is passed on to the report
@@ -193,6 +219,27 @@ export class Ground3D {
     }
     const P = this.pix; if (P.w !== w || P.h !== h) { P.rt.setSize(w, h); P.w = w; P.h = h; P.mat.uniforms.uRes.value.set(w, h); }
     return P;
+  }
+  // every lit material in the scene but the land's own (which wears the mask already, in the sheet laid over it) reads the dark
+  // at its place and is dimmed by it. Done once for each material as it turns up; the glowing ones (lamps, flames) are left alone.
+  _night() {
+    const U = this, skip = (m) => !m || m._gcNight || !m.isMeshLambertMaterial;
+    if (!this._nightSet) { this._nightSet = true; this.mat._gcNight = true; if (this.bmat) this.bmat._gcNight = true; }
+    const fix = (m) => {
+      if (skip(m)) return; m._gcNight = true;
+      const prev = m.onBeforeCompile, key = m.customProgramCacheKey ? m.customProgramCacheKey.bind(m) : null;
+      m.onBeforeCompile = (sh, r) => {
+        if (prev) prev.call(m, sh, r);
+        sh.uniforms.tDark = U.uDark; sh.uniforms.uDkOn = U.uDkOn; sh.uniforms.uDkO = U.uDkO;
+        sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform vec3 uDkO; varying vec2 vDk;')
+          .replace('#include <project_vertex>', '#include <project_vertex>\n{ vec4 gw = vec4(transformed, 1.0);\n#ifdef USE_INSTANCING\n gw = instanceMatrix * gw;\n#endif\n gw = modelMatrix * gw; vDk = vec2((gw.x - uDkO.x) * uDkO.z, 1.0 - (gw.z - uDkO.y) * uDkO.z); }');
+        sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D tDark; uniform float uDkOn; varying vec2 vDk;')
+          .replace('#include <color_fragment>', '#include <color_fragment>\nif (uDkOn > 0.0) { diffuseColor.rgb *= 1.0 - texture2D(tDark, vDk).a * uDkOn; }');
+      };
+      m.customProgramCacheKey = () => (key ? key() : '') + '|gcnight';
+      m.needsUpdate = true;
+    };
+    this.scene.traverse((o) => { const m = o.material; if (!m) return; if (Array.isArray(m)) m.forEach(fix); else fix(m); });
   }
   _post(W, H) {
     if (this.post === null || window.__nopost) return null;

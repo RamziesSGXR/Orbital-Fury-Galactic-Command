@@ -40,19 +40,34 @@ def lattice(name, n, r0, r1, z0, z1, levels, m, rl=0.035, rb=0.018, a0=0.0):
             cyl('%s_d%d_%d' % (name, k, i), pt(i, zs[k - 1]), pt((i + 1) % n, zs[k]), rb, m=m, sides=4)
 
 # ---------------------------------------------------------------- objectives
-def silo():     # the warhead's launch site: an apron, the silo with its hatch swung open, the missile's nose, a bunker
+def silo():     # the warhead's launch site at its true size (the game draws it 14 m in radius, so 1 m is 0.0714 here): a flat
+                # apron a soldier can stand on, the silo's mouth with its two doors slid back flat on their rails, the missile's
+                # nose standing out of it, a low bunker, a mast and two floodlights. Nothing but the missile, the bunker and the
+                # poles stands over a soldier's head, so nobody holding the site is hidden by it.
     start('site_silo')
-    disc('apron', 1.0, 0.1, 0, conc, 10); disc('apron2', 0.76, 0.05, 0.1, conc_d, 10); disc('collar', 0.46, 0.2, 0.12, steel, 12); disc('shaft', 0.37, 0.02, 0.31, black, 12)
-    loft('missile', [((0, 0, 0.2), 0.24, 0.24), ((0, 0, 0.78), 0.24, 0.24), ((0, 0, 1.08), 0.14, 0.14), ((0, 0, 1.26), 0.01, 0.01)], sides=10, m=hull)
-    disc('band', 0.248, 0.08, 0.6, red, 10)
+    lit = mat('s_lit', '#fff2d0', emit=2.0)
+    disc('apron', 1.0, 0.022, 0, conc, 12); disc('apron2', 0.62, 0.008, 0.022, conc_d, 12)
+    disc('scorch', 0.4, 0.003, 0.0305, burnt, 12)
+    disc('collar', 0.27, 0.05, 0.022, steel, 12); disc('shaft', 0.215, 0.006, 0.072, black, 12)
+    loft('missile', [((0, 0, 0.06), 0.088, 0.088), ((0, 0, 0.36), 0.088, 0.088), ((0, 0, 0.47), 0.055, 0.055), ((0, 0, 0.54), 0.004, 0.004)], sides=10, m=hull)
+    disc('band', 0.091, 0.03, 0.27, red, 10); disc('band2', 0.0905, 0.012, 0.12, steel_d, 10)
     for s in (-1, 1):
-        box('hatch%d' % s, (0.44, 0.9, 0.07), (s * 0.74, 0, 0.5), m=steel_d, bevel=0.015, rot=(0, s * R(62), 0))
-        cyl('ram%d' % s, (s * 0.5, 0.3, 0.3), (s * 0.7, 0.3, 0.52), 0.03, m=hazard, sides=5)
-    box('bunker', (0.5, 0.36, 0.3), (-0.5, -0.74, 0.24), m=conc, bevel=0.03, rot=(0, 0, R(28))); box('slit', (0.3, 0.03, 0.06), (-0.58, -0.9, 0.3), m=black, rot=(0, 0, R(28)))
-    cyl('mast', (-0.72, -0.6, 0.36), (-0.72, -0.6, 1.3), 0.02, m=steel_d, sides=5); lamp('mastlamp', (-0.72, -0.6, 1.33), red)
-    for i in range(6):
-        a = i / 6 * TAU + 0.5; x, y = math.cos(a) * 0.92, math.sin(a) * 0.92
-        cyl('post%d' % i, (x, y, 0.1), (x, y, 0.42), 0.035, m=hazard, sides=5); lamp('pl%d' % i, (x, y, 0.45), red, 0.045)
+        box('door%d' % s, (0.26, 0.5, 0.03), (s * 0.44, 0, 0.075), m=steel_d, bevel=0.006)
+        box('stripe%d' % s, (0.03, 0.5, 0.004), (s * 0.325, 0, 0.092), m=hazard)
+        for t in (-1, 1): box('rail%d%d' % (s, t), (0.42, 0.02, 0.014), (s * 0.5, t * 0.2, 0.05), m=steel)
+    box('bunker', (0.42, 0.28, 0.19), (-0.52, -0.66, 0.115), m=conc, bevel=0.012, rot=(0, 0, R(28)))
+    box('slit', (0.26, 0.012, 0.03), (-0.588, -0.788, 0.15), m=black, rot=(0, 0, R(28)))
+    box('roof', (0.46, 0.32, 0.016), (-0.52, -0.66, 0.218), m=conc_d, bevel=0.004, rot=(0, 0, R(28)))
+    box('duct', (0.03, 0.44, 0.01), (-0.3, -0.38, 0.035), m=steel_d, rot=(0, 0, R(-38)))
+    box('vent1', (0.07, 0.07, 0.05), (0.2, -0.36, 0.055), m=steel, bevel=0.006); box('vent2', (0.07, 0.07, 0.05), (0.31, -0.3, 0.055), m=steel, bevel=0.006)
+    cyl('mast', (-0.76, -0.46, 0.022), (-0.76, -0.46, 0.86), 0.008, m=steel_d, sides=5); lamp('mastlamp', (-0.76, -0.46, 0.876), red, 0.016)
+    for i, (x, y) in enumerate(((0.7, 0.6), (-0.58, 0.72))):
+        cyl('flood%d' % i, (x, y, 0.022), (x, y, 0.52), 0.008, m=steel_d, sides=5)
+        box('floodhead%d' % i, (0.07, 0.035, 0.03), (x * 0.985, y * 0.985, 0.53), m=steel_d, rot=(0, 0, math.atan2(y, x) + math.pi / 2)); lamp('floodlamp%d' % i, (x * 0.965, y * 0.965, 0.525), lit, 0.014)
+    for i in range(10):
+        a = i / 10 * TAU + 0.3; x, y = math.cos(a) * 0.95, math.sin(a) * 0.95
+        cyl('post%d' % i, (x, y, 0.022), (x, y, 0.097), 0.008, m=hazard, sides=5)
+        if i % 2 == 0: lamp('pl%d' % i, (x, y, 0.104), red, 0.012)
 def crash():    # a shuttle that came down hard: nose dug in, a wing torn off, the ground burnt round it
     start('site_crash')
     disc('scorch', 0.98, 0.015, 0, burnt, 9)
@@ -122,14 +137,23 @@ def radio():    # a radio mast to bring back on the air: the mast, its dishes, t
         a = i / 3 * TAU + math.pi / 3; cyl('guy%d' % i, (math.cos(a) * 0.12, math.sin(a) * 0.12, 2.6), (math.cos(a) * 0.82, math.sin(a) * 0.82, 0.06), 0.012, m=black, sides=3)
     box('hut', (0.5, 0.4, 0.36), (0.5, 0.42, 0.24), m=olive, bevel=0.03, rot=(0, 0, R(18))); box('door', (0.16, 0.03, 0.26), (0.44, 0.22, 0.2), m=olive_d, rot=(0, 0, R(18)))
     box('gen', (0.26, 0.2, 0.2), (-0.5, 0.4, 0.16), m=steel, bevel=0.02); cyl('exh', (-0.5, 0.4, 0.26), (-0.5, 0.4, 0.5), 0.025, m=black, sides=5)
-def redoubt():  # your Infantry dug in and waiting for relief: sandbags in a ring, their flag, their stores
+def redoubt():  # your Infantry dug in, at its true size (the game draws it 8 m in radius, so 1 m is 0.125 here): a ring of
+                # sandbags chest high with a way in at the back, a gun at the wall, their flag, stores and a radio. Only the
+                # flag stands over a soldier's head, so the troopers inside are seen over their wall.
     start('side_redoubt')
-    disc('floor', 0.82, 0.03, 0, dirt, 10)
-    bags('a', 0.86, 12, 0.11, bag, a0=R(120), arc=R(300)); bags('b', 0.85, 11, 0.32, bag_d, a0=R(133), arc=R(275)); bags('c', 0.84, 5, 0.52, bag, a0=R(225), arc=R(95))
-    cyl('pole', (0.18, 0.2, 0.03), (0.18, 0.2, 1.95), 0.02, m=steel_d, sides=5); box('flag', (0.5, 0.02, 0.3), (0.45, 0.2, 1.76), m=flagc)
-    box('crate1', (0.3, 0.2, 0.18), (-0.3, 0.3, 0.12), m=olive, bevel=0.015, rot=(0, 0, R(20))); box('crate2', (0.24, 0.18, 0.16), (-0.26, 0.28, 0.29), m=wood, bevel=0.015, rot=(0, 0, R(-10)))
-    box('mg', (0.07, 0.3, 0.07), (0, -0.74, 0.66), m=black); cyl('mgb', (0, -0.86, 0.67), (0, -1.12, 0.69), 0.02, m=black, sides=5)
-    disc('fire', 0.1, 0.05, 0.03, burnt, 6, at=(0.1, -0.2))
+    disc('floor', 0.9, 0.012, 0, dirt, 12)
+    n = 14; arc = R(300); a0 = R(120); seg = 2 * 0.84 * math.sin(arc / n / 2) * 1.05
+    for i in range(n):
+        a = a0 + arc * (i + 0.5) / n
+        box('wall%d' % i, (seg, 0.09, 0.105), (math.cos(a) * 0.84, math.sin(a) * 0.84, 0.0645), m=bag_d, bevel=0.012, rot=(0, 0, a + math.pi / 2))
+    bags('t', 0.84, 26, 0.137, bag, a0=a0, arc=arc, size=0.05)
+    cyl('pole', (0.2, 0.25, 0.012), (0.2, 0.25, 0.8), 0.008, m=steel_d, sides=5); box('flag', (0.2, 0.008, 0.12), (0.305, 0.25, 0.73), m=flagc)
+    box('crate1', (0.14, 0.1, 0.09), (-0.3, 0.3, 0.057), m=olive, bevel=0.006, rot=(0, 0, R(20))); box('crate2', (0.11, 0.09, 0.08), (-0.29, 0.29, 0.142), m=wood, bevel=0.006, rot=(0, 0, R(-10)))
+    box('ammo1', (0.06, 0.035, 0.035), (-0.12, 0.42, 0.03), m=olive_d, rot=(0, 0, R(40))); box('ammo2', (0.06, 0.035, 0.035), (-0.05, 0.47, 0.03), m=olive_d, rot=(0, 0, R(-15)))
+    box('mg', (0.02, 0.11, 0.02), (0, -0.8, 0.2), m=black); cyl('mgb', (0, -0.85, 0.203), (0, -0.99, 0.208), 0.006, m=black, sides=5)
+    for s in (-1, 1): cyl('mgleg%d' % s, (0, -0.8, 0.19), (s * 0.04, -0.74, 0.14), 0.004, m=black, sides=4)
+    box('radio', (0.05, 0.04, 0.05), (0.42, -0.2, 0.037), m=olive_d, bevel=0.004); cyl('aerial', (0.43, -0.2, 0.06), (0.43, -0.2, 0.36), 0.003, m=black, sides=4)
+    disc('fire', 0.05, 0.012, 0.012, burnt, 6, at=(0.1, -0.15))
 def howitzer(): # an abandoned field gun in its pit: take it and it fires for you
     start('side_howitzer')
     disc('floor', 0.84, 0.03, 0, dirt, 10)
