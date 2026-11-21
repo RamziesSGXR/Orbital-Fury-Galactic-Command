@@ -128,7 +128,7 @@ export function fireUltimatum(m, a, e) {
   const U = K.ult, rng = m.rng, hit = rng.next() < U.acc, hp = hpNow(m);
   const dmg = e.boss ? e.maxHp * U.bossFrac : e.maxHp * U.kill;
   m.emit('tracer', { x: a.x, y: a.y, tx: e.x, ty: e.y, s: 'a', hit, big: true, fl: U.flight, snd: 'ult' });
-  if (a.face !== undefined) { a.aimA = Math.atan2(e.y - a.y, e.x - a.x); a.aimUntil = m.t + 0.8; }
+  if (a.face !== undefined) { a.aimA = Math.atan2(e.y - a.y, e.x - a.x); a.aimUntil = m.t + 0.8; a.bigAt = m.t; }     // (bigAt: for the picture only)
   // (0.26) the round is a blast: every enemy in it dies, whatever its armour or shield (a super heavy loses a big piece). It lands
   // where the target was; a miss lands short or wide, and the blast still takes what is there.
   void hp;

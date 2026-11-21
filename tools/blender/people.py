@@ -179,6 +179,21 @@ def p_walk(ph, mode='ready', armed=True):
 def p_kneel(): zero(J('root')); shift('pelvis', z=-0.47); turn('hip.L', x=-1.45); turn('knee.L', x=1.45); turn('hip.R', x=0.12); turn('knee.R', x=1.5); turn('torso', x=0.1); hold('aim')
 def p_down():
     zero(J('root')); turn('pelvis', x=-1.5708); shift('pelvis', z=-0.86); turn('sho.L', y=-1.1); turn('sho.R', y=1.2, x=0.3); turn('elbow.L', x=-0.5); turn('knee.L', x=0.6); turn('hip.L', x=-0.3, y=-0.15); turn('hip.R', y=0.12); turn('head', z=0.4); hold('gone')
+# (GC 0.50) FIRING AND COVER. The rifle kicks: back into the shoulder and up at the muzzle, the shoulders rocked back with it.
+# `fire` is that standing, `kfire` kneeling. `duck` is a man down behind a wall between shots: both knees bent low, the back
+# rounded, the head pulled in, the rifle held close and upright. `kw0-3` he gets his head up for a look and goes down again.
+def kick(k=1.0):
+    g = bpy.data.objects.get(PRE + 'gun')
+    if not g: return
+    g.location = (g.location[0], g.location[1] + 0.055 * k, g.location[2] + 0.012 * k); g.rotation_euler = (g.rotation_euler[0] + 0.09 * k, g.rotation_euler[1], g.rotation_euler[2])
+    reach(J('sho.R'), J('elbow.R'), wpt('gun', GRIP), L1, L2, pole=(-0.7, 0.5, -0.6)); reach(J('sho.L'), J('elbow.L'), wpt('gun', GUARD), L1, L2, pole=(0.5, 0.2, -1))
+def p_fire(): zero(J('root')); turn('elbow.L', x=-0.12); turn('elbow.R', x=-0.12); turn('torso', x=-0.07); hold('aim'); kick()
+def p_kfire(): zero(J('root')); shift('pelvis', z=-0.47); turn('hip.L', x=-1.45); turn('knee.L', x=1.45); turn('hip.R', x=0.12); turn('knee.R', x=1.5); turn('torso', x=0.03); hold('aim'); kick()
+def p_duck(up=0.0):
+    zero(J('root')); shift('pelvis', z=-0.5 + 0.05 * up); turn('hip.L', x=-1.5); turn('knee.L', x=1.6); turn('hip.R', x=0.1); turn('knee.R', x=1.55); turn('torso', x=0.5 - 0.3 * up); turn('head', x=0.3 - 0.45 * up)
+    if (PRE + 'gun') in bpy.data.objects:
+        at('gun', (-0.08, -0.17, 0.2), (1.2, 0, 0.25))
+        reach(J('sho.R'), J('elbow.R'), wpt('gun', GRIP), L1, L2, pole=(-0.7, 0.5, -0.6)); reach(J('sho.L'), J('elbow.L'), wpt('gun', GUARD), L1, L2, pole=(0.5, 0.2, -1))
 def p_hit(): zero(J('root')); turn('torso', x=-0.3, z=0.25); turn('head', x=-0.25); turn('hip.L', x=0.2); turn('knee.L', x=0.3); shift('pelvis', y=0.06); hold('ready')
 
 # WHAT THE BASE AND THE STATION ASK OF A PERSON (GC 0.42). A soldier's rifle goes on the back for anything done with the hands.
@@ -204,6 +219,7 @@ def frames(armed):
     for i in range(8): F['w%d' % i] = (lambda i=i: p_walk(i / 8 * 2 * math.pi, 'ready', armed))
     if armed:
         F['aim'] = lambda: p_stand('aim'); F['kneel'] = p_kneel; F['hit'] = p_hit
+        F['fire'] = p_fire; F['kfire'] = p_kfire; F['duck'] = p_duck; F['peek'] = lambda: p_duck(1.0)     # (GC 0.50)
         for i in range(8): F['a%d' % i] = (lambda i=i: p_walk(i / 8 * 2 * math.pi, 'aim', True))
         for i in range(8): F['m%d' % i] = (lambda i=i: p_drill(i / 8 * 2 * math.pi))
     for i in range(8): F['r%d' % i] = (lambda i=i: p_run(i / 8 * 2 * math.pi, armed))

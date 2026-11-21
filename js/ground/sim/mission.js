@@ -15,6 +15,7 @@ import { rollLoadout } from '../data/callin.js';
 import { newKit, newWallet, infantryStats, maxLives, zoneExtra, buy, equip, loadoutIds, buildStats, buildLevel, shopItems, payToward } from '../data/kit.js';
 import { infantryName } from '../data/names.js';
 import { updateSquad } from './squad.js';
+import { updateGait } from './gait.js';
 import { setupDefenders } from './defenders.js';
 import { initInfantry, busyWith, targetSquads, setSquadOrder, drawOrder, callDropship, pendingTroops, dropSquad, callCargo, boxSelect, setForm, pickTroops, toSquad, disband, PICKED, LOOSE, takeDropship, backCut, infantryHeld, makeLz, lzCount, selectSquads as infantrySelectSquads, mergeSquads as infantryMergeSquads } from './infantry.js';
 import { updatePosts, updateSam, garrisonPost, releaseGarrison, POSTS, makePost, INSIDE, foxSize, GARRISON, demolish, chains, chainPlan, wallShape, removePost, onEnemy, buildFoot, inCone } from './posts.js';
@@ -92,6 +93,7 @@ const STAGES = [
   ['vanguards', updateVanguards],
   ['evade', updateEvade],
   ['allies', updateAllies],
+  ['gait', updateGait],     // (GC 0.50) how fast each of yours is going, for the picture
   ['enemies', updateEnemies],
   ['lockScan', (m, dt) => m._lockScan(dt)],
   ['radar', (m) => m._radar()],
