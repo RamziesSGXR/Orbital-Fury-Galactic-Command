@@ -1166,7 +1166,7 @@ export class Renderer {
     for (const a of m.hdAlive) {
       const { x, y } = spot(a);
       if (x < -40 || y < -40 || x > W + 40 || y > H + 40) continue;
-      const tm = m.teams[a.team], text = m.tag(a), ty = y + Math.max(15 * d, 4.5 * scale + 11 * d);
+      const tm = m.teams[a.team], text = m.tag(a), ty = y + Math.max(15 * d, 4.5 * (VIEW.ts || 1) * scale + 11 * d);
       ctx.font = `bold ${mono(11)}`;
       const w = ctx.measureText(text).width + 8 * d;
       let off = 0, r = { l: x - w / 2, r: x + w / 2, t: ty - 11 * d, b: ty + 4 * d };
@@ -1181,7 +1181,7 @@ export class Renderer {
         if (a.inside) continue;
         const { x, y } = spot(a);
         if (x < -20 || y < -20 || x > W + 20 || y > H + 20) continue;
-        const text = m.tag(a), ty = y + 3.2 * scale + 10 * d, w = ctx.measureText(text).width + 6 * d;
+        const text = m.tag(a), ty = y + 3.2 * (VIEW.ts || 1) * scale + 10 * d, w = ctx.measureText(text).width + 6 * d;
         const r = { l: x - w / 2, r: x + w / 2, t: ty - 8 * d, b: ty + 3 * d };
         if (hit(r)) continue;
         placed.push(r);

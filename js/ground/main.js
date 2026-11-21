@@ -104,7 +104,7 @@ function lookStart(src) {
   if (src.hints != null) settings.cards = src.hints ? (settings.cards === 'off' ? 'side' : settings.cards) : 'off';     // (GC 0.40) the hints switch on the main menu is the one switch: it turns the tip cards down here on and off too
   // (pixel test) the pixel look and true scale, when the game was opened with them: closer to the ground, since people are their own size.
   // F6 turns the pixel look off and on, F7 the scale, so each can be set against the look as it was.
-  if (src.pixel) { cam.pixel = src.pixel === true ? 300 : src.pixel; VIEW.ts = src.scale ?? 0.4; C.world.viewWidth = 170; C.world.zoomMin = 40; const keep = { pixel: cam.pixel, ts: VIEW.ts };
+  if (src.pixel || src.scale) { cam.pixel = src.pixel === true ? 300 : src.pixel || 0; VIEW.ts = src.scale ?? 0.4; C.world.viewWidth = 170; C.world.zoomMin = 40; const keep = { pixel: cam.pixel || 300, ts: VIEW.ts || 0.4 };     // (either may be asked for without the other)
     window.addEventListener('keydown', (e) => { if (e.repeat) return; if (e.code === 'F6') { e.preventDefault(); cam.pixel = cam.pixel ? 0 : keep.pixel; } if (e.code === 'F7') { e.preventDefault(); VIEW.ts = VIEW.ts ? 0 : keep.ts; } }, true); }
   cam.livery = src.livery || null; cam.orbit = src.orbit ?? 1; cam.g3d = src.flat ? false : true;     // the land in 3D under the circling view     // the circling view: slow, as from high up; a full turn takes about twenty-six minutes of mission time
 }
