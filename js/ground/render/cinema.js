@@ -1,5 +1,5 @@
 // (0.19) The tutorial's two cinematics, drawn in code like everything else: Mars from space before the last stand, with the story
-// told a line at a time while the Great Host's lights close in; and after it, Mars burning while the Great Host's ships pass and
+// told a line at a time while the Talon host's lights close in; and after it, Mars burning while the Talon host's ships pass and
 // fire down on it. Full screen, over the game; any key, a click or a tap (or SKIP) ends one early.
 import { drawJellySide } from './jelly.js';
 import { Noise } from '../util/noise.js';
@@ -14,7 +14,7 @@ const ease = (t) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
 
 // ---------------------------------------------------------------- the planet
 // A latitude-longitude picture of Mars: rust plains, dark basalt, bright dust and the polar caps, from noise sampled on the sphere
-// (so it has no seam); and where it burns first when the Great Host fires on it.
+// (so it has no seam); and where it burns first when the Talon host fires on it.
 const TW = 512, TH = 256;
 let MARS = null;
 const texture = (kind) => (kind === 'fronteria' || kind === 'desert' ? fronteriaTexture() : TINTS[kind] ? tintedTexture(kind) : marsTexture());
@@ -174,7 +174,7 @@ function drawPlanet(cv, D, spin, burn, now, kind = 'mars', night = false) {
   ctx.putImageData(img, 0, 0);
 }
 
-// ---------------------------------------------------------------- the Great Host's ships: (0.53.5) the Talon's jellyfish,
+// ---------------------------------------------------------------- the Talon host's ships: (0.53.5) the Talon's jellyfish,
 // side-on as in the project lead's sketch (render/jelly.js). s: the old ships' scale (they were 2.4 s long): the cap is 1.6 s across.
 function drawShip(ctx, x, y, s, ang, glow, now, dark = false) {
   ctx.save(); ctx.translate(x, y); ctx.rotate(ang * 0.5);
@@ -396,7 +396,7 @@ export class Cinema {
     const end = this.dur - 1.6, zoom = t > end ? ease(clamp01((t - end) / 1.6)) : 0;
     const short = H / this.dpr < 520, R = M * (0.24 + 0.07 * clamp01(t / end)) * (1 + zoom * 5), cx = W * 0.5, cy = H * (short ? 0.4 : 0.44) + zoom * H * 0.1;
     this._planet(ctx, cx, cy, R, now, t * 0.05 + 1.3, 0);
-    // the Great Host: lights coming in from the dark once the story gets to it
+    // the Talon host: lights coming in from the dark once the story gets to it
     const show = this.times[1] ? clamp01((t - this.times[1].a) / 2) : 0;
     if (show > 0) for (const s of this.ships) {
       const x = (s.x - (t - this.times[1].a) * s.v) * W, y = s.y * H;

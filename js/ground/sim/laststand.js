@@ -1,8 +1,8 @@
-// (0.19) The tutorial: the last stand of the Head Office Special Forces at their base on Mars, 20 May 2185, the day the Talon
-// Great Host razed the planet on its way to Head Office. One mission that cannot be won. The base holds the last Dropships off Mars:
+// (0.19) The tutorial: the last stand of the Head Office Special Forces at their base on Mars, the day the Talon
+// host razed the planet on its way to Head Office. One mission that cannot be won. The base holds the last Dropships off Mars:
 // personnel run from the shelter to the hangar (the evacuation objective, civilians.js) and every Dropship that lifts takes a load
 // of them up to the fleet. The lessons (tutorial.js) come first, against small scripted groups; then the shelter opens and the
-// Great Host comes in waves that never stop, faster, bigger and stronger each time, until the last Vanguard falls. Then the fleet
+// Talon host comes in waves that never stop, faster, bigger and stronger each time, until the last Vanguard falls. Then the fleet
 // glasses the plain (a rain of beams across the map) and the mission ends 'glassed'. (0.53) It can be won: at winAt off Mars it is
 // MISSION COMPLETE, and the player fights on to the end or moves on (into the campaign, or to the main menu).
 import { CONFIG as C } from '../config.js';
@@ -102,7 +102,7 @@ export function lsSpawn(m, kind, ang) {
   return g;
 }
 
-// (0.37) The Demolition Charge lesson: the Great Host drops a cognitive disruptor near the base (off to the side, so the base itself is
+// (0.37) The Demolition Charge lesson: the Talon host drops a cognitive disruptor near the base (off to the side, so the base itself is
 // not jammed). The Vanguards go for it as a side task; it only falls to a Demolition Charge.
 export function lsJammer(m) {
   const o = m.objectives.find((q) => q.lastStand);
@@ -142,7 +142,7 @@ export function lsBegin(m) {
   return true;
 }
 
-// The glassing: the Great Host burns the plain. Nobody is left to come back.
+// The glassing: the Talon host burns the plain. Nobody is left to come back.
 function glass(m, why) {
   const ls = m.ls, o = m.objectives.find((q) => q.lastStand);
   ls.stage = 'glass'; ls.glassT = m.t; ls.fallen = why === 'fallen';

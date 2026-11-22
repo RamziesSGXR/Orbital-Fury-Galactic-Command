@@ -137,7 +137,7 @@ export function aimGeom(m, st) {
 // A shell lands. by says who fired it; friendly = whether it hurts allies (only the player's strikes do).
 function explode(m, sh) {
   const by = sh.by || 'player', friendly = sh.friendly !== false;
-  // (0.26) the Ultimatum: a blast that kills every enemy in it, through armour and shields; a super heavy loses a big piece
+  // (0.26) the Hand Cannon: a blast that kills every enemy in it, through armour and shields; a super heavy loses a big piece
   if (sh.ultAoe) {
     if (sh.miss) { const [ox, oy] = m.rng.inDisc(sh.ultAoe * 0.8); sh.x += ox; sh.y += oy; }
     else if (sh.lock && !sh.lock.dead) { sh.x = sh.lock.x; sh.y = sh.lock.y; }     // (it was locked on: it follows its target in)

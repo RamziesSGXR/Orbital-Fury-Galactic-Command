@@ -51,7 +51,7 @@ export function noise(m, x, y, r) {
 // Rifle profile per ally type: damage per burst is dps x burst seconds.
 const RIFLE = {};
 for (const k of ['H', 'S']) { const d = ALLY[k]; RIFLE[k] = { dmg: d.dps * d.burst, acc: d.acc, splash: 0, mult: { ...d.mult, B: 0.04 }, burst: d.burst, range: d.range }; }
-// (0.26) Infantry by role: the Squad Leader and Riflemen carry the Liberator (RIFLE.S), the Specialist the MG-43, the Medic the SMG-37
+// (0.26) Infantry by role: the Squad Leader and Riflemen carry the service rifle (RIFLE.S), the Specialist the machine gun, the Medic the submachine gun
 for (const [k, d] of [['spec', C.combat.infantryMg], ['medic', C.combat.infantrySmg]]) RIFLE[k] = { dmg: d.dps * d.burst, acc: d.acc, splash: 0, mult: { ...d.mult, B: 0.04 }, burst: d.burst, range: d.range };
 const gunOf = (a) => (a.type === 'H' ? RIFLE.H : RIFLE[a.role] || RIFLE.S);
 
@@ -66,7 +66,7 @@ export function updateAllies(m, dt) {
     const mechOn = a.mech && a.mech.hp > 0 && (a.mech.gat > 0 || a.mech.rkt > 0);
     const H = a.type === 'H';
 
-    // Rifle (the Liberator for a Vanguard): a burst every half second or so at the nearest enemy in range that has a clear lane;
+    // Rifle (the service rifle for a Vanguard): a burst every half second or so at the nearest enemy in range that has a clear lane;
     // a friendly in the way means the trigger is held (and now and then it is not, and the friendly pays for it). The walker
     // replaces it; a Vanguard with a support weapon keeps it, but fires it less often.
     // Vanguards hold fire while the squad is setting up on an enemy that has not noticed them.
@@ -89,7 +89,7 @@ export function updateAllies(m, dt) {
             let prof = a.dmgMul && a.dmgMul !== 1 ? { ...pf, dmg: pf.dmg * a.dmgMul } : pf;
             if (cmd) prof = { ...prof, acc: Math.min(0.97, prof.acc * cmd.acc) };
             fireShot(m, a, e, prof, 'squad', 'a', H ? 'rifle' : a.role === 'spec' ? 'mg' : 'smg');
-            if (a.role === 'spec') a.braceUntil = m.t + 1;     // (0.26) braced behind the MG-43: he barely moves while it fires
+            if (a.role === 'spec') a.braceUntil = m.t + 1;     // (0.26) braced behind the machine gun: he barely moves while it fires
             if (m.t >= (a.noiseAt || 0)) { a.noiseAt = m.t + C.noise.rifleEvery; noise(m, a.x, a.y, C.noise.rifle); }
             // taking the shot anyway: some collateral is expected
             if (pick.block) {
@@ -117,7 +117,7 @@ export function updateAllies(m, dt) {
       }
     }
 
-    // (0.26) Infantry: every role throws G-12 grenades at groups while it has some; the Specialist fires the EAT-17 at heavies and
+    // (0.26) Infantry: every role throws G-12 grenades at groups while it has some; the Specialist fires the rocket launcher at heavies and
     // armour (and at a dropship hovering in reach). Each has its own timer.
     if (!H) {
       if (a.role === 'spec') {
@@ -125,7 +125,7 @@ export function updateAllies(m, dt) {
         if (a.spT <= 0) {
           const spec = C.combat.rocketeer;
           let e = dropNear(m, a.x, a.y, spec.range), bs = -Infinity;     // a dropship hovering in reach is the best target there is
-          // (0.40) not a target another Specialist (or a Vanguard's Ultimatum) is on already: something else, or wait a moment
+          // (0.40) not a target another Specialist (or a Vanguard's Hand Cannon) is on already: something else, or wait a moment
           if (!e) m.eGrid.near(a.x, a.y, spec.range, (q, d2) => { if (q.kind === 'L') return; const sc = (q.kind === 'H' ? 90 : 30) - Math.sqrt(d2) * 0.2; if (sc > bs && !shared(m, a, q)) { bs = sc; e = q; } });
           const soft = !e && softNear(m, a.x, a.y, spec.range);
           if (e || soft) {
@@ -147,7 +147,7 @@ export function updateAllies(m, dt) {
           const spec = C.combat.grenadier;
           // the densest spot within reach; a lone light enemy is not worth a grenade
           let e = null, bn = 0;
-          // (0.40) not a spot someone else has just put a grenade (or an Ultimatum) on
+          // (0.40) not a spot someone else has just put a grenade (or a Hand Cannon) on
           m.eGrid.near(a.x, a.y, spec.range, (q, d2) => { if (d2 < spec.minR * spec.minR || claimedBy(m, a, q.x, q.y)) return; let n = 0; m.eGrid.near(q.x, q.y, spec.near || 6, () => { n++; }); if (q.kind === 'H') n += 2; if (n > bn) { bn = n; e = q; } });
           if (bn < spec.group) e = null;
           if (e) {
@@ -165,7 +165,7 @@ export function updateAllies(m, dt) {
   }
 }
 
-// (0.40) A target someone else has a rocket (or an Ultimatum) on right now: a super heavy can take everyone's.
+// (0.40) A target someone else has a rocket (or a Hand Cannon) on right now: a super heavy can take everyone's.
 function shared(m, a, q) {
   if (q.boss || !m.hdClaims) return false;
   for (const c of m.hdClaims) {

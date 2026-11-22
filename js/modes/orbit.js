@@ -9,6 +9,7 @@ import { View } from '../orbit/view.js';
 import { ensureLogo } from '../orbit/logo.js';
 import { words } from '../core/words.js';
 import { C as GC } from '../galaxy/config.js';
+import { makeGuide, guideSeen } from './guide.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
@@ -17,6 +18,17 @@ const partsOf = (g) => Object.keys(C.parts).filter((t) => C.parts[t].group === g
 const SHORT = { platform: 'FIRE SUPPORT', structure: 'STRUCTURE', habitation: 'HABITATION', docking: 'DOCKING', industry: 'INDUSTRY', power: 'POWER', defence: 'DEFENCE', comms: 'COMMS' };
 
 let app, ui, audio, canvas, view = null, st = null, args = null;
+// the guide: how a station is played (js/modes/guide.js)
+let tut = null, tut0 = 0; const TUT_KEY = 'ofgc.guide.orbit';
+const has = (g) => [...st.parts.values()].some((p) => C.parts[p.type] && C.parts[p.type].group === g && !C.parts[p.type].fixed);
+const TUT = [
+  { t: 'CHOOSE A PART', x: 'A station is built part by part, outward from Station Command. In <b>STRUCTURE</b> below, pick a <b>Core Segment</b>.', done: () => !!tool || st.parts.size > tut0 },
+  { t: 'BUILD IT ON A GREEN RING', x: 'Every free port is marked: a <b>green ring</b> where the part fits, a red dot where it does not. Point at a ring to see the part there, <b>TURN</b> it if you like, then <b>BUILD</b>.', done: () => st.parts.size > tut0 },
+  { t: 'SOMEWHERE TO LIVE', x: 'People run the station, and they need beds. Open <b>HABITATION</b> and build a <b>Hab Module</b> on a side port.', done: () => has('habitation') },
+  { t: 'KEEP THE LIGHTS ON', x: 'Every part draws power. Open <b>POWER</b> and add a <b>Solar Array</b> or a <b>Reactor Core</b> before the station runs short.', done: () => has('power') },
+  { t: 'CHECK ON A PART', x: 'With no part in hand, tap any part of the station to read what it is and what it does. <b>VIEW</b> switches between the hull, the blueprint and the inside.', done: () => !!sel },
+  { t: 'WHAT MATTERS', x: 'Keep the station in profit and its people housed and fed: that raises its tier, and a higher tier opens bigger parts. Drag to turn the view, wheel or pinch to zoom. <b>II</b> pauses and <b>1×</b> speeds time up. Requests land on your desk at the side.', last: true },
+];
 let acc = 0, group = 'structure', tool = null, rot = 0, hot = null, hotFit = null, px = null, py = null, portsDirty = false, sel = null, vmode = 'hull', inside = false, cardSig = '';
 let barSig = '', deskSig = '', saveT = 20, hudT = 0, thumbs = {};
 
@@ -199,13 +211,14 @@ const mode = {
     view.showPorts(null); view.setGhost(null, null, 0);
     $('th-where').textContent = st.faction.station;
     tabs(); bar(true); stats(); desk(); selBar();
+    tut0 = st.parts.size; tut = app.tutorial || (!loaded && app.settings.hints && !guideSeen(TUT_KEY)) ? makeGuide(TUT, { key: TUT_KEY, tutorial: app.tutorial, words, audio, exit: () => app.leavePost() }) : null; if (tut) tut.tick(); else { const co = $('th-coach'); if (co) co.hidden = true; }
     if (!loaded) { const gr = app.grant('s_grant'); if (gr) st.credits += gr; }
     if (!loaded) { ui.message('A NEW STATION', 2600); ui.feed('HEAD OFFICE: Lay the station out, then let its people at it. Only trouble will reach your desk.', 'radio'); }
     else ui.feed(`HEAD OFFICE: Welcome back, Commander. Week ${st.week()}, day ${st.dow()}.`, 'radio');
   },
   store() { if (st && args) app.siteSave('orbit', args.system.id, st.save()); },
   report() { let net = 0; try { net = st.ledger().credits.net; } catch { /* no accounts yet */ } return { air: Math.min(5, [...st.parts.values()].filter((p) => p.state !== 'building' && C.parts[p.type] && C.parts[p.type].group === 'comms').length), profit: net > 0.05, net, level: Math.min(4, st.tier + 1), tier: C.tiers[st.tier].name, cap: st.capability() }; },
-  leave() { mode.store(); mode.off = true; tool = null; hot = null; hotFit = null; view.showPorts(null); view.setGhost(null, null, 0); },
+  leave() { mode.store(); mode.off = true; if (tut) tut.hide(); tut = null; tool = null; hot = null; hotFit = null; view.showPorts(null); view.setGhost(null, null, 0); },
   frame(dt, now, real) {
     if (!st) return;
     if (dt > 0) {
@@ -224,7 +237,7 @@ const mode = {
       view.facePorts();
     }
     view.render(now);
-    if ((hudT -= real) <= 0) { hudT = 0.3; bar(); stats(); desk(); if (tool) portsDirty = true; }
+    if ((hudT -= real) <= 0) { hudT = 0.3; bar(); stats(); desk(); if (tool) portsDirty = true; if (tut) tut.tick(); }
     if ((saveT -= real) <= 0) { saveT = 20; mode.store(); }
   },
   get station() { return st; }, get view() { return view; },

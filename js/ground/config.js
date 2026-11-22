@@ -34,7 +34,7 @@ export const CONFIG = {
   // When the last one falls with no lives left the mission is lost: there is no free recall.
   // countdown (0.18): seconds of real time the player gets before the Vanguards drop (the game runs; DEPLOY NOW sends them early)
   vanguards: { start: 4, max: 4, lives: 20, reinforceSec: 8, dropDelaySec: 5, initialDropSec: 3, podRadius: 10, podDmg: 500, countdown: 30 },
-  // The Vanguard kit. Primary: the Liberator (CONFIG.combat.vanguard). Secondary: the Ultimatum, a slow-loading, short-range,
+  // The Vanguard kit. Primary: the service rifle (CONFIG.combat.vanguard). Secondary: the Hand Cannon, a slow-loading, short-range,
   // heavy-penetration pistol that hits very hard. Four stims (heal over a few seconds and a burst of speed), three
   // heavy-penetration grenades (six to kill a medium), and a dodge that comes round every so often. A resupply restocks all of it.
   hd:       { stims: 4, stimHeal: 0.5, stimSec: 3.5, stimBoostSec: 8, stimSpeed: 1.4, stimCool: 3.5, stimAt: 0.5, stimRunAt: 0.8,
@@ -45,15 +45,15 @@ export const CONFIG = {
               // heavyR, or a Vanguard falling back with a crowd on him) he throws every one he has, gap seconds apart.
               grenades: 6, gren: { light: 2.5, med: 0.55, heavy: 0.27, boss: 0.25, struct: 60, splash: 6.5, range: 44, minRange: 9, every: 1.5, acc: 0.85, flight: 0.9, group: 3,
                 dump: 9, heavyR: 24, gap: 0.25 },
-              // The Ultimatum: one round, a direct hit kills almost anything (a super heavy loses bossFrac of its health; structures are
+              // The Hand Cannon: one round, a direct hit kills almost anything (a super heavy loses bossFrac of its health; structures are
               // too hard for it). splashChance of rounds also burst round the target. A supply pod reloads it. markSec: the target is
               // marked on the map first.
               ult: { uses: 1, range: 60, acc: 0.92, flight: 0.6, kill: 1.05, bossFrac: 0.1, splash: 9, structDmg: 600, markSec: 0.8 },     // (0.26) a blast: every enemy in it dies
               // (0.40) the squad shares its targets out: a target another Vanguard has a grenade (claimSec after the throw) or the
-              // Ultimatum (until it lands) on is left to him, and the squad's Ultimatums go at least ultGap seconds apart; only one of
+              // Hand Cannon (until it lands) on is left to him, and the squad's Hand Cannons go at least ultGap seconds apart; only one of
               // them empties his pouch at a time
               // Infantry too: a spot another trooper (or a Vanguard) has just put a grenade on is left alone for infantryGren seconds, and a
-              // target another Specialist has just fired an EAT-17 at for infantryRocket seconds (they go for something else, or wait)
+              // target another Specialist has just fired an rocket launcher at for infantryRocket seconds (they go for something else, or wait)
               stagger: { claimSec: 2.5, ultGap: 2.5, infantryGren: 2, infantryRocket: 1.5 },
               dodge: { cool: 10, chance: 0.65, minHit: 9, dist: 3.6, sec: 0.35 },
               infantryDodge: { cool: 14, chance: 0.12 },     // Infantry dodge too, far less often (a UAV overhead helps both)
@@ -89,7 +89,7 @@ export const CONFIG = {
             // (0.54) stale orders: after `sec` seconds with no new order a squad's damage fades over `ramp` seconds, down to 1 - `max`
             stale: { sec: 100, ramp: 130, max: 0.5 }, dropCooldownSec: 45, firstDropSec: 0, backCut: 0.6, startSec: 25, startR: 140, dropDelaySec: 6, patrolRadius: 30, patrolSpeed: 2.5,
               followSpread: 28, protectR: 36, protectLeash: 80, clearR: 55, clearMaxSec: 70,
-              // (0.26) four roles: a Squad Leader in every drop, Riflemen, Specialists (MG-43 and EAT-17) and Medics. Everyone carries
+              // (0.26) four roles: a Squad Leader in every drop, Riflemen, Specialists (machine gun and rocket launcher) and Medics. Everyone carries
               // G-12 grenades (grenades each, plus the armory's G-12 upgrade).
               specChance: 0.6, squads: 9, medicChance: 0.45,
               // (0.50) the troop mixes (kit.js MIXES): ASSAULT's extra grenades each; the chance of a second Specialist / Medic in
@@ -230,15 +230,15 @@ export const CONFIG = {
   // Damage model. Allies have hit points. Enemies hurt them by their own attack profile, so light
   // enemies do light damage and heavies do heavy damage. armor scales incoming damage.
   combat: {
-    vanguard: { hp: 420, armor: 0.55, dps: 36, burst: 0.4, acc: 0.88, range: 56, mult: { L: 1, M: 0.45, H: 0.12 } },   // the Liberator
+    vanguard: { hp: 420, armor: 0.55, dps: 36, burst: 0.4, acc: 0.88, range: 56, mult: { L: 1, M: 0.45, H: 0.12 } },   // the service rifle
     infantry:      { hp: 100, armor: 1.0, dps: 12, burst: 0.6, acc: 0.7,  range: 46, mult: { L: 1, M: 0.5, H: 0.15 } },
     // Effective range. Every direct-fire weapon, ally or enemy, has a reach: inside the first `short` of it a shot is at full accuracy
     // and a little extra damage, out to `medium` it is a little worse, and at long range (out to the reach) it is clearly worse.
     bands: { short: 0.4, medium: 0.75, acc: [1, 0.85, 0.65], dmg: [1.1, 0.9, 0.75] },
     // Infantry specialists. Grenades lob, rockets are the answer to heavies. Both also hurt POIs and breaches.
     grenadier: { dmg: 55, splash: 5.2, near: 7.5, every: 7, range: 40, flight: 0.85, fuse: 2, acc: 0.8, minR: 9, group: 3, mult: { L: 1, M: 0.9, H: 0.3, B: 0.25 } },     // (0.26) the G-12 every trooper throws
-    rocketeer: { dmg: 300, splash: 5, every: 5.2, range: 78, flight: 0.55, acc: 0.85, mult: { L: 1, M: 1, H: 0.8, B: 0.3 } },     // (0.26) the Specialist's EAT-17
-    // (0.26) the Specialist's MG-43 (braced, a steady stream) and the Medic's SMG-37 Defender (short and quick)
+    rocketeer: { dmg: 300, splash: 5, every: 5.2, range: 78, flight: 0.55, acc: 0.85, mult: { L: 1, M: 1, H: 0.8, B: 0.3 } },     // (0.26) the Specialist's rocket launcher
+    // (0.26) the Specialist's machine gun (braced, a steady stream) and the Medic's submachine gun (short and quick)
     infantryMg:  { dps: 21, burst: 0.25, acc: 0.62, range: 54, mult: { L: 1, M: 0.55, H: 0.16 } },
     infantrySmg: { dps: 11, burst: 0.3, acc: 0.78, range: 30, mult: { L: 1, M: 0.45, H: 0.1 } },
     // Hits from behind and critical hits, for every side. A unit's back is the arc behind it (cos of the angle between where it faces
@@ -306,7 +306,7 @@ export const CONFIG = {
   // a bot heavy has hp x the health but weak points that crit more often (crit, added to the attacker's chance); a lizard heavy
   // carries a shield (shield x its health) that soaks hits first and comes back at regen a second once it has not been hit for
   // regenDelay seconds. The warbeast's shield is a bubble bubR metres round it, like the commander's jammer ring: any hit from
-  // outside on a lizard inside it (strikes from above too) hits the shield first. The Ultimatum's round goes through plates and shields alike.
+  // outside on a lizard inside it (strikes from above too) hits the shield first. The Hand Cannon's round goes through plates and shields alike.
   heavies:  { bugs: { front: 0.62, frontCos: 0.6 }, bots: { hp: 1.5, crit: 0.14 }, lizards: { shield: 0.8, regen: 70, regenDelay: 6, bubR: 17 } },
   // Special mediums, alongside the others: `share` of the medium draws come out as the faction's own, no more than cap alive
   // (plus perMin a session minute, up to max). hp, speed and r scale or set the medium's; atk is its own attack. reward: kill
@@ -469,14 +469,14 @@ export const CONFIG = {
   // ramp: the levels a session climbs each mission (0.19.2: halved, so from 3, mission 10 is at 7 and mission 19 at 10); beyond:
   // past 10, the step a level as a share of the average step from 1 to 10.
   // (0.19) The tutorial, the last stand on Mars (sim/laststand.js): personnel in the shelter; a Dropship lifts every evac.shuttle of
-  // them. Once the lessons end the Great Host comes in waves that never stop, from waveR out, the first waveFirst seconds in; how
+  // them. Once the lessons end the Talon host comes in waves that never stop, from waveR out, the first waveFirst seconds in; how
   // often, how many and how heavy comes from the stage (C.lsStages, below), each wave tougher (hpGrow) and harder-hitting
   // (dmgGrow, per minute) than the last. The Vanguards get `lives`; when the last one falls (or after maxHold whatever happens) the fleet glasses the plain for
   // glassSec, a beam every beamEvery seconds, beamR wide, and the mission ends. The lessons' groups start lessonR out. countdown:
   // the Vanguards' drop waits this long unless DEPLOY NOW is pressed (the lessons ask for it). breakAt: lives left when the radio
   // says the line is breaking. (0.19.5) It is flown at level 1 (LAST_STAND), and from the evacuation on the level the HUD shows
   // climbs one every levelEvery seconds, with the waves.
-  // (0.26) the Great Host comes in stages, by how many personnel are off Mars (or, failing that, by time): lights only, then
+  // (0.26) the Talon host comes in stages, by how many personnel are off Mars (or, failing that, by time): lights only, then
   // mediums, then the odd heavy, then a heavy every wave; at 120 off it becomes overwhelming (waves every few seconds, growing,
   // several heavies, and tougher and harder-hitting by the minute). Each stage: saved, sec (the time that brings it anyway),
   // every (seconds between waves), n (enemies a wave), mid (share of mediums), heavy (a wave), heavyEvery (one every this many).

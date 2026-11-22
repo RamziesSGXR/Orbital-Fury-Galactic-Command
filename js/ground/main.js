@@ -32,7 +32,7 @@ import { addJammer } from './sim/sides.js';
 import { squadCentres, FORMS, targetSquads } from './sim/infantry.js';
 import { fireSlot, refreshAim } from './sim/player.js';
 import { LAST_STAND } from './sim/laststand.js';
-import { Tutorial } from './tutorial.js';
+import { Tutorial, TRAIN } from './tutorial.js';
 import { VIEW } from './render/view.js';
 import { Cinema } from './render/cinema.js';
 
@@ -1261,7 +1261,7 @@ let wantHome = false;
 function goHome() {
   if (session && session.tutorial) {
     if (state === 'play' && mission && !mission.over && !wantHome) { wantHome = true; $('home-confirm').classList.remove('hidden'); audio.click(); return; }
-    audio.click(); wantHome = false; quitTutorial(); toTitle(); return;
+    audio.click(); wantHome = false; if (training) { endTraining(); return; } quitTutorial(); toTitle(); return;
   }
   if (state === 'play' && mission && !mission.over) {
     if (!wantHome) { wantHome = true; $('home-confirm').classList.remove('hidden'); audio.click(); return; }
@@ -1355,7 +1355,7 @@ function campOpts(ch, mood) { return { mood, night: !!ch.night, planet: ch.arc |
 // ---------------- (0.19) the tutorial: the last stand on Mars ----------------
 // A mission of its own, outside any session: a throwaway session holds its kit and credits (never saved), and a saved session is
 // left as it was. A cinematic opens it (render/cinema.js); then the card (tutorial.js) walks through the controls. Once the base
-// falls the Great Host glasses the plain while the camera pulls back, and a second cinematic shows Mars burning (finishLastStand).
+// falls the Talon host glasses the plain while the camera pulls back, and a second cinematic shows Mars burning (finishLastStand).
 let tut = null, glassCam = null, lsEnding = false;
 const cinema = new Cinema(audio);
 const lsLines = (kind, res) => (kind === 'intro' ? [1, 2, 3, 4, 5].map((k) => t('cine.in.' + k))
@@ -1413,6 +1413,44 @@ function startLastStand() {
   radioLog.addLines('brief', lsLines('intro')); castRadio = BOT ? null : new CastRadio(castSay, { cues: false, chat: ['chat.tut'] });     // (0.28: Base Tharsis on the command radio)
   cinema.play('intro', lsLines('intro'), () => { if (tut === tu && mission) { tut.start(); audio.humStart(); } });
 }
+// (GC 0.56) THE TRAINING GROUND: the tutorial with no story. The same practice base and the same lessons (tutorial.js, TRAIN),
+// with no film before it, nobody on the radio and no evacuation after: the last card ends it. Nothing is kept from it.
+let training = false;
+function startTraining() {
+  lsReset();
+  audio.unlock(); audio.click();
+  if (briefCtl) { briefCtl.cancel(); briefCtl = null; }
+  const L = LAST_STAND;
+  training = true;
+  session = S.newSession(S.load('callsign', ''), L.level); session.tutorial = true;
+  info = { seed: L.seed, faction: L.faction, biome: L.biome, op: t('trn.op'), tod: L.tod, ovObj: [], loadout: null };
+  buildFor(info.biome, info.seed);
+  startSnap = null;
+  shots.length = 0; resetScape();
+  mission = new Mission({ seed: L.seed, faction: L.faction, biome: L.biome, sessionMinutes: 0, events: true, missionN: 2, difficulty: L.level, kit: session.kit, wallet: session.wallet,
+    names: session.names, tod: L.tod, countdown: C.lastStand.countdown, lastStand: true, defenders: false, boss: false });
+  info.loadout = mission.loadout.slice();
+  bot = BOT ? makeBot() : null;
+  enterPlay();
+  if (tut) tut.close();
+  tut = new Tutorial({
+    plain: true, steps: TRAIN, finish: () => endTraining(),
+    get mission() { return mission; }, get touch() { return input.touch; }, get tac() { return tac; }, get tab() { return hud.tcTab; }, get soft() { return soft; }, cam,
+    look: (g) => { if (!g || !mission) return; const o = mission.objectives[0]; cam.follow = false; cam.x = o.x + (g.cx - o.x) * 0.65; cam.y = o.y + (g.cy - o.y) * 0.65; },
+    lookAt: (x, y) => { if (!mission) return; const o = mission.objectives[0]; cam.follow = false; cam.x = (o.x + x) / 2; cam.y = (o.y + y) / 2; },
+    lookBase: () => { if (!mission) return; const o = mission.objectives[0]; cam.follow = false; cam.x = o.x; cam.y = o.y; },
+    onStep: () => { audio.chirp(); },
+  });
+  tut.start(); audio.humStart();
+}
+// it is over (the last card, the pause menu, or the squad lost): back to where it was opened from
+function endTraining() {
+  endHandled = true; setPlacing(null); setDrawing(false); setTac(false); disarm(); setHideUi(false); deselect();
+  soft = false; hud.setSoft(false); audio.humStop();
+  quitTutorial(); training = false;
+  if (FURY && FURY.training) { FURY.onExit(); return; }
+  toTitle();
+}
 function quitTutorial() {
   if (tut) { tut.close(); tut = null; }
   lsReset();
@@ -1426,6 +1464,7 @@ function lsGlass(now) {
   document.body.classList.add('ls-glass', 'ls-warn');
 }
 function finishLastStand() {
+  if (training) return endTraining();     // (the training ground has no ending of its own)
   endHandled = true; setPlacing(null); setDrawing(false); setTac(false); disarm(); setHideUi(false); deselect();
   soft = false; hud.setSoft(false);
   const res = lastRes = mission.result(); if (LOOK3) res.aud = audShare();
@@ -1948,6 +1987,10 @@ function openCampaign() {
   $('cp-back').focus({ preventScroll: true });
 }
 $('btn-campaign').onclick = openCampaign;
+// (GC 0.56) Galactic Command has one campaign, the galactic one: this game is endless play here, so its own campaign and the
+// story tutorial that opens it are off the title screen (?campaign brings them back, for a look and for their tests)
+if (!qs.has('campaign')) $('btn-campaign').style.display = 'none';
+$('btn-train').onclick = () => startTraining();
 $('cp-back').onclick = () => { audio.click(); storyPick = null; toTitle(); };
 $('btn-lock-change').onclick = () => closeLock();
 $('btn-notice-set').onclick = () => openSettings('notice');
@@ -2498,7 +2541,7 @@ renderer.resize();
 const wipedOld = GCX ? false : S.resetOldSaves();
 // (GC 0.39.1) the name over the title is the player's own command (the fleet is its own brand), not a house name
 function brand() { const n = FURY && FURY.livery && String(FURY.livery.name || '').replace(/[<>&]/g, '').trim(); if (!n) return; for (const [id, tail] of [['tt-brand', ' · Fire Support'], ['cp-brand', ' · FIRE SUPPORT · CAMPAIGN']]) { const el = $(id); if (el) { el.removeAttribute('data-t'); el.textContent = (id === 'cp-brand' ? n.toUpperCase() : n) + tail; } } }
-if (GCX) gcStart(); else { if (FURY) { lookStart(FURY); brand(); $('btn-gc-exit').onclick = () => { audio.click(); audio.humStop(); FURY.onExit(); }; } toTitle(); }
+if (GCX) gcStart(); else { if (FURY) { lookStart(FURY); brand(); $('btn-gc-exit').onclick = () => { audio.click(); audio.humStop(); FURY.onExit(); }; } toTitle(); if (FURY && FURY.training) setTimeout(startTraining, 400); }
 if (wipedOld) { $('tt-wiped').textContent = t('title.wiped'); $('tt-wiped').classList.remove('hidden'); }
 requestAnimationFrame((t) => { lastT = t / 1000; frame(t); });
 

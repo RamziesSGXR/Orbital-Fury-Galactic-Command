@@ -54,8 +54,16 @@ export const STEPS = [
 // TACTICAL first, then at the tab, then at the thing itself.
 const vis = (e) => { if (!e) return false; const r = e.getBoundingClientRect(); return r.width > 2 && r.height > 2 && getComputedStyle(e).visibility !== 'hidden'; };
 
+// (GC 0.56) THE TRAINING GROUND: the same lessons with no story round them, on a quiet practice base. It starts and it
+// ends: the last card goes back to the menu. Nothing attacks but what a lesson sends.
+const pick = (...ids) => ids.map((id) => STEPS.find((s) => s.id === id));
+export const TRAIN = [...pick('intro', 'look', 'troops', 'gun', 'orbital', 'infantry', 'select', 'order', 'build', 'cover', 'deploy', 'supply', 'democharge'), { id: 'matters', next: true }, { id: 'done', next: true, last: true }];
+
 export class Tutorial {
   constructor(g) {
+    // (GC 0.56) g.plain: the training ground, lessons only and no story. Its own steps (TRAIN) and texts (trn.*); the last
+    // card ends it (g.finish), and there is no evacuation to start
+    this.plain = !!g.plain; this.steps = g.steps || STEPS; this.pre = this.plain ? 'trn' : 'tut';
     this.g = g; this.i = -1; this.s = null; this.on = true; this.stage = 'lessons'; this.hl = []; this.held = false; this.cur = null; this.pt = 0;
     this.queue = [];      // (0.40) a card that came while another held the game: it comes up once that one is let go
     this.el = $('tut'); this.spot = $('tut-spot');
@@ -69,11 +77,11 @@ export class Tutorial {
     document.addEventListener('pointerdown', this.act, true); document.addEventListener('keydown', this.act, true);
   }
   start() { this.el.classList.remove('hidden', 'fold', 'warn'); this.advance(); }
-  get step() { return STEPS[this.i]; }
+  get step() { return this.steps[this.i]; }
   advance() {
     if (this.stage !== 'lessons') return;
-    if (this.step && this.step.last) { this.begin(); return; }
-    this.i = Math.min(STEPS.length - 1, this.i + 1);
+    if (this.step && this.step.last) { if (this.plain) this.g.finish(); else this.begin(); return; }
+    this.i = Math.min(this.steps.length - 1, this.i + 1);
     const st = this.step, g = this.g;
     this.s = { ev: [], cx: g.cam.x, cy: g.cam.y, view: g.cam.view, t0: g.mission.t, drop0: g.mission.dropAt };
     if (st.start) st.start(g, this.s);
@@ -82,18 +90,18 @@ export class Tutorial {
   }
   // The evacuation opens (the last step, or START THE EVACUATION at any point): one more card, then it folds away.
   begin() {
-    if (this.stage !== 'lessons') return;
+    if (this.stage !== 'lessons' || this.plain) return;
     const m = this.g.mission;
     if (m.t < m.dropAt) m.deployNow();       // (skipped the drop: the Vanguards come now)
     m.lsBegin();
-    this.stage = 'hold'; this.i = STEPS.length;
+    this.stage = 'hold'; this.i = this.steps.length;
     this.card(t('tut.hold.h'), t('tut.hold.b'), { ok: true });
     this.point(null);
     if (this.g.onStep) this.g.onStep('hold');
   }
   fold(on) { this.el.classList.toggle('fold', !!on); this.place(); }
   show() {
-    const st = this.step, touch = this.g.touch, k = (x) => `tut.${st.id}.${x}`, v = st.vars ? st.vars(this.g) : undefined;
+    const st = this.step, touch = this.g.touch, k = (x) => `${this.pre}.${st.id}.${x}`, v = st.vars ? st.vars(this.g) : undefined;
     const body = t(k(touch ? 't' : 'd')) !== k(touch ? 't' : 'd') ? t(k(touch ? 't' : 'd'), v) : t(k('b'), v);
     this.card(t(k('h')), body, { next: !!st.next, ok: !st.next, go: true, n: this.i + 1 });
     this.point(this.target());
@@ -103,12 +111,12 @@ export class Tutorial {
   card(h, b, o) {
     this.o = o; this.held = true;
     const k = $('tut-k'), c = o.who && CAST[o.who];
-    k.textContent = c ? c.name : o.n ? t('tut.step', { n: o.n, of: STEPS.length }) : t('tut.tag');
+    k.textContent = c ? c.name : o.n ? t('tut.step', { n: o.n, of: this.steps.length }) : t('tut.tag');
     k.style.color = c ? c.col : '';
     this.el.classList.toggle('say', !!c); if (c) this.el.style.setProperty('--cc', c.col);
     $('tut-h').textContent = h; $('tut-b').textContent = b;
     if (this.stage === 'hold' && this.g.log) this.g.log(h, b);     // (0.42.1: kept in the radio tab, to read again)
-    $('tut-next').textContent = t(this.step && this.step.last ? 'tut.holdBtn' : 'tut.next');
+    $('tut-next').textContent = t(this.step && this.step.last ? (this.plain ? 'trn.finish' : 'tut.holdBtn') : 'tut.next');
     this.el.classList.remove('fold', 'hidden');
     this.buttons();
   }
@@ -117,7 +125,7 @@ export class Tutorial {
     $('tut-next').classList.toggle('hidden', !o.next);
     $('tut-ok').classList.toggle('hidden', !(o.ok && held));
     $('tut-skip').classList.toggle('hidden', !(o.ok && !held && this.stage === 'lessons'));
-    $('tut-go').classList.toggle('hidden', !o.go || (this.step && this.step.last));
+    $('tut-go').classList.toggle('hidden', this.plain || !o.go || (this.step && this.step.last));
     this.el.classList.toggle('held', held);
     document.body.classList.toggle('tut-held', held);
     this.place();

@@ -50,7 +50,7 @@ export function drawAllyBody(ctx, a, r, col, team, strobe, now, px, mt = 0) {
 
 // (0.26) An Infantry trooper, by role. Facing +x, the right side is +y. The Squad Leader: a big radio pack with its antenna, a pad on
 // the right shoulder, a mic off the helmet. Riflemen: plain, some with a small pack. The Specialist: the most armour (pads on
-// both shoulders, a neck guard), the MG-43 with its ammo box, the EAT-17 tube across the back. The Medic: light grey armour with
+// both shoulders, a neck guard), the machine gun with its ammo box, the rocket launcher across the back. The Medic: light grey armour with
 // red, a white medical pack with a red cross, a helmet that comes forward over the cheeks; some wear orange. A trooper who is
 // down lies on his side, greyed, with a red cross over him (green while a Medic works on him).
 function drawInfantryBody(ctx, a, r, col, strobe, now, px, mt) {
@@ -74,7 +74,7 @@ function drawInfantryBody(ctx, a, r, col, strobe, now, px, mt) {
   } else if (role === 'spec') {
     ctx.fillStyle = '#1b4a75'; rect(ctx, -0.78 * r, -0.4 * r, -0.3 * r, 0.4 * r); ctx.fill();
     ctx.strokeStyle = '#a9b59a'; ctx.lineWidth = Math.max(0.2 * r, px(1.6)); ctx.lineCap = 'round';
-    line(ctx, -0.95 * r, -0.62 * r, -0.2 * r, 0.62 * r);     // the EAT-17 across the back
+    line(ctx, -0.95 * r, -0.62 * r, -0.2 * r, 0.62 * r);     // the rocket launcher across the back
     ctx.lineCap = 'butt';
   } else if (a.id % 2 === 0) {
     ctx.fillStyle = '#1d5a8f'; rect(ctx, -0.74 * r, -0.34 * r, -0.3 * r, 0.34 * r); ctx.fill();     // a Rifleman's small pack
@@ -88,7 +88,7 @@ function drawInfantryBody(ctx, a, r, col, strobe, now, px, mt) {
   ctx.fillStyle = shade(body, 0.12);
   if (role === 'leader' || role === 'spec') { rect(ctx, -0.18 * r, 0.5 * r, 0.24 * r, 0.82 * r); ctx.fill(); }
   if (role === 'spec') { rect(ctx, -0.18 * r, -0.82 * r, 0.24 * r, -0.5 * r); ctx.fill(); ctx.fillStyle = shade(body, 0.2); rect(ctx, 0.22 * r, -0.2 * r, 0.36 * r, 0.2 * r); ctx.fill(); }
-  // the weapon: the Liberator, the MG-43 (longer, heavier, an ammo box), the SMG-37 (short)
+  // the weapon: the service rifle, the machine gun (longer, heavier, an ammo box), the submachine gun (short)
   ctx.lineCap = 'round';
   if (!down) {
     if (role === 'spec') {

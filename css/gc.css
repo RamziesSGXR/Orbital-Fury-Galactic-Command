@@ -243,61 +243,62 @@ button small { display: block; font: 9.5px var(--mono); letter-spacing: 0.5px; o
 /* ---------- title ---------- */
 /* (0.46.1) the menu starts at the top and centres itself with its own margins, so when it is taller than the screen (a phone) the top is not pushed out of reach; it scrolls by touch, clear of the notch and the home bar */
 #s-title { align-items: center; justify-content: flex-start; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
-#tbg { position: fixed; inset: 0; width: 100%; height: 100%; }
-/* (0.39) the main menu: the game's name, then four ways to play side by side, each a card that says what is saved in it */
-.tmain { position: relative; width: min(1240px, 96vw); padding: 18px 0 14px; margin: auto; }
-.thead { display: flex; align-items: center; gap: 18px; margin: 0 4px 18px; }
-#t-crest { width: 92px; height: 92px; flex: none; }
-.over { font: 600 12px var(--head); letter-spacing: 6px; color: var(--cyan); }
-.thead h1 { font: 700 clamp(28px, 4.6vw, 52px)/1 var(--head); letter-spacing: 4px; color: var(--amber); margin: 4px 0 6px; text-shadow: 0 0 28px rgba(245, 213, 71, 0.25); }
-.tag { color: var(--dim); font-size: 13px; }
-.modes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-.mcard { display: flex; flex-direction: column; padding: 0 14px 14px; background: linear-gradient(180deg, rgba(14, 18, 16, 0.72), rgba(9, 11, 10, 0.94)); min-height: 380px; transition: transform 0.12s, border-color 0.12s, box-shadow 0.12s; }
-.mcard:hover { transform: translateY(-3px); border-color: var(--amber); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(245, 213, 71, 0.25); }
-.mart { margin: 0 -14px 12px; height: 132px; background: radial-gradient(120% 90% at 50% 100%, rgba(127, 233, 224, 0.1), rgba(5, 7, 6, 0) 70%), rgba(5, 7, 6, 0.55); border-bottom: 1px solid var(--empty); display: flex; align-items: center; justify-content: center; }
-.mart svg { width: 100%; height: 100%; stroke-width: 1.2; }
+#tbg { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 62% 50%; background: #050706; pointer-events: none; }
+/* the left of the picture is darkened under the menu, and the edges a little all round */
+#tscrim { position: fixed; inset: 0; pointer-events: none; background: linear-gradient(90deg, rgba(5, 7, 6, 0.9) 0, rgba(5, 7, 6, 0.74) 30%, rgba(5, 7, 6, 0.12) 56%, rgba(5, 7, 6, 0) 70%), radial-gradient(120% 90% at 60% 50%, rgba(0, 0, 0, 0) 55%, rgba(0, 0, 0, 0.5) 100%); }
+/* (0.56) the main menu: down the left, the game's name, the campaign, then the three posts as endless play; on the right, a
+   picture of the war room. It is laid out for a desktop screen and fits one without scrolling (from about 640 px high). */
+.tmain { position: relative; width: min(1500px, 96vw); min-height: 100%; padding: clamp(10px, 2vh, 22px) 0; margin: auto; display: grid; grid-template-columns: minmax(440px, 560px) 1fr; grid-template-areas: "head ." "body ."; grid-template-rows: auto auto; column-gap: 22px; align-content: center; }
+.thead { grid-area: head; display: flex; align-items: center; gap: 14px; margin: 0 2px clamp(6px, 1.4vh, 14px); }
+#t-crest { width: clamp(52px, 8.5vh, 80px); height: clamp(52px, 8.5vh, 80px); flex: none; }
+.over { font: 600 11px var(--head); letter-spacing: 6px; color: var(--cyan); }
+.thead h1 { font: 700 clamp(24px, 4.2vh, 38px)/1 var(--head); letter-spacing: 3px; color: var(--amber); margin: 3px 0 5px; white-space: nowrap; text-shadow: 0 0 28px rgba(245, 213, 71, 0.25); }
+.tag { color: var(--dim); font-size: 12.5px; }
+.tbody { grid-area: body; display: flex; flex-direction: column; gap: clamp(5px, 1vh, 9px); min-width: 0; }
+.mcard { background: linear-gradient(180deg, rgba(14, 18, 16, 0.78), rgba(9, 11, 10, 0.95)); transition: border-color 0.12s, box-shadow 0.12s; }
+.mcard:hover { border-color: var(--amber); box-shadow: 0 0 0 1px rgba(245, 213, 71, 0.25); }
 .mcard em { font: 600 10px var(--head); letter-spacing: 3px; color: var(--cyan); font-style: normal; }
-.mcard h2 { font: 700 21px/1.1 var(--head); letter-spacing: 2px; color: var(--text); margin: 4px 0 8px; }
-.mcard[data-mode=war] h2 { color: var(--amber); }
-.mcard > p { font-size: 12.5px; color: var(--dim); line-height: 1.45; }
-.mcard .msave { margin-top: auto; padding-top: 10px; min-height: 46px; font: 11px/1.4 var(--mono); color: var(--cyan); }
+.mcard h2 { font: 700 15px/1.1 var(--head); letter-spacing: 2px; color: var(--text); margin: 2px 0 0; }
+.mcard .msave { font: 11px/1.4 var(--mono); color: var(--cyan); }
 .mcard .msave.none { color: var(--dim); }
-.mcard .msave b { color: var(--text); font-weight: 600; display: block; }
-.mbt { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
-.mbt .btn { width: 100%; }
-.tfoot { display: flex; gap: 8px; margin-top: 14px; }
-.tfoot .btn { flex: 1; }
-@media (max-width: 1080px) { .modes { grid-template-columns: repeat(2, 1fr); } .mcard { min-height: 0; } }
-@media (max-width: 560px) { .modes { grid-template-columns: 1fr; } .thead { flex-direction: column; text-align: center; } .tfoot { flex-wrap: wrap; } .tfoot .btn { flex: 1 1 45%; } .mart { height: 104px; } }
-/* ---- (0.46.1) THE MENU ON A PHONE ---- */
-@media (hover: none) { .mcard:hover { transform: none; box-shadow: none; border-color: var(--empty); } .mcard:active { border-color: var(--amber); } }
-/* held upright: each mode is one short card, its picture beside its name, its buttons the full width and tall enough for a thumb */
-@media (max-width: 560px) {
-  .tmain { width: 100%; padding: 14px 12px 20px; }
-  .thead { gap: 6px; margin: 0 0 12px; } #t-crest { width: 68px; height: 68px; }
-  .thead h1 { font-size: clamp(22px, 7.6vw, 34px); letter-spacing: 2px; margin: 2px 0 4px; } .over { font-size: 11px; letter-spacing: 5px; } .thead .tag { font-size: 12px; }
-  .modes { gap: 10px; }
-  .mcard { display: grid; grid-template-columns: 96px 1fr; grid-template-areas: "art em" "art h" "art p" "save save" "bt bt"; grid-template-rows: auto auto 1fr auto auto; column-gap: 12px; padding: 12px; min-height: 0; }
-  .mcard .mart { grid-area: art; margin: 0; height: auto; min-height: 88px; align-self: stretch; border: 1px solid var(--empty); }
-  .mcard em { grid-area: em; } .mcard h2 { grid-area: h; font-size: 19px; margin: 3px 0 5px; } .mcard > p { grid-area: p; font-size: 12px; line-height: 1.4; }
-  .mcard .msave { grid-area: save; min-height: 0; margin-top: 0; padding-top: 10px; } .mcard .msave:empty { display: none; }
-  .mcard .mbt { grid-area: bt; margin-top: 10px; flex-direction: row; gap: 8px; } .mcard .mbt .btn { flex: 1; min-height: 48px; font-size: 14px; }
-  .tfoot { gap: 8px; margin-top: 12px; } .tfoot .btn { min-height: 46px; }
+.mcard .msave b { color: var(--text); font-weight: 600; }
+.mcard.main { padding: clamp(9px, 1.8vh, 16px) 16px clamp(10px, 2vh, 16px); border-color: rgba(245, 213, 71, 0.55); box-shadow: 0 0 34px rgba(245, 213, 71, 0.07) inset; }
+.mcard.main h2 { font-size: clamp(20px, 3.4vh, 27px); color: var(--amber); margin: 3px 0 clamp(3px, 0.8vh, 8px); }
+.mcard.main > p { font-size: 12.5px; color: var(--dim); line-height: 1.4; }
+.mcard.main .msave { margin-top: clamp(4px, 1vh, 10px); min-height: 16px; } .mcard.main .msave b { margin-right: 8px; }
+.mcard.main .mbt { display: flex; gap: 8px; margin-top: clamp(5px, 1.1vh, 10px); } .mcard.main .mbt .btn { flex: 1; min-height: clamp(38px, 6vh, 48px); font-size: 15px; }
+.thr { display: flex; align-items: baseline; gap: 12px; margin: clamp(2px, 0.8vh, 8px) 2px 0; font-weight: normal; text-transform: none; letter-spacing: 0; }
+.thr b { font: 600 12px var(--head); letter-spacing: 4px; color: var(--cyan); white-space: nowrap; } .thr span { font: 11.5px/1.3 var(--mono); letter-spacing: 0; text-transform: none; color: var(--dim); }
+.mcard.mini { display: grid; grid-template-columns: 58px minmax(0, 1fr) auto; grid-template-areas: "art tx bt"; column-gap: 11px; padding: clamp(5px, 1vh, 9px) 10px; align-items: center; }
+.mcard.mini .mart { grid-area: art; height: 44px; background: rgba(5, 7, 6, 0.55); border: 1px solid var(--empty); }
+.mart svg { width: 100%; height: 100%; stroke-width: 1.2; display: block; }
+.mcard.mini .mtx { grid-area: tx; min-width: 0; } .mcard.mini .msave { margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .mcard.mini .msave b { margin-right: 6px; }
+.mcard.mini .mbt { grid-area: bt; display: flex; gap: 5px; } .mcard.mini .mbt .btn { flex: none; min-width: 0; width: auto; min-height: 36px; font-size: 11.5px; padding-left: 12px; padding-right: 12px; }
+.tfoot { display: flex; gap: 5px; margin-top: clamp(2px, 0.8vh, 8px); }
+.tfoot .btn { flex: 1 1 0; font-size: 11px; min-height: 32px; padding-left: 4px; padding-right: 4px; white-space: nowrap; }
+@media (hover: none) { .mcard:hover { box-shadow: none; border-color: var(--empty); } .mcard.main:hover { border-color: rgba(245, 213, 71, 0.55); } }
+/* narrow, or held upright: one column, the picture a band under the name */
+@media (max-width: 860px) {
+  .tmain { width: 100%; padding: 14px 12px 20px; grid-template-columns: 1fr; grid-template-areas: "head" "art" "body"; grid-template-rows: auto auto auto; }
+  .thead { gap: 10px; margin: 0 0 10px; } #t-crest { width: 60px; height: 60px; }
+  .thead h1 { font-size: clamp(22px, 7.2vw, 34px); letter-spacing: 2px; margin: 2px 0 4px; } .over { font-size: 11px; letter-spacing: 5px; } .thead .tag { font-size: 12px; }
+  .thead h1 { white-space: normal; } .thr { display: block; } .thr span { display: block; margin-top: 2px; } .tfoot { flex-wrap: wrap; } .tfoot .btn { flex: 1 1 45%; }
+  .mcard.mini { grid-template-columns: 58px minmax(0, 1fr); grid-template-areas: "art tx" "bt bt"; row-gap: 7px; } .mcard.mini .mbt .btn { flex: 1; } .mcard.mini .msave { white-space: normal; }
+  .mcard.main .mbt .btn { min-height: 50px; } .mcard.mini .mbt .btn { min-height: 44px; } .tfoot .btn { min-height: 44px; }
 }
-/* on its side: all four side by side, the words cut down to the name, the save and the button, so the whole menu is on one screen */
+/* a phone on its side: two columns still, the words cut down so the whole menu is on the screen */
 @media (max-height: 480px) and (min-width: 561px) {
-  .tmain { width: 97vw; padding: 8px 0 10px; }
-  .thead { margin: 0 4px 8px; gap: 12px; } #t-crest { width: 46px; height: 46px; } .thead h1 { font-size: 24px; letter-spacing: 3px; margin: 0; } .over, .thead .tag { display: none; }
-  .modes { grid-template-columns: repeat(4, 1fr); gap: 8px; }
-  .mcard { padding: 0 10px 10px; min-height: 0; } .mart { height: 50px; margin: 0 -10px 6px; } .mcard em { font-size: 9px; letter-spacing: 2px; } .mcard h2 { font-size: 14px; letter-spacing: 1px; margin: 2px 0 0; }
-  .mcard > p:not(.msave) { display: none; } .mcard .msave { min-height: 28px; padding-top: 4px; font-size: 10px; } .mbt { margin-top: 6px; } .mbt .btn { min-height: 40px; }
-  .tfoot { margin-top: 8px; } .tfoot .btn { min-height: 38px; }
+  .tmain { width: 97vw; padding: 8px 0 10px; grid-template-columns: minmax(300px, 46%) 1fr; grid-template-areas: "head art" "body art"; column-gap: 12px; }
+  .thead { margin: 0 2px 6px; gap: 10px; } #t-crest { width: 40px; height: 40px; } .thead h1 { font-size: 20px; margin: 0; } .over, .thead .tag, .thr span, .mcard.main > p:not(.msave) { display: none; }
+  .mcard.main { padding: 8px 10px; } .mcard.main h2 { font-size: 18px; margin: 2px 0; } .mcard.main .mbt .btn { min-height: 38px; }
+  .mcard.mini { grid-template-columns: 1fr auto; grid-template-areas: "tx bt"; padding: 6px 9px; } .mcard.mini .mart, .mcard.mini .msave { display: none; } .mcard.mini h2 { font-size: 13px; }
+  .thr { margin: 4px 2px 0; }
 }
 /* the list of what is saved */
 .svrow { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--empty); text-align: left; }
 .svrow div { flex: 1; min-width: 0; } .svrow b { font: 600 13px var(--head); letter-spacing: 1px; display: block; } .svrow span { font-size: 12px; color: var(--dim); }
 .svrow.none b { color: var(--dim); }
-.ver { margin-top: 12px; font-size: 10.5px; color: var(--dim); }
+.ver { margin-top: clamp(2px, 0.8vh, 10px); font-size: 10.5px; color: var(--dim); }
 
 /* ---------- found your command ---------- */
 #s-found { overflow-y: auto; }
@@ -368,6 +369,9 @@ button small { display: block; font: 9.5px var(--mono); letter-spacing: 0.5px; o
 #th-desk .req.fold { text-align: left; cursor: pointer; padding: 5px 9px; } #th-desk .req.fold b { margin: 0; } #th-desk .req.fold span { color: var(--dim); font-size: 10.5px; }
 #th-coach { position: absolute; left: 8px; bottom: 44px; width: min(330px, 78%); background: rgba(40, 36, 10, 0.92); border-top: 2px solid var(--amber); padding: 8px 10px; z-index: 1; }
 #th-coach[hidden] { display: none; }
+#th-coach { pointer-events: none; } #th-coach button { pointer-events: auto; }
+#th-coach .cfold { position: absolute; right: 4px; top: 4px; width: 34px; height: 30px; background: none; border: 0; color: var(--amber); font-size: 15px; cursor: pointer; }
+#th-coach.fold { width: auto; padding-right: 44px; }
 #th-coach em { display: block; font: 600 10px var(--head); letter-spacing: 1.5px; color: var(--amber); font-style: normal; }
 #th-coach > b { font: 600 13px var(--head); letter-spacing: 1px; }
 #th-coach p { font-size: 12.5px; line-height: 1.4; margin: 3px 0 7px; } #th-coach p b { color: var(--amber); font-weight: normal; }
@@ -439,7 +443,7 @@ button small { display: block; font: 9.5px var(--mono); letter-spacing: 0.5px; o
   #th-top .ro div { min-width: 0; flex: 0 0 auto; padding: 0 5px 1px; } #th-top .ro b { font-size: 13px; white-space: nowrap; } #th-top .ro span { font-size: 8px; white-space: nowrap; }
   #th-feed { width: 72%; } #th-feed div { font-size: 10.5px; }
   #th-desk { width: 78%; top: auto; bottom: 40px; max-height: 55%; }
-  #th-coach { bottom: auto; top: 56px; width: 86%; }
+  #th-coach { bottom: auto; top: 4px; left: 4px; width: calc(100% - 8px); padding: 6px 9px; } #th-coach p { font-size: 12px; line-height: 1.32; margin: 2px 0 5px; }
   #top { gap: 4px 8px; } #top .ro b { font-size: 14px; }
 }
 

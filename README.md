@@ -1,6 +1,6 @@
 # Orbital Fury: Galactic Command
 
-**Prototype 0.55.0.** One war, run from four posts, in one game.
+**Prototype 0.56.0.** One war, run from four posts, in one game.
 
 You found a command (a name, a crest, colours) and hold the centre of the galaxy against three enemies. Everything in
 the war is yours to run, and each part changes the others:
@@ -13,6 +13,22 @@ the war is yours to run, and each part changes the others:
 | **The base** | Found a base on the system's key world: roads, zones, and buildings that grow along them. | +35% output from the system for each charter. |
 
 A system that falls takes its station and its base with it.
+
+## What's new in 0.56: one campaign, and endless play
+
+- **The main menu** puts the Galactic Campaign first. Below it are the three posts as **endless play**: Orbital Fury (the
+  ground), FOB Commander (the base) and Orbital Commander (the station), each one row. Behind the whole menu is one moving picture of the
+  war room, rendered in Blender with the game's own people (assets/menu/warroom.mp4, a 20 s loop): the galaxy turning on the
+  map table, the staff round it, the fleet crossing the window. The scene is warroom_menu.blend in the assets folder.
+- **One campaign.** The ground game's own campaign and its story tutorial are off its title screen (`ground.html?campaign`
+  still shows them); its Quick Play is now Endless Play.
+- **Tutorials with no story.** Each post has a TUTORIAL on the menu: a practice post that is not saved, with a short run of
+  cards that are done by doing them, and it ends back at the menu. The base and the station use js/modes/guide.js (the same
+  cards show once, by themselves, the first time a post is played). The ground game's is its training ground: the practice
+  base and its fifteen lessons (js/ground/tutorial.js, TRAIN; the texts are trn.* in the language table), with no film, no
+  radio cast and no evacuation.
+- **The menu is for a desktop** and fits one without scrolling (from 1280x720 and 1366x650 up).
+- Comments in the code use the game's own names for the weapons and the enemy.
 
 ## What's new in 0.54.2: Publicity and colonists
 

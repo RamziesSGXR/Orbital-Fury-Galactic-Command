@@ -230,7 +230,7 @@ export class Renderer {
         this.shake = Math.min(12, this.shake + 3);
         break;
       }
-      case 'glassbeam': {      // (0.19) the Great Host glasses the plain: a beam from high above, and the ground left burnt glass
+      case 'glassbeam': {      // (0.19) the Talon host glasses the plain: a beam from high above, and the ground left burnt glass
         fx.push({ k: 'gbeam', x: ev.x, y: ev.y, r: ev.r, t0: now, life: 1.1, lean: 0.2 + Math.random() * 0.15 });
         const black = this.settings.polarity === 'black';
         this._scorch(ev.x, ev.y, ev.r * 1.15, black); this._scorch(ev.x, ev.y, ev.r * 0.6, black);

@@ -40,6 +40,7 @@ with sync_playwright() as pw:
     print('fury:', f.evaluate("({ cls: document.documentElement.className, g3d: __game.cam.g3d, sight: __game.cam.sight, exit: !!document.getElementById('btn-gc-exit').offsetParent })"))
     assert f.evaluate("__game.cam.g3d === true"), 'Orbital Fury mode should have the 3D look on'
     pg.screenshot(path=f'{out}/menu-4-fury.png')
+    assert not f.is_visible('#btn-campaign') and f.is_visible('#btn-play'), 'in Galactic Command the ground game is endless play only: no campaign of its own on its title'
     f.click('#btn-gc-exit'); pg.wait_for_timeout(700); assert pg.evaluate("gc.state") == 'title' and not [x for x in pg.frames if 'ground.html' in x.url], 'the way back from Orbital Fury mode'
     # the saves list, and the hints switch
     pg.click('#b-saves'); pg.wait_for_timeout(300); print('saves:', [r.inner_text().replace('\n', ' · ') for r in pg.query_selector_all('.svrow')]); pg.screenshot(path=f'{out}/menu-5-saves.png')
@@ -47,6 +48,38 @@ with sync_playwright() as pw:
     pg.click('#b-settings'); pg.wait_for_timeout(200); a = pg.inner_text('#m-hints').split('\n')[0]; pg.click('#m-hints'); pg.wait_for_timeout(200); b = pg.inner_text('#m-hints').split('\n')[0]; print('hints:', a, '->', b); assert a != b
     pg.click('#m-hints'); pg.click('#m-back'); pg.wait_for_timeout(200)
     pg.screenshot(path=f'{out}/menu-6-saved.png')
+    # (0.56) the picture of the war room is there, and each post has a tutorial: a practice post that is not saved
+    assert pg.evaluate("(() => { const v = document.getElementById('tbg'); return v.tagName === 'VIDEO' && v.videoWidth >= 1280 && v.getBoundingClientRect().width >= innerWidth - 1; })()"), 'the war room film is not behind the menu'
+    # the ground game's tutorial: straight onto its practice base, lesson cards with no story, and back to this menu
+    pg.click('#b-fury-tut'); f = pg.frame_locator('#g-frame'); f.locator('#tut:not(.hidden)').wait_for(timeout=90000); pg.wait_for_timeout(1500)
+    card = f.locator('#tut').inner_text(); print('ground tutorial:', card.replace('\n', ' | ')[:170])
+    assert 'TUTORIAL · 1 OF' in card and 'YOU ARE THE SHIP' in card and 'trn.' not in card and 'tut.' not in card, 'the ground tutorial did not open on its first card, in words'
+    pg.screenshot(path=f'{out}/menu-7-ground-tutorial.png')
+    seen = set()
+    for _ in range(60):     # NEXT or SKIP through every lesson: each card has words, and the last one goes back to the menu
+        if pg.evaluate("gc.state") == 'title': break
+        txt = f.locator('#tut').inner_text(); assert 'trn.' not in txt, 'a tutorial card shows a key, not words: ' + txt[:80]; seen.add(f.locator('#tut-h').inner_text())
+        fr = next(x for x in pg.frames if 'ground.html' in x.url)
+        fr.evaluate("(() => { const c = document.getElementById('tut'); if (c.classList.contains('fold')) document.getElementById('tut-x').click(); for (const id of ['tut-next', 'tut-skip', 'tut-ok']) { const b = document.getElementById(id); if (b && !b.classList.contains('hidden') && b.offsetParent) { b.click(); return id; } } })()")
+        pg.wait_for_timeout(450)
+    print('ground lessons:', len(seen)); assert len(seen) >= 12 and 'TUTORIAL COMPLETE' in seen, f'the ground tutorial did not run to its end: {sorted(seen)}'
+    pg.wait_for_function("gc.state === 'title'", timeout=8000)
+    for kind, btn in [('base', '#b-base-tut'), ('orbit', '#b-orbit-tut')]:
+        before = pg.evaluate(f"localStorage.getItem('ofgc.solo.{kind}')")
+        pg.click(btn); pg.wait_for_function(f"gc.state === '{kind}' && document.getElementById('trans').hidden", timeout=60000); pg.wait_for_timeout(2500)
+        card = pg.inner_text('#th-coach'); print(kind, 'tutorial:', card.replace('\n', ' | ')[:150])
+        assert 'TUTORIAL · 1 OF' in card and pg.is_visible('#th-coach'), f'the {kind} tutorial did not open on its first card'
+        pg.screenshot(path=f'{out}/menu-7-{kind}-tutorial.png')
+        pg.click('#th-coach [data-gc=next]'); pg.wait_for_timeout(300); assert '2 OF' in pg.inner_text('#th-coach'), 'NEXT does not move the tutorial on'
+        pg.click('#th-coach [data-gc=skip]'); pg.wait_for_timeout(900)
+        assert pg.evaluate("gc.state") == 'title', 'ending a tutorial should come back to the main menu'
+        assert pg.evaluate(f"localStorage.getItem('ofgc.solo.{kind}')") == before, f'the {kind} tutorial wrote over the saved {kind}'
+    # the menu is for a desktop: all of it on the screen, with nothing to scroll to
+    for name, vw, vh in [('laptop', 1280, 720), ('small', 1366, 650), ('desktop', 1440, 900), ('hd', 1920, 1080)]:
+        pg.set_viewport_size({'width': vw, 'height': vh}); pg.wait_for_timeout(500); pg.screenshot(path=f'{out}/menu-8-{name}.png')
+        sh, bottom = pg.evaluate("[document.getElementById('s-title').scrollHeight, Math.max(...[...document.querySelectorAll('#s-title .btn, #t-ver')].filter(e => e.offsetParent).map(e => e.getBoundingClientRect().bottom))]")
+        assert sh <= vh + 1 and bottom <= vh, f'the menu does not fit a {vw}x{vh} screen (it is {sh} high, its last line ends at {bottom})'
+        assert pg.evaluate("[...document.querySelectorAll('#s-title .btn')].filter(e => e.offsetParent).every(e => { const r = e.getBoundingClientRect(), c = e.closest('.mcard, .tfoot').getBoundingClientRect(); return r.right <= c.right + 1; })"), f'a button runs off its card ({name})'
     br.close()
 print('\n'.join(errs) if errs else 'no page errors')
 sys.exit(1 if errs else 0)

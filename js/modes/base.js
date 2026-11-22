@@ -2,6 +2,7 @@
 // the commander meets them inside Galactic Command: one base for each system, roads, zones and buildings from the shared
 // tool bar, requests on the shared desk, and its charter reported back to the map (the system pays more into the war).
 import { C, B, GROUPS, ZONES, GOODS } from '../base/config.js';
+import { makeGuide, guideSeen } from './guide.js';
 import { Sim, LOOSE } from '../base/sim.js';
 import { Life } from '../base/life.js';
 import { View } from '../base/view.js';
@@ -24,9 +25,9 @@ const isZone = (t) => !!t && t.startsWith('zone:'), isRoad = (t) => !!ROADS[t];
 let app, ui, audio, canvas, view = null, sim = null, life = null, args = null;
 let acc = 0, group = 'roads', tool = null, rot = 0, sel = 0, barSig = '', deskSig = '', hudT = 0, saveT = 25, thumbs = {};
 let roadDrag = null, zoneDrag = null, drag = null, pinch = null; const ptrs = new Map(), held = new Set();
-let hover = null, selSig = '', coachSig = '', tut = null; const deskSeen = new Map();
+let hover = null, selSig = '', tut = null; const deskSeen = new Map();
 const DESK_OPEN = 20000;   // a request lies open on the desk this long (ms), then folds down to its title until it is tapped
-const TUT_KEY = 'ofgc.tut.base';
+const TUT_KEY = 'ofgc.guide.base';
 
 const baseFaction = (sys) => ({ ...structuredClone(app.faction), base: `Fort ${sys.worlds[sys.key].name}`, diff: 'recruit' });
 
@@ -100,26 +101,14 @@ function desk() {
     if (folded(r)) return `<button class="plate amber req fold" data-bo="${r.id}"><b>${esc(q.title.toUpperCase())}</b><span>${due} · ${words('tap to read')}</span></button>`;
     return `<div class="plate amber req" data-id="${r.id}"><b>${esc(q.title.toUpperCase())}</b>${esc(q.text.replaceAll('NAME', r.name))}<small>${due}, then it is filed without you.</small><div class="row">${q.opts.map((o, i) => `<button class="plate btn sm" data-ba="${i}" ${sim.canDecide(r, i) ? '' : 'disabled'}>${esc(o.label)}</button>`).join('')}</div></div>`; }).join('');
 }
-// ---------------------------------------------------------------- the first base: a short guided start
-// Each step is done by doing it (or NEXT); it is shown once, on the first base, and SKIP ends it for good.
+// ---------------------------------------------------------------- the guide: how a base is played (js/modes/guide.js)
 const TUT = [
   { t: 'ROADS FIRST', x: 'Everything is built along a road. Pick <b>DIRT ROAD</b> below and drag from the command post across open ground.', done: () => sim.net.segs.some((g) => g.k !== 'wall') },
   { t: 'ZONE THE ROADSIDE', x: 'Open <b>ZONES</b>, pick <b>Life Support</b> and tap beside your road. Bunks, mess halls and latrines grow there by themselves as the base needs them.', done: () => sim.zone.some((v) => v) },
   { t: 'POWER, WATER, SEWAGE', x: 'Open <b>UTILITIES</b> and place a <b>Biofuel Generator</b> by the road. Each utility covers a circle round it: keep the bunks inside, and keep wells away from a sewage lagoon.', done: () => sim.b.some((b) => B[b.type].group === 'power') },
   { t: 'CHECK ON A BUILDING', x: 'With no tool in hand, tap any building: its card shows its crew, whether it has power, water and sewage, and what is wrong with it.', done: () => !!sel },
-  { t: 'THAT IS THE BASICS', x: 'Drag to move, right-drag or Q and E to turn, wheel or pinch to zoom. <b>II</b> pauses and <b>1×</b> speeds time up. Requests land on your desk at the side: answer them or they are filed without you.', last: true },
+  { t: 'WHAT MATTERS', x: 'Keep morale up and the books in profit: troops need beds, food, water and power, and every charter you earn makes the base worth more. Drag to move, right-drag or Q and E to turn, wheel or pinch to zoom. <b>II</b> pauses and <b>1×</b> speeds time up. Requests land on your desk at the side: answer them or they are filed without you.', last: true },
 ];
-function coach() {
-  let el = $('th-coach');
-  if (!tut) { if (el) el.hidden = true; coachSig = ''; return; }
-  const st = TUT[tut.i];
-  if (st.done && st.done()) { tut.i++; audio.ready(); return coach(); }
-  const sig = String(tut.i); if (sig === coachSig) return; coachSig = sig;
-  if (!el) { el = document.createElement('div'); el.id = 'th-coach'; $('th-stage').appendChild(el); }
-  el.hidden = false;
-  el.innerHTML = `<em>GETTING STARTED · ${tut.i + 1} OF ${TUT.length}</em><b>${st.t}</b><p>${words(st.x)}</p><div class="cbt">${st.last ? '<button class="plate btn sm go" data-bc="done">GOT IT</button>' : '<button class="plate btn sm" data-bc="next">NEXT</button><button class="plate btn sm" data-bc="skip">SKIP THE GUIDE</button>'}</div>`;
-}
-function endTut() { tut = null; try { localStorage.setItem(TUT_KEY, '1'); } catch { /* private browsing: it will be offered again */ } coach(); }
 function setTool(t) {
   tool = tool === t ? null : t; sel = 0; view.select(null); selBar();
   view.setGhost(null); view.showLine(null); view.showPlots(isZone(tool) || (tool && !isRoad(tool) && !LOOSE.has(tool)) ? sim.plotTiles() : null);
@@ -191,7 +180,7 @@ function bind() {
   canvas.addEventListener('wheel', (e) => { e.preventDefault(); view.zoomBy(Math.exp(e.deltaY * 0.0012)); }, { passive: false });
   $('s-theatre').addEventListener('click', (e) => {
     if (mode.off) return;
-    const t = e.target.closest('[data-bg],[data-bt],[data-ba],[data-bd],[data-bx],[data-bo],[data-bc]'); if (!t) return;
+    const t = e.target.closest('[data-bg],[data-bt],[data-ba],[data-bd],[data-bx],[data-bo]'); if (!t) return;
     const d = t.dataset;
     if (d.bg) { group = d.bg; if (tool) setTool(tool); audio.click(); tabs(); bar(true); }
     else if (d.bt != null) setTool(d.bt);
@@ -199,7 +188,6 @@ function bind() {
     else if (d.bd) { const r = sim.demolish(sel); if (r === false || (r && r.ok === false)) { audio.deny(); if (r && r.why) app.toast(r.why); } else { audio.baseDown(); sel = 0; view.select(null); selBar(); } }
     else if (d.bx) { sel = 0; view.select(null); selBar(); }
     else if (d.bo) { deskSeen.set(+d.bo, performance.now()); audio.click(); desk(); }
-    else if (d.bc) { audio.click(); if (d.bc === 'next') { tut.i++; coach(); } else endTut(); }
   });
   // with a mouse, resting on a tool shows what it is before it is picked
   $('th-bar').addEventListener('pointerover', (e) => { if (mode.off || e.pointerType !== 'mouse') return; const t = e.target.closest('[data-bt]'); hover = t ? t.dataset.bt : null; selBar(); });
@@ -232,18 +220,17 @@ const mode = {
     view.lookAt(hq ? hq.x + hq.w / 2 : sim.N / 2, hq ? hq.z + hq.d / 2 : sim.N / 2);
     view.zoomT = view.zoom = 16;
     view.resize();
-    acc = 0; tool = null; sel = 0; hover = null; barSig = ''; deskSig = ''; selSig = ''; coachSig = ''; deskSeen.clear(); thumbs = {}; saveT = 25; group = 'roads'; ui.speeds = [1, 2, 4];
-    let seen = false; try { seen = !!localStorage.getItem(TUT_KEY); } catch { /* no storage */ }
-    tut = !loaded && app.settings.hints && !seen ? { i: 0 } : null;
+    acc = 0; tool = null; sel = 0; hover = null; barSig = ''; deskSig = ''; selSig = ''; deskSeen.clear(); thumbs = {}; saveT = 25; group = 'roads'; ui.speeds = [1, 2, 4];
+    tut = app.tutorial || (!loaded && app.settings.hints && !guideSeen(TUT_KEY)) ? makeGuide(TUT, { key: TUT_KEY, tutorial: app.tutorial, words, audio, exit: () => app.leavePost() }) : null;
     $('th-where').textContent = sim.faction.base;
-    tabs(); bar(true); stats(); desk(); selBar(); coach();
+    tabs(); bar(true); stats(); desk(); selBar(); if (tut) tut.tick(); else { const co = $('th-coach'); if (co) co.hidden = true; }
     if (!loaded) { const gr = app.grant('b_grant'); if (gr) sim.supplies += gr; }
     if (!loaded) { ui.message('A NEW BASE', 2600); ui.feed('BASE: The command post is down. Draw a road from it, then zone along the road.', 'radio'); }
     else ui.feed(`BASE: Welcome back, Commander. Day ${Math.floor((sim.time || { day: 1 }).day)}.`, 'radio');
   },
   store() { if (sim && args) { try { app.siteSave('base', args.system.id, sim.save()); } catch (err) { console.error(err); } } },
   report() { const s = sim.stage || 0, r = sim.rates(), net = r.crNet + r.supNet; return { air: Math.min(5, sim.b.filter((b) => b.done && !b.off && SHOWS.has(b.type)).length), profit: sim.flow.days.length > 0 && net > 0, net, level: Math.min(4, s + 1), charter: C.STAGES[s].name, troops: sim.troops.length }; },
-  leave() { mode.store(); mode.off = true; held.clear(); const co = $('th-coach'); if (co) co.hidden = true; if (view) { view.setGhost(null); view.showLine(null); view.showPlots(null); } },
+  leave() { mode.store(); mode.off = true; held.clear(); if (tut) tut.hide(); tut = null; if (view) { view.setGhost(null); view.showLine(null); view.showPlots(null); } },
   frame(dt, now, real) {
     if (!sim) return;
     const fx = (held.has('d') || held.has('arrowright') ? 1 : 0) - (held.has('a') || held.has('arrowleft') ? 1 : 0), fz = (held.has('w') || held.has('arrowup') ? 1 : 0) - (held.has('s') || held.has('arrowdown') ? 1 : 0);
@@ -264,7 +251,7 @@ const mode = {
     }
     if (sim.time) view.setTime(sim.time.hour);
     if (!view.lost) view.frame(real);
-    if ((hudT -= real) <= 0) { hudT = 0.3; bar(); stats(); desk(); selBar(); coach(); }
+    if ((hudT -= real) <= 0) { hudT = 0.3; bar(); stats(); desk(); selBar(); if (tut) tut.tick(); }
     if ((saveT -= real) <= 0) { saveT = 25; mode.store(); }
   },
   // for the browser checks: put down the start of a base and run a few days

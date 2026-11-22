@@ -1,6 +1,6 @@
-// The Vanguard's own kit, on top of the Liberator rifle (see enemies.js): four stims, four grenades (for groups and for heavies),
-// the Ultimatum (a one-round launcher that kills almost anything it hits square; a supply pod reloads it), a dodge that comes
-// round every so often (see combat.js), and the sense to pull back when badly hurt. A target worth a grenade or the Ultimatum is
+// The Vanguard's own kit, on top of the service rifle (see enemies.js): four stims, four grenades (for groups and for heavies),
+// the Hand Cannon (a one-round launcher that kills almost anything it hits square; a supply pod reloads it), a dodge that comes
+// round every so often (see combat.js), and the sense to pull back when badly hurt. A target worth a grenade or the Hand Cannon is
 // marked on the map first, so the gunner sees it too. A Vanguard who is running calls call-ins as he goes (see callin.js).
 // Every number is in CONFIG.hd.
 import { t as tr } from '../i18n.js';
@@ -45,7 +45,7 @@ export function useStim(m, a) {
 }
 
 // A supply pod restocks every Vanguard. stimFrac and grenFrac are how full those compartments were (1 = a full refill).
-// Any pod that brings grenades reloads the Ultimatum too.
+// Any pod that brings grenades reloads the Hand Cannon too.
 export function restock(m, stimFrac = 1, grenFrac = 1) {
   for (const a of m.hdAlive) {
     a.stims = Math.min(K.stims, a.stims + Math.round(K.stims * stimFrac));
@@ -65,7 +65,7 @@ function friendNear(m, a, x, y, r) {
   return false;
 }
 const aware = (m, e) => m.squad.free || e.g.state === 'hunt' || m.squad.state === 'assault';
-// (0.40) Who has what on which target. A claim: another Vanguard's grenade (for a moment after the throw) or Ultimatum (aimed, or
+// (0.40) Who has what on which target. A claim: another Vanguard's grenade (for a moment after the throw) or Hand Cannon (aimed, or
 // in flight) on a target; the rest of the squad leaves anything within its blast to him, so they do not all spend theirs on one.
 export function claim(m, a, e, kind, r, sec) {
   (m.hdClaims || (m.hdClaims = [])).push({ by: a, e, x: e.x, y: e.y, kind, r, until: m.t + sec });
@@ -92,7 +92,7 @@ function pickGrenade(m, a, avoid = null) {
     if (d2 < G.minRange * G.minRange || !aware(m, e)) return;
     if (e.kind === 'H' && d2 < G.heavyR * G.heavyR) heavy = true;
     if (avoid && (e.x - avoid.x) ** 2 + (e.y - avoid.y) ** 2 < G.splash * G.splash) return;
-    if (claimedBy(m, a, e.x, e.y)) return;            // (0.40) someone else's target (a grenade just thrown there, an Ultimatum on its way)
+    if (claimedBy(m, a, e.x, e.y)) return;            // (0.40) someone else's target (a grenade just thrown there, a Hand Cannon on its way)
     let s = 0;
     m.eGrid.near(e.x, e.y, G.splash, (o) => { s += o.kind === 'L' ? 1 : o.kind === 'M' ? 2 : 4; });
     if (e.kind === 'H') s += 1;                       // the heavy itself is the point
@@ -110,8 +110,8 @@ export function throwGrenade(m, a, e) {
   fireShot(m, a, e, { dmg: base * (a.dmgMul || 1), acc: G.acc, splash: G.splash, flight: G.flight, mult }, 'squad', 'a', 'grenade');
 }
 
-// The Ultimatum: the toughest thing in range (a super heavy or a heavy first, a medium only when overrun), with a clear lane.
-function pickUltimatum(m, a, crowded) {
+// The Hand Cannon: the toughest thing in range (a super heavy or a heavy first, a medium only when overrun), with a clear lane.
+function pickHandCannon(m, a, crowded) {
   let best = null, bs = -Infinity;
   m.eGrid.near(a.x, a.y, K.ult.range, (e, d2) => {
     if (!aware(m, e)) return;
@@ -124,7 +124,7 @@ function pickUltimatum(m, a, crowded) {
   return best;
 }
 // The round: a blast that kills every enemy in it (a super heavy loses a big piece).
-export function fireUltimatum(m, a, e) {
+export function fireHandCannon(m, a, e) {
   const U = K.ult, rng = m.rng, hit = rng.next() < U.acc, hp = hpNow(m);
   const dmg = e.boss ? e.maxHp * U.bossFrac : e.maxHp * U.kill;
   m.emit('tracer', { x: a.x, y: a.y, tx: e.x, ty: e.y, s: 'a', hit, big: true, fl: U.flight, snd: 'ult' });
@@ -206,18 +206,18 @@ export function updateVanguards(m, dt) {
       }
     }
 
-    // the Ultimatum: mark the target, then fire the one round (a supply pod reloads it)
+    // the Hand Cannon: mark the target, then fire the one round (a supply pod reloads it)
     if (a.ultAim) {
       const e = a.ultAim.e;
       if (e.dead || (e.x - a.x) ** 2 + (e.y - a.y) ** 2 > (K.ult.range + 6) ** 2) a.ultAim = null;
       else if (t >= a.ultAim.at) {
         a.ultAim = null; a.ult--;
         m.stats.ults = (m.stats.ults || 0) + 1;
-        fireUltimatum(m, a, e);
+        fireHandCannon(m, a, e);
         bark(m, a, 'ult', '');
       }
-    } else if (a.ult > 0 && t >= a.ultAt && thr && t >= (m.ultGapUntil || 0)) {      // (0.40: the squad's Ultimatums go one at a time)
-      const e = pickUltimatum(m, a, (a.retreat || frac < 0.5) && crowd >= 3);
+    } else if (a.ult > 0 && t >= a.ultAt && thr && t >= (m.ultGapUntil || 0)) {      // (0.40: the squad's Hand Cannons go one at a time)
+      const e = pickHandCannon(m, a, (a.retreat || frac < 0.5) && crowd >= 3);
       if (e) {
         a.ultAim = { e, at: t + K.ult.markSec }; a.ultAt = t + 3; mark(m, a, e, 'ult');
         claim(m, a, e, 'ult', K.ult.splash + 2, K.ult.markSec + K.ult.flight + 0.6);

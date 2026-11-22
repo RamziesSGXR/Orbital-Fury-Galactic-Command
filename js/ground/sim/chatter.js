@@ -54,7 +54,7 @@ export function updateChatter(m, dt) {
   const eg = m.eGrid;
   for (const a of m.hdAlive) {
     if (a.mounted && !(m.lrv && m.lrv.seats[0] === a)) { /* passengers share the vehicle's ping */ }
-    if (a.ping && a.ping.e && a.ping.until > t) continue;     // a target mark (grenade, Ultimatum) stays up until it times out
+    if (a.ping && a.ping.e && a.ping.until > t) continue;     // a target mark (grenade, Hand Cannon) stays up until it times out
     const e = eg.nearest(a.x, a.y, 55);
     if (e) { ping(a, e.g.cx, e.g.cy, 'fight', t + 4); continue; }
     let br = null, bd = Infinity;

@@ -53,7 +53,7 @@ function walk(m, a, tx, ty, speed, dt) {
   tx = w.x; ty = w.y;
   const dx = tx - a.x, dy = ty - a.y, d = Math.hypot(dx, dy);
   if (d < 0.05) return 0;
-  const brace = a.role === 'spec' && !a.forced && m.t < (a.braceUntil || 0) ? C.infantry.braceMul : 1;     // (0.26) a Specialist firing the MG-43 is braced (0.46: not on a forced move)
+  const brace = a.role === 'spec' && !a.forced && m.t < (a.braceUntil || 0) ? C.infantry.braceMul : 1;     // (0.26) a Specialist firing the machine gun is braced (0.46: not on a forced move)
   const s = Math.min(speed * speedMul(m, a) * brace * dt, d), nx = a.x + (dx / d) * s, ny = a.y + (dy / d) * s;
   if (!canStep(m, a, nx, ny)) return 0;
   a.x = nx; a.y = ny;
@@ -272,7 +272,7 @@ export function drawOrder(m, pts) {
 
 // ---------------------------------------------------------------- the troop dropship
 // (0.26) Four roles. Every drop is a squad with a Squad Leader first out; then, by chance (more with the armory's Specialists and
-// Field Medics), a Specialist (MG-43 and EAT-17) and a Medic; Riflemen make up the rest. Everyone carries G-12 grenades.
+// Field Medics), a Specialist (machine gun and rocket launcher) and a Medic; Riflemen make up the rest. Everyone carries G-12 grenades.
 export const ROLES = ['leader', 'rifle', 'spec', 'medic'];
 export function rollRoles(m, n, st) {
   const rng = m.rng, roles = Array(Math.max(0, n)).fill('rifle');

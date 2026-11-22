@@ -13,7 +13,7 @@ import { medicNear, goDown } from './infantry.js';
 // none (burning ground, gas). m.hitFlags says what happened (1 = from behind, 2 = critical) for whoever wants to show it.
 const B = C.combat.back, CR = C.combat.crit;
 // An armoured front (a bug heavy, the Shellback: tgt.front, the share that gets through within the arc tgt.frontCos) takes less
-// from ahead (f 4), unless the hit pierces (the Ultimatum). A bot heavy's weak points crit more often (tgt.critUp).
+// from ahead (f 4), unless the hit pierces (the Hand Cannon). A bot heavy's weak points crit more often (tgt.critUp).
 // (ABOVE: the hit is a blast coming down from orbit, not a shot from someone on the ground: a heavy's front plate does not stop it)
 let ABOVE = false;
 export function hitMul(m, tgt, fx, fy, cs, pierce = false) {
@@ -101,7 +101,7 @@ export function soakBubble(m, b, dmg) {
   return dmg - soak;
 }
 
-// pierce: the hit goes through armour and shields (the Ultimatum's round).
+// pierce: the hit goes through armour and shields (the Hand Cannon's round).
 // armor: the share of the hit the body takes (a light round on a heavy: very little). (0.26) Shields do not care about armour:
 // a warbeast's bubble, a lizard heavy's or the Thunder Lizard's own shield soak the hit at full strength (light penetration strips them
 // as well as anything), and only what gets through meets the armour.

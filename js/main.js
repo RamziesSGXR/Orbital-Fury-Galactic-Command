@@ -53,6 +53,7 @@ let camp = null;
 let state = 'title';       // title | found | war | ground | orbit | base
 let mode = null;           // the theatre on screen, if any
 let solo = null;           // (0.39) 'base' or 'orbit' while one post is played on its own, with no war round it
+let tutorial = false;      // a post opened as its TUTORIAL from the main menu: a practice post, nothing of it is saved
 let soloCamp = null;       // what stands in for the campaign then: the command's identity and nothing else
 let fury = null;           // the Orbital Fury mode's own page, while it is open
 const modes = {};          // loaded theatres, by name
@@ -72,13 +73,15 @@ export const app = {
   endCampaign() { drop(KEY); for (const k of Object.keys(localStorage)) if (k.startsWith('ofgc.site.')) drop(k); camp = null; toTitle(); },
   theatre: (kind, args) => enterTheatre(kind, args),
   // a theatre's own saved state, kept apart from the campaign so one big base cannot crowd out the rest
-  siteLoad: (kind, pid) => read(solo ? SOLO[kind] : `ofgc.site.${kind}.${pid}`, null),
-  siteSave: (kind, pid, data) => write(solo ? SOLO[kind] : `ofgc.site.${kind}.${pid}`, data),
-  siteDrop: (kind, pid) => drop(solo ? SOLO[kind] : `ofgc.site.${kind}.${pid}`),
+  siteLoad: (kind, pid) => tutorial ? null : read(solo ? SOLO[kind] : `ofgc.site.${kind}.${pid}`, null),
+  siteSave: (kind, pid, data) => { if (!tutorial) write(solo ? SOLO[kind] : `ofgc.site.${kind}.${pid}`, data); },
+  siteDrop: (kind, pid) => { if (!tutorial) drop(solo ? SOLO[kind] : `ofgc.site.${kind}.${pid}`); },
+  get tutorial() { return tutorial; },
+  leavePost() { if (mode) leaveTheatre(mode.report ? mode.report() : {}); },
 };
 window.gc = { app, War, get state() { return state; }, get mode() { return mode; } };     // for the browser checks
 
-function show(id) { for (const s of document.querySelectorAll('.scr')) s.classList.toggle('on', s.id === id); }
+function show(id) { for (const s of document.querySelectorAll('.scr')) s.classList.toggle('on', s.id === id); const v = $('tbg'); if (v && v.play) { if (id === 's-title') { const p = v.play(); if (p && p.catch) p.catch(() => {}); } else v.pause(); } }
 
 // ---------------------------------------------------------------- title
 // who you are when there is no war on: the identity kept from the last founding, or the saved campaign's
@@ -95,9 +98,9 @@ function saves() {
     orbit: read(SOLO.orbit, null) ? { title: (meta.orbit && meta.orbit.name) || 'Your station', text: meta.orbit ? `${meta.orbit.tier || 'Tier'}${meta.orbit.profit ? ' · in profit' : ''}` : 'A station under way', at: meta.orbit && meta.orbit.at } : null,
   };
 }
-const NONE = { war: 'No campaign yet.', fury: 'No operation under way.', base: 'No base yet.', orbit: 'No station yet.' };
+const NONE = { war: 'No campaign yet.', fury: 'Mission after mission against the enemy you pick.', base: 'Lay the roads, zone the ground, hold the wire.', orbit: 'Build it part by part and keep it in profit.' };
 function toTitle() {
-  state = 'title'; mode = null; solo = null; soloCamp = null; War.show(false); show('s-title');
+  state = 'title'; mode = null; solo = null; soloCamp = null; tutorial = false; War.show(false); show('s-title');
   const saved = read(KEY, null), ok = saved && saved.v === 2 && saved.faction, me = (ok && saved.faction) || identity() || draft, S = saves();
   $('b-continue').classList.toggle('hidden', !ok);
   $('b-new').classList.toggle('go', !ok);
@@ -105,15 +108,17 @@ function toTitle() {
   if (me.logo.img) ensureLogo(me.logo).then(() => { if (state === 'title') crest(); }); crest();
   for (const k of ['war', 'fury', 'base', 'orbit']) { const el = $('ms-' + k), v = S[k]; el.classList.toggle('none', !v); el.innerHTML = v ? `<b>${esc(v.title)}</b>${esc(v.text)}${v.at ? ' · ' + ago(v.at) : ''}` : NONE[k]; }
   $('b-fury').textContent = S.fury ? 'CONTINUE' : 'PLAY';
+  $('b-base-new').textContent = S.base ? 'NEW' : 'PLAY'; $('b-orbit-new').textContent = S.orbit ? 'NEW' : 'PLAY';
   for (const k of ['base', 'orbit']) { $('b-' + k).classList.toggle('hidden', !S[k]); $('b-' + k + '-new').classList.toggle('go', !S[k]); }
-  $('t-ver').textContent = `PROTOTYPE ${VERSION} · A FAN PROJECT · NOT AFFILIATED WITH ANY STUDIO`;
+  $('t-ver').textContent = `PROTOTYPE ${VERSION} · AN ORIGINAL SETTING · NOT AFFILIATED WITH ANY STUDIO`;
 }
 $('b-continue').onclick = async () => { audio.click(); camp = read(KEY, null); if (!camp) return toTitle(); await ensureLogo(camp.faction.logo); toWar({ saved: camp.war, tutorial: settings.hints && !settings.hintsDone && !qs.has('seed') }); };
 $('b-new').onclick = () => { audio.click(); if (read(KEY, null)) return confirmBox('Start a new campaign?', 'The campaign in progress, with its stations and bases, will be lost.', 'START A NEW CAMPAIGN', () => toFound('war')); toFound('war'); };
 // ---- (0.39) one post on its own: FOB Commander (the base) and Orbital Commander (the station)
 const SOLO_NAME = { base: 'FOB COMMANDER', orbit: 'ORBITAL COMMANDER' };
-function soloGo(kind, fresh) {
+function soloGo(kind, fresh, tut = false) {
   audio.click();
+  if (tut) { const me = identity() || draft; tutorial = true; return enterSolo(kind, me); }     // a practice post: no founding first, nothing saved
   const go = () => { if (fresh) { drop(SOLO[kind]); const m = read(SOLO_META, {}) || {}; delete m[kind]; write(SOLO_META, m); } const me = identity(); if (!me) return toFound(kind); enterSolo(kind, me); };
   if (fresh && read(SOLO[kind], null)) return confirmBox(kind === 'base' ? 'Start a new base?' : 'Start a new station?', `The ${kind === 'base' ? 'base' : 'station'} you have been building will be lost.`, kind === 'base' ? 'START A NEW BASE' : 'START A NEW STATION', go);
   go();
@@ -124,19 +129,20 @@ async function enterSolo(kind, me) {
   const home = (me.capital || GC.names.capital || 'Aurelia');
   enterTheatre(kind, { system: { id: kind === 'base' ? 9001 : 9002, name: home, kind: 'capital', worlds: [{ name: home, type: 'capital' }], key: 0 } }, true);
 }
-$('b-base').onclick = () => soloGo('base', false); $('b-base-new').onclick = () => soloGo('base', true);
-$('b-orbit').onclick = () => soloGo('orbit', false); $('b-orbit-new').onclick = () => soloGo('orbit', true);
+$('b-base').onclick = () => soloGo('base', false); $('b-base-new').onclick = () => soloGo('base', true); $('b-base-tut').onclick = () => soloGo('base', false, true);
+$('b-orbit').onclick = () => soloGo('orbit', false); $('b-orbit-new').onclick = () => soloGo('orbit', true); $('b-orbit-tut').onclick = () => soloGo('orbit', false, true);
 // ---- (0.39) Orbital Fury mode: the ground game whole, with its own missions, difficulty and saves, in its own page
-function enterFury() {
+function enterFury(training = false) {
   audio.click(); if (fury) return;
   const me = identity();
-  window.gcFury = { livery: me || draft, hints: settings.hints, onExit: () => setTimeout(leaveFury, 0) };
+  // (0.56) training: straight into its tutorial (a practice base, nothing kept), and back here when it ends
+  window.gcFury = { livery: me || draft, hints: settings.hints, training, onExit: () => setTimeout(leaveFury, 0) };
   state = 'fury'; fury = document.createElement('iframe'); fury.id = 'g-frame'; fury.title = 'Orbital Fury'; fury.setAttribute('allow', 'autoplay; fullscreen');
   fury.onload = () => { try { fury.contentWindow.focus(); } catch { /* not focusable yet */ } };
   fury.src = 'ground.html' + (qs.has('debug') ? '?debug' : ''); document.body.appendChild(fury);
 }
 function leaveFury() { if (fury) { fury.remove(); fury = null; } window.gcFury = null; toTitle(); }
-$('b-fury').onclick = enterFury;
+$('b-fury').onclick = () => enterFury(false); $('b-fury-tut').onclick = () => enterFury(true);
 // ---- (0.39) what is saved, in one list: every way of playing, what it holds, and a way to clear it
 function savesBox() {
   const S = saves(), name = { war: 'GALACTIC', fury: 'ORBITAL FURY', base: 'FOB COMMANDER', orbit: 'ORBITAL COMMANDER' };
@@ -182,28 +188,6 @@ function confirmBox(title, text, yes, go) {
   $('modal').querySelector('[data-x=no]').onclick = () => { $('modal').hidden = true; audio.click(); };
 }
 
-// the title's backdrop: a slow field of stars and the limb of a world, drawn in code
-const stars = Array.from({ length: 220 }, () => ({ x: Math.random(), y: Math.random(), z: 0.2 + Math.random() * 0.8, p: Math.random() * 7 }));
-function titleBg(now) {
-  const c = $('tbg'), dpr = Math.min(2, devicePixelRatio || 1), w = c.clientWidth, h = c.clientHeight;
-  if (c.width !== Math.round(w * dpr) || c.height !== Math.round(h * dpr)) { c.width = Math.round(w * dpr); c.height = Math.round(h * dpr); }
-  const g = c.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
-  g.fillStyle = '#050706'; g.fillRect(0, 0, w, h);
-  for (const s of stars) { const x = ((s.x + now * 0.004 * s.z) % 1) * w, y = s.y * h, a = 0.35 + 0.35 * Math.sin(now * 1.3 + s.p); g.fillStyle = `rgba(214,232,226,${a * s.z})`; g.fillRect(x, y, s.z * 1.6, s.z * 1.6); }
-  // the world below: a wide limb with a thin line of air
-  const R = Math.max(w, h) * 1.25, cx = w * 0.5, cy = h + R * 0.72;
-  const body = g.createRadialGradient(cx - R * 0.2, cy - R * 0.5, R * 0.2, cx, cy, R); body.addColorStop(0, '#22382f'); body.addColorStop(0.7, '#0e1915'); body.addColorStop(1, '#050706');
-  g.fillStyle = body; g.beginPath(); g.arc(cx, cy, R, 0, 7); g.fill();
-  g.strokeStyle = 'rgba(127,233,224,0.5)'; g.lineWidth = 1.5; g.beginPath(); g.arc(cx, cy, R + 1, 0, 7); g.stroke();
-  g.strokeStyle = 'rgba(127,233,224,0.12)'; g.lineWidth = 9; g.beginPath(); g.arc(cx, cy, R + 6, 0, 7); g.stroke();
-  // a picket line of ships crossing the limb
-  const col = app.faction.secondary || '#f5d547';
-  for (let i = 0; i < 5; i++) {
-    const t = ((now * 0.012 + i * 0.07) % 1.3) - 0.15, x = t * w, y = h * 0.34 + Math.sin(i * 1.7) * 18 + (i % 2) * 26 - t * 30, k = 5 + (i % 3) * 2;
-    g.fillStyle = col; g.beginPath(); g.moveTo(x + k * 2.2, y); g.lineTo(x - k, y - k * 0.6); g.lineTo(x - k * 0.5, y); g.lineTo(x - k, y + k * 0.6); g.closePath(); g.fill();
-    g.fillStyle = 'rgba(127,233,224,0.5)'; g.fillRect(x - k * 2.4, y - 0.6, k * 1.4, 1.2);
-  }
-}
 
 // ---------------------------------------------------------------- found your command
 let draft = rollFaction();
@@ -286,7 +270,7 @@ const PASS = {
 async function enterTheatre(kind, args, alone = false) {
   if (state !== 'war' && !alone) return;
   app.keep(); audio.strikeCall();
-  const [over, title, sub] = alone ? [kind === 'base' ? 'SURFACE' : 'ORBIT', SOLO_NAME[kind], kind === 'base' ? 'One base, yours to grow. Roads first, then let it grow along them.' : 'One station, yours to lay out. Its people will do the rest.'] : PASS[kind](args);
+  const [over, title, sub] = alone ? [kind === 'base' ? 'SURFACE' : 'ORBIT', SOLO_NAME[kind] + (tutorial ? ': TUTORIAL' : ''), tutorial ? 'A practice post. Nothing here is saved.' : kind === 'base' ? 'One base, yours to grow. Roads first, then let it grow along them.' : 'One station, yours to lay out. Its people will do the rest.'] : PASS[kind](args);
   $('tr-over').textContent = over; $('tr-title').textContent = title; $('tr-sub').textContent = sub; $('tr-bar').style.width = '8%';
   app.crest($('tr-crest')); $('trans').hidden = false;
   const t0 = performance.now();
@@ -310,7 +294,7 @@ async function enterTheatre(kind, args, alone = false) {
 // Back to the war room. `out` is what the theatre reports: { win, left } from the ground; { level } from a station or a base.
 function leaveTheatre(out = {}) {
   const kind = state, args = frameUi.args; if (!mode) return;
-  if (solo) soloNote(out);
+  if (solo && !tutorial) soloNote(out);
   try { mode.leave(); } catch (err) { console.error(err); }
   mode = null; clearInterval(frameUi._wt); frameUi.war(null);
   if (solo) return toTitle();     // (0.39) a post on its own answers to no war: back to the main menu
@@ -461,8 +445,8 @@ function loop(ms) {
   requestAnimationFrame(loop);
   const now = ms / 1000, dt = Math.min(0.1, Math.max(0, (ms - last) / 1000)); last = ms;
   try {
-    if (state === 'title') titleBg(now);
-    else if (state === 'war') War.frame(ms);
+    // (0.56: the title's backdrop is the war room film, #tbg; it plays by itself and is paused away from the title)
+    if (state === 'war') War.frame(ms);
     else if (mode) mode.frame(frameUi.paused ? 0 : dt * frameUi.speed, now, dt);
   } catch (err) { if (!loop.said) { loop.said = true; console.error(err); app.toast('Something went wrong on this screen: ' + err.message, 6000); } }
 }
