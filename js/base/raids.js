@@ -74,7 +74,8 @@ export const Raids = {
       text = `${q.name} tested the perimeter and left. No harm done; a watched, closed wall would have earned a commendation.`;
     } else {
       out = 'scare'; const cost = Math.round(Math.min(Math.max(0, this.supplies) * 0.03, r.size * 25)); this.spend('raid', cost); this.mood = Math.max(-15, this.mood - 1);
-      text = `${q.name} wandered through the base in the night and unsettled everyone. ${cost} supplies spent on wire and sandbags. Nobody was hurt. A closed, watched wall keeps them out (DEFENCE).`;
+      const h = this.raidHour(r), when = h < 6 || h >= 21 ? 'in the night' : h < 12 ? 'in the morning' : h < 18 ? 'in broad daylight' : 'at dusk';
+      text = `${q.name} wandered through the base ${when} and unsettled everyone. ${cost} supplies spent on wire and sandbags. Nobody was hurt. A closed, watched wall keeps them out (DEFENCE).`;
     }
     this.lastRaid = { out, k: r.k, week: this.week, str, atk };
     this.say('def', text); this.events.push({ t: 'raid', out, text }); this.recalc();

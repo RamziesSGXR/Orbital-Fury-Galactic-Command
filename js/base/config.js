@@ -92,6 +92,13 @@ export const GOODS = {
   ammo:    { name: 'Ammo', short: 'AMMO', cost: 2, color: '#d8a24a' },
 };
 export const GKEYS = Object.keys(GOODS);
+// (GC 0.58) the standing supply order: what the morning dropship may buy, and the most it may spend of the base's supplies
+export const SUPPLY_MODES = {
+  needs: { name: 'Needs only', short: 'NEEDS', desc: 'Tops up what the buildings use, with a day in hand. The stores are not filled.' },
+  stock: { name: 'Stock up', short: 'STOCK UP', desc: 'Fills every store to the top. Each new store makes the morning bill bigger.' },
+  hold:  { name: 'Hold', short: 'HOLD', desc: 'Buys nothing. Recruits still fly in. The base lives on what it has.' },
+};
+export const SUPPLY_CAPS = [0.25, 0.5, 1];
 // Roads: tiles laid on the grid. People and vehicles move this many times faster on them.
 export const ROADS = { 1: { name: 'Dirt Road', cost: 1, speed: 1.6, walk: 1.25 }, 2: { name: 'Paved Road', cost: 4, speed: 2.4, walk: 1.4 },
   3: { name: 'Footpath', cost: 2, speed: 1, walk: 1.4 } };   // paved for boots: vehicles get nothing from it

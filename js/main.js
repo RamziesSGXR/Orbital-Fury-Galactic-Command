@@ -7,6 +7,7 @@
 //   BASE    the base on its key world                      (js/modes/base.js,   rules in js/base)
 // The theatres are loaded when first entered. Each one fills the same frame (#s-theatre) and hands back what the map
 // needs to know: who won, what tier the station is, what rank the base is.
+import { MSG_TIMES, msgKey, setMsg, timeMessage } from './core/msgtime.js';
 import { VERSION, C as GC } from './galaxy/config.js';
 import * as War from './galaxy/screen.js';
 import { drawLogo, ensureLogo, readUpload, SHAPES, SYMBOLS, PATTERNS, PALETTE } from './core/logo.js';
@@ -341,7 +342,7 @@ export const frameUi = {
     $('th-stats').innerHTML = list.map((s) => `<div class="${s.tone === 'a' ? 'a' : ''}"${s.tone === 'r' ? ' style="border-color:var(--red)"' : ''}><b${s.tone === 'r' ? ' style="color:var(--red)"' : ''}>${esc(s.v)}</b><span>${esc(s.k)}</span></div>`).join('');
   },
   message(text, ms = 2600) { const m = $('th-msg'); m.textContent = text; m.classList.add('show'); clearTimeout(this._mt); this._mt = setTimeout(() => m.classList.remove('show'), ms); },
-  feed(text, tone = '') { const f = $('th-feed'), d = document.createElement('div'); d.className = tone; d.textContent = text; f.appendChild(d); while (f.children.length > 4) f.firstChild.remove(); setTimeout(() => d.remove(), 7000); },
+  feed(text, tone = '') { const f = $('th-feed'), d = document.createElement('div'); d.className = tone; d.textContent = text; f.appendChild(d); while (f.children.length > 4) f.firstChild.remove(); timeMessage(d, 7000); },     // (0.58) how long: MESSAGE TIME in Settings
   tip(text) { if (!settings.hints) text = ''; const t = $('th-tip'); t.classList.toggle('hidden', !text); if (text) t.textContent = text; },     // (0.39: a tip is a hint, and hints can be off)
   leave: (out) => leaveTheatre(out),
 };
@@ -407,11 +408,13 @@ function openMenu(page = 'main') {
     m.innerHTML = `<div class="plate amber box"><h2>Settings</h2>
       <label class="rng">VOLUME<input type="range" id="m-vol" min="0" max="100" value="${Math.round(settings.volume * 100)}"></label>
       <div class="mm"><button class="plate btn${settings.muted ? ' on' : ''}" id="m-mute">${settings.muted ? 'SOUND IS OFF' : 'SOUND IS ON'}</button>
+      <label class="rng msg">MESSAGE TIME<span id="m-msg">${MSG_TIMES.map(([k, n]) => `<button class="plate btn sm${msgKey() === k ? ' on' : ''}" data-msg="${k}">${n}</button>`).join('')}</span><small>How long the messages in the corner of the base, the station and the ground battle stay up.</small></label>
       <button class="plate btn${settings.hints ? ' on' : ''}" id="m-hints">${settings.hints ? 'HINTS ARE ON' : 'HINTS ARE OFF'}<small>The coach's cards and tips. Turn them off when you know your way round, and on again whenever you like.</small></button>
       <button class="plate btn go" id="m-back">${inPlay ? 'BACK' : 'CLOSE'}</button></div></div>`;
     $('m-vol').oninput = () => { settings.volume = $('m-vol').value / 100; audio.set(settings.volume, settings.muted); write(SET_KEY, settings); };
     $('m-mute').onclick = () => { settings.muted = !settings.muted; audio.set(settings.volume, settings.muted); write(SET_KEY, settings); openMenu('settings'); };
     $('m-hints').onclick = () => { app.setHints(!settings.hints); audio.click(); openMenu('settings'); };
+    $('m-msg').onclick = (e) => { const b = e.target.closest('[data-msg]'); if (!b) return; settings.msg = b.dataset.msg; setMsg(settings.msg); write(SET_KEY, settings); audio.click(); openMenu('settings'); };
     $('m-back').onclick = () => { if (inPlay) openMenu('main'); else close(); };
   } else {
     const g = War.war();

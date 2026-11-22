@@ -1,7 +1,7 @@
 // THE BASE: the base on a system's key world. The rules and the 3D are FOB Super Commander's (js/base); this file is how
 // the commander meets them inside Galactic Command: one base for each system, roads, zones and buildings from the shared
 // tool bar, requests on the shared desk, and its charter reported back to the map (the system pays more into the war).
-import { C, B, GROUPS, ZONES, GOODS } from '../base/config.js';
+import { C, B, GROUPS, ZONES, GOODS, SUPPLY_MODES, SUPPLY_CAPS } from '../base/config.js';
 import { makeGuide, guideSeen } from './guide.js';
 import { Sim, LOOSE } from '../base/sim.js';
 import { Life } from '../base/life.js';
@@ -82,11 +82,21 @@ function statusOf(b) {
   if (d.potty) out.push([`Clean ${Math.round(b.clean ?? 100)}%`, (b.clean ?? 100) < 25 ? 'r' : '']);
   const st = Object.keys(GOODS).filter((g) => (b.stock?.[g] || 0) >= 1).map((g) => `${GOODS[g].short} ${Math.round(b.stock[g])}`); if (st.length) out.push([st.join(' · '), '']);
   if (b.cond < 70) out.push([`Condition ${Math.round(b.cond)}%`, b.cond < 40 ? 'r' : '']);
+  if (b.type === 'hq' && sim.bill) {   // (0.58) the morning dropship's receipt
+    const L = sim.bill, got = Object.keys(GOODS).filter((g) => L.order[g]).map((g) => `${L.order[g]} ${GOODS[g].short}`);
+    out.push([`Day ${Math.floor(L.day)} delivery: ${got.length ? got.join(' · ') + ` · billed ${Math.round(L.cost)} SUP` : 'nothing bought'}${L.capped ? ' (capped)' : ''}`, L.capped ? 'r' : '']);
+  }
   return out;
+}
+// (0.58) the standing supply order, on the command post's card: what the 07:00 dropship may buy, and the most it may spend
+function supplyRow() {
+  const P = sim.supplyPlan || { mode: 'needs', cap: 0.5 };
+  return `<span class="so"><i class="st">DROPSHIP BUYS</i>${Object.entries(SUPPLY_MODES).map(([k, m]) => `<button class="plate btn sm${P.mode === k ? ' on' : ''}" data-so="${k}" title="${esc(m.desc)}">${m.short}</button>`).join('')}` +
+    `<i class="st">SPENDS AT MOST</i>${SUPPLY_CAPS.map((c) => `<button class="plate btn sm${P.cap === c ? ' on' : ''}" data-sc="${c}" title="${c >= 1 ? 'No cap: it may spend every supply the base has.' : `It never spends more than ${Math.round(c * 100)}% of the base's supplies in one morning.`}">${c >= 1 ? 'ALL' : Math.round(c * 100) + '%'}</button>`).join('')}</span>`;
 }
 function selBar() {
   const el = $('th-sel'), b = sel && sim.byId(sel), t = tool || hover; let html = '';
-  if (b) html = `<b>${esc(B[b.type].name)}</b>${statusOf(b).map(([x, tone]) => `<i class="st ${tone}">${esc(x)}</i>`).join('')}<span class="grow"></span>${b.type === 'hq' ? '' : '<button class="plate btn sm" data-bd="1">DEMOLISH</button>'}<button class="plate btn sm" data-bx="1">×</button><span class="dim desc">${esc(B[b.type].desc || B[b.type].why || '')}</span>`;
+  if (b) html = `<b>${esc(B[b.type].name)}</b>${statusOf(b).map(([x, tone]) => `<i class="st ${tone}">${esc(x)}</i>`).join('')}${b.type === 'hq' ? supplyRow() : ''}<span class="grow"></span>${b.type === 'hq' ? '' : '<button class="plate btn sm" data-bd="1">DEMOLISH</button>'}<button class="plate btn sm" data-bx="1">×</button><span class="dim desc">${esc(B[b.type].desc || B[b.type].why || '')}</span>`;
   else if (t && (B[t] || ROADS[t] || (isZone(t) && ZONES[t.slice(5)]))) { const d = B[t] || ROADS[t] || ZONES[t.slice(5)]; html = `<b>${esc(d.name)}</b><span class="grow dim">${esc(words(d.desc || d.why || ''))}</span>`; }
   el.classList.toggle('hidden', !html);
   if (html !== selSig) { selSig = html; el.innerHTML = html; }
@@ -107,7 +117,7 @@ const TUT = [
   { t: 'ZONE THE ROADSIDE', x: 'Open <b>ZONES</b>, pick <b>Life Support</b> and tap beside your road. Bunks, mess halls and latrines grow there by themselves as the base needs them.', done: () => sim.zone.some((v) => v) },
   { t: 'POWER, WATER, SEWAGE', x: 'Open <b>UTILITIES</b> and place a <b>Biofuel Generator</b> by the road. Each utility covers a circle round it: keep the bunks inside, and keep wells away from a sewage lagoon.', done: () => sim.b.some((b) => B[b.type].group === 'power') },
   { t: 'CHECK ON A BUILDING', x: 'With no tool in hand, tap any building: its card shows its crew, whether it has power, water and sewage, and what is wrong with it.', done: () => !!sel },
-  { t: 'WHAT MATTERS', x: 'Keep morale up and the books in profit: troops need beds, food, water and power, and every charter you earn makes the base worth more. Drag to move, right-drag or Q and E to turn, wheel or pinch to zoom. <b>II</b> pauses and <b>1×</b> speeds time up. Requests land on your desk at the side: answer them or they are filed without you.', last: true },
+  { t: 'WHAT MATTERS', x: 'Keep morale up and the books in profit: troops need beds, food, water and power, and every charter you earn makes the base worth more. Drag to move, right-drag or Q and E to turn, wheel or pinch to zoom. <b>II</b> pauses and <b>1×</b> speeds time up. Requests land on your desk at the side: answer them or they are filed without you. The supply dropship lands at 07:00 and bills you for what it brings: tap the command post to choose what it buys and how much it may spend.', last: true },
 ];
 function setTool(t) {
   tool = tool === t ? null : t; sel = 0; view.select(null); selBar();
@@ -180,13 +190,14 @@ function bind() {
   canvas.addEventListener('wheel', (e) => { e.preventDefault(); view.zoomBy(Math.exp(e.deltaY * 0.0012)); }, { passive: false });
   $('s-theatre').addEventListener('click', (e) => {
     if (mode.off) return;
-    const t = e.target.closest('[data-bg],[data-bt],[data-ba],[data-bd],[data-bx],[data-bo]'); if (!t) return;
+    const t = e.target.closest('[data-bg],[data-bt],[data-ba],[data-bd],[data-bx],[data-bo],[data-so],[data-sc]'); if (!t) return;
     const d = t.dataset;
     if (d.bg) { group = d.bg; if (tool) setTool(tool); audio.click(); tabs(); bar(true); }
     else if (d.bt != null) setTool(d.bt);
     else if (d.ba != null) { const ok = sim.decide(+t.closest('.req').dataset.id, +d.ba); if (ok) audio.click(); else audio.deny(); deskSig = ''; desk(); }
     else if (d.bd) { const r = sim.demolish(sel); if (r === false || (r && r.ok === false)) { audio.deny(); if (r && r.why) app.toast(r.why); } else { audio.baseDown(); sel = 0; view.select(null); selBar(); } }
     else if (d.bx) { sel = 0; view.select(null); selBar(); }
+    else if (d.so || d.sc) { if (sim.setSupplyPlan(d.so ? 'mode' : 'cap', d.so || +d.sc)) audio.click(); selSig = ''; selBar(); }
     else if (d.bo) { deskSeen.set(+d.bo, performance.now()); audio.click(); desk(); }
   });
   // with a mouse, resting on a tool shows what it is before it is picked

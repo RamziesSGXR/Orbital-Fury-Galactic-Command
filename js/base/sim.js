@@ -8,7 +8,7 @@
 import { Raids } from './raids.js';
 import { FOUNDATION, EARLY } from './config.js';
 import { LAND, EQUIP } from './config.js';
-import { C, B, MIN, CREW_ORDER, MISSIONS, OP_A, OP_B, RIVALS, SURNAMES, RANKS, PLANETS, FACTION_DEFAULT, GOODS, GKEYS, ROADS, VEHICLES, TRAIN, TECH, DESIGNS, PARTS, PARTS_FOR, LOANS, DEBT_MAX, DIFF, STD, ZONES, GROWS, GROW, UTIL } from './config.js';
+import { C, B, MIN, CREW_ORDER, MISSIONS, OP_A, OP_B, RIVALS, SURNAMES, RANKS, PLANETS, FACTION_DEFAULT, GOODS, GKEYS, SUPPLY_MODES, SUPPLY_CAPS, ROADS, VEHICLES, TRAIN, TECH, DESIGNS, PARTS, PARTS_FOR, LOANS, DEBT_MAX, DIFF, STD, ZONES, GROWS, GROW, UTIL } from './config.js';
 import { RNG } from './rng.js';
 import { findPath } from './path.js';
 import { REQUESTS, GRADES, trueGrade, CALLS, hasOffice } from './desk.js';
@@ -75,6 +75,7 @@ export class Sim {
     this.b = []; this.nid = 1; this.troops = []; this.fallen = []; this.honours = [];
     this.patrols = []; this.offers = []; this.orders = []; this.inspection = null; this.veh = [];
     this.events = []; this.log = []; this.audit = null; this.bill = null;
+    this.supplyPlan = { mode: 'needs', cap: 0.5 };   // (GC 0.58) the standing supply order, set at the command post
     this.tech = { done: [], cur: null, pts: 0 };
     this.stats = { patrolsWon: 0, patrolsLost: 0, deployed: 0, trained: 0, inspections: 0, delivered: 0 };
     this.week_ = { short: 0, total: 0, fed: 0, eat: 0 };   // this week's supply record, for the Expansion audit
@@ -871,32 +872,50 @@ export class Sim {
   }
 
   // ---------------------------------------------------------------- the morning supply dropship, billed automatically
+  // (GC 0.58) THE STANDING SUPPLY ORDER: what the morning dropship may buy, set by the commander at the command post, the way the
+  // station's Logistics Office takes orders. NEEDS: what the buildings use, and a day in hand. STOCK UP: every shelf full.
+  // HOLD: nothing bought; recruits still fly in. CAP: the most of the base's supplies one morning's delivery may spend.
+  supplyTarget(g, mode = this.supplyPlan.mode) {
+    const need = this.b.reduce((a, b) => a + this.needCap(b, g), 0);
+    if (mode === 'hold') return 0;
+    if (mode === 'stock') return this.storage(g) + need;
+    return need + Math.ceil(this.usage()[g] || 0);
+  }
+  setSupplyPlan(k, v) {
+    const P = this.supplyPlan;
+    if (k === 'mode' && SUPPLY_MODES[v]) P.mode = v; else if (k === 'cap' && SUPPLY_CAPS.includes(v)) P.cap = v; else return false;
+    this.say('log', `Supply order: ${SUPPLY_MODES[P.mode].name.toLowerCase()}, ${P.cap >= 1 ? 'no spending cap' : `at most ${Math.round(P.cap * 100)}% of supplies a morning`}.`);
+    return true;
+  }
   supplyRun() {
-    const pads = this.b.filter(b => b.done && B[b.type].pad);
+    const pads = this.b.filter(b => b.done && B[b.type].pad), P = this.supplyPlan;
     if (!pads.length) { this.say('log', 'No landing pad: the supply dropship circled and went home.'); return; }
     let room = pads.length * this.padLoad();
-    const order = zero();
+    const order = zero(); let asked = 0;
     for (const g of GKEYS) {
-      const want = this.storage(g) + this.b.reduce((a, b) => a + this.needCap(b, g), 0) - this.amount(g);
+      const want = this.supplyTarget(g) - this.amount(g);
       order[g] = Math.max(0, Math.floor(want));
+      asked += order[g] * GOODS[g].cost;
     }
     // fit it in the dropship, each good getting its fair share of the room
     const want = GKEYS.reduce((a, g) => a + order[g], 0);
     if (want > room) for (const g of GKEYS) order[g] = Math.floor(order[g] * room / want);
     let cost = GKEYS.reduce((a, g) => a + order[g] * GOODS[g].cost, 0);
-    if (cost > this.supplies) { const f = Math.max(0, this.supplies) / cost; for (const g of GKEYS) order[g] = Math.floor(order[g] * f); cost = GKEYS.reduce((a, g) => a + order[g] * GOODS[g].cost, 0); }
+    const purse = Math.max(0, this.supplies) * (P.cap >= 1 ? 1 : P.cap);
+    if (cost > purse) { const f = purse / cost; for (const g of GKEYS) order[g] = Math.floor(order[g] * f); cost = GKEYS.reduce((a, g) => a + order[g] * GOODS[g].cost, 0); }
+    const capped = cost < asked && purse < Math.max(0, this.supplies);
     const n = GKEYS.reduce((a, g) => a + order[g], 0);
     // recruits come on the same flight, as many as there are bunks for
     const free = Math.max(0, this.beds - this.troops.length), r = Math.min(free ? Math.max(1, Math.round(free * C.FILL[this.rank])) : 0, pads.length * this.padSeats()), fresh = [];
     for (let i = 0; i < r; i++) fresh.push(this.addTroop().id);
-    if (!n && !fresh.length) return;
+    if (!n && !fresh.length) { this.bill = { day: this.time.day, order, cost: 0, mode: P.mode, capped }; return; }
     this.spend('deliveries', cost);
     for (const g of GKEYS) { let left = order[g]; for (const p of pads) { const put = Math.ceil(left / pads.length); p.stock[g] += Math.min(put, left); left -= Math.min(put, left); } }
-    this.bill = { day: this.time.day, order, cost };
+    this.bill = { day: this.time.day, order, cost, mode: P.mode, capped };
     this.events.push({ t: 'supply', n, fresh, pads: this.byPad(pads, fresh) });
     if (fresh.length) this.events.push({ t: 'recruits', ids: fresh });
     const parts = GKEYS.filter(g => order[g]).map(g => `${order[g]} ${GOODS[g].name.toLowerCase()}`);
-    this.say('log', (parts.length ? `Supply dropship down: ${parts.join(', ')}. Billed ${cost} supplies.` : 'Supply dropship down.') + (fresh.length ? ` ${fresh.length} recruit${fresh.length > 1 ? 's' : ''} delivered.` : ''));
+    this.say('log', (parts.length ? `Supply dropship down: ${parts.join(', ')}. Billed ${cost} supplies.` : P.mode === 'hold' ? 'Supply dropship down: nothing bought, the supply order is on hold.' : 'Supply dropship down.') + (fresh.length ? ` ${fresh.length} recruit${fresh.length > 1 ? 's' : ''} delivered.` : '') + (capped ? ' Held back by your spending cap (command post).' : ''));
   }
 
   // every pad gets its own dropship: share the passengers out, eight to a pad
@@ -1482,6 +1501,7 @@ export class Sim {
     this.roadsV = 1;
     this.adjacency(); this.recalc(); this.tick(); this.marketInit();
     if (!this.orders.length) this.newOrder();
+    if (!this.supplyPlan || !SUPPLY_MODES[this.supplyPlan.mode]) this.supplyPlan = { mode: 'needs', cap: 0.5 };   // (GC 0.58) saves from before the supply order
   }
 }
 Object.assign(Sim.prototype, Market, Build, Zones, Utilities, Land, Terrain, Raids); bindMarket(B);

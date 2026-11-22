@@ -351,6 +351,7 @@ button small { display: block; font: 9.5px var(--mono); letter-spacing: 0.5px; o
 #th-sel { background: var(--strip); border-top: 1px solid var(--cyan-l); padding: 6px 8px; font-size: 12px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 #th-sel b { font: 600 12px var(--head); letter-spacing: 1px; color: var(--cyan); text-transform: uppercase; }
 /* build mode: the card for the part in hand (js/modes/orbit.js) */
+#th-sel .so { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; } #th-sel .so .st { margin-left: 4px; font-size: 10px; color: var(--dim); }
 #th-sel.build { border-top-color: var(--amber); }
 #th-sel.build b { color: var(--amber); }
 #th-sel.build .cost { color: var(--dim); font-size: 11px; white-space: nowrap; }
@@ -412,6 +413,7 @@ button small { display: block; font: 9.5px var(--mono); letter-spacing: 0.5px; o
 #menu .mm .btn { width: 100%; }
 #menu p { font-size: 12px; color: var(--dim); margin-bottom: 6px; }
 #menu label.rng { display: flex; align-items: center; gap: 8px; font: 600 10.5px var(--head); letter-spacing: 1px; color: var(--dim); margin-top: 10px; }
+#menu label.rng.msg { flex-wrap: wrap; } #menu #m-msg { display: flex; gap: 4px; flex: 1 0 100%; } #menu #m-msg .btn { flex: 1 1 0; width: auto; min-width: 0; margin: 0; padding: 7px 4px; font-size: 10.5px; } #menu label.rng.msg small { flex: 1 0 100%; font: 400 11px var(--body, inherit); letter-spacing: 0; text-transform: none; }
 #menu input[type=range] { flex: 1; accent-color: var(--amber); }
 #modal { z-index: 10; }
 #toast { position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); background: var(--strip); border: 1px solid var(--amber-l); padding: 6px 12px; font-size: 12px;

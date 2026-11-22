@@ -1,4 +1,5 @@
 // DOM side: screens, HUD, briefing, armory, names editor, debrief, final screen and settings.
+import { timeMessage } from '../core/msgtime.js';
 import { CONFIG as C } from './config.js';
 import { FACTIONS, BIOMES } from './data/data.js';
 import { fmtTime, fmtNum, sessionTotals, MAX_NAME, carriesOn, levelReached } from './session.js';
@@ -646,9 +647,7 @@ export class Hud {
     const box = $('notices'), d = el('div', 'nt cast'); d.style.setProperty('--cc', c.col);
     const b = document.createElement('b'); b.textContent = c.tag; d.append(b, document.createTextNode(text)); box.appendChild(d);
     while (box.children.length > (touch ? 3 : 6)) box.removeChild(box.firstChild);
-    const life = touch ? 7000 : 9500;
-    setTimeout(() => d.classList.add('old'), life);
-    setTimeout(() => d.remove(), life + 1200);
+    timeMessage(d, touch ? 7000 : 9500, 1200);     // (GC 0.58) MESSAGE TIME on the main menu
   }
 
   // The notice feed: Vanguard deployments and deaths, breaches, points of interest, purchases.
@@ -658,9 +657,7 @@ export class Hud {
     if (this.toTab(text, tone)) return;
     const box = $('notices'), d = el('div', 'nt ' + tone); d.textContent = text; box.appendChild(d);
     while (box.children.length > (touch ? 3 : 6)) box.removeChild(box.firstChild);
-    const life = touch ? (tone === 'bad' || tone === 'warn' ? 5600 : 3800) : (tone === 'bad' ? 8000 : tone === 'dim' ? 3800 : 5600);
-    setTimeout(() => d.classList.add('old'), life);
-    setTimeout(() => d.remove(), life + 1200);
+    timeMessage(d, touch ? (tone === 'bad' || tone === 'warn' ? 5600 : 3800) : (tone === 'bad' ? 8000 : tone === 'dim' ? 3800 : 5600), 1200);
   }
   clearNotices() { $('notices').innerHTML = ''; }
 
