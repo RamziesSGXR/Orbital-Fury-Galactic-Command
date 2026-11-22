@@ -226,7 +226,7 @@ export class View {
       line(0, 127.5, N, 127.5, 'rgba(0,0,0,0.4)'); speck(400, 0.02, 0.08, 8, 1);
     } else if (kind === 'crate') {      // one face of a crate: a frame, a brace and a stencil
       c.fillStyle = 'rgba(0,0,0,0.1)'; c.fillRect(0, 0, N, N); c.strokeStyle = 'rgba(0,0,0,0.5)'; c.lineWidth = 22; c.strokeRect(11, 11, N - 22, N - 22); c.strokeStyle = 'rgba(255,255,255,0.25)'; c.lineWidth = 2; c.strokeRect(24, 24, N - 48, N - 48);
-      line(24, N - 24, N - 24, 24, 'rgba(0,0,0,0.4)', 18); c.fillStyle = 'rgba(0,0,0,0.55)'; c.font = 'bold 34px ui-monospace, Menlo, monospace'; c.textAlign = 'center'; c.fillText('SE-710', N / 2, 70);
+      line(24, N - 24, N - 24, 24, 'rgba(0,0,0,0.4)', 18); c.fillStyle = 'rgba(0,0,0,0.55)'; c.font = 'bold 34px ui-monospace, Menlo, monospace'; c.textAlign = 'center'; c.fillText('BF-12', N / 2, 70);
     } else if (kind === 'brass') {      // a shell case: turned bands
       for (let y = 0; y < N; y += 2) { c.fillStyle = `rgba(0,0,0,${r.range(0, 0.1)})`; c.fillRect(0, y, N, 1); } for (const y of [40, 46, 200]) { c.fillStyle = 'rgba(0,0,0,0.35)'; c.fillRect(0, y, N, 3); }
     } else if (kind === 'leaf') { for (let i = 0; i < 500; i++) { c.fillStyle = `rgba(${r.chance(0.6) ? '0,40,0' : '220,255,160'},${r.range(0.1, 0.4)})`; c.beginPath(); c.ellipse(r.int(N), r.int(N), 3 + r.int(7), 2 + r.int(3), r.range(0, 3.1), 0, 6.3); c.fill(); } }

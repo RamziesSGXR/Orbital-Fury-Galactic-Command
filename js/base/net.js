@@ -35,12 +35,14 @@ export function lineTiles(N, ax, az, bx, bz, w) {
 }
 
 // Snapping. grid: ends on tile centres (or tile edges for even widths, so a 2-wide road covers exactly two tiles);
-// 45: the direction from the start is held to multiples of 45 degrees and the length to whole tiles; free: no snapping.
-// Existing nodes and segments always pull the end onto them, so roads join up.
+// 45: the same for the start, and from there the direction is held to multiples of 45 degrees and the length to whole
+// tiles; free: no snapping. Existing nodes and segments pull the end onto them, so roads join up: drawn free, from a
+// little way off; on the grid, only the node under the pointer, and a road is met where the line being drawn runs into
+// it (not at the nearest point of it), so the line stays straight on its tiles.
 export function snap(net, p, mode, w, from) {
-  const near = net.nodes.map(n => [n, Math.hypot(n.x - p.x, n.z - p.z)]).filter(([, d]) => d < 1.3).sort((a, b) => a[1] - b[1])[0];
-  if (near) return { x: near[0].x, z: near[0].z, node: near[0].id };
-  let x = p.x, z = p.z;
+  const free = mode === 'free', pull = (q, r) => net.nodes.map(n => [n, Math.hypot(n.x - q.x, n.z - q.z)]).filter(([, d]) => d < r).sort((a, b) => a[1] - b[1])[0];
+  if (free) { const near = pull(p, 1.3); if (near) return { x: near[0].x, z: near[0].z, node: near[0].id }; }
+  let x = p.x, z = p.z, ray = null;
   const g = v => w % 2 ? Math.floor(v) + 0.5 : Math.round(v);
   if (mode === '45' && from) {
     const dx = x - from.x, dz = z - from.z, ang = Math.round(Math.atan2(dz, dx) / (Math.PI / 4)) * (Math.PI / 4);
@@ -48,13 +50,25 @@ export function snap(net, p, mode, w, from) {
     const step = diag ? Math.SQRT2 : 1, len = Math.max(1, Math.round(Math.hypot(dx, dz) / step)) * step;
     x = from.x + Math.cos(ang) * len; z = from.z + Math.sin(ang) * len;
     x = Math.round(x * 2) / 2; z = Math.round(z * 2) / 2;
-  } else if (mode !== 'free') { x = g(x); z = g(z); }
+    ray = { ux: Math.cos(ang), uz: Math.sin(ang) };
+  } else if (!free) { x = g(x); z = g(z); }
+  if (!free) { const near = pull({ x, z }, 0.75); if (near && near[0].id !== from?.node) return { x: near[0].x, z: near[0].z, node: near[0].id }; }
   // onto an existing segment: a T-junction
   let best = null;
   for (const s of net.segs) {
     const a = node(net, s.a), b = node(net, s.b), r = distSeg(x, z, a.x, a.z, b.x, b.z);
     // a line ending beside a road (close enough to touch it) joins its centreline, so the two become one junction
-    if (r.d < (s.k === 'wall' ? 0.6 : s.w / 2 + w / 2 + 0.35) && r.t > 0.02 && r.t < 0.98 && (!best || r.d < best.d)) best = { d: r.d, seg: s.id, x: a.x + (b.x - a.x) * r.t, z: a.z + (b.z - a.z) * r.t };
+    if (!(r.d < (s.k === 'wall' ? 0.6 : s.w / 2 + w / 2 + 0.35) && r.t > 0.02 && r.t < 0.98) || (best && r.d >= best.d)) continue;
+    let hx = a.x + (b.x - a.x) * r.t, hz = a.z + (b.z - a.z) * r.t;
+    if (ray) {   // where the line itself crosses this one, if it does so short of running off its end
+      const ex = b.x - a.x, ez = b.z - a.z, den = ray.ux * ez - ray.uz * ex;
+      if (Math.abs(den) > 1e-6) {
+        const u = ((a.x - from.x) * ez - (a.z - from.z) * ex) / den, t = ((a.x - from.x) * ray.uz - (a.z - from.z) * ray.ux) / den;
+        if (u < 0.9 || t <= 0.02 || t >= 0.98) continue;
+        hx = from.x + ray.ux * u; hz = from.z + ray.uz * u;
+      }
+    }
+    best = { d: r.d, seg: s.id, x: hx, z: hz };
   }
   if (best) return { x: best.x, z: best.z, seg: best.seg };
   return { x, z };
@@ -65,7 +79,9 @@ function addNode(net, x, z) {
   const id = net.nid++; net.nodes.push({ id, x, z }); return id;
 }
 function split(net, segId, x, z) {
-  const s = net.segs.find(s => s.id === segId); if (!s) return addNode(net, x, z);
+  // the segment may have been split a moment ago (both ends of a new line on one road): take whichever piece lies here now
+  const s = net.segs.find(s => s.id === segId) || net.segs.find(s => { const a = node(net, s.a), b = node(net, s.b), r = distSeg(x, z, a.x, a.z, b.x, b.z); return r.d < 0.05 && r.t > 0.001 && r.t < 0.999; });
+  if (!s) return addNode(net, x, z);
   const m = addNode(net, x, z);
   net.segs = net.segs.filter(o => o !== s);
   net.segs.push({ ...s, id: net.nid++, b: m }, { ...s, id: net.nid++, a: m });
@@ -78,6 +94,40 @@ export function addLine(net, p, q, k, w = KINDS[k].w) {
   const a = endpoint(net, p), b = endpoint(net, q);
   if (a === b) return null;
   const s = { id: net.nid++, a, b, k, w }; net.segs.push(s); return s;
+}
+const isRoad = s => s.k !== 'wall' && s.k !== 'bridge';
+// where the stretch from a to b properly crosses road s (inside both, not at their ends): how far along a-b, and where
+function crossAt(net, a, b, s) {
+  const c = node(net, s.a), d = node(net, s.b), rx = b.x - a.x, rz = b.z - a.z, ex = d.x - c.x, ez = d.z - c.z, den = rx * ez - rz * ex;
+  if (Math.abs(den) < 1e-9) return null;
+  const t = ((c.x - a.x) * ez - (c.z - a.z) * ex) / den, u = ((c.x - a.x) * rz - (c.z - a.z) * rx) / den, L = Math.hypot(rx, rz), M = Math.hypot(ex, ez);
+  if (t * L < 0.06 || (1 - t) * L < 0.06 || u * M < 0.06 || (1 - u) * M < 0.06) return null;
+  return { t, x: a.x + rx * t, z: a.z + rz * t };
+}
+// a road laid across other roads: wherever it crosses one, or runs over the end of one, both get a node there, so the
+// crossing is a junction (drawn as one piece of ground) and not two roads lying on top of each other. Returns the
+// stretches of the new road, in order
+export function addRoad(net, p, q, k, w = KINDS[k].w) {
+  const ia = endpoint(net, p), ib = endpoint(net, q); if (ia === ib) return [];
+  const a = node(net, ia), b = node(net, ib), L = Math.hypot(b.x - a.x, b.z - a.z), stops = [];
+  for (const s of [...net.segs]) { if (!isRoad(s)) continue; const c = crossAt(net, a, b, s); if (c) stops.push({ t: c.t, id: split(net, s.id, c.x, c.z) }); }
+  for (const n of net.nodes) { if (n === a || n === b || stops.some(o => o.id === n.id)) continue; const r = distSeg(n.x, n.z, a.x, a.z, b.x, b.z); if (r.d < 0.05 && r.t * L > 0.06 && (1 - r.t) * L > 0.06 && net.segs.some(s => isRoad(s) && (s.a === n.id || s.b === n.id))) stops.push({ t: r.t, id: n.id }); }
+  stops.sort((m, n) => m.t - n.t);
+  const ids = [ia, ...stops.map(o => o.id), ib], out = [];
+  for (let i = 1; i < ids.length; i++) if (ids[i] !== ids[i - 1]) { const s = { id: net.nid++, a: ids[i - 1], b: ids[i], k, w }; net.segs.push(s); out.push(s); }
+  return out;
+}
+// the same for a network drawn before crossings were joined (0.52 and earlier): every pair of roads that cross gets its node
+export function heal(net) {
+  let n = 0;
+  for (let again = true, guard = 0; again && guard < 500; guard++) {
+    again = false;
+    search: for (const s of net.segs) { if (!isRoad(s)) continue;
+      for (const o of net.segs) { if (o === s || !isRoad(o)) continue;
+        const c = crossAt(net, node(net, s.a), node(net, s.b), o); if (!c) continue;
+        const m = split(net, s.id, c.x, c.z); split(net, o.id, c.x, c.z); void m; n++; again = true; break search; } }
+  }
+  return n;
 }
 // a new road laid along old ones takes their place: any road whose two ends both lie on the new one is removed
 export function absorb(net, s) {

@@ -252,7 +252,7 @@ export const B = {
               desc: 'A calm place to reflect on victory.' },
   // ---------------------------------------------------------------- Fort Sanctuary (from the SESF base build)
   plaque:   { name: 'Memorial Plaque', group: 'propaganda', w: 2, d: 1, cost: 120, up: 2, prop: 5, mor: 2, needs: ['memorial'], atGate: true,
-              desc: 'A poem for those who stood firm on Mars, held in refracted light by lens shards from Talon wreckage. Stands at a gate.' },
+              desc: 'A poem for those who stood firm and did not come home, held in refracted light by lens shards from Talon wreckage. Stands at a gate.' },
   flood:    { name: 'Floodlight Tower', group: 'military', w: 1, d: 1, cost: 110, up: 4, pw: -2, watch: 7, atWall: true, tech: 'fortworks',
               desc: 'Luminite-core emitters that cut through fog, sandstorms and bio-acid haze. Lights the wall at night and watches seven tiles of it.' },
   turret:   { name: 'Defence Turret', group: 'military', w: 1, d: 1, cost: 220, up: 8, pw: -2, guns: 6, atWall: true, tech: 'fortworks', need: { ammo: 15 },

@@ -44,7 +44,7 @@ export function makeMats(f) {
   m.engSuit = std('#5d6046'); m.hardhat = std('#e8b81a', { roughness: 0.5 }); m.vest = std('#ff7a1a', { emissive: '#ff5a00', emissiveIntensity: 0.15 }); m.cross = std('#1f9a5a');     // (GC 0.45: the aid mark is a green cross; a red one is a protected emblem)
   return m;
 }
-// The Vanguards banner: an original design for this fan game, a yellow helmet on black over hazard stripes.
+// The Vanguards banner: an original design for this game, a yellow helmet on black over hazard stripes.
 function hdBannerMat(f) {
   const c = document.createElement('canvas'); c.width = 192; c.height = 384; const g = c.getContext('2d');
   // (GC 0.43) the fleet's own: its colours, its crest, the Vanguards' name. (It was black and yellow chevrons under a helmet: another game's.)
@@ -63,7 +63,7 @@ function signMat(text, bg, fg) {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   return new THREE.MeshStandardMaterial({ map: t, emissiveMap: t, emissive: '#ffffff', emissiveIntensity: 0.45, roughness: 0.6 });
 }
-// The Head Office flag: an original design for this fan game, a golden globe with wings on deep blue.
+// The Head Office flag: an original design for this game, a golden globe with wings on deep blue.
 function seFlagMat(f) {
   const c = document.createElement('canvas'); c.width = 384; c.height = 256; const g = c.getContext('2d');
   // (GC 0.43) HEAD OFFICE FLIES THE COMPANY'S OWN FLAG: the fleet's colour, a band of its second colour at the hoist and the foot,

@@ -69,9 +69,9 @@ export const REQUESTS = [
     opts: [{ label: 'PAY OVERTIME (40 CR)', fx: { cr: -40, sup: 90, pro: 1 }, say: 'The depot ran all night. Ninety supplies were found behind other supplies.' },
            { label: 'NOT TODAY', fx: {}, say: 'Overtime declined. The sandwiches were eaten on the clock.' }],
     when: s => s.has('depot') },
-  { from: 'Citizen', title: 'Form C-01: permission to procreate', text: 'NAME of the motor pool and a spouse in the Victory Habitat submit Form C-01. The Personnel Office needs the base Commander\'s countersignature. The form is eleven pages and has a section on genetic loyalty.',
-    opts: [{ label: 'COUNTERSIGN', fx: { mood: 3 }, say: 'C-01 countersigned. A future citizen has been pencilled in.' },
-           { label: 'RETURN FOR CORRECTIONS', fx: { pro: 1 }, say: 'C-01 returned. Section 4b was in the wrong shade of blue ink.' }] },
+  { from: 'Citizen', title: 'Form F-3: registration of a dependant', text: 'NAME of the motor pool and a spouse in the Victory Habitat submit Form F-3, to register a dependant ahead of its arrival. The Personnel Office needs the base Commander\'s countersignature. The form is eleven pages and has a section on brand loyalty.',
+    opts: [{ label: 'COUNTERSIGN', fx: { mood: 3 }, say: 'F-3 countersigned. A future recruit has been pencilled in.' },
+           { label: 'RETURN FOR CORRECTIONS', fx: { pro: 1 }, say: 'F-3 returned. Section 4b was in the wrong shade of blue ink.' }] },
   { from: 'Citizen', title: 'A family visit', text: 'NAME\'s family has a travel permit to visit the base for one afternoon. They would like to see the flag and eat in the mess. Their child has drawn a picture of a Demolition Charge.',
     opts: [{ label: 'WELCOME THEM', fx: { mood: 3, sup: -10 }, say: 'The family toured the base. The child saluted everything, including a forklift.' },
            { label: 'NOT DURING DUTY', fx: { pro: 1 }, say: 'Visit postponed. The Demolition Charge drawing has been pinned up in the canteen anyway.' }] },
@@ -109,9 +109,9 @@ const CONDUCT = [
 // what the Commander reads: range card, course time, a conduct note. Conduct is words, so it takes judgement
 // next of kin, for the file: flavour only, picked from the trooper's id so it never changes
 const KIN = ['Mother on Head Office, works in a munitions plant. Writes weekly; the censor reads monthly.',
-  'No family listed. Head Office is family enough.', 'Wife and two children in a Victory Habitat. C-01 permits on file, all approved.',
-  'Father served on Malevelon Creek. Does not discuss it.', 'Older sister in the Publicity Office. Sends posters.',
-  'Husband, a hydroponics technician on Mars. C-01 application pending: 14 months and counting.',
+  'No family listed. Head Office is family enough.', 'Wife and two children in a Victory Habitat. Family permits on file, all approved.',
+  'Father served on the Anvil front. Does not discuss it.', 'Older sister in the Publicity Office. Sends posters.',
+  'Husband, a hydroponics technician on Aurelia. Form F-3 pending: 14 months and counting.',
   'Grandmother on Head Office, 103, still watching.', 'Twin brother, also Infantry, on another planet. Each insists he is the better shot.',
   'Parents run a canteen in Brand Sector 9. Their meatloaf was commended.', 'Fiancée on Head Office. Wedding approved for after the war.',
   'Three cousins in the Vanguards. Only one still answers letters, for obvious reasons.', 'Adopted by the state. Very well adjusted. Very.'];
@@ -125,7 +125,7 @@ export function trueGrade(t) { const m = merit(t); return m >= 80 ? 'A' : m >= 6
 // ---------------------------------------------------------------- calls from the Offices: optional, but ignoring them costs
 // g: what is asked for (rations, fuel, ammo, supplies, credits). n(sim): how much. m: whose standing. days: time to answer
 export const CALLS = [
-  { m: 'def', g: 'ammo', title: 'Ammunition for the Creek', text: 'The front at the Creek is short of rounds. The Operations Office asks your base to set aside ammunition for the next transport.', n: s => 30 + s.week * 6, days: 4 },
+  { m: 'def', g: 'ammo', title: 'Ammunition for the Anvil front', text: 'The front at Anvil is short of rounds. The Operations Office asks your base to set aside ammunition for the next transport.', n: s => 30 + s.week * 6, days: 4 },
   { m: 'def', g: 'rations', title: 'Rations for a relief column', text: 'A relief column passes your sector and has eaten its boots. Set aside rations and they will collect.', n: s => 40 + s.week * 8, days: 4 },
   { m: 'pro', g: 'fuel', title: 'Biofuel for the fleet', text: 'A destroyer in orbit is running on fumes and optimism. The Growth Office requests Biofuel from your stores.', n: s => 30 + s.week * 6, days: 5 },
   { m: 'pro', g: 'supplies', title: 'A neighbouring outpost', text: 'An outpost two valleys over was built by a committee. It needs supplies to finish its own wall. Solidarity is mandatory.', n: s => 200 + s.week * 40, days: 5 },

@@ -1,7 +1,7 @@
 // THE BASE: the base on a system's key world. The rules and the 3D are FOB Super Commander's (js/base); this file is how
 // the commander meets them inside Galactic Command: one base for each system, roads, zones and buildings from the shared
 // tool bar, requests on the shared desk, and its charter reported back to the map (the system pays more into the war).
-import { C, B, GROUPS, ZONES } from '../base/config.js';
+import { C, B, GROUPS, ZONES, GOODS } from '../base/config.js';
 import { Sim, LOOSE } from '../base/sim.js';
 import { Life } from '../base/life.js';
 import { View } from '../base/view.js';
@@ -13,14 +13,20 @@ const SHOWS = new Set(['parade', 'speaker', 'billboard', 'banner', 'hdbanner', '
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
-const ROADS = { road1: { name: 'Dirt Road', k: 'dirt', sub: 'drag to draw' }, road2: { name: 'Paved Road', k: 'paved', sub: 'two tiles wide' }, path: { name: 'Footpath', k: 'path', sub: 'for boots' },
-  wall: { name: 'Wall', k: 'wall', sub: 'close it for a bonus' }, unroad: { name: 'Bulldoze', k: null, sub: words('tap a road or wall') } };
+const ROADS = { road1: { name: 'Dirt Road', k: 'dirt', sub: 'drag to draw', desc: 'One tile wide and cheap. People and vehicles move faster on it than over open ground, and every building needs a road at its door.' },
+  road2: { name: 'Paved Road', k: 'paved', sub: 'two tiles wide', desc: 'Two tiles wide, two lanes. Trucks run fastest here and do not queue behind each other. Needs a Concrete Plant.' },
+  path: { name: 'Footpath', k: 'path', sub: 'for boots', desc: 'A paved walk one tile wide. People keep to it; vehicles do not use it.' },
+  wall: { name: 'Wall', k: 'wall', sub: 'close it for a bonus', desc: 'Draw it all the way round and the base is closed: better morale, and raiders have to come through a gate. A road through a wall makes a gate.' },
+  unroad: { name: 'Bulldoze', k: null, sub: words('tap a road or wall'), desc: 'Tap a stretch of road or wall to take it out. Half its cost comes back.' } };
 const TABS = GROUPS.filter((g) => g[0] !== 'landscape');
 const isZone = (t) => !!t && t.startsWith('zone:'), isRoad = (t) => !!ROADS[t];
 
 let app, ui, audio, canvas, view = null, sim = null, life = null, args = null;
 let acc = 0, group = 'roads', tool = null, rot = 0, sel = 0, barSig = '', deskSig = '', hudT = 0, saveT = 25, thumbs = {};
 let roadDrag = null, zoneDrag = null, drag = null, pinch = null; const ptrs = new Map(), held = new Set();
+let hover = null, selSig = '', coachSig = '', tut = null; const deskSeen = new Map();
+const DESK_OPEN = 20000;   // a request lies open on the desk this long (ms), then folds down to its title until it is tapped
+const TUT_KEY = 'ofgc.tut.base';
 
 const baseFaction = (sys) => ({ ...structuredClone(app.faction), base: `Fort ${sys.worlds[sys.key].name}`, diff: 'recruit' });
 
@@ -29,14 +35,14 @@ function tabs() { $('th-tabs').innerHTML = TABS.map((g) => `<button data-bg="${g
 function thumb(t) { if (!(t in thumbs)) { try { thumbs[t] = view.thumb(t, sim.std ?? 0) || ''; } catch { thumbs[t] = ''; } } return thumbs[t]; }
 function bar(force) {
   let html = '';
-  if (group === 'roads') html = Object.entries(ROADS).map(([k, r]) => `<button class="plate btn tool${tool === k ? ' on' : ''}" data-bt="${k}"><b>${r.name}</b><span>${r.sub}</span></button>`).join('');
-  else if (group === 'zones') html = Object.entries(ZONES).map(([k, z]) => `<button class="plate btn tool${tool === 'zone:' + k ? ' on' : ''}" data-bt="zone:${k}" style="border-color:${z.col}"><b style="color:${z.col}">${z.name}</b><span>tap a road, or drag</span></button>`).join('') +
+  if (group === 'roads') html = Object.entries(ROADS).map(([k, r]) => `<button class="plate btn tool${tool === k ? ' on' : ''}" data-bt="${k}" title="${esc(words(r.desc))}"><b>${r.name}</b><span>${r.sub}</span></button>`).join('');
+  else if (group === 'zones') html = Object.entries(ZONES).map(([k, z]) => `<button class="plate btn tool${tool === 'zone:' + k ? ' on' : ''}" data-bt="zone:${k}" title="${esc(z.desc)}" style="border-color:${z.col}"><b style="color:${z.col}">${z.name}</b><span>tap a road, or drag</span></button>`).join('') +
     `<button class="plate btn tool${tool === 'zone:' ? ' on' : ''}" data-bt="zone:"><b>Unzone</b><span>clear a zone</span></button>`;
   else {
     const g = TABS.find((x) => x[0] === group) || TABS[0];
     html = g[3].filter((t) => B[t]).map((t) => {
       const lk = sim.locked(t), cost = sim.costOf(t, specOf(t)), c = typeof cost === 'object' ? cost.sup ?? cost.cost ?? 0 : cost, pic = thumb(t);
-      return `<button class="plate btn tool pic${tool === t ? ' on' : ''}" data-bt="${t}" ${lk ? 'disabled' : ''}>${pic ? `<img src="${pic}" alt="">` : ''}<div><b>${esc(B[t].name)}</b><span>${lk ? 'needs ' + esc(lk[0]) : Math.round(c) + ' SUP'}</span></div></button>`;
+      return `<button class="plate btn tool pic${tool === t ? ' on' : ''}" data-bt="${t}" title="${esc(B[t].desc || '')}" ${lk ? 'disabled' : ''}>${pic ? `<img src="${pic}" alt="">` : ''}<div><b>${esc(B[t].name)}</b><span>${lk ? 'needs ' + esc(lk[0]) : Math.round(c) + ' SUP'}</span></div></button>`;
     }).join('') || '<span class="dim" style="align-self:center">Nothing to place by hand here yet. These grow in their zone.</span>';
   }
   if (force || html !== barSig) { barSig = html; $('th-bar').innerHTML = html; }
@@ -47,24 +53,73 @@ function stats() {
   ui.stats([{ k: 'SUPPLIES', v: Math.round(sim.supplies).toLocaleString('en-US'), tone: sim.supplies < 100 ? 'r' : 'a' }, { k: 'CREDITS', v: Math.round(sim.credits).toLocaleString('en-US') }, { k: 'TROOPS', v: sim.troops.length },
     { k: 'MORALE', v: mo, tone: mo < 35 ? 'r' : '' }, { k: `DAY ${Math.floor(T.day)}`, v: `${String(Math.floor(T.hour)).padStart(2, '0')}:00` }, { k: 'CHARTER', v: (S.short || S.name).toUpperCase() }]);
   let tip = '';
-  if (isRoad(tool)) tip = tool === 'unroad' ? words('Tap a road or a wall to take it out.') : `${ROADS[tool].name}: drag across the ground to draw it.`;
+  if (isRoad(tool)) tip = tool === 'unroad' ? words('Tap a road or a wall to take it out.') : `${ROADS[tool].name}: drag across the ground to draw it. It keeps to the tiles${matchMedia('(pointer: fine)').matches ? '; hold Shift to draw free' : ''}.`;
   else if (isZone(tool)) tip = words('Tap beside a road to zone its block, or drag a rectangle.');
   else if (tool) tip = words(`${B[tool].name}: it snaps to a plot along a road. Tap to place.`);
   else { const nx = C.STAGES[(sim.stage || 0) + 1]; if (nx) tip = `NEXT CHARTER · ${(nx.short || nx.name).toUpperCase()}: ` + (nx.needs || []).map((t) => `${B[t] ? B[t].name : t}${sim.has(t) ? ' ✓' : ''}`).join(' · '); }
   ui.tip(tip);
 }
+// what a standing building is doing right now, as short labels: [text, tone] with tone 'g' good, 'r' trouble, '' plain
+function statusOf(b) {
+  const d = B[b.type], out = [], u = sim.util || sim.utilities(), nb = (n) => `${n} building${n === 1 ? '' : 's'}`;
+  if (!b.done) return [[`Under construction: ${Math.round((b.prog || 0) * 100)}%`, '']];
+  if (b.off) out.push(['Switched off', 'r']);
+  if (d.crew) out.push([`Crew ${b.crew || 0} of ${d.crew}`, (b.crew || 0) >= d.crew ? 'g' : 'r']);
+  if (d.staff) out.push([`${d.staff} citizen staff`, '']);
+  if (d.pw < 0) out.push(b.dark ? ['No power: outside every power circle', 'r'] : sim.power.ratio < 1 ? [`Power short: ${Math.round(sim.power.ratio * 100)}%`, 'r'] : ['Powered', 'g']);
+  else if (d.pw > 0) out.push([`Makes ${d.pw} power · serves ${nb(sim.servedBy(b, 'pw'))}`, '']);
+  else if (d.cover?.pw) out.push([`Carries power to ${nb(sim.servedBy(b, 'pw'))}`, '']);
+  if (sim.needsWater(b)) out.push(b.dry ? ['No water in reach', 'r'] : ['Water', 'g']);
+  if (sim.needsSewer(b)) out.push(b.foul ? ['No sewage in reach', 'r'] : ['Sewage', 'g']);
+  if (b.bad) out.push(['Contaminated: a sewage lagoon is too close', 'r']);
+  if (b.smelly) out.push(['Smells the lagoon', 'r']);
+  if (d.water || d.relay === 'wa' || b.type === 'hq') { const n = sim.servedBy(b, 'wa'); out.push([`Water to ${nb(n)} · base ${u.water.use} of ${u.water.made} a day`, u.water.ratio < 1 ? 'r' : '']); }
+  if (d.sewer || b.type === 'hq') { const n = sim.servedBy(b, 'se'); out.push([n || b.type === 'hq' ? `Takes the waste of ${nb(n)} · base ${u.sewer.use} of ${u.sewer.cap} a day` : 'Nothing in reach to serve: bunks and mess halls must stand inside its circle', n || b.type === 'hq' ? (u.sewer.ratio < 1 ? 'r' : '') : 'r']); }
+  if (d.cover?.fu) out.push([`Pipes fuel to ${nb(sim.servedBy(b, 'fu'))}`, '']);
+  if (d.beds) out.push([`${sim.cap(b, 'beds')} beds`, '']);
+  if (d.eat) out.push([`${sim.cap(b, 'eat')} seats`, '']);
+  if (d.potty) out.push([`Clean ${Math.round(b.clean ?? 100)}%`, (b.clean ?? 100) < 25 ? 'r' : '']);
+  const st = Object.keys(GOODS).filter((g) => (b.stock?.[g] || 0) >= 1).map((g) => `${GOODS[g].short} ${Math.round(b.stock[g])}`); if (st.length) out.push([st.join(' · '), '']);
+  if (b.cond < 70) out.push([`Condition ${Math.round(b.cond)}%`, b.cond < 40 ? 'r' : '']);
+  return out;
+}
 function selBar() {
-  const el = $('th-sel'), b = sel && sim.byId(sel);
-  el.classList.toggle('hidden', !b);
-  if (!b) return;
-  el.innerHTML = `<b>${esc(B[b.type].name)}</b><span class="grow dim">${b.done ? esc(B[b.type].desc || B[b.type].why || '') : 'under construction'}</span>${b.type === 'hq' ? '' : '<button class="plate btn sm" data-bd="1">DEMOLISH</button>'}<button class="plate btn sm" data-bx="1">×</button>`;
+  const el = $('th-sel'), b = sel && sim.byId(sel), t = tool || hover; let html = '';
+  if (b) html = `<b>${esc(B[b.type].name)}</b>${statusOf(b).map(([x, tone]) => `<i class="st ${tone}">${esc(x)}</i>`).join('')}<span class="grow"></span>${b.type === 'hq' ? '' : '<button class="plate btn sm" data-bd="1">DEMOLISH</button>'}<button class="plate btn sm" data-bx="1">×</button><span class="dim desc">${esc(B[b.type].desc || B[b.type].why || '')}</span>`;
+  else if (t && (B[t] || ROADS[t] || (isZone(t) && ZONES[t.slice(5)]))) { const d = B[t] || ROADS[t] || ZONES[t.slice(5)]; html = `<b>${esc(d.name)}</b><span class="grow dim">${esc(words(d.desc || d.why || ''))}</span>`; }
+  el.classList.toggle('hidden', !html);
+  if (html !== selSig) { selSig = html; el.innerHTML = html; }
 }
 function desk() {
-  const sig = sim.desk.map((r) => r.id).join(',');
+  const now = performance.now(), live = sim.desk.slice(0, innerWidth < 640 ? 1 : 2), hr = C.WEEK / 24;
+  for (const r of live) if (!deskSeen.has(r.id)) deskSeen.set(r.id, now);
+  const left = (r) => Math.max(1, Math.ceil((r.due - sim.t) / hr)), folded = (r) => now - deskSeen.get(r.id) > DESK_OPEN;
+  const sig = live.map((r) => `${r.id}${folded(r) ? 'f' : ''}${left(r)}`).join(',');
   if (sig === deskSig) return; deskSig = sig;
-  $('th-desk').innerHTML = sim.desk.slice(0, innerWidth < 640 ? 1 : 2).map((r) => { const q = REQUESTS[r.k];
-    return `<div class="plate amber req" data-id="${r.id}"><b>${esc(q.title.toUpperCase())}</b>${esc(q.text.replaceAll('NAME', r.name))}<div class="row">${q.opts.map((o, i) => `<button class="plate btn sm" data-ba="${i}" ${sim.canDecide(r, i) ? '' : 'disabled'}>${esc(o.label)}</button>`).join('')}</div></div>`; }).join('');
+  $('th-desk').innerHTML = live.map((r) => { const q = REQUESTS[r.k], due = `${left(r)} h to answer`;
+    if (folded(r)) return `<button class="plate amber req fold" data-bo="${r.id}"><b>${esc(q.title.toUpperCase())}</b><span>${due} · ${words('tap to read')}</span></button>`;
+    return `<div class="plate amber req" data-id="${r.id}"><b>${esc(q.title.toUpperCase())}</b>${esc(q.text.replaceAll('NAME', r.name))}<small>${due}, then it is filed without you.</small><div class="row">${q.opts.map((o, i) => `<button class="plate btn sm" data-ba="${i}" ${sim.canDecide(r, i) ? '' : 'disabled'}>${esc(o.label)}</button>`).join('')}</div></div>`; }).join('');
 }
+// ---------------------------------------------------------------- the first base: a short guided start
+// Each step is done by doing it (or NEXT); it is shown once, on the first base, and SKIP ends it for good.
+const TUT = [
+  { t: 'ROADS FIRST', x: 'Everything is built along a road. Pick <b>DIRT ROAD</b> below and drag from the command post across open ground.', done: () => sim.net.segs.some((g) => g.k !== 'wall') },
+  { t: 'ZONE THE ROADSIDE', x: 'Open <b>ZONES</b>, pick <b>Life Support</b> and tap beside your road. Bunks, mess halls and latrines grow there by themselves as the base needs them.', done: () => sim.zone.some((v) => v) },
+  { t: 'POWER, WATER, SEWAGE', x: 'Open <b>UTILITIES</b> and place a <b>Biofuel Generator</b> by the road. Each utility covers a circle round it: keep the bunks inside, and keep wells away from a sewage lagoon.', done: () => sim.b.some((b) => B[b.type].group === 'power') },
+  { t: 'CHECK ON A BUILDING', x: 'With no tool in hand, tap any building: its card shows its crew, whether it has power, water and sewage, and what is wrong with it.', done: () => !!sel },
+  { t: 'THAT IS THE BASICS', x: 'Drag to move, right-drag or Q and E to turn, wheel or pinch to zoom. <b>II</b> pauses and <b>1×</b> speeds time up. Requests land on your desk at the side: answer them or they are filed without you.', last: true },
+];
+function coach() {
+  let el = $('th-coach');
+  if (!tut) { if (el) el.hidden = true; coachSig = ''; return; }
+  const st = TUT[tut.i];
+  if (st.done && st.done()) { tut.i++; audio.ready(); return coach(); }
+  const sig = String(tut.i); if (sig === coachSig) return; coachSig = sig;
+  if (!el) { el = document.createElement('div'); el.id = 'th-coach'; $('th-stage').appendChild(el); }
+  el.hidden = false;
+  el.innerHTML = `<em>GETTING STARTED · ${tut.i + 1} OF ${TUT.length}</em><b>${st.t}</b><p>${words(st.x)}</p><div class="cbt">${st.last ? '<button class="plate btn sm go" data-bc="done">GOT IT</button>' : '<button class="plate btn sm" data-bc="next">NEXT</button><button class="plate btn sm" data-bc="skip">SKIP THE GUIDE</button>'}</div>`;
+}
+function endTut() { tut = null; try { localStorage.setItem(TUT_KEY, '1'); } catch { /* private browsing: it will be offered again */ } coach(); }
 function setTool(t) {
   tool = tool === t ? null : t; sel = 0; view.select(null); selBar();
   view.setGhost(null); view.showLine(null); view.showPlots(isZone(tool) || (tool && !isRoad(tool) && !LOOSE.has(tool)) ? sim.plotTiles() : null);
@@ -80,7 +135,7 @@ function tileAt(e) {
   const d = B[tool], w = rot % 2 ? d.d : d.w, dd = rot % 2 ? d.w : d.d;
   return { ...p, tx: Math.round(p.x - w / 2), tz: Math.round(p.z - dd / 2), rot };
 }
-const lineEnd = (e) => { const p = view.pick(e.clientX, e.clientY); return sim.snapLine({ x: p.x, z: p.z }, 'free', ROADS[tool].k || 'dirt', roadDrag); };
+const lineEnd = (e) => { const p = view.pick(e.clientX, e.clientY); return sim.snapLine({ x: p.x, z: p.z }, e.shiftKey ? 'free' : '45', ROADS[tool].k || 'dirt', roadDrag); };   // on the tiles, straight or diagonal; Shift draws free
 const zoneRect = (a, b) => { const out = []; for (let z = Math.min(a[1], b[1]); z <= Math.max(a[1], b[1]); z++) for (let x = Math.min(a[0], b[0]); x <= Math.max(a[0], b[0]); x++) out.push([x, z, 1]); return out; };
 function bind() {
   canvas.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -136,14 +191,19 @@ function bind() {
   canvas.addEventListener('wheel', (e) => { e.preventDefault(); view.zoomBy(Math.exp(e.deltaY * 0.0012)); }, { passive: false });
   $('s-theatre').addEventListener('click', (e) => {
     if (mode.off) return;
-    const t = e.target.closest('[data-bg],[data-bt],[data-ba],[data-bd],[data-bx]'); if (!t) return;
+    const t = e.target.closest('[data-bg],[data-bt],[data-ba],[data-bd],[data-bx],[data-bo],[data-bc]'); if (!t) return;
     const d = t.dataset;
     if (d.bg) { group = d.bg; if (tool) setTool(tool); audio.click(); tabs(); bar(true); }
     else if (d.bt != null) setTool(d.bt);
     else if (d.ba != null) { const ok = sim.decide(+t.closest('.req').dataset.id, +d.ba); if (ok) audio.click(); else audio.deny(); deskSig = ''; desk(); }
     else if (d.bd) { const r = sim.demolish(sel); if (r === false || (r && r.ok === false)) { audio.deny(); if (r && r.why) app.toast(r.why); } else { audio.baseDown(); sel = 0; view.select(null); selBar(); } }
     else if (d.bx) { sel = 0; view.select(null); selBar(); }
+    else if (d.bo) { deskSeen.set(+d.bo, performance.now()); audio.click(); desk(); }
+    else if (d.bc) { audio.click(); if (d.bc === 'next') { tut.i++; coach(); } else endTut(); }
   });
+  // with a mouse, resting on a tool shows what it is before it is picked
+  $('th-bar').addEventListener('pointerover', (e) => { if (mode.off || e.pointerType !== 'mouse') return; const t = e.target.closest('[data-bt]'); hover = t ? t.dataset.bt : null; selBar(); });
+  $('th-bar').addEventListener('pointerleave', () => { if (hover) { hover = null; if (!mode.off) selBar(); } });
   window.addEventListener('keydown', (e) => {
     if (mode.off || e.target.tagName === 'INPUT') return;
     const k = e.key.toLowerCase(); held.add(k);
@@ -172,16 +232,18 @@ const mode = {
     view.lookAt(hq ? hq.x + hq.w / 2 : sim.N / 2, hq ? hq.z + hq.d / 2 : sim.N / 2);
     view.zoomT = view.zoom = 16;
     view.resize();
-    acc = 0; tool = null; sel = 0; barSig = ''; deskSig = ''; thumbs = {}; saveT = 25; group = 'roads'; ui.speeds = [1, 2, 4];
+    acc = 0; tool = null; sel = 0; hover = null; barSig = ''; deskSig = ''; selSig = ''; coachSig = ''; deskSeen.clear(); thumbs = {}; saveT = 25; group = 'roads'; ui.speeds = [1, 2, 4];
+    let seen = false; try { seen = !!localStorage.getItem(TUT_KEY); } catch { /* no storage */ }
+    tut = !loaded && app.settings.hints && !seen ? { i: 0 } : null;
     $('th-where').textContent = sim.faction.base;
-    tabs(); bar(true); stats(); desk(); selBar();
+    tabs(); bar(true); stats(); desk(); selBar(); coach();
     if (!loaded) { const gr = app.grant('b_grant'); if (gr) sim.supplies += gr; }
     if (!loaded) { ui.message('A NEW BASE', 2600); ui.feed('BASE: The command post is down. Draw a road from it, then zone along the road.', 'radio'); }
     else ui.feed(`BASE: Welcome back, Commander. Day ${Math.floor((sim.time || { day: 1 }).day)}.`, 'radio');
   },
   store() { if (sim && args) { try { app.siteSave('base', args.system.id, sim.save()); } catch (err) { console.error(err); } } },
   report() { const s = sim.stage || 0, r = sim.rates(), net = r.crNet + r.supNet; return { air: Math.min(5, sim.b.filter((b) => b.done && !b.off && SHOWS.has(b.type)).length), profit: sim.flow.days.length > 0 && net > 0, net, level: Math.min(4, s + 1), charter: C.STAGES[s].name, troops: sim.troops.length }; },
-  leave() { mode.store(); mode.off = true; held.clear(); if (view) { view.setGhost(null); view.showLine(null); view.showPlots(null); } },
+  leave() { mode.store(); mode.off = true; held.clear(); const co = $('th-coach'); if (co) co.hidden = true; if (view) { view.setGhost(null); view.showLine(null); view.showPlots(null); } },
   frame(dt, now, real) {
     if (!sim) return;
     const fx = (held.has('d') || held.has('arrowright') ? 1 : 0) - (held.has('a') || held.has('arrowleft') ? 1 : 0), fz = (held.has('w') || held.has('arrowup') ? 1 : 0) - (held.has('s') || held.has('arrowdown') ? 1 : 0);
@@ -202,7 +264,7 @@ const mode = {
     }
     if (sim.time) view.setTime(sim.time.hour);
     if (!view.lost) view.frame(real);
-    if ((hudT -= real) <= 0) { hudT = 0.3; bar(); stats(); desk(); }
+    if ((hudT -= real) <= 0) { hudT = 0.3; bar(); stats(); desk(); selBar(); coach(); }
     if ((saveT -= real) <= 0) { saveT = 25; mode.store(); }
   },
   // for the browser checks: put down the start of a base and run a few days

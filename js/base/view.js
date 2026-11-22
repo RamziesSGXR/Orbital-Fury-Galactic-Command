@@ -782,7 +782,7 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
   }
   pan(dxPx, dyPx) {   // drag the ground under the pointer
     const k = this.photo ? this.dist * 1.1 / this.h : this.zoom * 2 / this.h, s = Math.sin(this.yaw), c = Math.cos(this.yaw);
-    const ax = -dxPx * k, az = -dyPx * k / Math.sin(this.photo ? Math.max(0.35, this.tilt) : this.pitch);
+    const ax = -dxPx * k, az = dyPx * k / Math.sin(this.photo ? Math.max(0.35, this.tilt) : this.pitch);
     this.target.x += ax * c + az * -s; this.target.z += ax * -s + az * -c;
   }
   move(fx, fz, dt) { const k = (this.photo ? this.dist * 0.7 : this.zoom * 1.2) * dt, s = Math.sin(this.yaw), c = Math.cos(this.yaw); this.target.x += (fx * c - fz * s) * k; this.target.z += (-fx * s - fz * c) * k; }

@@ -361,6 +361,17 @@ button small { display: block; font: 9.5px var(--mono); letter-spacing: 0.5px; o
 #th-sel.build .say { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #th-sel.build b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 0 1 auto; }
 @media (max-width: 640px) { #th-sel.build .say { flex-basis: 100%; order: 5; white-space: normal; min-height: 2.6em; } #th-sel.build .cost { margin-right: auto; } }
+#th-sel .st { font-style: normal; font-size: 11px; padding: 2px 7px; border: 1px solid var(--cyan-l); white-space: nowrap; }
+#th-sel .st.g { border-color: var(--cyan); color: var(--cyan); } #th-sel .st.r { border-color: var(--red); color: var(--red); }
+#th-sel .desc { flex-basis: 100%; font-size: 11.5px; }
+#th-desk .req small { display: block; margin-top: 4px; color: var(--dim); font-size: 10.5px; }
+#th-desk .req.fold { text-align: left; cursor: pointer; padding: 5px 9px; } #th-desk .req.fold b { margin: 0; } #th-desk .req.fold span { color: var(--dim); font-size: 10.5px; }
+#th-coach { position: absolute; left: 8px; bottom: 44px; width: min(330px, 78%); background: rgba(40, 36, 10, 0.92); border-top: 2px solid var(--amber); padding: 8px 10px; z-index: 1; }
+#th-coach[hidden] { display: none; }
+#th-coach em { display: block; font: 600 10px var(--head); letter-spacing: 1.5px; color: var(--amber); font-style: normal; }
+#th-coach > b { font: 600 13px var(--head); letter-spacing: 1px; }
+#th-coach p { font-size: 12.5px; line-height: 1.4; margin: 3px 0 7px; } #th-coach p b { color: var(--amber); font-weight: normal; }
+#th-coach .cbt { display: flex; gap: 6px; flex-wrap: wrap; }
 #th-tabs { display: flex; background: var(--strip); border-top: 1px solid var(--cyan-l); overflow-x: auto; scrollbar-width: none; }
 #th-tabs:empty { display: none; }
 #th-tabs button { flex: 1 0 auto; background: none; border: 0; border-top: 2px solid transparent; padding: 7px 10px; font: 600 10.5px var(--head); letter-spacing: 1px; color: var(--dim); min-height: 34px; }
@@ -416,6 +427,7 @@ button small { display: block; font: 9.5px var(--mono); letter-spacing: 0.5px; o
 #s-theatre.full #th-sel, #s-theatre.full #th-tabs, #s-theatre.full #th-bar { position: relative; z-index: 2; }
 #s-theatre.full #th-feed { top: calc(var(--tt, 60px) + 8px); }
 #s-theatre.full #th-tip { bottom: calc(var(--tb, 70px) + 8px); }
+#s-theatre.full #th-coach { bottom: calc(var(--tb, 70px) + 44px); }
 #s-theatre.full #th-msg { top: 22%; }
 
 /* a phone: the frame's top bar stays to two short rows */
@@ -427,6 +439,7 @@ button small { display: block; font: 9.5px var(--mono); letter-spacing: 0.5px; o
   #th-top .ro div { min-width: 0; flex: 0 0 auto; padding: 0 5px 1px; } #th-top .ro b { font-size: 13px; white-space: nowrap; } #th-top .ro span { font-size: 8px; white-space: nowrap; }
   #th-feed { width: 72%; } #th-feed div { font-size: 10.5px; }
   #th-desk { width: 78%; top: auto; bottom: 40px; max-height: 55%; }
+  #th-coach { bottom: auto; top: 56px; width: 86%; }
   #top { gap: 4px 8px; } #top .ro b { font-size: 14px; }
 }
 

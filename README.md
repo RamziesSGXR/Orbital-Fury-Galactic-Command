@@ -1,6 +1,6 @@
 # Orbital Fury: Galactic Command
 
-**Prototype 0.53.0.** One war, run from four posts, in one game.
+**Prototype 0.54.0.** One war, run from four posts, in one game.
 
 You found a command (a name, a crest, colours) and hold the centre of the galaxy against three enemies. Everything in
 the war is yours to run, and each part changes the others:
@@ -13,6 +13,19 @@ the war is yours to run, and each part changes the others:
 | **The base** | Found a base on the system's key world: roads, zones, and buildings that grow along them. | +35% output from the system for each charter. |
 
 A system that falls takes its station and its base with it.
+
+## What's new in 0.54: the base after its first playtest
+
+- **Roads keep to the tiles.** A road starts on a tile and runs straight or diagonal in whole tiles; it meets another road
+  where it runs into it. Hold Shift to draw free. Two roads drawn across each other make a junction (bases already saved are
+  repaired when they load), so their surfaces no longer lie on top of each other.
+- **Dragging the ground** up and down is no longer inverted: the ground stays under the pointer.
+- **Requests on the desk** fold down to their title after 20 seconds, say how long is left to answer, and open when tapped.
+- **The sewage lagoon is used.** Whoever scrubs a latrine carries the waste to the nearest lagoon or treatment plant.
+- **A building's card** shows its crew, whether it has power, water and sewage, contamination, and what it holds. A utility
+  says how many buildings it serves. Every tool says what it is, when the mouse rests on it and when it is picked.
+- **A guide on a first base**: five steps (a road, a zone, utilities, a building's card, the controls), done by doing them.
+- **Wording.** The last names borrowed from elsewhere are replaced with the game's own.
 
 ## What's new in 0.53: building the station
 
@@ -77,6 +90,7 @@ come back to them.
 - `python3 test/map.py` checks the map's desk controls.
 - `python3 test/fleets.py` checks the opening choices and the Fleet Office.
 - `python3 test/armoury.py` checks the armoury, the chest and that they survive a reload (needs `npm start`).
+- `python3 test/base_ui.py` checks the base's controls: dragging the ground, roads keeping to the tiles and joining where they cross, a building's status card, requests folding away, and the guide.
 
 ## Not in this version
 
@@ -84,7 +98,7 @@ come back to them.
 - One look across the posts: the ground battle still wears Orbital Fury's own style.
 - Fleet mechanics beyond the three fleet upgrades; supply lines that change what a system pays.
 - Most of the station's and the base's deeper panels (rooms inside parts, the ledger, research, patrols, landscaping).
-- The tutorial for the theatres, music, French and Spanish.
+- The tutorial for the station and the ground (the base has a short guide on a first base), music, French and Spanish.
 - The setting's look: the wording is now the game's own (a private fleet that is its own brand, against the Molt, the Foundry and the Talon), but the lizard riders are still drawn and fought as the old third enemy.
 
 ## Credits

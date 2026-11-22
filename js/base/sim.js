@@ -20,7 +20,7 @@ import { Utilities } from './utils.js';
 import { Land, GRID } from './land.js';
 import { Terrain, TERRA } from './terrain.js';
 import { Market, bindMarket } from './market.js';
-import { emptyNet, raster, addLine, snap, nearestSeg, removeSeg, segLen, lineTiles, node, KINDS, absorb } from './net.js';
+import { emptyNet, raster, addLine, addRoad, heal, snap, nearestSeg, removeSeg, segLen, lineTiles, node, KINDS, absorb } from './net.js';
 
 export const MKEYS = ['def', 'pro', 'tru'];
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -291,8 +291,9 @@ export class Sim {
   drawLine(a, b, k) {
     const c = this.checkLine(a, b, k); if (!c.ok) return null;
     if (c.runs) { let first = null; for (const [p, q] of c.runs) { const s = addLine(this.net, p, q, k); if (s) { first ??= s; } } if (first) { this.spend('build', c.cost); this.rebuildNet(); } return first; }
-    const s = addLine(this.net, a, b, k); if (!s) return null;
-    if (k !== 'wall' && k !== 'bridge') { absorb(this.net, s); this.gradeRoad(s); }
+    // a road is laid in stretches, one between each pair of roads it crosses, so every crossing is a junction
+    const parts = k === 'wall' || k === 'bridge' ? [addLine(this.net, a, b, k)].filter(Boolean) : addRoad(this.net, a, b, k), s = parts[0]; if (!s) return null;
+    if (k !== 'wall' && k !== 'bridge') for (const q of parts) { absorb(this.net, q); if (this.net.segs.includes(q)) this.gradeRoad(q); }
     if (k === 'bridge') for (const id of [s.a, s.b]) { const n = this.net.nodes.find(n => n.id === id); n.h ??= this.hAt(n.x, n.z); }   // the deck's ends stay where they were laid
     if (c.cost >= 0) this.spend('build', c.cost); else this.earn('refund', -c.cost);
     this.rebuildNet(); return s;
@@ -1476,6 +1477,7 @@ export class Sim {
     this.unpackTerrain(s.hgtS, s.paintS); delete this.hgtS; delete this.paintS;
     this.scrub = this.unpackScrub(s.scrubS); delete this.scrubS;
     this.zone = this.unpackZones(s.zoneS); delete this.zoneS;
+    heal(this.net);   // roads that cross without a junction (drawn before 0.53) get one
     this.rebuildNet();
     this.roadsV = 1;
     this.adjacency(); this.recalc(); this.tick(); this.marketInit();

@@ -197,13 +197,21 @@ export class Life {
   }
 
   // ---------------------------------------------------------------- what an idle trooper does next
+  // latrine duty ends at the pit: whoever scrubbed a latrine carries the slops to the nearest sewage lagoon or treatment
+  // plant and tips them in, so the lagoon is somewhere people are seen to use
+  slops(a) {
+    const pits = this.sim.b.filter(b => b.done && !b.off && B[b.type].sewer); if (!pits.length) return this.idleTask(a, this.sim.troop(a.id));
+    const d2 = b => { const [cx, cz] = this.centre(b); return (cx - a.x) ** 2 + (cz - a.z) ** 2; }, pit = pits.reduce((p, q) => d2(q) < d2(p) ? q : p), [x, z] = this.front(pit, 0.45, rnd(-0.8, 0.8));
+    this.go(a, x, z, () => { a.act = 'work'; a.face = this.centre(pit); a.wait = rnd(4, 7); });
+  }
   idleTask(a, t) {
+    if (a.next) { const f = a.next; a.next = null; return f(); }
     const s = this.sim, done = s.b.filter(b => b.done);
     const of = type => done.filter(b => b.type === type);
     const opts = [];
     const site = s.b.find(b => !b.done);
     const dirty = s.cleaning && s.byId(s.cleaning);
-    if (dirty && !this.cleaner) opts.push([50, () => { this.cleaner = a.id; const [x, z] = this.front(dirty, 0.55, 0.3); this.go(a, x, z, () => { a.act = 'work'; a.face = this.centre(dirty); a.wait = rnd(8, 12); a.onDone = () => { this.cleaner = null; }; }); }]);
+    if (dirty && !this.cleaner) opts.push([50, () => { this.cleaner = a.id; const [x, z] = this.front(dirty, 0.55, 0.3); this.go(a, x, z, () => { a.act = 'work'; a.face = this.centre(dirty); a.wait = rnd(8, 12); a.onDone = () => { this.cleaner = null; a.next = () => this.slops(a); }; }); }]);
     if (site) opts.push([5, () => { const [cx, cz] = this.centre(site), ang = rnd(0, 6.28), r = Math.max(site.w, site.d) / 2 + 0.6; this.go(a, cx + Math.cos(ang) * r, cz + Math.sin(ang) * r, () => { a.act = 'build'; a.face = [cx, cz]; a.wait = rnd(6, 12); }); }]);
     if (of('parade').length) opts.push([4 + 3 * (1 - t.drill), () => {
       const p = pick(of('parade')), i = Math.floor(rnd(0, 12));
@@ -277,7 +285,7 @@ export class Life {
         else { a.act = 'salute'; a.face = this.nearestFlag(a); }
       }
       if (a.task !== want) {
-        a.task = want; a.hidden = false; a.wait = 0; a.face = null; a.onDone = null;
+        a.task = want; a.hidden = false; a.wait = 0; a.face = null; a.onDone = null; a.next = null;
         if (want.startsWith('job')) {
           const b = jobB, slot = s.troops.filter(o => o.job === t.job).indexOf(t);
           const [x, z] = this.front(b, 0.5, (slot - 1) * 0.5);
