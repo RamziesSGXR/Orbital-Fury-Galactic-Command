@@ -28,7 +28,7 @@ export const C = {
   REAL_HOUR: 180,
   INSPECT_AT: 0.55,         // the Publicity Office inspects this far into each week
   START: { supplies: 4500, credits: 600, troops: 6, morale: 55 },
-  WAGE: 2,                 // credits a day for every citizen on the staff
+  WAGE: 2,                 // credits a day for every colonist on the staff
   OVERDRAFT: 800,          // how far credits may go below zero before the Bureau stops lending
   REFIT: 0.15,             // a refit costs the difference in price plus this share of the base price
   ODFEE: 0.03,             // a week's fee on any overdraft
@@ -117,7 +117,7 @@ export const TECH = {
   broadcast:{ name: 'Planetary Broadcast', tier: 2, cost: 300, hrs: 36, needs: ['radio'], desc: 'Unlocks the Broadcast Mast: a very tall mast that runs four landing pads and carries the Publicity Office to every ear.' },
   command:  { name: 'Unified Command', tier: 3, cost: 480, hrs: 60, needs: ['broadcast', 'highrise'], desc: 'Unlocks the Command Tower, which watches a long stretch of wall and makes the whole base stand straighter.' },
   fortworks:{ name: 'Fortification Doctrine', tier: 1, cost: 180, hrs: 24, desc: 'Unlocks Defence Turrets, Floodlight Towers and the Emergency Operations Bunker.' },
-  civic:    { name: 'Civic Programme', tier: 2, cost: 260, hrs: 30, needs: ['shelving'], desc: 'Unlocks BRAND-MART, the Citizens\' Casino and the Memorial Halls.' },
+  civic:    { name: 'Civic Programme', tier: 2, cost: 260, hrs: 30, needs: ['shelving'], desc: 'Unlocks BRAND-MART, the Colonists\' Casino and the Memorial Halls.' },
   archive:  { name: 'Quantum Archives', tier: 2, cost: 300, hrs: 36, needs: ['radio'], desc: 'Unlocks the Server and Storage Vault, the Security Brig and Cryopreservation Storage.' },
   warroom:  { stage: 2, name: 'Strategic Command', tier: 3, cost: 520, hrs: 60, needs: ['archive', 'command'], desc: 'Unlocks the War Room: every front in real time, better odds and more operations to choose from.' },
   industry: { name: 'State Industry', tier: 2, cost: 280, hrs: 36, needs: ['shelving'], desc: 'Unlocks the State Industrial Complex: your own supplies, made on the base, for fuel and power.' },
@@ -129,7 +129,7 @@ export const TRAIN = { range: 8, course: 6, lecture: 4, parade: 3 };   // points
 export const MIN = {
   def: { name: 'Operations Office', short: 'DEFENCE', key: 'D', wants: 'Trained troopers shipped to the front on time, and patrols that come back.' },
   pro: { name: 'Growth Office', short: 'EXPANSION', key: 'X', wants: 'Supply lines that never run dry, and housing for every recruit. Audited every day.' },
-  tru: { name: 'Publicity Office', short: 'TRUTH', key: 'T', wants: 'A base that inspires: morale, propaganda and upkeep.' },
+  tru: { name: 'Publicity Office', short: 'PUBLICITY', key: 'T', wants: 'A base that inspires: morale, propaganda and upkeep.' },
 };
 
 // The build bar is grouped by the Head Office that owns each building. Humanity has no standing yet; it arrives later.
@@ -147,7 +147,7 @@ export const GROUPS = [
   ['industry', 'INDUSTRY', 'Industry zone: the engineers and their plant, and whatever digs, pumps or makes. Noisy: keep it clear of Life Support.', ['yard', 'batch', 'motorpool', 'extractor', 'mine', 'factory'], 'ind'],
   ['power', 'UTILITIES', 'Power, water, sewage and fuel. Each covers a circle round it: a building outside power coverage goes dark, and bunks without water or sewage lose morale and fall sick.', ['gen', 'solar', 'substation', 'well', 'tower', 'rowpu', 'lagoon', 'treatment', 'fuelfarm']],
   ['defence', 'DEFENCE', 'Close the wall, watch it and light it. Inside a closed wall everything works 5% better and morale is +3; with a Lookout Tower, 10% and +6.', ['lookout', 'flood', 'turret', 'shelter']],
-  ['truth', 'TRUTH', 'Morale and propaganda, for the Publicity Office.', ['flag', 'banner', 'hdbanner', 'speaker', 'billboard', 'pool', 'plaque', 'statue', 'memorial', 'halls', 'partyhq', 'palace', 'monument']],
+  ['truth', 'PUBLICITY', 'Morale and propaganda, for the Publicity Office.', ['flag', 'banner', 'hdbanner', 'speaker', 'billboard', 'pool', 'plaque', 'statue', 'memorial', 'halls', 'partyhq', 'palace', 'monument']],
 ];
 // what a new base builds before anything else: these are what bring money in. Everything else waits for them
 export const FOUNDATION = ['pad', 'depot', 'barracks', 'mess', 'range'];
@@ -234,9 +234,9 @@ export const B = {
   dome:     { staff: 1, name: 'Hydro Dome', group: 'living', w: 2, d: 2, cost: 240, up: 12, pw: -2, crew: 1, mor: 5, prop: 2,
               desc: 'Fresh greens under glass. Good for morale, nice to look at.' },
 
-  lecture:  { staff: 1, name: 'Citizenship Hall', group: 'propaganda', w: 3, d: 2, cost: 240, up: 12, pw: -1, crew: 1, needs: ['truth'], train: 'lecture', slots: 10, prop: 4,
+  lecture:  { staff: 1, name: 'Orientation Hall', group: 'propaganda', w: 3, d: 2, cost: 240, up: 12, pw: -1, crew: 1, needs: ['truth'], train: 'lecture', slots: 10, prop: 4,
               desc: 'Lectures on Brand Standards. Trains recruits a little, and the Publicity Office likes the sound of it.' },
-  truth:    { staff: 1, name: 'Truth Office', group: 'propaganda', w: 2, d: 2, cost: 220, up: 15, pw: -2, crew: 1, prop: 6, mor: 1,
+  truth:    { staff: 1, name: 'Publicity Studio', group: 'propaganda', w: 2, d: 2, cost: 220, up: 15, pw: -2, crew: 1, prop: 6, mor: 1,
               desc: 'A Publicity Office branch office. Unlocks loudspeakers, billboards and statues.' },
   flag:     { name: 'Faction Flag', group: 'propaganda', w: 1, d: 1, cost: 40, up: 1, prop: 4, mor: 1,
               desc: 'Your colours and crest, flying beside the Head Office flag. Troops salute it.' },
@@ -260,21 +260,21 @@ export const B = {
   eob:      { stage: 2, name: 'Emergency Operations Bunker', group: 'military', w: 4, d: 3, cost: 900, up: 24, pw: 5, crew: 2, unique: true, tech: 'fortworks', large: true, mor: 3, weekly: { def: 2 },
               desc: 'If the surface falls silent, the war continues below. Armoured walls, redundant comm relays and its own power grid. +2 Defence standing a day.' },
   vault:    { name: 'Server and Storage Vault', group: 'industry', w: 3, d: 3, cost: 640, up: 16, pw: -4, crew: 1, tech: 'archive', large: true, lab: 0.35, store: { rations: 60, fuel: 40, ammo: 40 },
-              desc: 'Every battle log, strat-map and citizen record on quantum drives, cooled by Foundry heat plates. Research 35% faster, and a hardened store.' },
+              desc: 'Every battle log, strat-map and colonist record on quantum drives, cooled by Foundry heat plates. Research 35% faster, and a hardened store.' },
   warroom:  { name: 'War Room', group: 'military', w: 4, d: 4, cost: 1200, up: 30, pw: -6, crew: 3, unique: true, tech: 'warroom', needs: ['command'], large: true, prop: 8, odds: 0.08, offers: 1, staff: 2,
               desc: 'Talon holo cores cast every front in 360 degrees; Foundry servers crunch the threat. Special operations +8% odds, and one more to choose from.' },
   halls:    { stage: 2, name: 'Memorial Halls', group: 'propaganda', w: 4, d: 3, cost: 980, up: 20, pw: -2, tech: 'civic', needs: ['memorial'], large: true, prop: 18, mor: 5, pride: 1,
               desc: 'One wing for legendary Vanguards, one for the battles that made them, in holographic panels lit by Luminite. Inspires every recruit who marches past.' },
   mart:     { name: 'BRAND-MART', group: 'living', w: 3, d: 3, cost: 700, up: 14, pw: -3, tech: 'civic', large: true, mor: 4, sales: 14, staff: 3,
               desc: 'Rations upgrades, souvenir shrapnel mugs and victoryop-approved luxuries, with self-checkout lanes run by Foundry cores. Earns credits every day.' },
-  casino:   { name: 'Citizens\' Casino', group: 'living', w: 3, d: 3, cost: 760, up: 16, pw: -4, tech: 'civic', large: true, mor: 5, sales: 18, staff: 3, weekly: { tru: -1 },
+  casino:   { name: 'Colonists\' Casino', group: 'living', w: 3, d: 3, cost: 760, up: 16, pw: -4, tech: 'civic', large: true, mor: 5, sales: 18, staff: 3, weekly: { tru: -1 },
               desc: 'Statistically approved wagering on Talon RNG cores. Luck and victory, both supervised. Good for morale and credits; the Publicity Office frowns slightly.' },
   cryo:     { name: 'Cryopreservation Storage', group: 'military', w: 3, d: 2, cost: 680, up: 18, pw: -5, crew: 1, tech: 'archive', needs: ['hdbarracks'], large: true, odds: 0.05,
               desc: 'A select few Vanguards kept frozen for just-in-case service, thawed when called. Special operations +5% odds.' },
   brig:     { name: 'Security Brig', group: 'military', w: 3, d: 2, cost: 560, up: 14, pw: -3, crew: 1, tech: 'archive', large: true, weekly: { tru: 2 }, inspect: 5,
-              desc: 'Containment emitters and restraint bolts for prisoners, rogue AI cores, and any Vanguard who forgets what Brand Standards means. +2 Truth a day; inspections +5.' },
+              desc: 'Containment emitters and restraint bolts for prisoners, rogue AI cores, and any Vanguard who forgets what Brand Standards means. +2 Publicity a day; inspections +5.' },
   partyhq:  { stage: 2, name: 'Party Headquarters', group: 'propaganda', w: 3, d: 3, cost: 820, up: 18, pw: -3, unique: true, needs: ['truth'], large: true, prop: 10, staff: 3, weekly: { tru: 1 }, reviews: 3,
-              desc: 'Administrative heart of the base\'s political life. +1 Truth a day, and three more roster files a watch get read.' },
+              desc: 'Administrative heart of the base\'s political life. +1 Publicity a day, and three more roster files a watch get read.' },
   palace:   { stage: 3, name: 'Palace of Culture and Science', group: 'propaganda', w: 5, d: 5, cost: 2600, up: 40, pw: -6, unique: true, tech: 'civic', needs: ['partyhq'], large: true, prop: 30, mor: 6, pride: 2, staff: 4,
               desc: 'Monumental architecture: a stepped tower with a spire, visible from orbit, or so the brochure says. A great deal of propaganda, morale and pride.' },
   club:     { name: 'Workers\' Club', group: 'living', w: 2, d: 2, cost: 160, up: 4, pw: -1, needs: ['mess'], mor: 3, staff: 1,
@@ -331,7 +331,7 @@ export const RIVALS = [
     logo: { shape: 'shield', symbol: 'sword', bg: '#8a1c1c', fg: '#f4f4f4', rim: '#f4f4f4', text: '7' } },
   { name: 'Steel Ledger Logistics', motto: 'Every shell accounted for.', w: { def: 0.4, pro: 1.0, tru: 0.45 },
     logo: { shape: 'hex', symbol: 'gear', bg: '#3d4247', fg: '#ffd21f', rim: '#ffd21f', text: '' } },
-  { name: 'Choir of Approved Truth', motto: 'Morale is mandatory.', w: { def: 0.45, pro: 0.5, tru: 1.0 },
+  { name: 'Choir of Good Publicity', motto: 'Morale is mandatory.', w: { def: 0.45, pro: 0.5, tru: 1.0 },
     logo: { shape: 'circle', symbol: 'star', bg: '#1d3f8a', fg: '#ffd780', rim: '#ffd780', text: '' } },
 ];
 

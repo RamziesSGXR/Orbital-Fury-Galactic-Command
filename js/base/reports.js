@@ -8,7 +8,7 @@ const APPROACH = {
   'Bug hole closure': ['The squad advanced on the nest at PLACE with grenades ready.', 'Molt activity was confirmed at PLACE. The squad went in.'],
   'Convoy escort': ['The squad met the supply convoy short of PLACE and took the flanks.', 'Escort formed up on the convoy and rolled for PLACE.'],
   'Bot outpost raid': ['The squad approached the Foundry outpost at PLACE from downwind.', 'Assembler smoke was sighted over PLACE. The squad closed in.'],
-  'Civilian evacuation': ['The squad reached the settlers sheltering at PLACE.', 'Citizens were reported trapped at PLACE. The squad went to bring them in.'],
+  'Civilian evacuation': ['The squad reached the settlers sheltering at PLACE.', 'Colonists were reported trapped at PLACE. The squad went to bring them in.'],
   'Retrieve stolen flag': ['The stolen flag was traced to PLACE.', 'Intelligence placed the stolen flag at PLACE. Unacceptable.'],
   'Orbital spotting run': ['The squad climbed to a vantage point over PLACE with a beacon.', 'Spotters set up over PLACE to call down the Destroyer.'],
   'Armoured assault': ['The assault column formed up for the push on PLACE.', 'Armour and infantry advanced together on PLACE.'],
@@ -19,7 +19,7 @@ const WIN = {
   'Bug hole closure': ['Every hole was sealed. The ground stopped moving.', 'The nest was collapsed in one go. Hives are a matter of paperwork now.'],
   'Convoy escort': ['The convoy arrived whole, crates and drivers alike.', 'Two ambushes were broken and the convoy made it through.'],
   'Bot outpost raid': ['The assemblers were destroyed and the outpost burned.', 'The outpost was levelled. Its parts are being studied by the Research Office.'],
-  'Civilian evacuation': ['Every citizen was brought out alive and grateful.', 'The settlers were brought in. One child asked to enlist.'],
+  'Civilian evacuation': ['Every colonist was brought out alive and grateful.', 'The settlers were brought in. One child asked to enlist.'],
   'Retrieve stolen flag': ['The flag was recovered, folded properly, and returned.', 'The flag is home. The thieves were corrected.'],
   'Orbital spotting run': ['The barrage landed on target. The Destroyer captain sends regards.', 'Targets were painted and erased from orbit.'],
   'Armoured assault': ['The line broke and the position was taken.', 'The objective was overrun by early afternoon.'],
@@ -28,7 +28,7 @@ const WIN = {
 const LOSS = {
   'Recon sweep': ['The squad was spotted and had to fall back under fire.'], 'Bug hole closure': ['The swarm came up faster than the grenades went down. The squad withdrew.'],
   'Convoy escort': ['The convoy was hit hard and half the crates were lost.'], 'Bot outpost raid': ['Heavy Devastators held the outpost. The squad pulled back.'],
-  'Civilian evacuation': ['The squad was cut off and only some of the citizens got out.'], 'Retrieve stolen flag': ['The flag was not recovered. An inquiry has been opened.'],
+  'Civilian evacuation': ['The squad was cut off and only some of the colonists got out.'], 'Retrieve stolen flag': ['The flag was not recovered. An inquiry has been opened.'],
   'Orbital spotting run': ['The beacon was lost before the barrage was called.'], 'Armoured assault': ['The assault stalled under artillery and fell back to the start line.'],
   'Standing patrol': ['The patrol ran into more than it could handle and came home early.'],
 };

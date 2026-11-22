@@ -1,5 +1,5 @@
 // Every number and every name in the game lives here, so the prototype can be retuned or renamed in one place.
-export const VERSION = '0.54.1';
+export const VERSION = '0.54.2';
 
 export const C = {
   names: {
@@ -92,7 +92,7 @@ export const C = {
   // card, then every ship fires. Hit points fall until one side has none. When the cards run out, the guns decide.
   // atk: damage added to your ships' fire. block: damage stopped this round. heal: hit points restored.
   // pierce: ignores the other side's block. sap: the other side's ships fire this much less for the rest of the battle.
-  // Truth cards are propaganda: used up when played. If both sides play propaganda in the same round, the stronger
+  // Publicity cards are propaganda: used up when played. If both sides play propaganda in the same round, the stronger
   // (`power`) takes the other's card for its own deck and cancels it.
   // `engage`: rounds in one engagement. If neither side is out of hit points by then, the fight for the system goes on next
   // round: the fleets stay where they are and the damage stays done. `press`: pay fuel to fight on for more rounds now.

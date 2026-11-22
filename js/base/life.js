@@ -437,8 +437,8 @@ export class Life {
     this.go(a, x + 0.5, z + 0.5, () => { a.act = Math.random() < 0.6 ? 'aim' : 'look'; a.face = [cx + Math.cos(ang) * (r + 6), cz + Math.sin(ang) * (r + 6)]; a.wait = rnd(1.5, 3.5); });
   }
 
-  // ---------------------------------------------------------------- Vanguards and citizens: people the Bureau doesn't bill you for
-  // Vanguards live at their barracks and keep a Marine's day; citizens staff the counters and desks and keep office hours.
+  // ---------------------------------------------------------------- Vanguards and colonists: people the Bureau doesn't bill you for
+  // Vanguards live at their barracks and keep a Marine's day; colonists staff the counters and desks and keep office hours.
   extras() {
     const s = this.sim, want = new Set();
     for (const b of s.b) {
@@ -458,7 +458,7 @@ export class Life {
     const s = this.sim, h = a.n % 4 === 0 ? (s.time.hour + 12) % 24 : s.time.hour, ph = watchPhase(s, a.n), b = s.byId(a.home); if (!b) return;
     const hd = a.extra === 'hd', flag = s.b.find(o => o.type === 'seflag');
     // Marines: reveille 05:30, PT, chow, Morning Colors at 08:00, training, Evening Colors, victory, taps at 22:00
-    // Citizens: in at 07:30, lunch, out at 17:30, the evening broadcast, home
+    // Colonists: in at 07:30, lunch, out at 17:30, the evening broadcast, home
     const colours = (ph === 'reveille' || ph === 'retreat' || (hd && h >= 8 && h < 8.25)) && flag;
     const want = this.ceremony && !a.hidden ? 'honors' : colours ? 'honors'
       : hd ? (h < 5.5 || h >= 22 ? 'home' : h < 7 ? 'pt' : h < 7.9 ? 'mess' : h < 11.5 ? 'train' : h < 12.5 ? 'mess' : h < 16.5 ? 'train' : h < 18 ? 'pt' : 'free')

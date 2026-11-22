@@ -106,7 +106,7 @@ export function installLedger(Station) {
       if (this.staff.medic && o.medical.order.care !== 'free') add('Give free medical care', 6, '10 CR a minute, and the fees are lost', 'care');
       else if (!this.staff.medic) add('Put medics on duty and give free care', 4, 'a Medbay, medkits for Medical, then 10 CR a minute');
       if (o.truth.order.broadcast !== 'patriotic') add('Broadcast the Company Hour', Math.min(8, 2 + 2 * this.broadcast), o.truth.order.broadcast === 'recruitment' ? 'shuttles come at their usual rate' : 'no cost', 'patriotic');
-      else if (this.broadcast < 3) add('Open another Truth Office', 2, 'each adds 2 to the Company Hour, up to +8');
+      else if (this.broadcast < 3) add('Open another Publicity Studio', 2, 'each adds 2 to the Company Hour, up to +8');
       const room = M.leisureMax - Math.max(-10, this.leisure);
       if (room > 0) add('Build somewhere to spend an evening', Math.min(room, 3), `Victory Lounge +3, Mess Hall, Observation Lounge and Recreation Deck +2 each (now ${Math.round(this.leisure)} of ${M.leisureMax})`);
       const bunks = this.roomCount('bunks'); if (bunks) add(`Turn ${bunks > 1 ? `${bunks} Bunk Rooms` : 'the Bunk Room'} into Quarters`, bunks, 'half the beds');

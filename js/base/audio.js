@@ -2,7 +2,7 @@
 // Everything on the base makes its sound from where it is. The listener sits at the camera: zoom in and the base gets
 // louder and closer, turn the view and the sounds turn with it. Each building type and each vehicle has its own voice;
 // only the nearest few play at once. Bugle calls come from the loudspeakers and the flag, the loudspeakers read out
-// announcements, and citizens chatter in passing. Browsers only allow sound after a click or a key, so nothing plays
+// announcements, and colonists chatter in passing. Browsers only allow sound after a click or a key, so nothing plays
 // until the player has touched the page.
 //
 // Mixer: master → effects (one-shots), ambience (buildings and vehicles), voices (loudspeakers and chatter), music.

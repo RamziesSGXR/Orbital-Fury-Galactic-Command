@@ -2,7 +2,7 @@
 // No DOM and no 3D here, so it runs in Node for balance tests (test/headless.mjs).
 //
 // The base is a training and staging camp. Recruits arrive with the daily supply dropship, train at the range, the
-// obstacle course, the parade ground and the Citizenship Hall, and Defence's deployment orders ship the trained ones
+// obstacle course, the parade ground and the Orientation Hall, and Defence's deployment orders ship the trained ones
 // to the front. Rations, fuel and ammo arrive by dropship every morning, billed automatically, and forklifts and trucks
 // carry them along your roads to where they are used. Nothing needs a click to keep moving.
 import { Raids } from './raids.js';
@@ -1212,7 +1212,7 @@ export class Sim {
     this.inspection = { week: this.week, score, morale: Math.round(this.morale), prop: this.prop, cond: Math.round(this.avgCond), notes, delta: Math.round(this.stand.tru - before) };
     this.stats.inspections++;
     this.events.push({ t: 'inspector' });
-    this.say('tru', `Inspection complete: ${score}/100. Truth standing ${this.inspection.delta >= 0 ? '+' : ''}${this.inspection.delta}. ${notes[0]}`);
+    this.say('tru', `Inspection complete: ${score}/100. Publicity standing ${this.inspection.delta >= 0 ? '+' : ''}${this.inspection.delta}. ${notes[0]}`);
   }
 
   // ---------------------------------------------------------------- the week, and the other factions
@@ -1274,9 +1274,9 @@ export class Sim {
     if (rank < prev) this.say('riv', `Federation bulletin: ${this.faction.name} climbs to ${place}. Glory to the efficient.`);
     else if (rank > prev) this.say('riv', `Federation bulletin: ${this.table()[prev].name} overtakes ${this.faction.name}. Allocation reduced accordingly.`);
     if (this.citizens && this.week % 3 === 0) this.say('bur', this.rng.pick([
-      `${this.citizens} citizens are employed on your base. Service guarantees screen time. Would they like to know more? They would.`,
+      `${this.citizens} colonists are employed on your base. Service guarantees screen time. Would they like to know more? They would.`,
       'Federal Network reminder: the evening broadcast is voluntary. Attendance is recorded for your convenience.',
-      'A citizen accepts personal responsibility for the safety of the body politic. Your canteen staff have been reminded.',
+      'A colonist accepts personal responsibility for the safety of the body politic. Your canteen staff have been reminded.',
     ]));
     this.memo();
     this.week++; this.wt -= C.WEEK; this.inspected = false; this.raidPlan();
@@ -1306,9 +1306,9 @@ export class Sim {
   dayClose() {
     // upkeep, a seventh of each building's week, in supplies; what can't be paid is marked against the building
     for (const b of this.rng.shuffle(this.b.filter(b => b.done))) { const due = this.upkeepOf(b) / (C.WEEK / C.DAY); if (this.supplies >= due) this.spend('upkeep', due); else b.unpaid = (b.unpaid || 0) + 1; }
-    // wages for the citizen staff, in credits. Into the overdraft if need be; past it, the staff go unpaid
+    // wages for the colonist staff, in credits. Into the overdraft if need be; past it, the staff go unpaid
     const wages = (this.citizens || 0) * C.WAGE;
-    if (wages) { if (this.credits - wages >= -this.OD) { this.spend('wages', 0, wages); this.unpaidDays = 0; } else { this.unpaidDays = (this.unpaidDays || 0) + 1; if (this.unpaidDays === 1 || this.unpaidDays % 3 === 0) this.say('base', `The citizen staff were not paid today. The canteen is serving its opinion of you, cold.`); } }
+    if (wages) { if (this.credits - wages >= -this.OD) { this.spend('wages', 0, wages); this.unpaidDays = 0; } else { this.unpaidDays = (this.unpaidDays || 0) + 1; if (this.unpaidDays === 1 || this.unpaidDays % 3 === 0) this.say('base', `The colonist staff were not paid today. The canteen is serving its opinion of you, cold.`); } }
     // the industrial complexes turn fuel into supplies
     for (const b of this.b) { const pm = B[b.type].pump; if (pm && b.done && !b.off) { const w = this.work(b); b.stock.fuel = Math.min(this.storeCap(b, 'fuel'), (b.stock.fuel || 0) + pm * w); } }
     for (const b of this.b) { const mk = this.stat(b, 'make'); if (!b.done || b.off || !mk || (B[b.type].need?.fuel && (b.stock.fuel || 0) < 1)) continue; const w = this.work(b); if (w <= 0) continue; if (B[b.type].need?.fuel) b.stock.fuel = Math.max(0, b.stock.fuel - 10 * w); this.earn(b.type === 'mine' ? 'mine' : 'industry', Math.round(mk * w)); }
@@ -1433,7 +1433,7 @@ export class Sim {
     const out = { off, truth };
     if (off === 0) { this.earn('roster', 8, 3); out.text = `A fair grade. The Operations Office concurs: +8 supplies, +3 credits.`; }
     else if (off === 1) { this.earn('roster', 3, 0); out.text = `Near enough. The Head Office had ${truth} in mind: +3 supplies.`; }
-    else { this.spend('fees', 0, 8); this.gain('tru', -1); out.text = `The Bureau audited the file and had ${truth} in mind. An 8 credit correction fee, and a note to Truth.`; }
+    else { this.spend('fees', 0, 8); this.gain('tru', -1); out.text = `The Bureau audited the file and had ${truth} in mind. An 8 credit correction fee, and a note to Publicity.`; }
     if (g === 'D') { t.train = 70; for (const k in t.q) t.q[k] = Math.min(99, t.q[k] + 8); out.text += ' Sent back for remedial training.'; }
     if (g === 'A') out.text += ' Marked for distinction: worth half as much again when shipped.';
     return out;

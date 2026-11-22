@@ -6,7 +6,7 @@ export const PA = [
   'Attention. A pair of boots has been found by the landing pad. If they are yours, you are out of uniform. Report to the Quartermaster.',
   'The Publicity Office reminds all personnel that rumours are not news. News is news. This has been news.',
   'Attention. The evening broadcast will begin shortly. Attendance is voluntary. Your attendance has been noted.',
-  'Citizens are reminded that the latrines are a shared responsibility. So is the guilt.',
+  'Colonists are reminded that the latrines are a shared responsibility. So is the guilt.',
   'Congratulations to the motor pool, who have gone three days without reversing into the flag.',
   'Attention. Troopers due to ship out today, please report to the landing pad with your kit, your rifle, and your best smile.',
   'The Bureau thanks every recruit on this base for being counted. Please remain countable at all times.',

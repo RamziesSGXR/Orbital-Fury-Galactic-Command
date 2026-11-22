@@ -1,6 +1,6 @@
 # Orbital Fury: Galactic Command
 
-**Prototype 0.54.1.** One war, run from four posts, in one game.
+**Prototype 0.54.2.** One war, run from four posts, in one game.
 
 You found a command (a name, a crest, colours) and hold the centre of the galaxy against three enemies. Everything in
 the war is yours to run, and each part changes the others:
@@ -13,6 +13,11 @@ the war is yours to run, and each part changes the others:
 | **The base** | Found a base on the system's key world: roads, zones, and buildings that grow along them. | +35% output from the system for each charter. |
 
 A system that falls takes its station and its base with it.
+
+## What's new in 0.54.2: Publicity and colonists
+
+Two words change across the whole game. What was Truth is Publicity (the Publicity Studio, +1 Publicity a day, the PUBLICITY
+tab), and the people of the fleet are colonists, not citizens (the Colonists' Casino, the Orientation Hall). Saves are unaffected.
 
 ## What's new in 0.54.1: the station's raiders are the war's enemies
 

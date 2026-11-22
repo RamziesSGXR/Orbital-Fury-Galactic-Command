@@ -108,7 +108,7 @@ export const Market = {
     const r = this.rng.pick(this.rivals), m = MKEYS_ALL.reduce((a, k) => r.w[k] > r.w[a] ? k : a, 'def');
     // what a rival chasing a Head Office wants is that Head Office's goods; it sells the others
     let wantG = GK.filter(g => MARKET.goods[g].idx === m), sellG = GK.filter(g => MARKET.goods[g].idx !== m);
-    if (!wantG.length) wantG = GK;   // a base chasing Truth buys a bit of everything
+    if (!wantG.length) wantG = GK;   // a base chasing Publicity buys a bit of everything
     const buys = this.rng.chance(0.5), g = this.rng.pick(buys ? wantG : sellG), d = MARKET.goods[g];
     const n = Math.round(this.rng.range(d.lot[0], d.lot[1]) / 10) * 10;
     const p = this.price(g) * (buys ? this.rng.range(1.04, 1.28) : this.rng.range(0.76, 0.94));

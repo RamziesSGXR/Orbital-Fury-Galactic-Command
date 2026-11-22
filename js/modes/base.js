@@ -65,7 +65,7 @@ function statusOf(b) {
   if (!b.done) return [[`Under construction: ${Math.round((b.prog || 0) * 100)}%`, '']];
   if (b.off) out.push(['Switched off', 'r']);
   if (d.crew) out.push([`Crew ${b.crew || 0} of ${d.crew}`, (b.crew || 0) >= d.crew ? 'g' : 'r']);
-  if (d.staff) out.push([`${d.staff} citizen staff`, '']);
+  if (d.staff) out.push([`${d.staff} colonist staff`, '']);
   if (d.pw < 0) out.push(b.dark ? ['No power: outside every power circle', 'r'] : sim.power.ratio < 1 ? [`Power short: ${Math.round(sim.power.ratio * 100)}%`, 'r'] : ['Powered', 'g']);
   else if (d.pw > 0) out.push([`Makes ${d.pw} power · serves ${nb(sim.servedBy(b, 'pw'))}`, '']);
   else if (d.cover?.pw) out.push([`Carries power to ${nb(sim.servedBy(b, 'pw'))}`, '']);

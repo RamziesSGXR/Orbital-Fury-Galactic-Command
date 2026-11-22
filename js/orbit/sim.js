@@ -17,7 +17,7 @@ const NAMES = ['Honest Work', 'Steady Progress', 'Fair Weather', 'Good Neighbors
   'Common Sense', 'Rightful Order', 'Patient Thunder', 'Reliable Sources'];
 const WARSHIPS = ['FS Hammer of Justice', 'FS Fist of Steady Progress', 'FS Banner of Fair Play', 'FS Gavel of Civic Duty', 'FS Rampart of Victory', 'FS Pledge of Quiet Resolve'];
 const PROPAGANDA = [
-  'Every crate unloaded is a bullet delivered. Thank you, citizen.',
+  'Every crate unloaded is a bullet delivered. Thank you, colonist.',
   'A happy station is a compliant station.',
   'The Victory Contribution keeps the lights on. Literally.',
   'Remember: the hull is load-bearing. So is your loyalty.',
@@ -750,7 +750,7 @@ export class Station {
       if ((this.timers.leave -= dt) <= 0) {
         this.timers.leave = C.morale.leaveSec;
         const a = this.agents.find((x) => x.role === 'resident' && !x.leaving);
-        if (a) { this._leave(a); this.say('colonists', 'A citizen has asked to leave the station. This has been noted.', { warn: true }); }
+        if (a) { this._leave(a); this.say('colonists', 'A colonist has asked to leave the station. This has been noted.', { warn: true }); }
       }
     } else this.timers.leave = C.morale.leaveSec;
   }
@@ -973,7 +973,7 @@ export class Station {
       const beds = this.freeBeds(), n = Math.min(C.ships.colonists, beds.length);
       for (let i = 0; i < n; i++) { const a = this._spawn('resident', p.id, beds[i].id); a.wait = i * 0.5; a.task = 'back'; }
       this.stats.colonists += n;
-      this.say('captain', n ? `${s.name} at ${this.name(p)}. ${n} colonists disembarking. Welcome, citizens! Report for gratitude.` : `${s.name} at ${this.name(p)}, no one to drop off.`);
+      this.say('captain', n ? `${s.name} at ${this.name(p)}. ${n} colonists disembarking. Welcome aboard! Report for gratitude.` : `${s.name} at ${this.name(p)}, no one to drop off.`);
       return;
     }
     if (s.kind === 'warship') { this.say('traffic', `${s.name} is in the drydock. Engineers to EVA stations.`); return; }
@@ -1014,12 +1014,12 @@ export class Station {
       case 'supply': { const b = this.busy('hauler'); return `Haulers on shift: ${st.hauler} of ${this.homes.hauler} places, ${b.busy} carrying right now. Crates this minute: ${this.cratesPerMin().toFixed(0)}. Ships waiting: ${this.ships.filter((s) => s.state === 'hold').length}. ${this.cargoIds.size ? 'Every crate accounted for, Commander.' : 'We have nowhere to put cargo. Build a Cargo Store.'}`; }
       case 'maintenance': return `Engineers on staff: ${st.engineer} of ${this.homes.engineer} places. Open faults: ${open.length}${open.length ? ` (${open.slice(0, 3).map((p) => this.name(p)).join(', ')})` : ''}. Faults fixed: ${this.stats.fixed || 0}. ${st.engineer ? 'Suits charged and ready.' : 'Give us a Workshop and an allotment of parts and we\'ll keep her flying.'}`;
       case 'security': return `Officers on duty: ${st.officer} of ${this.homes.officer} places. Smugglers caught: ${this.stats.caught}, slipped through: ${this.stats.contraband}. ${this.homes.officer ? 'Bays near a Security Office are watched.' : 'Without a Security Office, every bay is unwatched.'}`;
-      case 'medical': return `Medics: ${st.medic} of ${this.homes.medic} places. ${st.medic ? (this.div.medical.order.care === 'free' ? 'Free care for every citizen: morale is up.' : 'Fees are being collected at the door.') : 'No Medbay, no medics. Citizens are treating themselves.'}`;
+      case 'medical': return `Medics: ${st.medic} of ${this.homes.medic} places. ${st.medic ? (this.div.medical.order.care === 'free' ? 'Free care for every colonist: morale is up.' : 'Fees are being collected at the door.') : 'No Medbay, no medics. Colonists are treating themselves.'}`;
       case 'traffic': { const bf = this.berths('freighter').length; return `Berths: ${bf} for freighters, ${this.berths('shuttle').length} for shuttles, ${this.berths('warship').length} drydock. Ships served: ${this.stats.ships}, lost: ${this.stats.lost}. Average time at berth: ${this.avgBerth() == null ? 'no data yet' : this.avgBerth().toFixed(0) + ' s'}.`; }
       case 'command': return `Aides on staff: ${st.aide} of ${this.homes.aide} places. Open faults: ${open.length}. Stores running short: ${Object.entries(this.short).filter(([, x]) => x).map(([k2]) => k2).join(', ') || 'none'}. ${this.homes.aide ? 'The suite is ready for inspection at any hour.' : 'We have nowhere fit to receive the brass, Commander.'}`;
       case 'science': return `Scientists: ${st.scientist} of ${this.homes.scientist} places. Research logged: ${Math.floor(this.stats.research)}. ${this.homes.scientist ? 'Readings are coming in.' : 'Give us a Laboratory and we will tell you things about this planet you will wish you did not know.'}`;
       case 'gunnery': { const P = this.platform(); return `Gunners, pilots and troopers on duty: ${st.gunner} of ${this.homes.gunner} places. Platform readiness: ${Math.round(P.ready * 100)}%. Calls answered: ${this.stats.calls || 0}, missed: ${this.stats.missed || 0}. ${this.platformN ? (P.ready > 0.8 ? 'The troops below know we are here.' : 'We are not where the Head Office expects us to be, Commander.') : 'There is no gun on this station. Build a Ship Gun or an Orbital Battery.'}`; }
-      case 'truth': return this.div.truth.order.broadcast === 'silence' ? 'The Head Office is silent, by your order. Citizens are left alone with their thoughts.' : `Broadcasting ${this.div.truth.order.broadcast === 'patriotic' ? 'the Company Hour' : 'the Recruitment Drive'} on every screen. Morale from broadcasts: +${this.broadcastBoost().toFixed(0)}. Truth Offices aboard: ${this.broadcast}.`;
+      case 'truth': return this.div.truth.order.broadcast === 'silence' ? 'The Head Office is silent, by your order. Colonists are left alone with their thoughts.' : `Broadcasting ${this.div.truth.order.broadcast === 'patriotic' ? 'the Company Hour' : 'the Recruitment Drive'} on every screen. Morale from broadcasts: +${this.broadcastBoost().toFixed(0)}. Publicity Studios aboard: ${this.broadcast}.`;
     }
     return '';
   }
@@ -1029,7 +1029,7 @@ export class Station {
       rations: { normal: 'Standard rations for all hands.', double: 'Double rations. The mess will be a happier place, while the lockers last.', short: 'Short rations from today. Nobody will thank us for it.' },
       plan: { reactive: 'Understood. We fix what breaks.', preventive: 'Preventive maintenance schedule in effect.' },
       checks: { spot: 'Spot checks only. Faster, and riskier.', every: 'Every ship will be inspected. No exceptions.' },
-      care: { free: 'Free care for all citizens. Brand heals.', fees: 'Fees in effect. Payment before treatment.' },
+      care: { free: 'Free care for all colonists. Brand heals.', fees: 'Fees in effect. Payment before treatment.' },
       mix: { all: 'Clearing all traffic to approach.', freight: 'Freighters only. Shuttles will be waved off.', colonists: 'Colonist shuttles only. Freighters will be waved off.' },
       rate: { low: 'Thinning the traffic.', normal: 'Normal traffic.', high: 'Opening the lanes. Expect a crowd.' },
       broadcast: { patriotic: 'The Company Hour begins now.', recruitment: 'The Recruitment Drive is on every screen.', silence: 'Broadcasts suspended. This is highly irregular.' },
