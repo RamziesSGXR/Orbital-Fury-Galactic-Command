@@ -333,12 +333,14 @@ export function installStory(Station) {
     deny(id) { const r = this.requests.find((x) => x.id === id); return this.answer(id, r ? r.options.length - 1 : 1); },
 
     // ------------------------------------------------------------------------------------------------ raids
+    // WHO RAIDS. `foe` ({ id, name, color }) is the enemy over this station, set by whoever runs it (in Galactic Command: the
+    // enemy of the system's own front). With none set they are nameless raiders.
     raidStrength() { return C.raid.base + C.raid.perTier * this.tier; },
     callRaid() { if (!this.raid) this._raidStart(); },
     _raidStart() {
       const R = C.raid, s = Math.round(this.raidStrength() * this.rng.range(0.8, 1.3));
       this.raid = { state: 'warn', t: 0, strength: s, seed: this.rng.next(), n: 3 + Math.min(5, Math.floor(s / 4)) };
-      this.say('security', `Raiders inbound, Commander: ${this.raid.n} ships, strength about ${s}. Our defence is ${this._defence()}. ${R.warnSec} seconds.`, { warn: true });
+      this.say('security', `${this.foe ? this.foe.name : 'Raiders'} inbound, Commander: ${this.raid.n} ships, strength about ${s}. Our defence is ${this._defence()}. ${R.warnSec} seconds.`, { warn: true });
       this.events.push({ type: 'raid', state: 'warn' });
     },
     _defence() { return Math.round(this.defence + this.staff.officer * 0.5); },
@@ -357,7 +359,7 @@ export function installStory(Station) {
         for (const p of targets) { p.fault = true; this.stats.faults++; }
         if (targets.length) {
           this.stats.raidsLost++; this.unrest += 4 * targets.length; this._favor('security', -6); this._refresh();
-          this.say('security', `The raiders are gone. They hit ${targets.map((p) => this.name(p)).join(', ')}. We needed ${r.strength - def} more defence, Commander.`, { warn: true });
+          this.say('security', `${this.foe ? this.foe.name : 'The raiders'} broke off. They hit ${targets.map((p) => this.name(p)).join(', ')}. We needed ${r.strength - def} more defence, Commander.`, { warn: true });
         } else {
           this.stats.raidsWon++; this._favor('security', 8);
           this.say('security', `Raid driven off with no damage. Defence ${def} against ${r.strength}. The gun crews send their regards.`, { gold: true });

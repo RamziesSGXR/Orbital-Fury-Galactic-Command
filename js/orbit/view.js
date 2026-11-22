@@ -1076,6 +1076,8 @@ export class View {
     this.tracers = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: 0xffd98a, transparent: true, opacity: 0.9 })); this.tracers.frustumCulled = false; this.scene.add(this.tracers);
     const g2 = geo.clone(); this.bolts = new THREE.LineSegments(g2, new THREE.LineBasicMaterial({ color: 0xff5a3a, transparent: true, opacity: 0.9 })); this.bolts.frustumCulled = false; this.scene.add(this.bolts);
   }
+  // The raiders fly the enemy's colour: their engines and their shots.
+  setFoe(foe) { const c = (foe && foe.color) || 0xff5a3a; this.M.raiderGlow.color.set(c); this.bolts.material.color.set(c); }
   _raid(now, dt) {
     const r = this.st.raid, on = !!r && (r.state === 'fight' || r.t > C.raid.warnSec - 8);
     this.raiders.visible = on; this.tracers.visible = this.bolts.visible = !!r && r.state === 'fight';

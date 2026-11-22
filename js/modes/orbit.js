@@ -8,6 +8,7 @@ import { Station } from '../orbit/sim.js';
 import { View } from '../orbit/view.js';
 import { ensureLogo } from '../orbit/logo.js';
 import { words } from '../core/words.js';
+import { C as GC } from '../galaxy/config.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
@@ -19,6 +20,15 @@ let app, ui, audio, canvas, view = null, st = null, args = null;
 let acc = 0, group = 'structure', tool = null, rot = 0, hot = null, hotFit = null, px = null, py = null, portsDirty = false, sel = null, vmode = 'hull', inside = false, cardSig = '';
 let barSig = '', deskSig = '', saveT = 20, hudT = 0, thumbs = {};
 
+// THE ENEMY OVER THIS STATION: raids come from the war's own enemies, not nameless raiders. A system on a front is raided by
+// that front's enemy; the capital, by one of the three. An enemy the war has destroyed raids no more (another takes its place),
+// and once all three are gone the raiders are nameless again.
+function foeOf(sys) {
+  const F = (app.camp && app.camp.war && app.camp.war.F) || {}, alive = GC.factions.filter((f) => !(F[f] && F[f].state === 'dead'));
+  if (!alive.length) return null;
+  const own = sys.front >= 0 && GC.fronts[sys.front] ? GC.fronts[sys.front].f : null, f = own && alive.includes(own) ? own : alive[sys.id % alive.length];
+  return { id: f, name: GC.names.factions[f], color: GC.color[f] };
+}
 const stationFaction = (sys) => ({ ...structuredClone(C.founding.def), ...structuredClone(app.faction), station: `${sys.name} Station` });
 const livery = (f) => ({ ...C.livery.def, hull: f.primary, trim: f.secondary });
 
@@ -112,8 +122,8 @@ function drain() {
       case 'comms': case 'order': { const d = C.div[e.from]; ui.feed(`${(d && d.short) || String(e.from || 'STATION').toUpperCase()}: ${e.text}`, e.warn ? 'warn' : 'radio'); if (e.warn) audio.deny(); break; }
       case 'week': audio.objective(); break;
       case 'raid':
-        if (e.state === 'warn') { audio.siren(); ui.message('RAIDERS INBOUND', 4000); }
-        else if (e.state === 'over') { if (e.hits.length) { audio.baseDown(); ui.message('THE RAIDERS GOT THROUGH', 4000); } else { audio.win(); ui.message('RAID DRIVEN OFF', 4000); } }
+        if (e.state === 'warn') { audio.siren(); ui.message(`${st.foe ? st.foe.name.toUpperCase() : 'RAIDERS'} INBOUND`, 4000); }
+        else if (e.state === 'over') { if (e.hits.length) { audio.baseDown(); ui.message(`${st.foe ? st.foe.name.toUpperCase() : 'THE RAIDERS'} GOT THROUGH`, 4000); } else { audio.win(); ui.message('RAID DRIVEN OFF', 4000); } }
         break;
       case 'fire': try { view.fire(e); } catch { /* a shot not drawn */ } break;
       case 'tier': audio.win(); ui.message(`${C.tiers[e.tier].name} STATUS GRANTED`, 5000); thumbs = {}; bar(true); break;
@@ -177,10 +187,10 @@ const mode = {
     const sys = a.system, saved = app.siteLoad('orbit', sys.id);
     let loaded = null; try { loaded = saved ? Station.load(saved) : null; } catch (err) { console.error(err); }
     st = loaded || new Station(1000 + sys.id * 37 + ((app.camp.war && app.camp.war.seed) || 0) % 1000, 'run');
-    st.faction = stationFaction(sys); st._noAdvice = true;
+    st.faction = stationFaction(sys); st._noAdvice = true; st.foe = foeOf(sys);
     await ensureLogo(st.faction.logo);
     if (!view) { view = new View(canvas, st); bind(); }
-    view.setStation(st);
+    view.setStation(st); view.setFoe(st.foe);
     st.livery = { ...C.livery.def, ...(st.livery || {}), ...livery(st.faction) };
     try { view.setFaction(st.faction); view.setLivery(st.livery); } catch (err) { console.error(err); }
     view.newSky(st.seed); view.controls.autoRotate = false;
