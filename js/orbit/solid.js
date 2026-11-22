@@ -4,18 +4,30 @@
 //
 // Each kind of part is filled once. Its hull pieces are built as they are drawn (unmerged), and every vertical column of the grid
 // is crossed with each closed piece: between an entry and the next exit the column is inside, as a ray test would find. Pieces
-// thinner than a cell (solar wings, masts, screens) take no cells; they cannot clash.
+// thinner than a cell (solar wings, masts, dishes) take no cells, so each part also keeps its SHELL: one point on its surface for
+// every cell the surface passes through, thin pieces included. A wing that cuts into a hull is found by its shell.
+// A bay (a hangar, a drydock) is a hollow box with a door: its inside is counted as solid, so nothing is built in the way of the craft.
 import { buildPart } from './parts.js';
+import { C } from './config.js';
 
 export const RES = 0.25;      // one cell: 0.25 units, about 2.25 m
 const SOLID = new Set(['hull', 'trim', 'dark', 'panel', 'glass', 'pod']);
 const OFF = 0.0731;           // columns stand a little off the round numbers, so none runs exactly down a seam
 const cache = new Map();
 const key = (i, j, k) => (i + 512) * 1048576 + (j + 512) * 1024 + (k + 512);
+const STEP = RES * 0.45;      // how finely a surface is walked for the shell
 
 export function solidOf(type) {
   let s = cache.get(type); if (s) return s;
-  const g = buildPart(type, true), cells = new Set();
+  const g = buildPart(type, true), cells = new Set(), shellAt = new Map();
+  const walk = (a, b, c) => {      // one shell point for each cell this triangle passes through
+    const n = Math.max(1, Math.ceil(Math.max(Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]), Math.hypot(c[0] - a[0], c[1] - a[1], c[2] - a[2]), Math.hypot(c[0] - b[0], c[1] - b[1], c[2] - b[2])) / STEP));
+    for (let i = 0; i <= n; i++) for (let j = 0; j <= n - i; j++) {
+      const u = i / n, w = j / n, x = a[0] + (b[0] - a[0]) * u + (c[0] - a[0]) * w, y = a[1] + (b[1] - a[1]) * u + (c[1] - a[1]) * w, z = a[2] + (b[2] - a[2]) * u + (c[2] - a[2]) * w;
+      const k = key(Math.floor(x / RES - OFF), Math.floor(y / RES), Math.floor(z / RES - OFF));
+      if (!shellAt.has(k)) shellAt.set(k, [x, y, z]);
+    }
+  };
   g.updateMatrixWorld(true);
   g.traverse((o) => {
     if (!o.isMesh || !SOLID.has(o.userData.role)) return;
@@ -25,6 +37,7 @@ export function solidOf(type) {
     for (let t = 0; t < n; t++) {
       const a = P(idx ? idx.getX(t * 3) : t * 3), b = P(idx ? idx.getX(t * 3 + 1) : t * 3 + 1), c = P(idx ? idx.getX(t * 3 + 2) : t * 3 + 2);
       const d = (b[0] - a[0]) * (c[2] - a[2]) - (c[0] - a[0]) * (b[2] - a[2]);
+      walk(a, b, c);
       if (Math.abs(d) < 1e-12) continue;      // edge-on from above: no column crosses it
       const i0 = Math.ceil(Math.min(a[0], b[0], c[0]) / RES - 0.5 - OFF), i1 = Math.floor(Math.max(a[0], b[0], c[0]) / RES - 0.5 - OFF);
       const k0 = Math.ceil(Math.min(a[2], b[2], c[2]) / RES - 0.5 - OFF), k1 = Math.floor(Math.max(a[2], b[2], c[2]) / RES - 0.5 - OFF);
@@ -42,6 +55,11 @@ export function solidOf(type) {
     }
   });
   g.traverse((x) => { if (x.geometry) x.geometry.dispose(); });
+  if (C.parts[type] && C.parts[type].bay) {      // a bay: every column is solid from its floor to its roof
+    const span = new Map();
+    for (const kk of cells) { const ck = Math.floor(kk / 1048576) * 1024 + (kk % 1024), j = Math.floor((kk % 1048576) / 1024); const sp = span.get(ck); if (!sp) span.set(ck, [j, j]); else { if (j < sp[0]) sp[0] = j; if (j > sp[1]) sp[1] = j; } }
+    for (const [ck, [j0, j1]] of span) { const hi = Math.floor(ck / 1024), lo = ck % 1024; for (let j = j0; j <= j1; j++) cells.add(hi * 1048576 + j * 1024 + lo); }
+  }
   // the cells as a list of centres too, and a sphere round them for a quick first test
   const list = new Float32Array(cells.size * 3); let m = 0, cx = 0, cy = 0, cz = 0;
   for (const kk of cells) { const i = Math.floor(kk / 1048576) - 512, j = Math.floor((kk % 1048576) / 1024) - 512, k = (kk % 1024) - 512; list[m++] = (i + 0.5 + OFF) * RES; list[m++] = (j + 0.5) * RES; list[m++] = (k + 0.5 + OFF) * RES; cx += list[m - 3]; cy += list[m - 2]; cz += list[m - 1]; }
@@ -49,11 +67,17 @@ export function solidOf(type) {
   for (let p = 0; p < list.length; p += 3) r = Math.max(r, Math.hypot(list[p] - c[0], list[p + 1] - c[1], list[p + 2] - c[2]));
   // the DEEP cells: those with solid on all six sides, a cell or more in from the hull. Two parts that only touch share no deep
   // cell with each other's solid; one that runs through another does.
-  const deep = []; let p2 = 0;
-  for (const kk of cells) { if (cells.has(kk + 1) && cells.has(kk - 1) && cells.has(kk + 1024) && cells.has(kk - 1024) && cells.has(kk + 1048576) && cells.has(kk - 1048576)) deep.push(list[p2], list[p2 + 1], list[p2 + 2]); p2 += 3; }
-  s = { cells, list, deep: new Float32Array(deep), c, r: r + RES };
+  const deep = [], deepSet = new Set(); let p2 = 0;
+  for (const kk of cells) { if (cells.has(kk + 1) && cells.has(kk - 1) && cells.has(kk + 1024) && cells.has(kk - 1024) && cells.has(kk + 1048576) && cells.has(kk - 1048576)) { deep.push(list[p2], list[p2 + 1], list[p2 + 2]); deepSet.add(kk); } p2 += 3; }
+  const shell = new Float32Array(shellAt.size * 3); let p3 = 0;
+  let y0 = Infinity, y1 = -Infinity;      // the lowest and highest points of the hull: what it stands on, and hangs by
+  for (const pt of shellAt.values()) { shell[p3++] = pt[0]; shell[p3++] = pt[1]; shell[p3++] = pt[2]; r = Math.max(r, Math.hypot(pt[0] - c[0], pt[1] - c[1], pt[2] - c[2])); if (pt[1] < y0) y0 = pt[1]; if (pt[1] > y1) y1 = pt[1]; }
+  if (!shellAt.size) { y0 = -1; y1 = 1; }
+  s = { cells, list, deep: new Float32Array(deep), deepSet, shell, c, r: r + RES, y0, y1 };
   cache.set(type, s);
   return s;
 }
 // Is a point (in the part's own frame) inside its solid? (Iteration order of `cells` matches `list`.)
 export function inSolid(s, x, y, z) { return s.cells.has(key(Math.floor(x / RES - OFF), Math.floor(y / RES), Math.floor(z / RES - OFF))); }
+// Is a point a cell or more inside the hull?
+export function inDeep(s, x, y, z) { return s.deepSet.has(key(Math.floor(x / RES - OFF), Math.floor(y / RES), Math.floor(z / RES - OFF))); }

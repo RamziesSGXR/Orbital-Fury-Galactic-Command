@@ -7,7 +7,7 @@ case "${1:-all}" in
   war)     for t in shell.py armoury.py fleets.py map.py map_war.py menu.py network.py; do run python3 test/$t; done; T=420 run python3 test/tutorial.py ;;
   ground)  run python3 test/mission.py victory; run python3 test/mission.py defeat; for t in field.py enemies.py props.py air.py view.py sites3d.py; do run python3 test/$t; done; run python3 test/enemies.py grass bots; run python3 test/enemies.py grass lizards; run python3 test/allies.py grass bots; run python3 test/allies.py grass lizards ;;
   base)    run python3 test/sites.py base; run python3 test/people.py base; run python3 test/buildings.py ;;
-  station) run python3 test/sites.py orbit; run python3 test/people.py orbit ;;
+  station) run python3 test/sites.py orbit; run python3 test/people.py orbit; run python3 test/joins.py ;;
   whole)   T=560 run node test/sim.mjs; T=560 run node test/games.mjs ;;
   all)     for g in war ground base station whole; do echo "== $g"; bash "$0" $g; done ;;
 esac

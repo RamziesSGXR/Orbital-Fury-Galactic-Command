@@ -1,6 +1,8 @@
 // ORBIT: the station over a system you hold. The rules and the 3D are Super Orbital Simulator's (js/orbit); this file
 // is how the commander meets them inside Galactic Command: one station for each system, built from the shared tool bar,
 // its people's requests on the shared desk, and its tier reported back to the map (a harder system to take, cheaper ships).
+// BUILD MODE (0.53): choosing a part marks every free port (a green ring where it fits), shows the part on the port under the
+// pointer before anything is built, and opens a card that says whether it fits there and, if not, why.
 import { C } from '../orbit/config.js';
 import { Station } from '../orbit/sim.js';
 import { View } from '../orbit/view.js';
@@ -14,7 +16,7 @@ const partsOf = (g) => Object.keys(C.parts).filter((t) => C.parts[t].group === g
 const SHORT = { platform: 'FIRE SUPPORT', structure: 'STRUCTURE', habitation: 'HABITATION', docking: 'DOCKING', industry: 'INDUSTRY', power: 'POWER', defence: 'DEFENCE', comms: 'COMMS' };
 
 let app, ui, audio, canvas, view = null, st = null, args = null;
-let acc = 0, group = 'structure', tool = null, rot = 0, hot = null, px = null, py = null, portsDirty = false, sel = null, vmode = 'hull', inside = false;
+let acc = 0, group = 'structure', tool = null, rot = 0, hot = null, hotFit = null, px = null, py = null, portsDirty = false, sel = null, vmode = 'hull', inside = false, cardSig = '';
 let barSig = '', deskSig = '', saveT = 20, hudT = 0, thumbs = {};
 
 const stationFaction = (sys) => ({ ...structuredClone(C.founding.def), ...structuredClone(app.faction), station: `${sys.name} Station` });
@@ -38,16 +40,63 @@ function stats() {
   ui.stats([{ k: 'CREDITS', v: Math.round(st.credits).toLocaleString('en-US'), tone: 'a' }, { k: 'CAPABILITY', v: st.capability() }, { k: 'POWER', v: `${st.demand}/${st.supply}`, tone: st.eff < 1 ? 'r' : '' },
     { k: 'PEOPLE', v: `${st.residents()}/${st.beds()}` }, { k: 'MORALE', v: mo, tone: mo < 35 ? 'r' : '' }, { k: `WEEK ${st.week()}`, v: `D${st.dow()}` }, { k: 'TIER', v: C.tiers[st.tier].name }]);
   let tip = '';
-  if (tool) tip = words(`${C.parts[tool].name}: tap a glowing port to place it.`);
+  if (tool) tip = hot ? '' : words(`${C.parts[tool].name}: tap a green ring to place it.`);
   else if (n) tip = `NEXT · ${n.name}: ` + n.items.map((i) => `${i.label} ${i.have}/${i.need}`).join(' · ');
   ui.tip(tip);
 }
 function selBar() {
+  if (tool) { card(true); return; }
   const el = $('th-sel'), p = sel && st.parts.get(sel);
-  el.classList.toggle('hidden', !p);
+  el.classList.toggle('hidden', !p); el.classList.remove('build'); cardSig = '';
   if (!p) return;
   const d = C.parts[p.type];
   el.innerHTML = `<b>${esc(st.name(p))}</b><span class="grow dim">${esc(d.about || '')}</span>${d.fixed ? '' : '<button class="plate btn sm" data-od="1">DEMOLISH</button>'}<button class="plate btn sm" data-ox="1">×</button>`;
+}
+// ---------------------------------------------------------------- BUILD MODE: the card for the part in hand
+// It says where the part fits (the green rings), and, for the port pointed at or tapped, whether it fits there and why not.
+// TURN tries the next way round that fits; BUILD builds at the chosen port (on a touch screen, tapping the ring again does too).
+function card(force) {
+  const el = $('th-sel'), d = C.parts[tool];
+  let say, tone = '';
+  if (hot && hotFit) {
+    if (hotFit.ok) { say = view.touch ? 'Fits here. Press BUILD, or tap the ring again.' : 'Fits here. Click to build.'; tone = 'ok'; }
+    else { say = `${hotFit.why}.`; tone = 'no'; }
+  } else if (view.portFits == null) say = 'Finding where it fits…';
+  else if (view.portFits) say = `Fits on ${view.portFits} of ${view.portKnown} free ports: the green rings.`;
+  else { say = whyNowhere(); tone = 'no'; }
+  const sig = `${tool}|${say}|${hot ? 1 : 0}|${hotFit && hotFit.ok}`;
+  if (!force && sig === cardSig) return; cardSig = sig;
+  el.classList.remove('hidden'); el.classList.add('build');
+  el.innerHTML = `<b>BUILD · ${esc(d.name)}</b><span class="cost">${d.cost} CR</span><span class="grow say ${tone}">${esc(say)}</span>` +
+    `<button class="plate btn sm" data-ob="turn" title="R">TURN</button><button class="plate btn sm bgo" data-ob="go" ${hot && hotFit && hotFit.ok ? '' : 'disabled'}>BUILD</button><button class="plate btn sm" data-ob="x" title="Cancel (Esc)" aria-label="Cancel">×</button>`;
+}
+// Why the part fits nowhere: the reason most of the free ports give.
+function whyNowhere() {
+  const n = new Map();
+  for (const fp of view.portList || []) if (fp.fit && !fp.fit.ok) { const w = fp.fit.why.replace(/It would run into .*/, 'It would run into another part'); n.set(w, (n.get(w) || 0) + 1); }
+  const top = [...n].sort((a, b) => b[1] - a[1])[0];
+  return top ? `Nowhere fits it yet. ${top[0]}.` : 'There is no free port to build on.';
+}
+function setHot(p) {
+  if ((p && p.part) === (hot && hot.part) && (p && p.i) === (hot && hot.i)) return;
+  hot = p || null; hotFit = hot ? view.setGhost(tool, hot, rot) : (view.setGhost(null, null, 0), null);
+  portsDirty = true; card();
+}
+function turn() {
+  if (!tool) return;
+  const was = hot && hotFit ? where(hotFit.rot) : '';
+  rot = ((hotFit ? hotFit.rot : rot) + 1) % 8;
+  if (hot) hotFit = view.setGhost(tool, hot, rot);
+  if (was && hotFit.ok && where(hotFit.rot) === was) app.toast('It only goes one way round here.');
+  portsDirty = true; audio.click(); card(true);
+}
+// where the part in hand would sit on the hot port, turned so (to tell whether a turn changed anything)
+function where(r) { const pl = st.placement(tool, st.parts.get(hot.part), hot.i, r); return pl.pos.map((x) => x.toFixed(2)) + '|' + pl.quat.map((x) => x.toFixed(3)); }
+function buildHot() {
+  if (!tool || !hot) return;
+  const f = view.fitAt(tool, hot, rot), r = f.ok ? st.build(tool, hot.part, hot.i, f.rot) : f;
+  if (r.ok) { audio.podLand(); hot = null; hotFit = null; view.setGhost(null, null, 0); portsDirty = true; card(true); }
+  else { audio.deny(); app.toast(r.why || 'It will not fit there.'); }
 }
 function desk() {
   const sig = st.requests.map((r) => r.id).join(',');
@@ -75,17 +124,19 @@ function drain() {
 }
 function setTool(t) {
   if (t && !st.partOpen(t)) { audio.deny(); return; }
-  tool = tool === t ? null : t; hot = null; sel = null; view.select(null); selBar();
+  tool = tool === t ? null : t; hot = null; hotFit = null; sel = null; view.select(null);
   view.setGhost(null, null, 0);
   if (tool) portsDirty = true; else view.showPorts(null);
-  audio.click(); bar(true); stats();
+  selBar(); audio.click(); bar(true); stats();
 }
+// x, y: where on the page (client coordinates, as the view's picking takes them)
 function click(x, y) {
   if (tool) {
-    const p = view.pickPort(x, y); if (!p) return;
-    if (view.touch && !(hot && hot.part === p.part && hot.i === p.i)) { hot = p; view.setGhost(tool, p, rot); portsDirty = true; ui.tip('Tap the same port again to build.'); return; }
-    const r = st.build(tool, p.part, p.i, rot);
-    if (r.ok) { audio.podLand(); hot = null; view.setGhost(null, null, 0); portsDirty = true; } else { audio.deny(); app.toast(r.why || 'It will not fit there.'); }
+    const p = view.pickPort(x, y, view.touch ? 64 : 56);
+    if (!p) { if (view.touch) setHot(null); return; }
+    // a touch screen has no pointer to hover with: the first tap chooses the port and shows the part there, the second builds
+    if (view.touch && !(hot && hot.part === p.part && hot.i === p.i)) { setHot(p); return; }
+    setHot(p); buildHot();
     return;
   }
   const id = view.pickPart(x, y); sel = id || null; view.select(sel); if (sel) audio.click(); selBar();
@@ -93,14 +144,17 @@ function click(x, y) {
 function bind() {
   let down = null;
   canvas.addEventListener('pointerdown', (e) => { view.touch = e.pointerType === 'touch'; down = { x: e.clientX, y: e.clientY }; });
-  canvas.addEventListener('pointerup', (e) => { if (!down || mode.off) return; const d = Math.hypot(e.clientX - down.x, e.clientY - down.y); down = null; if (d < 7 && e.button === 0) { const r = canvas.getBoundingClientRect(); click(e.clientX - r.left, e.clientY - r.top); } });
-  canvas.addEventListener('pointermove', (e) => { if (mode.off) return; const r = canvas.getBoundingClientRect(); px = e.clientX - r.left; py = e.clientY - r.top; if (tool) portsDirty = true; });
+  canvas.addEventListener('pointerup', (e) => { if (!down || mode.off) return; const d = Math.hypot(e.clientX - down.x, e.clientY - down.y); down = null; if (d < 7 && e.button === 0) click(e.clientX, e.clientY); });
+  // with a mouse, the port nearest the pointer is the one in hand: the part shows there before anything is built
+  canvas.addEventListener('pointermove', (e) => { if (mode.off || e.pointerType === 'touch') return; view.touch = false; px = e.clientX; py = e.clientY; if (tool && !down) setHot(view.pickPort(px, py)); });
+  canvas.addEventListener('pointerleave', (e) => { if (mode.off || e.pointerType === 'touch') return; px = py = null; if (tool) setHot(null); });
   canvas.addEventListener('contextmenu', (e) => e.preventDefault());
   $('s-theatre').addEventListener('click', (e) => {
     if (mode.off) return;
-    const t = e.target.closest('[data-og],[data-op],[data-oa],[data-od],[data-ox],[data-ov]'); if (!t) return;
+    const t = e.target.closest('[data-og],[data-op],[data-oa],[data-od],[data-ox],[data-ov],[data-ob]'); if (!t) return;
     const d = t.dataset;
-    if (d.og) { group = d.og; audio.click(); tabs(); bar(true); }
+    if (d.ob) { if (d.ob === 'turn') turn(); else if (d.ob === 'go') buildHot(); else if (tool) setTool(tool); }
+    else if (d.og) { group = d.og; audio.click(); tabs(); bar(true); }
     else if (d.op) setTool(d.op);
     else if (d.oa != null) { const id = +t.closest('.req').dataset.id, r = st.answer(id, +d.oa); if (r && r.ok === false) { audio.deny(); if (r.why) app.toast(r.why); } else audio.click(); deskSig = ''; desk(); }
     else if (d.od) { const r = st.demolish(sel); if (r && r.ok === false) { audio.deny(); app.toast(r.why || 'Something is still attached to it.'); } else { audio.baseDown(); sel = null; view.select(null); selBar(); } }
@@ -110,7 +164,7 @@ function bind() {
       audio.click(); tabs();
     }
   });
-  window.addEventListener('keydown', (e) => { if (mode.off || e.target.tagName === 'INPUT') return; if (e.key === 'r' || e.key === 'R') { rot = (rot + 1) % 4; if (tool && hot) view.setGhost(tool, hot, rot); portsDirty = true; } else if (e.key === 'Escape' && tool) { e.stopImmediatePropagation(); setTool(tool); } else if (e.key === ' ') { e.preventDefault(); $('th-pause').click(); } }, true);
+  window.addEventListener('keydown', (e) => { if (mode.off || e.target.tagName === 'INPUT') return; if (e.key === 'r' || e.key === 'R') turn(); else if (e.key === 'Enter' && tool && hot) { e.preventDefault(); buildHot(); } else if (e.key === 'Escape' && tool) { e.stopImmediatePropagation(); setTool(tool); } else if (e.key === ' ') { e.preventDefault(); $('th-pause').click(); } }, true);
   new ResizeObserver(() => { if (!mode.off && view) view.resize(); }).observe($('th-stage'));
 }
 
@@ -131,7 +185,8 @@ const mode = {
     try { view.setFaction(st.faction); view.setLivery(st.livery); } catch (err) { console.error(err); }
     view.newSky(st.seed); view.controls.autoRotate = false;
     inside = false; vmode = 'hull'; view.setOpen(false); view.setMode('hull'); view.resize(); view.frame();
-    acc = 0; tool = null; hot = null; sel = null; barSig = ''; deskSig = ''; thumbs = {}; saveT = 20; group = 'structure';
+    acc = 0; tool = null; hot = null; hotFit = null; rot = 0; sel = null; barSig = ''; deskSig = ''; cardSig = ''; thumbs = {}; saveT = 20; group = 'structure';
+    view.showPorts(null); view.setGhost(null, null, 0);
     $('th-where').textContent = st.faction.station;
     tabs(); bar(true); stats(); desk(); selBar();
     if (!loaded) { const gr = app.grant('s_grant'); if (gr) st.credits += gr; }
@@ -140,7 +195,7 @@ const mode = {
   },
   store() { if (st && args) app.siteSave('orbit', args.system.id, st.save()); },
   report() { let net = 0; try { net = st.ledger().credits.net; } catch { /* no accounts yet */ } return { air: Math.min(5, [...st.parts.values()].filter((p) => p.state !== 'building' && C.parts[p.type] && C.parts[p.type].group === 'comms').length), profit: net > 0.05, net, level: Math.min(4, st.tier + 1), tier: C.tiers[st.tier].name, cap: st.capability() }; },
-  leave() { mode.store(); mode.off = true; view.showPorts(null); view.setGhost(null, null, 0); },
+  leave() { mode.store(); mode.off = true; tool = null; hot = null; hotFit = null; view.showPorts(null); view.setGhost(null, null, 0); },
   frame(dt, now, real) {
     if (!st) return;
     if (dt > 0) {
@@ -150,7 +205,14 @@ const mode = {
     }
     drain();
     view.sync(now, real);
-    if (tool && portsDirty) { portsDirty = false; view.showPorts(tool, rot, hot, px, py); }
+    if (tool) {
+      if (portsDirty) {      // the marks are redrawn when something changed; fits still to be worked out carry on next frame
+        portsDirty = view.showPorts(tool, rot, hot);
+        if (hot) { if (!st.parts.has(hot.part) || st.parts.get(hot.part).used.has(hot.i)) setHot(null); else hotFit = view.setGhost(tool, hot, rot); }
+        card();
+      }
+      view.facePorts();
+    }
     view.render(now);
     if ((hudT -= real) <= 0) { hudT = 0.3; bar(); stats(); desk(); if (tool) portsDirty = true; }
     if ((saveT -= real) <= 0) { saveT = 20; mode.store(); }

@@ -349,6 +349,18 @@ button small { display: block; font: 9.5px var(--mono); letter-spacing: 0.5px; o
 #th-tip { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); background: var(--strip); border: 1px solid var(--amber-l); padding: 5px 10px; font-size: 11.5px; pointer-events: none; white-space: nowrap; max-width: 96%; overflow: hidden; text-overflow: ellipsis; }
 #th-sel { background: var(--strip); border-top: 1px solid var(--cyan-l); padding: 6px 8px; font-size: 12px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 #th-sel b { font: 600 12px var(--head); letter-spacing: 1px; color: var(--cyan); text-transform: uppercase; }
+/* build mode: the card for the part in hand (js/modes/orbit.js) */
+#th-sel.build { border-top-color: var(--amber); }
+#th-sel.build b { color: var(--amber); }
+#th-sel.build .cost { color: var(--dim); font-size: 11px; white-space: nowrap; }
+#th-sel.build .say { min-width: 0; }
+#th-sel.build .say.ok { color: #8ff0a0; }
+#th-sel.build .say.no { color: #ff8a7a; }
+#th-sel.build .btn.bgo:not(:disabled) { border-color: #8ff0a0; color: #8ff0a0; }
+#th-sel.build .btn:disabled { opacity: 0.35; }
+#th-sel.build .say { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#th-sel.build b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 0 1 auto; }
+@media (max-width: 640px) { #th-sel.build .say { flex-basis: 100%; order: 5; white-space: normal; min-height: 2.6em; } #th-sel.build .cost { margin-right: auto; } }
 #th-tabs { display: flex; background: var(--strip); border-top: 1px solid var(--cyan-l); overflow-x: auto; scrollbar-width: none; }
 #th-tabs:empty { display: none; }
 #th-tabs button { flex: 1 0 auto; background: none; border: 0; border-top: 2px solid transparent; padding: 7px 10px; font: 600 10.5px var(--head); letter-spacing: 1px; color: var(--dim); min-height: 34px; }

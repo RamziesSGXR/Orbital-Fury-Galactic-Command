@@ -87,6 +87,7 @@ export class View {
     this._world();
     this.partObjs = new Map(); this.roomObjs = new Map(); this.shipObjs = new Map();
     this.markers = new THREE.Group(); this.scene.add(this.markers); this.dot = new THREE.SphereGeometry(1, 10, 8);
+    this.portRing = new THREE.RingGeometry(0.72, 1, 28); this.portDisc = new THREE.CircleGeometry(0.62, 20);      // a port mark: a ring and its middle, 1 unit across, scaled to the screen
     this.ghost = null; this.ghostKey = '';
     this.sel = null; this.selLines = null; this.edit = null; this.slotHot = null; this.slotLines = null;
     // (GC 0.45) when the hull's and the ships' models have come, whatever is standing is built again from them
@@ -163,9 +164,12 @@ export class View {
       ghostBad: B({ color: 0xff4a4a, transparent: true, opacity: 0.22, depthWrite: false }), ghostBadLine: L({ color: 0xff4a4a, transparent: true, opacity: 0.9 }),
       sel: L({ color: YELLOW, depthTest: false, transparent: true, opacity: 0.95 }),
       slotHot: L({ color: 0xffffff, depthTest: false, transparent: true, opacity: 0.95 }),
-      port: B({ color: BLUE, depthTest: false, transparent: true, opacity: 0.45 }),
-      portBad: B({ color: 0xff6a5a, depthTest: false, transparent: true, opacity: 0.25 }),
-      portHot: B({ color: 0xdff4ff, depthTest: false, transparent: true, opacity: 0.95 }),
+      port: B({ color: 0x8ff0a0, depthTest: false, transparent: true, opacity: 0.95 }),
+      portCore: B({ color: 0x8ff0a0, depthTest: false, transparent: true, opacity: 0.28 }),
+      portFar: B({ color: 0x8ff0a0, depthTest: false, transparent: true, opacity: 0.38 }),
+      portBad: B({ color: 0xff5a4a, depthTest: false, transparent: true, opacity: 0.5 }),
+      portBadHot: B({ color: 0xff5a4a, depthTest: false, transparent: true, opacity: 0.95 }),
+      portHot: B({ color: 0xffffff, depthTest: false, transparent: true, opacity: 0.95 }),
     };
     // One floor colour per room, so a cutaway reads at a glance.
     this.tileMats = {};
@@ -1248,41 +1252,70 @@ export class View {
     return [pos, look];
   }
 
-  // ---------------------------------------------------------------- building aids: small, see-through blue dots for free ports
-  // near: only ports close to the pointer (all of them, faint, on a touch screen). off: none drawn, but snapping still works.
-  showPorts(type, rot, hot, px, py) {
+  // ---------------------------------------------------------------- building aids: BUILD MODE
+  // With a part chosen, every free port is marked at once, through the hull: a green ring where the part fits, a small red dot
+  // where it does not (point at one to be told why). The port under the pointer (or tapped) is HOT: its ring fills in and the
+  // part is drawn there as a ghost, turned the way it fits. Fits are worked out a few at a time and kept until the station changes.
+  _fitMap(type, rot) {
+    const st = this.st, sig = `${type}|${rot}|${st.parts.size}|${st._ver || 0}|${st.credits >= C.parts[type].cost}|${st.tier}`;
+    if (this._fitSig !== sig) { this._fitSig = sig; this._fits = new Map(); }
+    return this._fits;
+  }
+  fitAt(type, fp, rot) {
+    const m = this._fitMap(type, rot), k = fp.part * 64 + fp.i; let f = m.get(k);
+    if (!f) { f = this.st.fit(type, fp.part, fp.i, rot); m.set(k, f); }
+    return f;
+  }
+  // Marks the free ports for `type`. Returns true while there are fits still to work out (call again next frame).
+  showPorts(type, rot, hot) {
     this.markers.clear();
     this.portList = type ? this.st.freePorts() : [];
-    if (!type || this.portMode === 'off' || !this.overlay) return;
-    const r = this.canvas.getBoundingClientRect(), camD = this.camera.position.distanceTo(this.controls.target), base = Math.max(0.1, camD * 0.0045);
+    if (!type) { this._fits = null; this._fitSig = ''; return false; }
+    const t0 = performance.now(), fm = this._fitMap(type, rot); let more = false, fits = 0, known = 0;
     for (const fp of this.portList) {
-      const isHot = hot && hot.part === fp.part && hot.i === fp.i;
-      if (!this.touch && !isHot) {
-        if (px == null) continue;
-        const v = new THREE.Vector3(...fp.pos).project(this.camera);
-        if (v.z > 1) continue;
-        const sx = (v.x + 1) / 2 * r.width + r.left, sy = (1 - v.y) / 2 * r.height + r.top;
-        if ((sx - px) ** 2 + (sy - py) ** 2 > 150 * 150) continue;
-      }
-      const ok = this.st.canBuild(type, fp.part, fp.i, rot).ok;
-      const m = new THREE.Mesh(this.dot, isHot ? this.M.portHot : ok ? this.M.port : this.M.portBad);
-      m.position.set(...fp.pos); m.scale.setScalar(base * (isHot ? 1.8 : this.touch ? 1.3 : 1));
-      m.userData.port = fp; m.renderOrder = 10;
-      this.markers.add(m);
+      const isHot = !!hot && hot.part === fp.part && hot.i === fp.i, k = fp.part * 64 + fp.i;
+      let f = fm.get(k);
+      if (!f) { if (!isHot && performance.now() - t0 > 7) { more = true; fp.fit = null; continue; } f = this.fitAt(type, fp, rot); }
+      fp.fit = f; known++; if (f.ok) fits++;
+      if (this.portMode === 'off' || !this.overlay) continue;
+      const g = new THREE.Group();
+      if (f.ok) {
+        g.add(new THREE.Mesh(this.portRing, isHot ? this.M.portHot : this.M.port));
+        g.add(new THREE.Mesh(this.portDisc, isHot ? this.M.portHot : this.M.portCore));
+      } else g.add(new THREE.Mesh(this.portDisc, isHot ? this.M.portBadHot : this.M.portBad));
+      g.traverse((o) => { o.renderOrder = isHot ? 12 : f.ok ? 11 : 10; });
+      g.position.set(...fp.pos); g.userData.port = fp; g.userData.k = isHot ? 1.5 : f.ok ? 1 : 0.55; g.userData.plain = f.ok && !isHot;
+      this.markers.add(g);
+    }
+    this.portFits = more ? null : fits; this.portKnown = known;
+    this.facePorts();
+    return more;
+  }
+  // Keeps the port marks turned to the camera and the same size on screen (call every frame while building).
+  facePorts() {
+    if (!this.markers.children.length) return;
+    const h = this.canvas.clientHeight || 600, f = Math.tan(this.camera.fov * Math.PI / 360) * 2 / h, px = this.touch ? 15 : 12;
+    for (const g of this.markers.children) {
+      // a port on the far side of the station (it faces away from the camera) is drawn fainter and smaller, so the near ones read first
+      const far = this._farPort(g.userData.port);
+      if (g.userData.plain) { g.children[0].material = far ? this.M.portFar : this.M.port; g.children[1].material = far ? this.M.hidden : this.M.portCore; }
+      g.quaternion.copy(this.camera.quaternion); g.scale.setScalar(Math.max(0.02, g.position.distanceTo(this.camera.position) * f * px * g.userData.k * (far && g.userData.plain ? 0.7 : 1)));
     }
   }
+  _farPort(fp) { const c = this.camera.position; return fp.dir[0] * (c.x - fp.pos[0]) + fp.dir[1] * (c.y - fp.pos[1]) + fp.dir[2] * (c.z - fp.pos[2]) < 0; }
   setGhost(type, port, rot) {
-    const key = port ? `${type}:${port.part}:${port.i}:${rot}` : '';
-    if (key === this.ghostKey) return;
+    const fit = port ? this.fitAt(type, port, rot) : null, key = port ? `${type}:${port.part}:${port.i}:${fit.rot}:${fit.ok}:${this.st._ver || 0}` : '';
+    if (key === this.ghostKey) return fit;
     this.ghostKey = key;
-    if (this.ghost) { this.scene.remove(this.ghost); this.ghost = null; }
-    if (!port) return;
-    const host = this.st.parts.get(port.part); if (!host) return;
-    const pl = this.st.placement(type, host, port.i, rot), ok = this.st.canBuild(type, port.part, port.i, rot).ok;
+    if (this.ghost) { this.scene.remove(this.ghost); this.ghost.traverse((o) => { if (o.geometry) o.geometry.dispose(); }); this.ghost = null; }
+    if (!port) return null;
+    const host = this.st.parts.get(port.part); if (!host) return null;
+    const pl = this.st.placement(type, host, port.i, fit.rot), ok = fit.ok;
     const g = buildPart(type);
     g.traverse((o) => { const r = o.userData.role; if (r) o.material = r === 'line' || r === 'wire' || r === 'innerLine' ? (ok ? this.M.ghostOkLine : this.M.ghostBadLine) : r === 'inner' || r === 'glow' ? this.M.hidden : (ok ? this.M.ghostOk : this.M.ghostBad); });
     g.position.set(...pl.pos); g.quaternion.set(...pl.quat);
     this.ghost = g; this.scene.add(g);
+    return fit;
   }
   select(id) {
     if (this.selLines) { this.scene.remove(this.selLines); this.selLines = null; }
@@ -1356,17 +1389,18 @@ export class View {
 
   // ---------------------------------------------------------------- picking
   _ndc(x, y) { const r = this.canvas.getBoundingClientRect(); return new THREE.Vector2(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1); }
-  // The nearest free port to the pointer, within 30 px on screen (even when the dots are switched off).
-  pickPort(x, y) {
+  // The free port the pointer means: the nearest one the part fits within `reach` px on screen, else the nearest of any kind
+  // within half that (so a port it does not fit can still be asked why). Works even when the marks are switched off.
+  pickPort(x, y, reach = 56) {
     const r = this.canvas.getBoundingClientRect();
-    let best = null, bd = 30 * 30;
+    let best = null, bd = reach * reach, alt = null, ad = reach * reach / 4;
     for (const fp of this.portList || []) {
       const v = new THREE.Vector3(...fp.pos).project(this.camera);
       if (v.z > 1) continue;
-      const sx = (v.x + 1) / 2 * r.width + r.left, sy = (1 - v.y) / 2 * r.height + r.top, d = (sx - x) ** 2 + (sy - y) ** 2;
-      if (d < bd) { bd = d; best = fp; }
+      const sx = (v.x + 1) / 2 * r.width + r.left, sy = (1 - v.y) / 2 * r.height + r.top, d = ((sx - x) ** 2 + (sy - y) ** 2) * (this._farPort(fp) ? 4 : 1);      // a port on the far side has to be pointed at twice as closely
+      if (fp.fit && fp.fit.ok) { if (d < bd) { bd = d; best = fp; } } else if (d < ad) { ad = d; alt = fp; }
     }
-    return best;
+    return best && alt && ad < bd / 9 ? alt : best || alt;
   }
   // The person nearest to the pointer, within 14 px, when the dots are showing (Life Signs, Cutaway, or editing a part).
   pickAgent(x, y) {

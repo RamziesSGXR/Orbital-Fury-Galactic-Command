@@ -1,6 +1,6 @@
 # Orbital Fury: Galactic Command
 
-**Prototype 0.52.0.** One war, run from four posts, in one game.
+**Prototype 0.53.0.** One war, run from four posts, in one game.
 
 You found a command (a name, a crest, colours) and hold the centre of the galaxy against three enemies. Everything in
 the war is yours to run, and each part changes the others:
@@ -13,6 +13,20 @@ the war is yours to run, and each part changes the others:
 | **The base** | Found a base on the system's key world: roads, zones, and buildings that grow along them. | +35% output from the system for each charter. |
 
 A system that falls takes its station and its base with it.
+
+## What's new in 0.53: building the station
+
+- **Build mode.** Choose a part and every free port is marked at once: a green ring where the part fits, a small red dot where
+  it does not. Point at a ring (or tap it) and the part is drawn there before anything is built. A card above the tool bar says
+  whether it fits and, if not, why; TURN (or R) tries the next way round that fits, BUILD (or a click, or a second tap) builds.
+- **The pointer lands where it points.** Ports used to be picked about a header's height below where they were drawn (75 px on
+  a desk, 170 px on a phone). They are now picked where they are, from further away, and near-side ports before far-side ones.
+- **What goes where** (`joins` in `js/orbit/config.js`). Rings, drums and discs only go round the spine. A dome needs a port
+  that faces up; a spire, up or down. Bays and docks only go on side ports. Only fittings hang on Cargo Racks and Fuel Tanks.
+  The mounts on top of guns, bays and shops take fittings, a dome or a spire, not whole modules.
+- **Nothing is built through anything else.** The check now counts thin pieces (wings, dishes, masts), treats the inside of a
+  bay as solid, and allows much less overlap at the join. A part that rests on a roof sits on it by its own lowest point, so a
+  tube no longer floats and a bubble no longer sinks in. Stations already built are left as they are.
 
 ## Play
 
@@ -57,6 +71,7 @@ With `npm start` running: `python3 test/shell.py` plays from the title through a
 desktop size; `python3 test/sites.py orbit` and `python3 test/sites.py base` found a station and a base, leave, and
 come back to them.
 
+- `python3 test/joins.py` checks the station's build mode: what joins to what, that nothing is built through anything else, and that a click or a tap builds on the port it is over.
 - `python3 test/orbit.py` checks the ground battle's circling view: that it turns, and that the pointer still lands where the ground is drawn.
 - `python3 test/tutorial.py` plays the guided opening from start to finish (about three minutes).
 - `python3 test/map.py` checks the map's desk controls.

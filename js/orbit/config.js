@@ -8,7 +8,7 @@
 //
 // PARTS snap together at PORTS. A port is [x, y, z, dx, dy, dz, kind] in the part's own frame: where it is and which way it faces.
 // Port 0 is the part's BASE, the port it attaches with. Spine parts ('S' base) stack along their own axis (local Y); arm parts
-// ('L' base) stick out along their local +X. Any part can go on any free port: the kit is meant to be free.
+// ('L' base) stick out along their local +X. Most parts go on most free ports; `joins`, below, lists the few that do not.
 // Parts sit in GROUPS (like a corvette builder's categories) and unlock by TIER on the upgrade path.
 // Many parts have SLOTS inside: rooms you build out in the cutaway. A part's job comes from its rooms, not from the part.
 // THE STANDARD SILL. Every side port opens onto a deck exactly 0.4 below the port's centre (3.6 m), on both sides of the join, so
@@ -292,10 +292,26 @@ export const C = {
     kinds: ['Station', 'Outpost', 'Platform', 'Bastion', 'Spire', 'Haven'],
   },
 
-  // A new part may not run through another: more than `cells` of its solid cells inside another part's is a clash. Cells within
-  // joinR of the port it joins its host by do not count: parts are drawn to sit into each other there (a gun's pedestal, a dome
-  // against a curved end).
-  clash: { cells: 6, joinR: 2.5 },
+  // A new part may not run through another. Two things are counted, each way round: the cells deep inside one part that lie in
+  // the other's solid, and the points on one part's surface (thin pieces too: wings, dishes, masts) that lie deep inside the
+  // other. More than `cells` of them is a clash. Right at the port the two join by, within joinR, nothing counts: that is where
+  // a collar sits into a hull. Parts that only touch never clash.
+  clash: { cells: 3, joinR: 0.9 },
+
+  // WHAT GOES WHERE. Any part still goes on most ports, but a few joins made no sense and are refused, each with its reason:
+  //   round    goes round the spine, so only on a spine port (the top or bottom of a spine part)
+  //   cap      'up': only on a port that faces up; 'vertical': up or down
+  //   side     faces outward (a bay's door, a dock's berth), so only on a side port
+  //   open     an open frame with nobody inside: only fittings (the loose parts) hang on it
+  //   mounts   a roof or belly mount on a module (a port there that faces up or down): fittings and caps only.
+  //            Spine parts and the Node keep their upright ports for stacking.
+  joins: {
+    round: ['ring', 'drum', 'disc', 'bigring'],
+    cap: { dome: 'up', spire: 'vertical' },
+    side: ['hangar', 'strikerhangar', 'dshipbay', 'drydock', 'dockport', 'pylon'],
+    open: ['rack', 'tanks'],
+    stack: ['node'],
+  },
 
   start: { credits: 2500, tax: 10 },
   sandbox: { credits: 999999 },

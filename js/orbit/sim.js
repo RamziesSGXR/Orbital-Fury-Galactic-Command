@@ -10,7 +10,7 @@ import { installPlatform } from './platform.js';
 import { installStory } from './story.js';
 import { installLedger } from './ledger.js';
 import { installMarket } from './market.js';
-import { solidOf, inSolid } from './solid.js';
+import { solidOf, inSolid, inDeep } from './solid.js';
 
 const NAMES = ['Honest Work', 'Steady Progress', 'Fair Weather', 'Good Neighbors', 'Quiet Resolve', 'Open Skies', 'Sturdy Headlines',
   'Shared Prosperity', 'Cheerful Compliance', 'Sensible Shoes', 'Unanimous Consent', 'Bright Mornings', 'Fair Play', 'Civic Duty',
@@ -54,14 +54,16 @@ const PRAISE = {
 };
 export const STRUCTURAL = new Set(['command', 'core', 'longcore', 'junction', 'truss', 'node', 'tube']);
 
-// How many of S's deep cells lie inside T's solid (each placed at pos/quat). Cells within C.clash.joinR of `join` do not count.
-function clashCells(S, sp, sq, T, tp, tq, join) {
-  const R = qmat(q.mul(q.conj(tq), sq)), t = q.rot(q.conj(tq), v.sub(sp, tp)), jl = join ? q.rot(q.conj(sq), v.sub(join, sp)) : null, jr2 = C.clash.joinR ** 2, d = S.deep, max = C.clash.cells;
-  let n = 0;
-  for (let i = 0; i < d.length && n <= max; i += 3) {
-    const x = d[i], y = d[i + 1], z = d[i + 2];
-    if (jl && (x - jl[0]) ** 2 + (y - jl[1]) ** 2 + (z - jl[2]) ** 2 < jr2) continue;
-    if (inSolid(T, R[0] * x + R[1] * y + R[2] * z + t[0], R[3] * x + R[4] * y + R[5] * z + t[1], R[6] * x + R[7] * y + R[8] * z + t[2])) n++;
+// How far S runs into T (each placed at pos/quat): S's deep cells that lie in T's solid, and the points of S's shell (its surface,
+// thin pieces too) that lie deep inside T. Nothing within C.clash.joinR of `join` counts. Stops counting once past `max`.
+function clashCells(S, sp, sq, T, tp, tq, join, n = 0) {
+  const R = qmat(q.mul(q.conj(tq), sq)), t = q.rot(q.conj(tq), v.sub(sp, tp)), jl = join ? q.rot(q.conj(sq), v.sub(join, sp)) : null, jr2 = C.clash.joinR ** 2, max = C.clash.cells;
+  for (const [d, inside] of [[S.deep, inSolid], [S.shell, inDeep]]) {
+    for (let i = 0; i < d.length && n <= max; i += 3) {
+      const x = d[i], y = d[i + 1], z = d[i + 2];
+      if (jl && (x - jl[0]) ** 2 + (y - jl[1]) ** 2 + (z - jl[2]) ** 2 < jr2) continue;
+      if (inside(T, R[0] * x + R[1] * y + R[2] * z + t[0], R[3] * x + R[4] * y + R[5] * z + t[1], R[6] * x + R[7] * y + R[8] * z + t[2])) n++;
+    }
   }
   return n;
 }
@@ -164,8 +166,10 @@ export class Station {
     }
     // an arm part on a port that faces up or down: it sits on top, or hangs beneath, with the middle of its hallway over the port,
     // so the lift tube in the port comes up through a hatch in the hallway floor
-    const way = C.ways[type], quat = yaw(step), hh = d.hh ?? 1, c = q.rot(quat, [d.center[0], 0, way && way.k === 'hall' ? way.z : d.center[2]]);
-    return { pos: [tp.pos[0] - c[0], tp.pos[1] + Math.sign(tp.dir[1]) * hh, tp.pos[2] - c[2]], quat, base: -1, join };
+    // It rests on the port by its own lowest point (or hangs from it by its highest), so a slim tube does not float and a wide
+    // bubble does not sink in.
+    const way = C.ways[type], quat = yaw(step), S = solidOf(type), c = q.rot(quat, [d.center[0], 0, way && way.k === 'hall' ? way.z : d.center[2]]);
+    return { pos: [tp.pos[0] - c[0], tp.pos[1] - (tp.dir[1] > 0 ? S.y0 : S.y1), tp.pos[2] - c[2]], quat, base: -1, join };
   }
   freePorts() {
     const out = [];
@@ -187,31 +191,56 @@ export class Station {
     if (host.used.has(pi)) return { ok: false, why: 'That port is taken' };
     const tpd = this.port(host, pi).dir;
     if (d.keel && tpd[1] > 0.7) return { ok: false, why: 'Its guns face the planet: use a side port or one underneath' };
+    const rule = this.joinWhy(type, host, pi);
+    if (rule) return { ok: false, why: rule };
+    // from here on the answer depends on how the part is turned (`turn`: another turn might fit)
     const pl = this.placement(type, host, pi, rot), c = v.add(pl.pos, q.rot(pl.quat, d.center));
     if (pl.flipped && d.rooms) return { ok: false, why: 'This part stands upright: use a port that faces up' };
-    if (v.len(c) + d.r * 0.5 > this.radius) return { ok: false, why: 'Outside the permitted build zone' };
+    if (v.len(c) + d.r * 0.5 > this.radius) return { ok: false, why: 'Outside the permitted build zone', turn: true };
     // Parts may nest (a ring inside a ring, a module in the open middle of a disc), but one hull may not run through another.
     const hit = this.clashWith(type, host, pl);
-    if (hit) return { ok: false, why: `It would run into ${hit === host ? 'the part it joins' : this.name(hit)}` };
+    if (hit) return { ok: false, why: `It would run into ${hit === host ? `${this.name(host)}, the part it joins` : this.name(hit)}`, turn: true };
     if (this.credits < d.cost) return { ok: false, why: 'Not enough credits' };
     return { ok: true, why: '' };
   }
-  // The part a new one would run into, or null. Its solid (solid.js) is tested against every part near it: more than a few cells of
-  // one inside the other is a clash. Against the part it joins, the cells right round the joining port do not count (that is where
-  // the two are meant to meet). Answers are kept until the station changes.
+  // WHAT GOES WHERE (C.joins): why this kind of part may not go on that port, or '' if it may. Nothing here depends on how the
+  // part is turned.
+  joinWhy(type, host, pi) {
+    const J = C.joins, d = C.parts[type], hd = this.def(host), port = this.port(host, pi), up = port.dir[1] > 0.7, vert = Math.abs(port.dir[1]) > 0.7;
+    if (J.open.includes(host.type) && !d.loose) return `${hd.name} is an open frame: only arrays, racks, tanks and other fittings hang on it`;
+    if (J.round.includes(type) && port.kind !== 'S') return 'It goes round the spine: use a port on the top or bottom of a spine part';
+    const cap = J.cap[type];
+    if (cap === 'up' && !up) return `${d.name} stands upright: use a port that faces up`;
+    if (cap === 'vertical' && !vert) return `${d.name} stands on end: use a port that faces up or down`;
+    if (J.side.includes(type) && vert) return `${d.name} faces outward: use a side port`;
+    if (vert && port.kind !== 'S' && !J.stack.includes(host.type) && !d.loose && !cap) return `That is a mount on the ${hd.name}: it takes fittings (arrays, dishes, turrets, screens), a dome or a spire`;
+    return '';
+  }
+  // Can it go there, turned however it has to be? Tries the turn asked for first, then the others. { ok, why, rot }: the turn that
+  // fits, or the reason the one asked for does not.
+  fit(type, hostId, pi, rot = 0) {
+    const first = this.canBuild(type, hostId, pi, rot);
+    if (first.ok || !first.turn) return { ...first, rot };
+    for (let k = 1; k < 8; k++) { const r = (rot + k) % 8, c = this.canBuild(type, hostId, pi, r); if (c.ok) return { ...c, rot: r }; if (!c.turn) break; }
+    return { ...first, rot };
+  }
+  // The part a new one would run into, or null. Its solid and its shell (solid.js) are tested against every part near it: more
+  // than a few cells of one deep inside the other is a clash. Against the part it joins, what lies right round the joining port
+  // does not count (that is where the two are meant to meet). Answers are kept until the station changes.
   clashWith(type, host, pl) {
     const ver = `${this.parts.size}|${this._ver || 0}`;
     if (this._clashVer !== ver) { this._clashVer = ver; this._clashMemo = new Map(); }
     const mk = `${type}|${host.id}|${pl.pos.map((x) => x.toFixed(3))}|${pl.quat.map((x) => x.toFixed(4))}`;
     if (this._clashMemo.has(mk)) return this.parts.get(this._clashMemo.get(mk)) || null;
-    const A = solidOf(type), ca = v.add(pl.pos, q.rot(pl.quat, A.c)), join = pl.join || this.port(host, 0).pos;
+    // where nothing is mated (a part resting on a port, base -1) there is no collar, and no allowance at the join
+    const A = solidOf(type), ca = v.add(pl.pos, q.rot(pl.quat, A.c)), join = pl.base < 0 ? null : pl.join || this.port(host, 0).pos;
     let hit = null;
     for (const p of this.parts.values()) {
       if (p.state === 'demolish') continue;
       const B = solidOf(p.type), cb = v.add(p.pos, q.rot(p.quat, B.c));
       if (v.dist(ca, cb) > A.r + B.r) continue;
       // each one's deep cells (a cell or more inside its hull) through the other's solid: touching is allowed, running through is not
-      const n = clashCells(A, pl.pos, pl.quat, B, p.pos, p.quat, p === host ? join : null) + clashCells(B, p.pos, p.quat, A, pl.pos, pl.quat, p === host ? join : null);
+      const jn = p === host ? join : null, n = clashCells(B, p.pos, p.quat, A, pl.pos, pl.quat, jn, clashCells(A, pl.pos, pl.quat, B, p.pos, p.quat, jn));
       if (n > C.clash.cells) { hit = p; break; }
     }
     this._clashMemo.set(mk, hit ? hit.id : 0);
