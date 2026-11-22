@@ -35,6 +35,7 @@ const B = () => C.build;
 export const postLevel = (m, what) => (FLAT_BUILDS.has(what) ? 1 : Math.max(0, buildLevel(m.kit, what)));
 // (0.39) the builds that can be turned before they are put down (a light bridge lies the way the water does)
 export const turns = (what) => what !== 'bridge';
+// (0.56) The buildings no longer take their crew in: see IN, below. INSIDE now only names the kinds whose crew is a garrison.
 // (0.18) Nothing needs a crew any more: the guns, towers and the cannon work on their own (they take longer to build), and a crew is a
 // bonus. The buildings (INSIDE) take their crew in: troopers sent to man one leave their squad and are hidden inside it (selecting
 // the post shows them); they fight from it, and the post takes the hits. Foxholes and bastions are cover: whoever stands in them
@@ -46,8 +47,10 @@ export const postName = (what) => tr('build.' + what);
 
 // Where each of a post's places is: inside the post (behind the gun, up on the platform, in the pit), or (for the bastions)
 // behind each wall. (render/posts.js draws each post round these.)
-const IN = { foxhole: [[0.3, -1.1], [0.3, 1.1], [-0.9, 0]], mg: [[-1.4, -0.9], [-1.4, 0.9]], lookout: [[-0.8, -0.8], [0.8, 0.8]], tower: [[-1.1, 0]],
-  arty: [[-2.4, -1.2], [-2.4, 1.2]] };
+// (0.56, Ramzies' ruling) NOBODY IS INSIDE A BUILDING. A post's crew work it from beside it, in the open, where they can be seen,
+// can shoot and can be shot: these places are behind the nest, the tower or the gun, clear of its model and its solid part.
+const IN = { foxhole: [[0.3, -1.1], [0.3, 1.1], [-0.9, 0]], mg: [[-3.2, -1.2], [-3.2, 1.2]], lookout: [[-3.3, -1.1], [-3.3, 1.1]], tower: [[-2.8, 0]],
+  arty: [[-4.0, -1.4], [-4.0, 1.4]] };
 // (0.28) A foxhole is dug for the troops that dig it: three or fewer get the pit; four to seven a straight trench across the front,
 // its fire steps staggered; eight or more a longer one bent into a crescent, the ends curled back. Its places, end to end.
 export const FOX_MAX = 12, FOX_GAP = 2.4;
@@ -379,7 +382,7 @@ export function updatePosts(m, dt) {
     // who is on it: anyone standing in one of its places (at most one per place)
     let n = 0, nh = 0, ns = 0;
     if (p.what === 'wire') continue;             // (no crew: it is only wire)
-    const line = p.shape === 'line' || p.shape === 'corner', R = p.what === 'bastion' ? p.r + 3 : p.r, inside = INSIDE.has(p.what);
+    const line = p.shape === 'line' || p.shape === 'corner', inside = INSIDE.has(p.what), R = p.what === 'bastion' ? p.r + 3 : inside ? Math.max(p.r, 5) : p.r;     // (0.56: a building's crew stand beside it, so its reach for counting them takes in their places)
     for (const a of m.alive) {
       if (a.dead || a.mounted || (a.x - p.x) ** 2 + (a.y - p.y) ** 2 > R * R) continue;
       if (inside && a.type === 'S' && a.post !== p) continue;          // a building's crew is its garrison (Vanguards at it help too)
@@ -388,7 +391,7 @@ export function updatePosts(m, dt) {
       else if (n >= p.cap) continue;
       a.inPost = p; n++; if (a.type === 'H') nh++; else ns++;
     }
-    if (inside) for (const a of m.infantryAlive) if (a.post === p) a.inside = p;      // hidden in the building
+    // (0.56) its garrison is no longer hidden in it (a.inside stays unset): they stand at its places outside, as vulnerable as anyone
     p.crew = n; p.crewH = nh; p.crewS = ns;
     p.garrison = 0; for (const a of m.infantryAlive) if (a.post === p) p.garrison++;
     // a squad sent in through the door: whoever of it has got there goes in, until the post is full
@@ -399,7 +402,7 @@ export function updatePosts(m, dt) {
         for (const a of m.infantryAlive) {
           if (p.garrison >= p.cap) break;
           if (a.sq !== q.i || (a.x - p.x) ** 2 + (a.y - p.y) ** 2 > (R + 2) ** 2) continue;
-          a.sqWas = a.sq; a.sq = GARRISON; a.post = p; a.inside = p; p.garrison++;
+          a.sqWas = a.sq; a.sq = GARRISON; a.post = p; p.garrison++;
           m.emit('garrison_in', { id: a.id, post: p.id });
         }
       }

@@ -70,7 +70,8 @@ export function setupSides(m) {
       const s = { id: m.nextId++, side: true, kind: 'rescue', x: p.x, y: p.y, r: 14, state: 'hidden', troops: [], done: false, failed: false, callT: 0, hidden: true };
       const st = infantryStats(m.kit), roles = rollRoles(m, S.rescue.n, st);
       for (const role of roles) {
-        const a = m.addAlly('S', p.x + m.rng.range(-7, 7), p.y + m.rng.range(-7, 7), { role });
+        const ra = m.rng.angle(), rd = m.rng.range(9.5, 12);     // (0.56) outside their ring of sandbags (it is 6.7 m out and solid), not inside it: seen, and as vulnerable as anyone
+        const a = m.addAlly('S', p.x + Math.cos(ra) * rd, p.y + Math.sin(ra) * rd, { role });
         a.pinned = s.id; a.hidden = true; a.face = m.rng.angle();     // lying low: not on the map for anyone until found
         s.troops.push(a);
       }
@@ -229,7 +230,9 @@ export function updateSides(m, dt) {
       if (!by) continue;
       const alive = s.troops.filter((a) => !a.dead);
       const sq = by.type === 'S' && by.sq >= 0 ? by.sq : dropSquad(m);
-      for (const q of alive) { q.pinned = 0; q.hidden = false; q.sq = sq; }
+      for (const q of alive) { q.pinned = 0; q.hidden = false; q.sq = sq;
+        // (0.56) as they come into view, anyone who lay within the ring of sandbags is outside it: nobody stands inside a site
+        const dx = q.x - s.x, dy = q.y - s.y, dl = Math.hypot(dx, dy); if (dl < 9) { const an = dl > 0.2 ? Math.atan2(dy, dx) : m.rng.angle(); q.x = s.x + Math.cos(an) * 9.2; q.y = s.y + Math.sin(an) * 9.2; } }
       s.joined = alive.length; s.hidden = false;
       m.radio(COMMS.rescueDone(alive.length, sq + 1), 'rescuedone', 0);
       finish(m, s, true);

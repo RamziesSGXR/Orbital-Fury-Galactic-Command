@@ -48,7 +48,9 @@ export function setupSite(m) {
     get name() { return tr('site.' + this.siteKind); },
   };
   // its places: along the yard between the two buildings (where the work is), either side of the forklifts' lane
-  p.slots = Array.from({ length: S.cap }, (_, k) => { const u = (k + 1) / (S.cap + 1) - 0.5, side = k % 2 ? 2.6 : -2.6; return { x: at.x + c * u * 2 * h - s * side, y: at.y + s * u * 2 * h + c * side }; });
+  // (0.56, Ramzies' ruling: nobody inside a building) its places are outside it now: a line along its front, clear of the model
+  // (which is 0.8 of its radius), in the open. They work it from there, seen and as vulnerable as anyone.
+  { const D = Math.max(3.4, S.r * 0.8) + 1.6; p.slots = Array.from({ length: S.cap }, (_, k) => { const u = (k - (S.cap - 1) / 2) * 2.2; return { x: at.x - s * D + c * u, y: at.y + c * D + s * u }; }); }
   m.posts.push(p); m.assets.push(p); m.workSite = p;
   return p;
 }

@@ -460,7 +460,7 @@ export class Renderer {
       { const hb = m.democharge; if (hb && (hb.state === 'landed' || hb.state === 'armed')) put('site_charge', hb.x, hb.y, 2.2, 0.6); }
       for (const q of m.loot || []) if (q.kind === 'wreck') put('site_wreck', q.x, q.y, Math.max(3, (q.r || 4) * 0.5), turn(q));     // (0.52) no bigger than its solid part: whoever searches it stands beside it, not inside it
       for (const sd of m.sides || []) {
-        if (sd.done || sd.failed || sd.hidden) { if (sd.kind === 'radio' && sd.done) put('side_radio', sd.x, sd.y, Math.max(5, sd.r * 0.7), turn(sd)); continue; }
+        if (sd.done || sd.failed || sd.hidden) { if (sd.kind === 'radio' && sd.done) put('side_radio', sd.x, sd.y, Math.max(5, sd.r * 0.7), turn(sd)); else if (sd.kind === 'rescue' && sd.done && !sd.hidden) put('side_redoubt', sd.x, sd.y, 8, turn(sd)); continue; }
         if (sd.kind === 'radio') put('side_radio', sd.x, sd.y, Math.max(5, sd.r * 0.7), turn(sd));
         else if (sd.kind === 'arty') put('side_howitzer', sd.x, sd.y, 5, Math.PI / 2 - (sd.face || 0));
         else if (sd.kind === 'jammer') put('side_jam_' + sd.fac, sd.x, sd.y, Math.max(4, sd.r * 0.6), turn(sd));

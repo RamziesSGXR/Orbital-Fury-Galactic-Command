@@ -1,6 +1,6 @@
 # Orbital Fury: Galactic Command
 
-**Prototype 0.56.0.** One war, run from four posts, in one game.
+**Prototype 0.57.0.** One war, run from four posts, in one game.
 
 You found a command (a name, a crest, colours) and hold the centre of the galaxy against three enemies. Everything in
 the war is yours to run, and each part changes the others:

@@ -55,7 +55,7 @@ function build(m) {
   // structure in the middle is solid; the ground round it, where whoever works it stands, stays open. Hidden Infantry are people,
   // not a building.
   for (const p of m.pois) if (!p.done) add(p.x, p.y, (p.r || 12) * ((S.poiBy && S.poiBy[p.kind]) || S.poi), p);
-  for (const s of m.sides) if (!s.isPoi && !s.done && !s.failed && s.kind !== 'rescue') add(s.x, s.y, (s.r || 9) * ((S.sideBy && S.sideBy[s.kind]) ?? S.side), s);
+  for (const s of m.sides) if (!s.isPoi && !s.failed && (s.kind === 'rescue' ? !s.hidden : !s.done)) { const k = (S.sideBy && S.sideBy[s.kind]) ?? S.side; if (k > 0) add(s.x, s.y, (s.r || 9) * k, s); }     // (0.56: the redoubt's ring is solid once it is found and shown: nobody stands in it)
   for (const q of m.loot) if (!q.done) add(q.x, q.y, (q.r || 10) * ((S.lootBy && S.lootBy[q.kind]) || S.loot), q);
   // the mission's own sites: the oil pump, the launch silo, the crashed shuttle; and the Vanguards' turrets
   for (const o of m.objectives || []) {
