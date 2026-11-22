@@ -49,8 +49,22 @@ export const postName = (what) => tr('build.' + what);
 // behind each wall. (render/posts.js draws each post round these.)
 // (0.56, Ramzies' ruling) NOBODY IS INSIDE A BUILDING. A post's crew work it from beside it, in the open, where they can be seen,
 // can shoot and can be shot: these places are behind the nest, the tower or the gun, clear of its model and its solid part.
-const IN = { foxhole: [[0.3, -1.1], [0.3, 1.1], [-0.9, 0]], mg: [[-3.2, -1.2], [-3.2, 1.2]], lookout: [[-3.3, -1.1], [-3.3, 1.1]], tower: [[-2.8, 0]],
-  arty: [[-4.0, -1.4], [-4.0, 1.4]] };
+// (0.59, Ramzies) A manned post should look manned and give its crew what it logically would. So the crew stand where the work is,
+// still in plain sight and still able to be shot: the gunner behind the nest's gun in its open back and the loader at his side,
+// the cannon's crew either side of the breech behind the gun shield, the lookouts up on the tower's open deck behind its rail, the
+// tower's operator at the console in its sandbag crescent. What they stand behind covers them from the front only (crewCover).
+const IN = { foxhole: [[0.3, -1.1], [0.3, 1.1], [-0.9, 0]], mg: [[-1.0, 0], [-0.3, 0.95]], lookout: [[0.45, -0.5], [0.45, 0.5]], tower: [[-2.65, 0]],
+  arty: [[-1.15, -1.05], [-1.15, 1.05]] };
+// The share of an enemy hit from (fx, fy) that still reaches a (1: all of it): less if he is at his post's place and the hit comes
+// through what he stands behind. A hit from nowhere in particular (no fx) is not stopped.
+export function crewCover(a, fx, fy) {
+  const p = a.atPost, K = p && !p.dead && C.crewCover[p.what];     // (atPost: he stands at one of its places, garrisoned or not; updatePosts)
+  if (!K || fx == null) return 1;
+  const dx = fx - p.x, dy = fy - p.y, d = Math.hypot(dx, dy); if (d < 0.5) return 1;
+  const f = p.face0 ?? p.face;
+  if (K.arc < Math.PI && (dx * Math.cos(f) + dy * Math.sin(f)) / d < Math.cos(K.arc)) return 1;     // (an arc of pi or more: all round)
+  return K.mul ?? p.crewMul ?? 0.6;
+}
 // (0.28) A foxhole is dug for the troops that dig it: three or fewer get the pit; four to seven a straight trench across the front,
 // its fire steps staggered; eight or more a longer one bent into a crescent, the ends curled back. Its places, end to end.
 export const FOX_MAX = 12, FOX_GAP = 2.4;
@@ -196,7 +210,8 @@ export function makePost(m, what, x, y, opts = {}) {
     }
   } else if (what !== 'bridge') {
     p.slots = placeSlots(p);
-    const mul = what === 'foxhole' ? S.mul : what === 'mg' ? S.crewMul : 0.6;
+    const mul = what === 'foxhole' ? S.mul : 1;     // (0.59) a building's places are not cover all round any more: crewCover, from the front
+    if (what === 'mg') p.crewMul = S.crewMul;
     // (a foxhole's places face the front, 0.47: a foxhole is always a line; a building's face out all round)
     p.slots.forEach((s, k) => { const ang = fox ? face : Math.atan2(s.y - y, s.x - x) || face; site.pieces.push({ x: s.x, y: s.y, nx: Math.cos(ang), ny: Math.sin(ang), ang, len: 2.5, style: 1, k, built: true, mul, lvl, post: p, hole: what === 'foxhole' }); });
   }
@@ -373,7 +388,7 @@ export function updatePosts(m, dt) {
   for (const p of m.posts.slice()) if (p.demo && !p.dead && t >= p.demo.at) blowPost(m, p);     // (0.36) the charges blow
   // (0.39) wire a heavy has torn down comes off the map
   for (const p of m.posts.slice()) if (p.what === 'wire' && !p.dead && p.wireHp <= 0) { removePost(m, p); m.stats.wireTorn = (m.stats.wireTorn || 0) + 1; m.emit('wire_torn', { x: p.x, y: p.y, id: p.id }); }
-  for (const a of m.alive) { a.inPost = null; a.inside = null; }
+  for (const a of m.alive) { a.inPost = null; a.inside = null; a.atPost = null; if (a.high || a.highTo) { const to = a.highTo || 0; a.high = to > (a.high || 0) ? Math.min(to, (a.high || 0) + 3 * dt) : Math.max(to, (a.high || 0) - 5 * dt); } a.highTo = 0; }
   // the tower's cover is rebuilt each tick from the manned towers
   if (m.relays.some((u) => u.tower || u.nest)) m.relays = m.relays.filter((u) => !u.tower && !u.nest);
   m.spotters = [];
@@ -383,8 +398,10 @@ export function updatePosts(m, dt) {
     let n = 0, nh = 0, ns = 0;
     if (p.what === 'wire') continue;             // (no crew: it is only wire)
     const line = p.shape === 'line' || p.shape === 'corner', inside = INSIDE.has(p.what), R = p.what === 'bastion' ? p.r + 3 : inside ? Math.max(p.r, 5) : p.r;     // (0.56: a building's crew stand beside it, so its reach for counting them takes in their places)
+    const cc = !!C.crewCover[p.what];
     for (const a of m.alive) {
       if (a.dead || a.mounted || (a.x - p.x) ** 2 + (a.y - p.y) ** 2 > R * R) continue;
+      if (cc && !a.atPost && p.slots && p.slots.some((s) => (s.x - a.x) ** 2 + (s.y - a.y) ** 2 <= 1.7)) a.atPost = p;     // (0.59) at one of its places: what he stands behind covers him (crewCover)
       if (inside && a.type === 'S' && a.post !== p) continue;          // a building's crew is its garrison (Vanguards at it help too)
       if (line) { if (!p.slots.some((s) => (s.x - a.x) ** 2 + (s.y - a.y) ** 2 <= 9)) continue; }     // (0.39) a line: at one of its walls
       else if (p.what === 'bastion') { if (Math.hypot(a.x - p.x, a.y - p.y) < p.r - 3.5) continue; }
@@ -393,6 +410,9 @@ export function updatePosts(m, dt) {
     }
     // (0.56) its garrison is no longer hidden in it (a.inside stays unset): they stand at its places outside, as vulnerable as anyone
     p.crew = n; p.crewH = nh; p.crewS = ns;
+    // (0.59) the lookouts are up on the deck: a garrisoned trooper at his place climbs (and comes down when he leaves it)
+    const cu = C.crewCover[p.what] && C.crewCover[p.what].up;
+    if (cu) for (const a of m.infantryAlive) if (a.post === p && p.slots.some((s) => (s.x - a.x) ** 2 + (s.y - a.y) ** 2 <= 1.7)) a.highTo = cu;
     p.garrison = 0; for (const a of m.infantryAlive) if (a.post === p) p.garrison++;
     // a squad sent in through the door: whoever of it has got there goes in, until the post is full
     if (inside) {

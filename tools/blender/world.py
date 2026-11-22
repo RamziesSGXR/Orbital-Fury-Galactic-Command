@@ -153,10 +153,18 @@ def crate():    # something worth picking up
 
 # ---------------------------------------------------------------- yours: built or dropped
 def post_mg():
-    start('prop_post_mg'); disc('floor', 0.7, 0.03, 0, mat('w_dirt', '#6f6248', rough=1.0), 9)
-    bags('a', 0.84, 11, 0.11, bag); bags('b', 0.82, 8, 0.31, bag_d, a0=R(160), arc=R(220))
-    for i in range(3): a = i / 3 * TAU + 0.5; cyl('leg%d' % i, (0, -0.1, 0.56), (math.cos(a) * 0.3, -0.1 + math.sin(a) * 0.3, 0.03), 0.02, m=black, sides=4)
-    box('gun', (0.09, 0.4, 0.1), (0, -0.14, 0.6), m=black, bevel=0.01); cyl('barrel', (0, -0.3, 0.62), (0, -0.98, 0.64), 0.028, m=black, sides=6); box('ammo', (0.14, 0.2, 0.14), (0.16, -0.1, 0.56), m=olive, bevel=0.01)
+    # (GC 0.59) the Heavy Turret Nest, one unit = 2 m: a chest-high horseshoe of sandbags round the front and the sides, open at
+    # the back, where its crew stand at the gun in plain sight. The gun is its own model (post_mggun): it turns, the bags do not.
+    start('prop_post_mg'); disc('floor', 0.98, 0.03, 0, mat('w_dirt', '#6f6248', rough=1.0), 10)
+    bags('a', 0.8, 9, 0.09, bag, a0=R(150), arc=R(240), size=0.16); bags('b', 0.8, 8, 0.26, bag_d, a0=R(158), arc=R(224), size=0.16); bags('c', 0.8, 8, 0.43, bag, a0=R(150), arc=R(240), size=0.16)
+    box('ammo1', (0.22, 0.15, 0.13), (0.42, 0.36, 0.1), m=olive, bevel=0.01, rot=(0, 0, R(20))); box('ammo2', (0.22, 0.15, 0.13), (0.44, 0.34, 0.235), m=olive_d, bevel=0.01, rot=(0, 0, R(8)))
+def post_mggun():
+    start('prop_post_mggun')
+    for i in range(3): a = i / 3 * TAU + math.pi / 2; cyl('leg%d' % i, (0, 0, 0.5), (math.cos(a) * 0.3, math.sin(a) * 0.3, 0.03), 0.018, m=black, sides=4)
+    cyl('post', (0, 0, 0.46), (0, 0, 0.58), 0.03, m=black, sides=5)
+    box('gun', (0.075, 0.4, 0.09), (0, 0.02, 0.62), m=black, bevel=0.01); cyl('barrel', (0, -0.16, 0.63), (0, -0.74, 0.64), 0.022, m=black, sides=6); cyl('jacket', (0, -0.16, 0.63), (0, -0.42, 0.635), 0.034, m=olive_d, sides=6)
+    box('feed', (0.12, 0.16, 0.12), (0.1, -0.02, 0.6), m=olive, bevel=0.01)
+    for sx in (-1, 1): cyl('grip%d' % (sx > 0), (sx * 0.05, 0.22, 0.62), (sx * 0.05, 0.3, 0.6), 0.012, m=black, sides=4)
 def post_sam():
     start('prop_post_sam'); disc('table', 0.76, 0.3, 0, black, 10, r2=0.7); box('yoke', (0.5, 0.56, 0.6), (0, 0.1, 0.6), m=olive, bevel=0.04, taper=0.8)
     for s in (-1, 1):
@@ -180,6 +188,31 @@ def post_tower():
     for sx in (-1, 1):
         for sy in (-1, 1): cyl('post%d%d' % (sx, sy), (sx * 0.6, sy * 0.6, 2.46), (sx * 0.6, sy * 0.6, 3.3), 0.035, m=wood, sides=4)
     box('roof', (1.7, 1.7, 0.5), (0, 0, 3.52), m=olive_d, taper=0.08); cyl('ladder', (0, 0.66, 0), (0, 0.66, 2.4), 0.03, m=wood, sides=3); ball('light', (0.4, -0.62, 3.0), lamp_b, 0.09)
+    # (GC 0.59) the operator's station behind it (one unit = 2.2 m): a console in a waist-high crescent of sandbags, open at the back
+    box('desk', (0.36, 0.2, 0.42), (0, 0.96, 0.21), m=olive, bevel=0.015); box('panel', (0.32, 0.03, 0.2), (0, 0.9, 0.52), m=olive_d, rot=(R(-20), 0, 0)); ball('lamp2', (0.1, 0.9, 0.6), lamp_b, 0.025)
+    for z, m_, n in ((0.07, bag, 7), (0.2, bag_d, 6), (0.33, bag, 7)):
+        for i in range(n):
+            a = R(190) + R(160) * (i + 0.5) / n
+            o = blob('sb%d%d' % (z * 100, i), r=0.12, scale=(1.3, 0.78, 0.6), sub=1, m=m_, rough=0.12, seed=i); o.location = (math.cos(a) * 0.62, 1.2 + math.sin(a) * 0.62, z); o.rotation_euler = (0, 0, a + math.pi / 2)
+
+def post_lookout():
+    # (GC 0.59) the Lookout Tower, one unit = 1.6 m: an open deck four metres up with a plank rail all round; the lookouts stand
+    # on it, in plain sight. No roof: they are seen from above.
+    start('prop_post_lookout')
+    for sx in (-1, 1):
+        for sy in (-1, 1): cyl('leg%d%d' % (sx, sy), (sx * 0.66, sy * 0.66, 0), (sx * 0.58, sy * 0.58, 2.4), 0.05, m=wood, sides=4)
+    for z in (0.8, 1.6):
+        for i in range(4): a = ringpt(i, 4, 0.86 - z * 0.03, z, math.pi / 4); b = ringpt(i + 1, 4, 0.86 - z * 0.03, z, math.pi / 4); cyl('br%d%d' % (z * 10, i), a, b, 0.025, m=wood, sides=3)
+    for i in range(4): a = ringpt(i, 4, 0.9, 0.1, math.pi / 4); b = ringpt(i + 1, 4, 0.82, 1.6, math.pi / 4); cyl('x%d' % i, a, b, 0.02, m=wood, sides=3)
+    box('deck', (1.5, 1.5, 0.08), (0, 0, 2.43), m=wood, bevel=0.01)
+    for i, (x, y, sx, sy) in enumerate([(0, -0.73, 1.5, 0.05), (0.73, 0, 0.05, 1.5), (-0.73, 0, 0.05, 1.5)]):
+        box('rail%d' % i, (sx, sy, 0.2), (x, y, 2.6), m=wood); box('rtop%d' % i, (sx, sy, 0.12), (x, y, 2.98), m=wood)
+    box('railb0', (0.5, 0.05, 0.2), (-0.5, 0.73, 2.6), m=wood); box('railb1', (0.5, 0.05, 0.12), (-0.5, 0.73, 2.98), m=wood)     # (the back: a gap where the ladder comes up)
+    for sx in (-1, 1):
+        for sy in (-1, 1): cyl('post%d%d' % (sx, sy), (sx * 0.73, sy * 0.73, 2.46), (sx * 0.73, sy * 0.73, 3.06), 0.035, m=wood, sides=4)
+    for sx in (-1, 1): cyl('lad%d' % (sx > 0), (0.3 + sx * 0.13, 0.9, 0), (0.3 + sx * 0.13, 0.76, 2.5), 0.02, m=wood, sides=3)
+    for k in range(7): z = 0.3 + k * 0.33; y = 0.9 - 0.14 * z / 2.5; cyl('rung%d' % k, (0.17, y, z), (0.43, y, z), 0.014, m=wood, sides=3)
+    ball('light', (0.6, -0.73, 3.1), lamp_b, 0.07)
 def aturret():
     start('prop_aturret')
     for i in range(3): a = i / 3 * TAU + math.pi / 2; cyl('leg%d' % i, (0, 0, 0.6), (math.cos(a) * 0.62, math.sin(a) * 0.62, 0), 0.04, m=black, sides=4)
@@ -224,7 +257,7 @@ def ship_talon():   # the Talon: a pale blade between two horns
     blob('crystal', r=0.3, scale=(1.25, 0.8, 0.8), loc=(-0.45, 0, 0.3), sub=1, m=accent_lit); blob('core', r=0.25, scale=(1, 1, 0.72), loc=(-1.4, 0, 0), sub=1, m=accent_lit)
 
 OUT = {}
-PROPS = (tree_leaf, tree_pine, tree_jungle, tree_cactus, tree_dead, rock, rock_b, rock_spire, pillar, hive, fab, camp, spire, totem, turret, cannon, node, banner, flag, crate, post_mg, post_sam, post_arty, post_tower, aturret)
+PROPS = (tree_leaf, tree_pine, tree_jungle, tree_cactus, tree_dead, rock, rock_b, rock_spire, pillar, hive, fab, camp, spire, totem, turret, cannon, node, banner, flag, crate, post_mg, post_mggun, post_sam, post_arty, post_tower, post_lookout, aturret)
 SHIPS = (ship_fed, ship_molt, ship_foundry, ship_talon)
 for fn in PROPS + SHIPS:
     fn(); bpy.context.view_layer.update()

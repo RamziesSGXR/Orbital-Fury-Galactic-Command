@@ -4,6 +4,7 @@ import { damageRock } from './scenery.js';
 import { ALLY } from '../data/data.js';
 import { uavBuff } from '../data/kit.js';
 import { coverMul } from './cover.js';
+import { crewCover } from './posts.js';
 import { alertGroup, noise } from './enemies.js';
 import { medicNear, goDown } from './infantry.js';
 
@@ -223,7 +224,7 @@ export function hurtAlly(m, a, rawDmg, by, raw = false, src = null, fx, fy) {
   // inside a building (posts.js): the building takes it
   if (a.inside && !a.inside.dead && a.inside.hp > 0) { if (by === 'enemy') hurtAsset(m, a.inside, rawDmg * 0.5); return; }
   if ((a.type === 'H' || a.type === 'S') && !raw && by === 'enemy' && tryDodge(m, a, rawDmg)) return;
-  if (by === 'enemy' && !raw) rawDmg *= hitMul(m, a, fx, fy, 'enemy') * coverMul(m, a.x, a.y);   // behind a wall: less
+  if (by === 'enemy' && !raw) rawDmg *= hitMul(m, a, fx, fy, 'enemy') * Math.min(coverMul(m, a.x, a.y), crewCover(a, fx, fy));   // behind a wall: less
   a.hurtAt = m.t;
   a.lastSrc = src || (by === 'player' ? 'friendly' : 'enemy');
   if (a.mech && a.mech.hp > 0) {

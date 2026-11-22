@@ -1,9 +1,11 @@
-// Every piece of text the game shows lives in a language table (js/lang/en.js, fr.js, es.js), keyed by name. English is the
+// (0.59, Ramzies) GALACTIC COMMAND AND ITS MINI-GAMES ARE ENGLISH ONLY: no other language is offered, and none is to be added
+// unless he asks. The table and the keys stay, so the text is all in one place.
+// Every piece of text the game shows lives in a language table (js/ground/lang/en.js), keyed by name. English is the
 // reference: a key missing from another table falls back to English, and a key missing everywhere shows as itself (the i18n test
 // catches both). t('key', { n: 3 }) fills {n} in the string; a table entry can also be a function of those values, or a list
 // (radio and chatter lines).
 //
-// The language is a setting (Settings > Language, and the title screen). ?lang=fr|es|en overrides it for one visit.
+// (There is no language setting to show while there is one language.)
 // Some things are never translated: operation names, callsigns, ship names, and the community score block (always English,
 // so posts in the channel read the same whoever wrote them).
 import EN from './lang/en.js';

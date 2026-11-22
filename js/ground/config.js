@@ -23,6 +23,11 @@ export const CONFIG = {
   // (0.62.8) The score is switched off for now: the game is to be heard from the field (see audio.js, the sounds placed where
   // they are made). Set to true and the music, its volume and its style come back as they were.
   musicOn:  false,
+  // (0.59) What a manned post gives its crew. Nobody is inside anything: the crew stand at the gun, on the deck or at the console, in plain
+  // sight, and can be shot. What they stand behind stops part of the enemy fire that comes through it: mul is the share that still gets
+  // through (the gun nest's is its level's crewMul), arc the half-angle (radians) either side of the post's front that it covers.
+  // Fire from outside the arc (the open back of a nest, the side of a field gun) hits them in full. up: metres above the ground.
+  crewCover: { mg: { arc: 2.1 }, arty: { mul: 0.5, arc: 0.96 }, lookout: { mul: 0.65, arc: 3.2, up: 3.95 }, tower: { mul: 0.6, arc: 1.75 } },
   solids:   { on: true, rock: 0.82, rockMin: 1.5, trunk: 0.2, trunkMin: 0.45, trunkMax: 0.9, base: 0.5, baseBy: { bugs: 0.85, bots: 0.85, lizards: 0.5 }, spawner: 1.25, cannon: 0.95, node: 0.9, turret: 1, poi: 0.5, poiBy: { propaganda: 0.55, spore: 0.6 }, side: 0.8, sideBy: { rescue: 0.52, arty: 0.6 }, loot: 0.3, lootBy: { vault: 0.36, wreck: 0.5 }, oil: 0.48, nuke: 0.34, crash: 9, autoturret: 1.3, pad: 0.45, padMax: 1.1, giveTicks: 45, giveDist: 1.5, thruSec: 3 },
   // The area of operations: each mission is fought in a square of the map, start metres across on the first mission and perMission
   // more on each one after, up to max. The first maps are small enough to clear completely.

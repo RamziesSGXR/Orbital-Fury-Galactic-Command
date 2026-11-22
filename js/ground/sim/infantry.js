@@ -879,7 +879,8 @@ function stepGarrisons(m, held, dt, speed) {
     list.forEach((a, k) => {
       a.engaged = !!m.eGrid.nearest(a.x, a.y, C.squad.engageRange);
       const s = pl ? pl[k % pl.length] : coverSlot(p.site, k, list.length);
-      if (Math.hypot(s.x - a.x, s.y - a.y) > 1.1) walk(m, a, s.x, s.y, speed * 1.3, dt);
+      if (Math.hypot(s.x - a.x, s.y - a.y) > 0.35) walk(m, a, s.x, s.y, speed * 1.3, dt);
+      else if (!a.engaged && C.crewCover[p.what]) a.face = p.face;     // (0.59) at his place with nothing to shoot: he faces the way his gun, his deck or his console does
     });
   }
 }

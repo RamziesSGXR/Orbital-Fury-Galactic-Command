@@ -2227,7 +2227,7 @@ export function buildSettings(settings, onChange) {
   // (0.29) in sections: the game, audio, display and controls
   const sec = (key) => { body.appendChild(el('h3', 'set-sec', esc(t(key)))); };
   sec('set.sec.game');
-  row(t('set.lang'), t('set.langHint'), select('lang', Object.entries(LANGS).map(([k, v]) => [k, v.name])));
+  if (Object.keys(LANGS).length > 1) row(t('set.lang'), t('set.langHint'), select('lang', Object.entries(LANGS).map(([k, v]) => [k, v.name])));     // (0.59) English only: no language setting to show
   row(t('set.enemy'), t('set.enemyHint'), select('enemy', ENEMIES.map((e) => [e, t('enemy.' + e)])));
   row(t('set.feed'), t('set.feedHint'), toggle('feed'));     // (0.43)
   sec('set.sec.audio');
@@ -2356,6 +2356,7 @@ export function fillManual() {
 // The language buttons on the title screen.
 export function buildLangs(cur, onPick) {
   const box = $('langs'); box.innerHTML = '';
+  if (Object.keys(LANGS).length < 2) { box.hidden = true; return; }     // (0.59) English only: nothing to pick
   for (const [k, v] of Object.entries(LANGS)) {
     const b = el('button', 'btn lang' + (k === cur ? ' on' : ''), esc(v.name));
     b.type = 'button'; b.lang = k; b.setAttribute('aria-pressed', String(k === cur));

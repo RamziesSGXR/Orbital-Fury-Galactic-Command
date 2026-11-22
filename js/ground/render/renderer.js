@@ -71,14 +71,15 @@ function allyFig(m, a, t, R0, tint, lod) {
   else if (hurt < 0.18) pose = 'hit';
   else if (moving) pose = (fight ? 'a' : run ? 'r' : 'w') + st;
   else {
-    const cover = !!a.post || inCover(m, a.x, a.y), kick = shot < 0.09 || t - (a.bigAt ?? -99) < 0.22;
+    const crew = !!(a.post && C.crewCover && C.crewCover[a.post.what]);     /* (0.59) a crew at their gun stand to it: they do not duck out of sight */
+    const cover = !crew && (!!a.post || inCover(m, a.x, a.y)), kick = shot < 0.09 || t - (a.bigAt ?? -99) < 0.22;
     if (fight) { const low = cover || hurt < 2.5 || (!H_ && a.id % 3 !== 0); pose = low ? (kick ? 'kfire' : 'kneel') : (kick ? 'fire' : 'aim'); }
     else if (cover && (shot < 12 || hurt < 12 || a.engaged)) pose = ((t * 0.21 + a.id * 0.37) % 1) < 0.22 ? 'peek' : 'duck';
     else { const q = (t * 0.11 + a.id * 0.61) % 1; pose = q < 0.3 ? 'n' + Math.floor(q / 0.1) : 'stand'; }
   }
   // he faces what he is shooting at for as long as he is in the fight (he used to turn away between bursts)
   const face = aiming || (fight && !moving && a.aimA !== undefined) ? a.aimA : a.face;
-  return { k: H_ ? 'van' : 'inf', x: a.x, y: a.y, r: R0, face, tint, lod, aim: fight, pose, tumble: a.down ? Math.PI / 2 : undefined, walk: moving ? ph : null };
+  return { k: H_ ? 'van' : 'inf', x: a.x, y: a.y, r: R0, face, tint, lod, aim: fight, pose, up: a.high || 0, tumble: a.down ? Math.PI / 2 : undefined, walk: moving ? ph : null };
 }
 
 export class Renderer {
@@ -489,7 +490,7 @@ export class Renderer {
       }
     }
     for (const q of m.loot || []) if (!q.done && q.kind !== 'wreck' && near(q)) out.push({ k: 'crate', x: q.x, y: q.y, s: Math.max(1.3, (q.r || 3) * 0.55), rot: ((q.id || 1) * 1.9) % 6.28 });     // what can be picked up
-    for (const p of m.posts || []) { const d = P3_POST[p.what]; if (d && !p.dead && !p.ghost && near(p)) out.push({ k: d[0], x: p.x, y: p.y, s: d[1], rot: face(p.face), tint: hit(p), flash: fl(p) }); }
+    for (const p of m.posts || []) { const d = P3_POST[p.what]; if (d && !p.dead && !p.ghost && near(p)) { const k = d[0] === 'post:lookout' && !VIEW.m3.has('prop_post_lookout') ? 'post:tower' : d[0], split = p.what === 'mg' && VIEW.m3.has('prop_post_mggun'); out.push({ k, x: p.x, y: p.y, s: d[1], rot: face(split ? p.face0 ?? p.face : p.face), tint: hit(p), flash: fl(p) }); if (split) out.push({ k: 'post:mggun', x: p.x, y: p.y, s: d[1], rot: face(p.face), tint: hit(p), flash: fl(p) }); } }     /* (0.59) the nest's bags stay as they were built; its gun turns */
     for (const a of m.assets || []) if (a.kind === 'turret' && !a.dead && near(a)) out.push({ k: 'aturret', x: a.x, y: a.y, s: 1.5, rot: face(a.face), tint: hit(a), flash: fl(a) });
     if (VIEW.ts) for (const u of out) { const fw = TRUE.field[u.k]; if (fw) { u.s = fw[0]; u.h = fw[1] * (u.k === 'wire' ? u.h / 3.2 : 1); continue; } const q = TRUE.prop[u.k]; if (!q) continue; const k = q[0] ? q[0] : q[1] / (u.s || 1); u.s *= k; if (u.h) u.h *= k; if (u.sink) u.sink *= k; }     // (scale test) at their own size
     return out;
@@ -775,7 +776,7 @@ export class Renderer {
       const on = this.settings.reduceFlash ? phase < 0.15 : phase < 0.18;
       const r = Math.max(H_ ? 2.6 : 1.9, px(H_ ? 7 : 5)) * elevK(a.x, a.y);     // (0.62.10) sized by the ground he stands on
       const r3 = VIEW.ts ? TRUE.man : r;     // (pixel test) his size as a model: his own, when things are at true scale
-      if (on && !hideUi && u3) B3.push({ x: a.x, y: a.y, h: r3 * (VIEW.ts ? 1.6 : H_ ? 1.95 : 1.7), r: (H_ ? 0.34 : 0.28) * (VIEW.ts ? 0.6 : 1) });     // (in 3D the strobe is a point of light on his back, not a ring on the ground)
+      if (on && !hideUi && u3) B3.push({ x: a.x, y: a.y, h: r3 * (VIEW.ts ? 1.6 : H_ ? 1.95 : 1.7) + (a.high || 0), r: (H_ ? 0.34 : 0.28) * (VIEW.ts ? 0.6 : 1) });     // (in 3D the strobe is a point of light on his back, not a ring on the ground)
       else if (on && !hideUi) {   // the IR strobe on the backpack flashes a ring
         ctx.strokeStyle = pal.ally; ctx.lineWidth = px(1.2); ctx.globalAlpha = 0.6;
         ctx.beginPath(); ctx.arc(a.x, a.y, r * 2.1, 0, TAU); ctx.stroke(); ctx.globalAlpha = 1;
