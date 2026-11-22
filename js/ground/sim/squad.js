@@ -12,6 +12,7 @@ import { runClear } from './ops.js';
 import { boardingNow } from './extract.js';
 import { aoX, aoY } from './ao.js';
 import { threatSlot, holdSites } from './cover.js';
+import { solidAt } from './solids.js';
 
 // Where the squad waits before going in on a base: just outside its detection ring, on the near side, on dry ground.
 function stagePoint(m, b, sq) {
@@ -282,6 +283,9 @@ export function updateSquad(m, dt) {
       // (0.53.2) a slot over the water (beside a light bridge, off a bank) is pulled in toward the anchor until it is on ground the
       // anchor can walk to straight: a Vanguard whose place lay off the side of a deck stood at its edge for good
       if (!job && !site && m.terrain && !m.terrain.lineClear(sq.ax, sq.ay, tx, ty, 2)) { const p = pullIn(m.terrain, sq.ax, sq.ay, tx, ty); tx = p.x; ty = p.y; }
+      // (0.55) nobody's place is inside a site: a slot that falls within something solid (the oil rig, a wreck, a building) is moved
+      // out to its edge, on the side it was already on (or the anchor's, if it fell dead centre)
+      if (!job) { const so = solidAt(m, tx, ty, 2); if (so) { let ex = tx - so.x, ey = ty - so.y; if (Math.hypot(ex, ey) < 0.5) { ex = sq.ax - so.x; ey = sq.ay - so.y; } const el = Math.hypot(ex, ey) || 1, R = so.r + 2.5; tx = so.x + ex / el * R; ty = so.y + ey / el * R; } }
       const sw = steer(m.terrain, a, a.x, a.y, tx, ty, t);
       const dx = sw.x - a.x, dy = sw.y - a.y, d = Math.hypot(dx, dy);
       const keepUp = ((sq.fightOn || sq.fallback) && d > 4) || (gather && d > 2);      // fighting forward (or pulling back, or closing on the pad): keep with the anchor, shooting on the move

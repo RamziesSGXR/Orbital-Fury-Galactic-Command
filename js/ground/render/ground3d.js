@@ -150,6 +150,10 @@ export class Ground3D {
     C.position.set(camX - fx * d * Math.cos(E), ly + d * Math.sin(E), camY - fz * d * Math.cos(E)); C.lookAt(camX, ly, camY); C.updateMatrixWorld(); C.updateProjectionMatrix();
     C.matrixWorldInverse.copy(C.matrixWorld).invert(); this.pv.multiplyMatrices(C.projectionMatrix, C.matrixWorldInverse); this.inv.copy(this.pv).invert();
     // the light falls the way the map's own shading says it does (from the north-west when the hour has no sun)
+    // (0.55) the hour's colour on the light itself, so the land and everything standing on it take the same hue
+    { const h = o.hue || null; if (!this._sunC) { this._sunC = this.sun.color.clone(); this._skyC = this.sky.color.clone(); this._gndC = this.sky.groundColor.clone(); }
+      const hr = h ? h[0] : 1, hg = h ? h[1] : 1, hb = h ? h[2] : 1;
+      this.sun.color.setRGB(this._sunC.r * hr, this._sunC.g * hg, this._sunC.b * hb); this.sky.color.setRGB(this._skyC.r * hr, this._skyC.g * hg, this._skyC.b * hb); this.sky.groundColor.setRGB(this._gndC.r * hr, this._gndC.g * hg, this._gndC.b * hb); }
     const lx = sun ? sun.lx : -0.6, lz = sun ? sun.ly : -0.6; this.sun.position.set(camX + lx * 400, ly + 300, camY + lz * 400); this.sun.target.position.set(camX, ly, camY); this.sun.target.updateMatrixWorld();
     // the shadows' own camera: square on the ground in view, no wider than it need be (so a shadow keeps its edge)
     // (0.52) At true scale a soldier is two metres tall, and the shadows were made for people three times that: the map was spread

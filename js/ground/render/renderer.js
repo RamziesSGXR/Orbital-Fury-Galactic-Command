@@ -542,9 +542,18 @@ export class Renderer {
     // (0.38) the hour's light (light.js): its wash baked into the ground, the lights in view, and the night on the ground with them
     // carved out of it (only the ground: every unit, building and label is drawn over it, so nothing is harder to see)
     const lit = this.settings.lighting !== false, lowFx = this.quality === 'low' || this.perf.low, hq = Math.round(todAt(m) * 4) / 4;
-    const amb = lit ? ambient(todAt(m)) : null; this._dark = amb ? amb.dark || 0 : 0;
+    let amb = lit ? ambient(todAt(m)) : null; this._dark = amb ? amb.dark || 0 : 0;
     this._sun = amb && amb.sun ? { lx: amb.sun.lx, ly: amb.sun.ly, k: Math.max(0.25, 1 - amb.dark * 1.7) } : null;     // (0.62.10) for what is lit on the ground afterwards (craters)
-    this._layers(ctx, scale, W, H, tx, ty, skyTint(hq).col, lit ? washKey(hq) : null, !!g3);   // the tint (and the wash) move in quarter-hour steps
+    // (0.55) IN 3D THE HOUR'S DARK IS ALL IN ONE PLACE. The ground's picture used to be dyed with the hour's tint (dark blue at night)
+    // and then the night's mask laid over it: a torch could cut the mask away but not the dye, so its beam lit nothing that
+    // could be seen, and the models (never dyed) stood out bright. Now the tint's colour goes on the 3D sun and sky (so the land
+    // and the models wear the same hue), and its darkness goes into the mask, which the land and the models both read: where no
+    // light falls the picture is as dark as it was; where one does, the ground and whoever stands in it show in full.
+    let tintCol = skyTint(hq).col; this._hue = null;
+    if (g3 && tintCol) { const mm = /rgb\((\d+),\s*(\d+),\s*(\d+)\)/.exec(tintCol);
+      if (mm) { const r = +mm[1], g = +mm[2], b = +mm[3], lum = Math.max(r, g, b, 1) / 255; this._hue = [r / 255 / lum, g / 255 / lum, b / 255 / lum]; tintCol = null;
+        if (amb && lum < 0.999) { const d1 = 1 - lum * (1 - amb.dark), kk = amb.dark / Math.max(0.001, d1); amb = { ...amb, dark: d1, col: amb.col.map((c) => c * kk) }; this._dark = d1; } } }
+    this._layers(ctx, scale, W, H, tx, ty, tintCol, lit ? washKey(hq) : null, !!g3);   // the tint (and the wash) move in quarter-hour steps
     if (amb) this.light.collect(m, this.fx, this.fxNow(m), { x0: -tx / scale, y0: -ty / scale, x1: (W - tx) / scale, y1: (H - ty) / scale }, this.settings, amb);
 
     // Everything the squad cannot see is dimmed, so what they can see reads as a bright pool around them. (0.38) At night the fog's
@@ -859,15 +868,16 @@ export class Renderer {
       labels.push({ x: best.x, y: best.y, dy: -br * scale * 1.5 - 8, text: name || `${Math.round(f * 100)}%`, col, pri: 3, bars: [bar] });
     }
     if (this._sm3) {
-      const smoke = (o, r) => { if (!(o.maxHp > 0) || o.hp > o.maxHp * 0.55) return; const bad = o.hp < o.maxHp * 0.3, n = bad ? 3 : 2;     // (0.52) under about half it smokes; under a third the smoke is black and it burns
+      // (0.55) top: how tall the model stands, so the smoke and the fire come off its roof and are not lost inside it
+      const smoke = (o, r, top = r) => { if (!(o.maxHp > 0) || o.hp > o.maxHp * 0.55) return; const bad = o.hp < o.maxHp * 0.3, n = bad ? 3 : 2;     // (0.52) under about half it smokes; under a third the smoke is black and it burns
         const id = Number.isFinite(Number(o.id)) ? Number(o.id) : o.x * 0.61 + o.y * 0.37;     // (0.49.1) a base turret's id is text ('3.t0'): as a number it was NaN, the puff had no age, and the 3D frame died on it
-        for (let k = 0; k < n; k++) { const q = ((t * (bad ? 0.5 : 0.36) + k / n + id * 0.37) % 1 + 1) % 1; this._sm3.push({ x: o.x + Math.sin(id * 3.1 + k * 2.4) * r * 0.3 + q * 1.5, y: o.y + Math.cos(id * 1.7 + k) * r * 0.3, r: r * (0.35 + 0.7 * q), up: r * 0.6 + q * (bad ? 11 : 8), p: 0.15 + q * 0.85, col: bad ? '#2c2c2c' : '#4a4e4a' }); }
-        if (bad && this._o3) for (let k = 0; k < 3; k++) { const fl = 0.6 + 0.4 * Math.sin(t * (9 + k * 2.3) + id + k * 2.1); this._o3.push({ x: o.x + Math.sin(id * 2.3 + k * 2.1) * r * 0.35, y: o.y + Math.cos(id * 1.3 + k * 2.6) * r * 0.35, up: r * (0.25 + 0.2 * k) + fl * 0.3, r: r * 0.16 * fl, col: k % 2 ? '#ff7a2a' : '#ffc14a' }); } };
+        for (let k = 0; k < n; k++) { const q = ((t * (bad ? 0.5 : 0.36) + k / n + id * 0.37) % 1 + 1) % 1; this._sm3.push({ x: o.x + Math.sin(id * 3.1 + k * 2.4) * r * 0.3 + q * 1.5, y: o.y + Math.cos(id * 1.7 + k) * r * 0.3, r: r * (0.35 + 0.7 * q), up: top * 0.85 + q * (bad ? 11 : 8), p: 0.15 + q * 0.85, col: bad ? '#2c2c2c' : '#4a4e4a' }); }
+        if (bad && this._o3) for (let k = 0; k < 7; k++) { const fl = 0.55 + 0.45 * Math.sin(t * (8 + k * 1.9) + id + k * 2.1), a = id * 2.3 + k * 2.4, d = r * (0.12 + 0.36 * ((k * 0.37) % 1)); this._o3.push({ x: o.x + Math.sin(a) * d, y: o.y + Math.cos(a) * d, up: top * (0.74 + 0.05 * (k % 3)) + fl * 0.5, r: (0.22 + 0.3 * fl) * Math.min(1.6, Math.max(0.7, r / 4)), col: k % 3 === 0 ? '#ffd27a' : k % 3 === 1 ? '#ff8a2a' : '#e8521a' }); } };     // a cluster of small flames along the roof, each flickering on its own
       const hx = W / scale / 2, nearC = (o) => Math.abs(o.x - v.camX) < hx && Math.abs(o.y - v.camY) < hx;
-      for (const b of m.bases || []) if (!b.destroyed) { for (const sp of b.spawners || []) if (!sp.dead && nearC(sp)) smoke(sp, sp.r || 5); for (const T of b.turrets || []) if (!T.dead && nearC(T)) smoke(T, (T.r || 2) * 1.2); }
-      for (const p of m.posts || []) if (!p.dead && !p.ghost && nearC(p)) smoke(p, 2.4);
-      for (const b of m.bases || []) if (!b.destroyed && !b.spawners && nearC(b)) smoke(b, (b.r || 8) * 0.5);     // (0.52) a cannon, a node or a single base
-      for (const q of m.pois || []) if (!q.done && nearC(q)) smoke(q, (q.r || 12) * 0.3);     // and the enemy's side sites
+      for (const b of m.bases || []) if (!b.destroyed) { for (const sp of b.spawners || []) if (!sp.dead && nearC(sp)) smoke(sp, sp.r || 5, (sp.r || 5) * 1.5); for (const T of b.turrets || []) if (!T.dead && nearC(T)) smoke(T, (T.r || 2) * 1.2, (T.r || 2) * 1.3); }
+      for (const p of m.posts || []) if (!p.dead && !p.ghost && nearC(p)) smoke(p, 2.4, 2.6);
+      for (const b of m.bases || []) if (!b.destroyed && !b.spawners && nearC(b)) smoke(b, (b.r || 8) * 0.5, (b.r || 8) * 0.6);     // (0.52) a cannon, a node or a single base
+      for (const q of m.pois || []) if (!q.done && nearC(q)) smoke(q, (q.r || 12) * 0.3, (q.r || 12) * 0.5);     // and the enemy's side sites
     }
     if (amb) this.light.glow(ctx, amb, lowFx);
 
@@ -875,7 +885,7 @@ export class Renderer {
     if (real) {     // lay the turned world on the screen
       const wc = this._wc, S = this.W; this.ctx = real.ctx; this.W = real.W; this.H = real.H; this.focusY = real.focusY; this._real = null; ctx = this.ctx; W = this.W; H = this.H;
       ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
-      if (g3) { const t0 = performance.now(); g3.frame({ sheet: wc, S, scale, camX: v.camX, camY: v.camY, yaw: cam.yaw, tilt: cam.tilt || cam.passTilt, W, H, fy: this.focusY || 0.5, sun: this._sun, height: (x, y) => m.terrain.height(x, y), blocks: this._blocks(m, v.camX, v.camY, S / scale / 2), props: VIEW.p3 ? this._props(m, v.camX, v.camY, S / scale / 2, pal) : null, lit: 1, dark: this._dark > 0.005 ? this.light.mask : this.fog, /* (0.52) the models take the night from the same mask as the ground, light by light: not one dimmer for all of them */ units: U3, drops: D3, shells: S3, strobes: B3, blasts: X3, bolts: T3, orbs: O3, domes: DM3, puffs: SM3, hot: cam.sight === 'whot' || cam.sight === 'bhot', pixel: cam.pixel || 0, gunUp: VIEW.ts ? 1.4 : 3.6, rings: this._rings, sight: cam.sight, topo: !!cam.topo, ground: this.groundCv, groundRev: this.groundRev || 0, size: SIZE, post: !(this.quality === 'low' || this.perf.low), shadows: VIEW.sh, shadowRes: this.quality === 'low' || this.perf.low ? 1024 : (this.perf.tier || 0) >= 1 ? 2048 : 4096 });
+      if (g3) { const t0 = performance.now(); g3.frame({ sheet: wc, S, scale, camX: v.camX, camY: v.camY, yaw: cam.yaw, tilt: cam.tilt || cam.passTilt, W, H, fy: this.focusY || 0.5, sun: this._sun, hue: this._hue, height: (x, y) => m.terrain.height(x, y), blocks: this._blocks(m, v.camX, v.camY, S / scale / 2), props: VIEW.p3 ? this._props(m, v.camX, v.camY, S / scale / 2, pal) : null, lit: 1, dark: this._dark > 0.005 ? this.light.mask : this.fog, /* (0.52) the models take the night from the same mask as the ground, light by light: not one dimmer for all of them */ units: U3, drops: D3, shells: S3, strobes: B3, blasts: X3, bolts: T3, orbs: O3, domes: DM3, puffs: SM3, hot: cam.sight === 'whot' || cam.sight === 'bhot', pixel: cam.pixel || 0, gunUp: VIEW.ts ? 1.4 : 3.6, rings: this._rings, sight: cam.sight, topo: !!cam.topo, ground: this.groundCv, groundRev: this.groundRev || 0, size: SIZE, post: !(this.quality === 'low' || this.perf.low), shadows: VIEW.sh, shadowRes: this.quality === 'low' || this.perf.low ? 1024 : (this.perf.tier || 0) >= 1 ? 2048 : 4096 });
         if (!g3.sighted) ctx.filter = cam.sight === 'whot' ? 'grayscale(1) brightness(1.3) contrast(1.15)' : cam.sight === 'bhot' ? 'grayscale(1) brightness(1.3) invert(1) contrast(1.12)' : 'none';     // (only where the graphics card could not put the sight on itself)
         ctx.drawImage(g3.cv, 0, 0); ctx.filter = 'none'; this._g3on = true; this.t3 = (this.t3 || 0) + (performance.now() - t0 - (this.t3 || 0)) * 0.08; }     // (the sight: infrared white-hot, black-hot, or plain colour)
       else { ctx.translate(v.px, v.py); ctx.rotate(cam.yaw); ctx.drawImage(wc, -S / 2, -S / 2); }
@@ -1173,7 +1183,7 @@ export class Renderer {
     for (const a of m.hdAlive) {
       const { x, y } = spot(a);
       if (x < -40 || y < -40 || x > W + 40 || y > H + 40) continue;
-      const tm = m.teams[a.team], text = m.tag(a), ty = y + Math.max(15 * d, 4.5 * (VIEW.ts || 1) * scale + 11 * d);
+      const tm = m.teams[a.team], text = m.tag(a), ty = y + Math.max(15 * d, (VIEW.ts ? 0.9 : 4.5) * scale + 11 * d);     // (0.55) at true scale the tag sits just under his feet, however close the view (it hung 4.5 m below him)
       ctx.font = `bold ${mono(11)}`;
       const w = ctx.measureText(text).width + 8 * d;
       let off = 0, r = { l: x - w / 2, r: x + w / 2, t: ty - 11 * d, b: ty + 4 * d };
@@ -1188,7 +1198,7 @@ export class Renderer {
         if (a.inside) continue;
         const { x, y } = spot(a);
         if (x < -20 || y < -20 || x > W + 20 || y > H + 20) continue;
-        const text = m.tag(a), ty = y + 3.2 * (VIEW.ts || 1) * scale + 10 * d, w = ctx.measureText(text).width + 6 * d;
+        const text = m.tag(a), ty = y + (VIEW.ts ? 0.8 : 3.2) * scale + 10 * d, w = ctx.measureText(text).width + 6 * d;
         const r = { l: x - w / 2, r: x + w / 2, t: ty - 8 * d, b: ty + 3 * d };
         if (hit(r)) continue;
         placed.push(r);

@@ -722,6 +722,7 @@ export function drawPings(ctx, m, now, px, labels, scale) {
       ctx.globalAlpha = 0.35; ctx.lineWidth = px(1); ctx.setLineDash([px(2), px(5)]);
       ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(pg.x, pg.y); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
     }
-    labels.push({ x: pg.x, y: pg.y, dy: pg.kind === 'go' ? -r * scale * 1.6 - 5 : r * scale * 2 + 12, text: pg.kind === 'fight' ? tr('lab.engaging', { who: tag }) : pg.kind === 'breach' ? tr('lab.atBreach', { who: tag }) : pg.kind === 'ult' ? tr('lab.markUlt', { who: tag }) : pg.kind === 'gren' ? tr('lab.markGren', { who: tag }) : tag, col: pg.kind === 'ult' || pg.kind === 'gren' ? '#ff8a6a' : col, pri: pg.kind === 'ult' ? 2 : 0 });
+    { const same = labels.find((q) => q.ping === pg.kind && Math.hypot(q.x - pg.x, q.y - pg.y) < 4); if (same && pg.kind === 'go') { same.text += ' ' + tag; continue; } }     // (0.55) Vanguards going to one place share one label (A1 B1 C1 D1), not a stack of four over the site
+    labels.push({ ping: pg.kind, x: pg.x, y: pg.y, dy: pg.kind === 'go' ? -r * scale * 1.6 - 5 : r * scale * 2 + 12, text: pg.kind === 'fight' ? tr('lab.engaging', { who: tag }) : pg.kind === 'breach' ? tr('lab.atBreach', { who: tag }) : pg.kind === 'ult' ? tr('lab.markUlt', { who: tag }) : pg.kind === 'gren' ? tr('lab.markGren', { who: tag }) : tag, col: pg.kind === 'ult' || pg.kind === 'gren' ? '#ff8a6a' : col, pri: pg.kind === 'ult' ? 2 : 0 });
   }
 }
