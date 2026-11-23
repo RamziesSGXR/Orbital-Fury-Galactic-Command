@@ -990,6 +990,7 @@ hud.onPlaceShape = () => { audio.unlock(); placeShapeToggle(); };
 // ---------------- screens and flow ----------------
 function toTitle() {
   if (GCX) return gcDone();     // leaving the operation is leaving the theatre
+  if (FURY && FURY.direct && furyBegan) return furyOut();
   if (briefCtl) { briefCtl.cancel(); briefCtl = null; }
   state = 'title'; paused = false; soft = false; mission = null; bot = null; clearPlan();
   hud.setSoft(false); setHideUi(false); audio.humStop(); hud.reset(); $('s-pause').classList.remove('out');
@@ -1416,6 +1417,10 @@ function startLastStand() {
 // (GC 0.56) THE TRAINING GROUND: the tutorial with no story. The same practice base and the same lessons (tutorial.js, TRAIN),
 // with no film before it, nobody on the radio and no evacuation after: the last card ends it. Nothing is kept from it.
 let training = false;
+// (GC 0.60) opened from Galactic Command's PLAY tab (FURY.direct): this game shows no title of its own. It starts on the
+// operation saved, or on a new one's setup, and wherever it would go back to its title it goes back to that menu instead.
+let furyBegan = false;
+const furyOut = () => { audio.humStop(); FURY.onExit(); };
 function startTraining() {
   lsReset();
   audio.unlock(); audio.click();
@@ -1963,7 +1968,7 @@ let afterNotice = null;
 function noticeFirst(go) { if (!S.load('notice', false)) { afterNotice = go; UI.overlay('s-notice', true); return; } go(); }
 $('btn-play').onclick = () => { audio.unlock(); audio.click(); storyPick = null; noticeFirst(() => askLock('quick')); };
 $('btn-notice').onclick = () => { S.save('notice', true); UI.overlay('s-notice', false); const go = afterNotice; afterNotice = null; if (go) go(); else askLock('quick'); };
-function closeLock() { UI.overlay('s-lock', false); audio.click(); if (lockMode === 'camp') storyPick = null; }
+function closeLock() { UI.overlay('s-lock', false); audio.click(); if (lockMode === 'camp') storyPick = null; if (FURY && FURY.direct) furyOut(); }
 $('btn-lock').onclick = () => { UI.overlay('s-lock', false); if (lockMode === 'tut') { typedCallsign(); startLastStand(); } else beginSession(false); };
 // (0.24) CAMPAIGN: Operation Freedom Vista. (0.37) Its progress is kept on this browser: the chapters cleared (each with the run as
 // it stood, to carry on from) and the run under way (CONTINUE).
@@ -1997,6 +2002,12 @@ $('btn-notice-set').onclick = () => openSettings('notice');
 $('btn-resume').onclick = () => beginSession(true);
 $('btn-settings').onclick = () => { audio.unlock(); openSettings('title'); };
 $('btn-settings-m').onclick = () => openSettings('pause');
+// (GC 0.61) the pause box wears Galactic Command's menu: the game's icon, PAUSED, and a bar of tabs over a panel. GAME is the
+// box itself; SETTINGS and HELP open the screens those buttons always opened.
+{ const bar = document.createElement('header'); bar.className = 'gbar';
+  bar.innerHTML = '<img src="assets/icon.svg" alt=""><div class="gname"><span>ORBITAL FURY</span><b>PAUSED</b></div><nav class="gtabs"><button type="button" class="on" data-gt="game">GAME</button><button type="button" data-gt="settings">SETTINGS</button><button type="button" data-gt="help">HELP</button></nav>';
+  bar.onclick = (e) => { const b = e.target.closest('[data-gt]'); if (!b || b.dataset.gt === 'game') return; $(b.dataset.gt === 'settings' ? 'btn-settings-m' : 'btn-ctl-m').click(); };
+  $('s-pause').prepend(bar); }
 $('btn-settings-close').onclick = closeSettings;
 $('btn-names-t').onclick = () => { audio.click(); openNames('lock'); };
 $('btn-op-roll').onclick = () => { audio.click(); rollOpName(); };     // (0.45)
@@ -2541,7 +2552,10 @@ renderer.resize();
 const wipedOld = GCX ? false : S.resetOldSaves();
 // (GC 0.39.1) the name over the title is the player's own command (the fleet is its own brand), not a house name
 function brand() { const n = FURY && FURY.livery && String(FURY.livery.name || '').replace(/[<>&]/g, '').trim(); if (!n) return; for (const [id, tail] of [['tt-brand', ' · Fire Support'], ['cp-brand', ' · FIRE SUPPORT · CAMPAIGN']]) { const el = $(id); if (el) { el.removeAttribute('data-t'); el.textContent = (id === 'cp-brand' ? n.toUpperCase() : n) + tail; } } }
-if (GCX) gcStart(); else { if (FURY) { lookStart(FURY); brand(); $('btn-gc-exit').onclick = () => { audio.click(); audio.humStop(); FURY.onExit(); }; } toTitle(); if (FURY && FURY.training) setTimeout(startTraining, 400); }
+if (GCX) gcStart(); else { if (FURY) { lookStart(FURY); brand(); $('btn-gc-exit').onclick = () => { audio.click(); audio.humStop(); FURY.onExit(); }; } toTitle(); if (FURY && FURY.training) setTimeout(startTraining, 400);
+  else if (FURY && FURY.direct) { $('s-title').style.visibility = 'hidden'; setTimeout(() => { furyBegan = true; (resumable(S.load('session', null)) ? $('btn-resume') : $('btn-play')).click(); }, 60);
+    // however a box over the (hidden) title is closed, an empty title means the player is done here: back to the menu
+    setInterval(() => { if (furyBegan && state === 'title' && ![...document.querySelectorAll('[id^="s-"]')].some((e) => e.id !== 's-title' && e.offsetParent !== null && getComputedStyle(e).visibility !== 'hidden')) furyOut(); }, 500); } }
 if (wipedOld) { $('tt-wiped').textContent = t('title.wiped'); $('tt-wiped').classList.remove('hidden'); }
 requestAnimationFrame((t) => { lastT = t / 1000; frame(t); });
 

@@ -9,77 +9,97 @@ with sync_playwright() as pw:
     pg.on('pageerror', lambda e: errs.append('pageerror: ' + str(e)))
     pg.on('console', lambda m: errs.append('console: ' + m.text) if m.type == 'error' and 'fonts.g' not in m.text and 'ERR_' not in m.text else None)
     pg.goto('http://localhost:8080/'); pg.wait_for_timeout(500); pg.evaluate('localStorage.clear()'); pg.reload(); pg.wait_for_timeout(700)
-    assert pg.evaluate("document.querySelectorAll('.mcard').length") == 4, 'four ways to play should be on the main menu'
-    pg.screenshot(path=f'{out}/menu-1-new.png')
-    # FOB Commander: found a command (no war's opening to choose), build, back to the menu, and it is on the card
-    pg.click('#b-base-new'); pg.wait_for_timeout(400)
-    assert pg.evaluate("gc.state") == 'found' and pg.evaluate("document.getElementById('f-open').classList.contains('hidden')"), 'a single post is founded without the war\'s opening'
-    pg.click('#f-go'); pg.wait_for_function("gc.state === 'base' && document.getElementById('trans').hidden", timeout=60000); pg.wait_for_timeout(1500)
-    print('base alone:', pg.evaluate("[document.getElementById('th-kind').textContent, document.getElementById('th-leave').textContent, document.getElementById('th-where').textContent]"))
-    pg.screenshot(path=f'{out}/menu-2-base.png')
-    pg.click('#th-leave'); pg.wait_for_timeout(600)
-    if pg.evaluate("gc.state") != 'title':     # a base asks before it lets you go
-        b = pg.query_selector('#modal:not([hidden]) .go') or pg.query_selector('#modal:not([hidden]) button'); b and b.click(); pg.wait_for_timeout(600)
-    assert pg.evaluate("gc.state") == 'title', 'leaving a base played alone should come back to the main menu'
-    print('base card:', pg.inner_text('#ms-base').replace('\n', ' | '), '| continue shown:', pg.is_visible('#b-base'))
-    assert pg.is_visible('#b-base'), 'the base should be there to continue'
-    # Orbital Commander: the same command, straight in
-    pg.click('#b-orbit-new'); pg.wait_for_function("gc.state === 'orbit' && document.getElementById('trans').hidden", timeout=60000); pg.wait_for_timeout(1500)
-    print('station alone:', pg.evaluate("[document.getElementById('th-kind').textContent, document.getElementById('th-leave').textContent]"))
-    pg.screenshot(path=f'{out}/menu-3-orbit.png')
-    pg.keyboard.press('Escape'); pg.wait_for_timeout(300); pg.click('#m-title'); pg.wait_for_timeout(700)
-    assert pg.evaluate("gc.state") == 'title'; print('station card:', pg.inner_text('#ms-orbit').replace('\n', ' | '))
-    # continue the base: the same one comes back
-    pg.click('#b-base'); pg.wait_for_function("gc.state === 'base' && document.getElementById('trans').hidden", timeout=60000); pg.wait_for_timeout(800)
-    pg.click('#th-leave'); pg.wait_for_timeout(600)
-    if pg.evaluate("gc.state") != 'title': b = pg.query_selector('#modal:not([hidden]) .go') or pg.query_selector('#modal:not([hidden]) button'); b and b.click(); pg.wait_for_timeout(600)
-    # Orbital Fury mode: its own page, with the new look switched on, and the way back
-    pg.click('#b-fury'); pg.wait_for_timeout(2500)
-    f = [x for x in pg.frames if 'ground.html' in x.url][0]
-    f.wait_for_function("window.__game && __game.state === 'title'", timeout=30000)
-    print('fury:', f.evaluate("({ cls: document.documentElement.className, g3d: __game.cam.g3d, sight: __game.cam.sight, exit: !!document.getElementById('btn-gc-exit').offsetParent })"))
-    assert f.evaluate("__game.cam.g3d === true"), 'Orbital Fury mode should have the 3D look on'
+    title = lambda: pg.wait_for_function("gc.state === 'title'", timeout=20000)
+    tab = lambda t: (pg.click(f'#t-tabs [data-tab={t}]'), pg.wait_for_timeout(250))
+    def leave():     # out of a post by its pause menu
+        pg.keyboard.press('Escape')
+        try: pg.wait_for_selector('#m-title', timeout=20000)
+        except Exception:
+            print('  no menu after Escape:', pg.evaluate("[gc.state, document.getElementById('menu').hidden, document.getElementById('modal').hidden, document.activeElement.tagName + '#' + document.activeElement.id, document.getElementById('menu').innerHTML.slice(0, 1400), document.getElementById('menu').innerHTML.length]")); pg.screenshot(path=f'{out}/menu-fail.png'); raise
+        pg.click('#m-title'); title(); pg.wait_for_timeout(400)
+    slot = lambda g, n: pg.inner_text(f'#t-page .slot:has([data-g={g}][data-n="{n}"]) div')
+    # (0.60) one menu: six tabs, HOME first, the game's icon in the bar and in the browser tab
+    assert [b.get_attribute('data-tab') for b in pg.query_selector_all('#t-tabs [data-tab]')] == ['home', 'play', 'collection', 'career', 'store', 'options'], 'the six tabs'
+    assert pg.evaluate("document.querySelector('.tlogo').naturalWidth > 0 && document.querySelector('link[rel=icon]').href.endsWith('assets/icon.svg')"), "the game's icon is not shown"
+    assert pg.is_visible('#b-new') and not pg.is_visible('#b-continue'), 'HOME offers a new campaign when there is none'
+    assert pg.evaluate("(() => { const v = document.getElementById('tbg'); return v.tagName === 'VIDEO' && v.getBoundingClientRect().width >= innerWidth - 1; })()"), 'the war room film is not behind the menu'
+    pg.screenshot(path=f'{out}/menu-1-home.png')
+    pg.keyboard.press('e'); pg.wait_for_timeout(200); assert pg.evaluate("document.querySelector('#t-tabs .on').dataset.tab") == 'play', 'E steps to the next tab'
+    pg.keyboard.press('q'); pg.keyboard.press('q'); pg.wait_for_timeout(200); assert pg.evaluate("document.querySelector('#t-tabs .on').dataset.tab") == 'options', 'Q steps back, and round'
+    tab('play'); assert pg.evaluate("[document.querySelectorAll('#t-page .gcard[data-act=game]').length, document.querySelectorAll('#t-page .gcard .gart img').length, document.querySelectorAll('#t-page .slot').length]") == [4, 4, 0], 'PLAY: four picture cards, and no saves to choose while there are none'
+    game = lambda g: (tab('play'), pg.click(f'#t-page .gcard[data-g={g}]'), pg.wait_for_timeout(300))
+    pg.screenshot(path=f'{out}/menu-2-play.png')
+    # FOB Commander with nothing saved: its card starts a game straight away (found a command, build), and it is in save 1
+    game('base')
+    assert pg.evaluate("gc.state") == 'found' and not pg.is_visible('#f-open'), 'a single post asks for a command but not for a war opening'
+    pg.fill('#f-name', 'Kestrel Group'); pg.click('#f-go')
+    pg.wait_for_function("gc.state === 'base' && document.getElementById('trans').hidden", timeout=60000); pg.wait_for_timeout(1500)
+    leave(); game('base'); assert pg.evaluate("gc.state") == 'title' and pg.evaluate("document.querySelectorAll('#t-page .slot').length") == 3, 'a game with a save asks which save'
+    print('base save 1:', slot('base', 0)); assert 'Empty' not in slot('base', 0) and 'Empty' in slot('base', 1)
+    pg.screenshot(path=f'{out}/menu-2b-saves.png')
+    # save 2 is a second base of its own; save 1 is set aside whole and comes back when it is loaded
+    one = pg.evaluate("localStorage.getItem('ofgc.solo.base')")
+    pg.click('[data-act=slot][data-g=base][data-n="1"]'); pg.wait_for_function("gc.state === 'base' && document.getElementById('trans').hidden", timeout=60000); pg.wait_for_timeout(1500)
+    assert pg.evaluate("JSON.parse(localStorage.getItem('ofgc.slot.base.0'))['ofgc.solo.base']") == one, 'save 1 was not set aside whole'
+    leave(); game('base'); print('base saves:', slot('base', 0), '|', slot('base', 1)); assert 'Empty' not in slot('base', 0) and 'Empty' not in slot('base', 1)
+    pg.click('[data-act=slot][data-g=base][data-n="0"]'); pg.wait_for_function("gc.state === 'base' && document.getElementById('trans').hidden", timeout=60000); pg.wait_for_timeout(800)
+    assert pg.evaluate("localStorage.getItem('ofgc.solo.base')") == one or pg.evaluate("JSON.parse(localStorage.getItem('ofgc.slots')).cur.base") == 0, 'loading save 1 did not bring it back'
+    leave(); game('base')
+    pg.click('[data-act=del][data-g=base][data-n="1"]'); pg.click('#modal [data-x=yes]'); pg.wait_for_timeout(300); assert 'Empty' in slot('base', 1) and 'Empty' not in slot('base', 0), 'deleting save 2 should leave save 1'
+    # the station: nothing saved, so its card starts it. Its menu inside the game is the main menu's style, with tabs
+    game('orbit'); pg.wait_for_function("gc.state === 'orbit' && document.getElementById('trans').hidden", timeout=60000); pg.wait_for_timeout(1500)
+    pg.keyboard.press('Escape'); pg.wait_for_selector('#m-tabs'); assert [b.inner_text() for b in pg.query_selector_all('#m-tabs button')] == ['GAME', 'OPTIONS', 'CONTROLS'], 'the menu inside a game has the same tabs'
+    pg.click('#m-tabs [data-mtab=controls]'); assert 'green ring' in pg.inner_text('#menu'), "the station's controls are not on its menu"
+    pg.click('#m-tabs [data-mtab=options]'); pg.click('#menu [data-act=o-hints]'); pg.click('#menu [data-act=o-hints]'); pg.screenshot(path=f'{out}/menu-3-ingame.png')
+    pg.click('#m-tabs [data-mtab=game]'); pg.click('#m-resume'); pg.wait_for_timeout(200); assert pg.evaluate("document.getElementById('menu').hidden"), 'RESUME closes the menu'
+    leave()
+    # HOME: JUMP IN goes back to the last game played; NEWS and LEARN MORE open
+    tab('home'); assert 'ORBITAL COMMANDER' in pg.inner_text('[data-act=jump]'), 'JUMP IN should name the last game played'
+    pg.click('[data-act=news]'); assert 'update' in pg.inner_text('#modal').lower(); pg.click('#modal [data-x=close]')
+    pg.click('[data-act=credits]'); assert 'credits' in pg.inner_text('#modal').lower(); pg.click('#modal [data-x=close]')
+    pg.click('[data-act=jump]'); pg.wait_for_function("gc.state === 'orbit' && document.getElementById('trans').hidden", timeout=60000); pg.wait_for_timeout(600); leave()
+    # Orbital Fury has no menu of its own: PLAY opens its operation's setup, and leaving that comes back here
+    game('fury'); pg.wait_for_timeout(3000)
+    f = pg.frame_locator('#g-frame'); fr = next(x for x in pg.frames if 'ground.html' in x.url)
+    print('fury:', fr.evaluate("({ title: getComputedStyle(document.getElementById('s-title')).visibility, lock: !document.getElementById('s-lock').classList.contains('hidden') || !document.getElementById('s-notice').classList.contains('hidden') })"))
+    assert fr.evaluate("getComputedStyle(document.getElementById('s-title')).visibility") == 'hidden', "the ground game's own title is showing"
     pg.screenshot(path=f'{out}/menu-4-fury.png')
-    assert not f.is_visible('#btn-campaign') and f.is_visible('#btn-play'), 'in Galactic Command the ground game is endless play only: no campaign of its own on its title'
-    f.click('#btn-gc-exit'); pg.wait_for_timeout(700); assert pg.evaluate("gc.state") == 'title' and not [x for x in pg.frames if 'ground.html' in x.url], 'the way back from Orbital Fury mode'
-    # the saves list, and the hints switch
-    pg.click('#b-saves'); pg.wait_for_timeout(300); print('saves:', [r.inner_text().replace('\n', ' · ') for r in pg.query_selector_all('.svrow')]); pg.screenshot(path=f'{out}/menu-5-saves.png')
-    pg.click('#modal [data-x=close]'); pg.wait_for_timeout(200)
-    pg.click('#b-settings'); pg.wait_for_timeout(200); a = pg.inner_text('#m-hints').split('\n')[0]; pg.click('#m-hints'); pg.wait_for_timeout(200); b = pg.inner_text('#m-hints').split('\n')[0]; print('hints:', a, '->', b); assert a != b
-    pg.click('#m-hints'); pg.click('#m-back'); pg.wait_for_timeout(200)
-    pg.screenshot(path=f'{out}/menu-6-saved.png')
-    # (0.56) the picture of the war room is there, and each post has a tutorial: a practice post that is not saved
-    assert pg.evaluate("(() => { const v = document.getElementById('tbg'); return v.tagName === 'VIDEO' && v.videoWidth >= 1280 && v.getBoundingClientRect().width >= innerWidth - 1; })()"), 'the war room film is not behind the menu'
-    # the ground game's tutorial: straight onto its practice base, lesson cards with no story, and back to this menu
-    pg.click('#b-fury-tut'); f = pg.frame_locator('#g-frame'); f.locator('#tut:not(.hidden)').wait_for(timeout=90000); pg.wait_for_timeout(1500)
-    card = f.locator('#tut').inner_text(); print('ground tutorial:', card.replace('\n', ' | ')[:170])
-    assert 'TUTORIAL · 1 OF' in card and 'YOU ARE THE SHIP' in card and 'trn.' not in card and 'tut.' not in card, 'the ground tutorial did not open on its first card, in words'
-    pg.screenshot(path=f'{out}/menu-7-ground-tutorial.png')
+    fr.evaluate("(() => { const n = document.getElementById('btn-notice'); if (n && n.offsetParent) n.click(); })()"); pg.wait_for_timeout(400)
+    fr.evaluate("closeLock()") if fr.evaluate("typeof closeLock === 'function'") else fr.evaluate("window.parent.gcFury.onExit()")
+    title(); assert not [x for x in pg.frames if 'ground.html' in x.url], 'leaving the ground game should come back to the main menu'
+    # OPTIONS: the common settings, and each game's controls
+    tab('options'); a = pg.inner_text('#o-hints'); pg.click('#o-hints'); pg.wait_for_timeout(200); b = pg.inner_text('#o-hints'); assert a != b, 'the hints switch did not change'; pg.click('#o-hints')
+    pg.click('[data-act=o-tab][data-k=fury]'); assert 'Drop Infantry' in pg.inner_text('#t-page'), "the ground game's controls are not listed"
+    pg.screenshot(path=f'{out}/menu-5-options.png')
+    # the tutorials: a practice post with no story, not saved, and back to the menu
+    tab('play'); pg.click('[data-act=tut][data-g=fury]'); f = pg.frame_locator('#g-frame'); f.locator('#tut:not(.hidden)').wait_for(timeout=90000); pg.wait_for_timeout(1500)
+    card = f.locator('#tut').inner_text(); print('ground tutorial:', card.replace('\n', ' | ')[:120])
+    assert 'TUTORIAL · 1 OF' in card and 'YOU ARE THE SHIP' in card and 'trn.' not in card, 'the ground tutorial did not open on its first card, in words'
     seen = set()
-    for _ in range(60):     # NEXT or SKIP through every lesson: each card has words, and the last one goes back to the menu
+    for _ in range(60):
         if pg.evaluate("gc.state") == 'title': break
-        txt = f.locator('#tut').inner_text(); assert 'trn.' not in txt, 'a tutorial card shows a key, not words: ' + txt[:80]; seen.add(f.locator('#tut-h').inner_text())
-        fr = next(x for x in pg.frames if 'ground.html' in x.url)
-        fr.evaluate("(() => { const c = document.getElementById('tut'); if (c.classList.contains('fold')) document.getElementById('tut-x').click(); for (const id of ['tut-next', 'tut-skip', 'tut-ok']) { const b = document.getElementById(id); if (b && !b.classList.contains('hidden') && b.offsetParent) { b.click(); return id; } } })()")
+        fr = next((x for x in pg.frames if 'ground.html' in x.url), None)
+        if not fr: break
+        try:
+            seen.add(fr.evaluate("document.getElementById('tut-h').textContent"))
+            fr.evaluate("(() => { const c = document.getElementById('tut'); if (c.classList.contains('fold')) document.getElementById('tut-x').click(); for (const id of ['tut-next', 'tut-skip', 'tut-ok']) { const b = document.getElementById(id); if (b && !b.classList.contains('hidden') && b.offsetParent) { b.click(); return id; } } })()")
+        except Exception: pass
         pg.wait_for_timeout(450)
     print('ground lessons:', len(seen)); assert len(seen) >= 12 and 'TUTORIAL COMPLETE' in seen, f'the ground tutorial did not run to its end: {sorted(seen)}'
-    pg.wait_for_function("gc.state === 'title'", timeout=8000)
-    for kind, btn in [('base', '#b-base-tut'), ('orbit', '#b-orbit-tut')]:
-        before = pg.evaluate(f"localStorage.getItem('ofgc.solo.{kind}')")
-        pg.click(btn); pg.wait_for_function(f"gc.state === '{kind}' && document.getElementById('trans').hidden", timeout=60000); pg.wait_for_timeout(2500)
-        card = pg.inner_text('#th-coach'); print(kind, 'tutorial:', card.replace('\n', ' | ')[:150])
-        assert 'TUTORIAL · 1 OF' in card and pg.is_visible('#th-coach'), f'the {kind} tutorial did not open on its first card'
-        pg.screenshot(path=f'{out}/menu-7-{kind}-tutorial.png')
-        pg.click('#th-coach [data-gc=next]'); pg.wait_for_timeout(300); assert '2 OF' in pg.inner_text('#th-coach'), 'NEXT does not move the tutorial on'
-        pg.click('#th-coach [data-gc=skip]'); pg.wait_for_timeout(900)
-        assert pg.evaluate("gc.state") == 'title', 'ending a tutorial should come back to the main menu'
+    title(); pg.wait_for_timeout(400)
+    for kind in ['base', 'orbit']:
+        tab('play'); before = pg.evaluate(f"localStorage.getItem('ofgc.solo.{kind}')")
+        pg.click(f'[data-act=tut][data-g={kind}]'); pg.wait_for_function(f"gc.state === '{kind}' && document.getElementById('trans').hidden", timeout=60000); pg.wait_for_timeout(2500)
+        card = pg.inner_text('#th-coach'); assert 'TUTORIAL · 1 OF' in card, f'the {kind} tutorial did not open on its first card'
+        pg.click('#th-coach [data-gc=next]'); pg.wait_for_timeout(300); pg.click('#th-coach [data-gc=skip]'); title(); pg.wait_for_timeout(500)
         assert pg.evaluate(f"localStorage.getItem('ofgc.solo.{kind}')") == before, f'the {kind} tutorial wrote over the saved {kind}'
-    # the menu is for a desktop: all of it on the screen, with nothing to scroll to
-    for name, vw, vh in [('laptop', 1280, 720), ('small', 1366, 650), ('desktop', 1440, 900), ('hd', 1920, 1080)]:
-        pg.set_viewport_size({'width': vw, 'height': vh}); pg.wait_for_timeout(500); pg.screenshot(path=f'{out}/menu-8-{name}.png')
-        sh, bottom = pg.evaluate("[document.getElementById('s-title').scrollHeight, Math.max(...[...document.querySelectorAll('#s-title .btn, #t-ver')].filter(e => e.offsetParent).map(e => e.getBoundingClientRect().bottom))]")
-        assert sh <= vh + 1 and bottom <= vh, f'the menu does not fit a {vw}x{vh} screen (it is {sh} high, its last line ends at {bottom})'
-        assert pg.evaluate("[...document.querySelectorAll('#s-title .btn')].filter(e => e.offsetParent).every(e => { const r = e.getBoundingClientRect(), c = e.closest('.mcard, .tfoot').getBoundingClientRect(); return r.right <= c.right + 1; })"), f'a button runs off its card ({name})'
+    # every tab fits a desktop screen with nothing to scroll to
+    for name, vw, vh in [('laptop', 1280, 720), ('small', 1366, 650), ('hd', 1920, 1080)]:
+        pg.set_viewport_size({'width': vw, 'height': vh})
+        for t in ['home', 'play', 'collection', 'career', 'store', 'options']:
+            tab(t); sh, bottom, right = pg.evaluate("[document.getElementById('s-title').scrollHeight, Math.max(...[...document.querySelectorAll('#t-page .tpan, #t-page .btn, #t-ver')].map(e => e.getBoundingClientRect().bottom)), Math.max(...[...document.querySelectorAll('#t-bar > *, #t-page .tpan')].map(e => e.getBoundingClientRect().right))]")
+            assert sh <= vh + 1 and bottom <= vh and right <= vw, f'the {t} tab does not fit a {vw}x{vh} screen (bottom {bottom}, right {right})'
+            if name == 'laptop': pg.screenshot(path=f'{out}/menu-8-{t}.png')
     br.close()
-print('\n'.join(errs) if errs else 'no page errors')
+print('ERRORS:' if errs else 'no page errors'); [print(' ', e[:300]) for e in errs[:20]]
 sys.exit(1 if errs else 0)

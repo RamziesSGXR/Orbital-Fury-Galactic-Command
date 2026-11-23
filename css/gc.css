@@ -245,60 +245,93 @@ button small { display: block; font: 9.5px var(--mono); letter-spacing: 0.5px; o
 #s-title { align-items: center; justify-content: flex-start; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
 #tbg { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 62% 50%; background: #050706; pointer-events: none; }
 /* the left of the picture is darkened under the menu, and the edges a little all round */
-#tscrim { position: fixed; inset: 0; pointer-events: none; background: linear-gradient(90deg, rgba(5, 7, 6, 0.9) 0, rgba(5, 7, 6, 0.74) 30%, rgba(5, 7, 6, 0.12) 56%, rgba(5, 7, 6, 0) 70%), radial-gradient(120% 90% at 60% 50%, rgba(0, 0, 0, 0) 55%, rgba(0, 0, 0, 0.5) 100%); }
-/* (0.56) the main menu: down the left, the game's name, the campaign, then the three posts as endless play; on the right, a
-   picture of the war room. It is laid out for a desktop screen and fits one without scrolling (from about 640 px high). */
-.tmain { position: relative; width: min(1500px, 96vw); min-height: 100%; padding: clamp(10px, 2vh, 22px) 0; margin: auto; display: grid; grid-template-columns: minmax(440px, 560px) 1fr; grid-template-areas: "head ." "body ."; grid-template-rows: auto auto; column-gap: 22px; align-content: center; }
-.thead { grid-area: head; display: flex; align-items: center; gap: 14px; margin: 0 2px clamp(6px, 1.4vh, 14px); }
-#t-crest { width: clamp(52px, 8.5vh, 80px); height: clamp(52px, 8.5vh, 80px); flex: none; }
-.over { font: 600 11px var(--head); letter-spacing: 6px; color: var(--cyan); }
-.thead h1 { font: 700 clamp(24px, 4.2vh, 38px)/1 var(--head); letter-spacing: 3px; color: var(--amber); margin: 3px 0 5px; white-space: nowrap; text-shadow: 0 0 28px rgba(245, 213, 71, 0.25); }
-.tag { color: var(--dim); font-size: 12.5px; }
-.tbody { grid-area: body; display: flex; flex-direction: column; gap: clamp(5px, 1vh, 9px); min-width: 0; }
-.mcard { background: linear-gradient(180deg, rgba(14, 18, 16, 0.78), rgba(9, 11, 10, 0.95)); transition: border-color 0.12s, box-shadow 0.12s; }
-.mcard:hover { border-color: var(--amber); box-shadow: 0 0 0 1px rgba(245, 213, 71, 0.25); }
-.mcard em { font: 600 10px var(--head); letter-spacing: 3px; color: var(--cyan); font-style: normal; }
-.mcard h2 { font: 700 15px/1.1 var(--head); letter-spacing: 2px; color: var(--text); margin: 2px 0 0; }
-.mcard .msave { font: 11px/1.4 var(--mono); color: var(--cyan); }
-.mcard .msave.none { color: var(--dim); }
-.mcard .msave b { color: var(--text); font-weight: 600; }
-.mcard.main { padding: clamp(9px, 1.8vh, 16px) 16px clamp(10px, 2vh, 16px); border-color: rgba(245, 213, 71, 0.55); box-shadow: 0 0 34px rgba(245, 213, 71, 0.07) inset; }
-.mcard.main h2 { font-size: clamp(20px, 3.4vh, 27px); color: var(--amber); margin: 3px 0 clamp(3px, 0.8vh, 8px); }
-.mcard.main > p { font-size: 12.5px; color: var(--dim); line-height: 1.4; }
-.mcard.main .msave { margin-top: clamp(4px, 1vh, 10px); min-height: 16px; } .mcard.main .msave b { margin-right: 8px; }
-.mcard.main .mbt { display: flex; gap: 8px; margin-top: clamp(5px, 1.1vh, 10px); } .mcard.main .mbt .btn { flex: 1; min-height: clamp(38px, 6vh, 48px); font-size: 15px; }
-.thr { display: flex; align-items: baseline; gap: 12px; margin: clamp(2px, 0.8vh, 8px) 2px 0; font-weight: normal; text-transform: none; letter-spacing: 0; }
-.thr b { font: 600 12px var(--head); letter-spacing: 4px; color: var(--cyan); white-space: nowrap; } .thr span { font: 11.5px/1.3 var(--mono); letter-spacing: 0; text-transform: none; color: var(--dim); }
-.mcard.mini { display: grid; grid-template-columns: 58px minmax(0, 1fr) auto; grid-template-areas: "art tx bt"; column-gap: 11px; padding: clamp(5px, 1vh, 9px) 10px; align-items: center; }
-.mcard.mini .mart { grid-area: art; height: 44px; background: rgba(5, 7, 6, 0.55); border: 1px solid var(--empty); }
-.mart svg { width: 100%; height: 100%; stroke-width: 1.2; display: block; }
-.mcard.mini .mtx { grid-area: tx; min-width: 0; } .mcard.mini .msave { margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .mcard.mini .msave b { margin-right: 6px; }
-.mcard.mini .mbt { grid-area: bt; display: flex; gap: 5px; } .mcard.mini .mbt .btn { flex: none; min-width: 0; width: auto; min-height: 36px; font-size: 11.5px; padding-left: 12px; padding-right: 12px; }
-.tfoot { display: flex; gap: 5px; margin-top: clamp(2px, 0.8vh, 8px); }
-.tfoot .btn { flex: 1 1 0; font-size: 11px; min-height: 32px; padding-left: 4px; padding-right: 4px; white-space: nowrap; }
-@media (hover: none) { .mcard:hover { box-shadow: none; border-color: var(--empty); } .mcard.main:hover { border-color: rgba(245, 213, 71, 0.55); } }
-/* narrow, or held upright: one column, the picture a band under the name */
-@media (max-width: 860px) {
-  .tmain { width: 100%; padding: 14px 12px 20px; grid-template-columns: 1fr; grid-template-areas: "head" "art" "body"; grid-template-rows: auto auto auto; }
-  .thead { gap: 10px; margin: 0 0 10px; } #t-crest { width: 60px; height: 60px; }
-  .thead h1 { font-size: clamp(22px, 7.2vw, 34px); letter-spacing: 2px; margin: 2px 0 4px; } .over { font-size: 11px; letter-spacing: 5px; } .thead .tag { font-size: 12px; }
-  .thead h1 { white-space: normal; } .thr { display: block; } .thr span { display: block; margin-top: 2px; } .tfoot { flex-wrap: wrap; } .tfoot .btn { flex: 1 1 45%; }
-  .mcard.mini { grid-template-columns: 58px minmax(0, 1fr); grid-template-areas: "art tx" "bt bt"; row-gap: 7px; } .mcard.mini .mbt .btn { flex: 1; } .mcard.mini .msave { white-space: normal; }
-  .mcard.main .mbt .btn { min-height: 50px; } .mcard.mini .mbt .btn { min-height: 44px; } .tfoot .btn { min-height: 44px; }
-}
-/* a phone on its side: two columns still, the words cut down so the whole menu is on the screen */
-@media (max-height: 480px) and (min-width: 561px) {
-  .tmain { width: 97vw; padding: 8px 0 10px; grid-template-columns: minmax(300px, 46%) 1fr; grid-template-areas: "head art" "body art"; column-gap: 12px; }
-  .thead { margin: 0 2px 6px; gap: 10px; } #t-crest { width: 40px; height: 40px; } .thead h1 { font-size: 20px; margin: 0; } .over, .thead .tag, .thr span, .mcard.main > p:not(.msave) { display: none; }
-  .mcard.main { padding: 8px 10px; } .mcard.main h2 { font-size: 18px; margin: 2px 0; } .mcard.main .mbt .btn { min-height: 38px; }
-  .mcard.mini { grid-template-columns: 1fr auto; grid-template-areas: "tx bt"; padding: 6px 9px; } .mcard.mini .mart, .mcard.mini .msave { display: none; } .mcard.mini h2 { font-size: 13px; }
-  .thr { margin: 4px 2px 0; }
-}
+#tscrim { position: fixed; inset: 0; pointer-events: none; background: linear-gradient(90deg, rgba(5, 7, 6, 0.86) 0, rgba(5, 7, 6, 0.7) 40%, rgba(5, 7, 6, 0.1) 66%, rgba(5, 7, 6, 0) 78%), linear-gradient(180deg, rgba(5, 7, 6, 0.75) 0, rgba(5, 7, 6, 0) 22%), radial-gradient(120% 90% at 60% 50%, rgba(0, 0, 0, 0) 55%, rgba(0, 0, 0, 0.5) 100%); }
+/* (0.60) the main menu: a bar of tabs along the top, the tab's page under it on the left, the war room showing on the
+   right. Laid out for a desktop screen; every page fits one without scrolling (from 1280 x 720). */
+.tmain { position: relative; width: min(1560px, 95vw); min-height: 100%; margin: auto; padding: clamp(10px, 2.2vh, 26px) 0 clamp(6px, 1.2vh, 12px); display: flex; flex-direction: column; }
+#t-bar, #m-bar { display: flex; align-items: center; gap: 14px; margin-bottom: clamp(10px, 2.4vh, 26px); }
+.tlogo { height: clamp(44px, 7.4vh, 62px); width: auto; flex: none; filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.6)); }
+.tname { display: flex; flex-direction: column; line-height: 1.05; margin-right: 38px; white-space: nowrap; }
+.tname span { font: 600 10px var(--head); letter-spacing: 5px; color: var(--cyan); }
+.tname b { font: 700 clamp(15px, 2.4vh, 21px) var(--head); letter-spacing: 2.5px; color: var(--amber); }
+.ttabs { display: flex; flex: 1; min-width: 0; max-width: 900px; border-left: 2px solid var(--text); border-right: 2px solid var(--text); }
+.ttabs button { flex: 1 1 0; min-width: 0; height: clamp(36px, 5.6vh, 46px); background: rgba(5, 7, 6, 0.82); color: var(--dim); border: 0; border-right: 2px solid rgba(230, 234, 220, 0.55); font: 600 clamp(12px, 1.9vh, 15px) var(--head); letter-spacing: 2px; cursor: pointer; position: relative; }
+.ttabs button:last-child { border-right: 0; }
+.ttabs button:hover { color: var(--text); }
+.ttabs button.on { background: rgba(230, 234, 220, 0.16); color: var(--text); }
+.ttabs button.on::after { content: ''; position: absolute; left: 0; right: 0; bottom: -5px; height: 2px; background: var(--text); }
+.ttabs kbd { position: absolute; top: 50%; transform: translateY(-50%); font: 600 10px var(--mono); color: var(--dim); border: 1px solid var(--dim); padding: 1px 5px; border-radius: 3px; pointer-events: none; }
+.ttabs kbd.l { left: -34px; } .ttabs kbd.r { right: -34px; }
+.twho { margin-left: auto; padding-left: 40px; display: flex; align-items: center; gap: 10px; font: 600 12px var(--head); letter-spacing: 1.5px; color: var(--text); white-space: nowrap; }
+.twho canvas { width: clamp(34px, 5.6vh, 46px); height: clamp(34px, 5.6vh, 46px); }
+#t-page { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: clamp(8px, 1.6vh, 14px); width: min(1010px, 100%); }
+#t-page.wide { width: 100%; }
+#t-page > h2 { font: 600 clamp(14px, 2.2vh, 17px) var(--head); letter-spacing: 2.5px; color: var(--text); margin: 0 0 -2px 2px; }
+.trow { display: flex; gap: clamp(10px, 1.6vw, 20px); align-items: flex-start; }
+/* a panel: a labelled tab on its top edge, as on a folder */
+.tpan { position: relative; border: 2px solid rgba(230, 234, 220, 0.6); background: rgba(5, 7, 6, 0.9); padding: clamp(8px, 1.5vh, 12px) clamp(8px, 0.8vw, 12px) clamp(8px, 1.4vh, 12px); margin-top: 22px; min-width: 0; }
+.tpan > h3 { position: absolute; left: -2px; top: -24px; height: 24px; padding: 3px 26px 0 8px; font: 600 13px var(--head); letter-spacing: 1.5px; color: var(--text); background: rgba(5, 7, 6, 0.9); border: 2px solid rgba(230, 234, 220, 0.6); border-bottom: 0; clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 100%, 0 100%); text-transform: uppercase; white-space: nowrap; }
+.tpan > h3::after { content: ''; position: absolute; left: 8px; bottom: 1px; width: 44px; border-bottom: 2px dashed rgba(230, 234, 220, 0.7); }
+/* a tile: a picture or a flat field with a headline at its foot */
+.tile { position: relative; display: flex; flex-direction: column; justify-content: flex-end; text-align: left; padding: 10px 14px; border: 1px solid rgba(230, 234, 220, 0.3); background: linear-gradient(180deg, #131a18, #080a09); color: var(--text); cursor: pointer; min-width: 0; overflow: hidden; }
+/* a tile's picture: line art behind its words, to the right */
+.tile .tart { position: absolute; right: 8px; top: 10px; bottom: 10px; width: 40%; opacity: 0.8; pointer-events: none; display: flex; align-items: center; justify-content: flex-end; }
+.tile .tart svg, .tile .tart img { max-width: 100%; max-height: 100%; object-fit: contain; stroke-width: 1.4; }
+.tile > em, .tile > b, .tile > span { position: relative; text-shadow: 0 1px 6px #000; } .tile:has(.tart) > span, .tile:has(.tart) > em { max-width: 62%; }
+.tile:hover, .tile:focus-visible { border-color: var(--amber); outline: none; box-shadow: 0 0 0 1px var(--amber) inset; }
+.tile em { font: 600 10px var(--head); letter-spacing: 3px; color: var(--cyan); font-style: normal; }
+.tile b { font: 700 clamp(18px, 3.2vh, 27px)/1.05 var(--head); letter-spacing: 1.5px; }
+.tile b::after { content: ''; display: block; width: 26px; border-bottom: 2px solid currentColor; margin: 5px 0 4px; }
+.tile span { font: 12px/1.35 var(--mono); color: var(--dim); }
+.tile.hot b { color: var(--amber); }
+.hgrid { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: clamp(120px, 26vh, 250px) clamp(96px, 20vh, 190px); gap: 0; width: clamp(420px, 44vw, 580px); }
+.hgrid .tile:first-child { grid-column: 1 / 3; }
+.hcamp { width: clamp(300px, 27vw, 400px); display: flex; flex-direction: column; gap: 6px; }
+.hcamp .msave { font: 11.5px/1.4 var(--mono); color: var(--cyan); min-height: 32px; } .hcamp .msave b { display: block; color: var(--text); font-weight: 600; } .hcamp .msave.none { color: var(--dim); }
+.hcamp p { font: 12.5px/1.4 var(--mono); color: var(--dim); }
+.hcamp .btn { width: 100%; min-height: clamp(38px, 6vh, 46px); font-size: 14px; }
+.chal { display: flex; flex-direction: column; } .chal div { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: clamp(6px, 1.3vh, 11px) 10px; border: 1px solid rgba(230, 234, 220, 0.25); border-top: 0; font: 600 12.5px var(--head); letter-spacing: 1px; color: var(--dim); }
+.chal div:first-child { border-top: 1px solid rgba(230, 234, 220, 0.25); } .chal small { font: 10.5px var(--mono); letter-spacing: 0; display: block; margin-top: 2px; } .chal i { font: 600 10px var(--head); letter-spacing: 2px; font-style: normal; border: 1px solid var(--dim); padding: 2px 6px; }
+/* PLAY: a picture card for each game, side by side; its saves (when it has any) on a page of their own */
+.ggrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; border: 2px solid rgba(230, 234, 220, 0.6); height: clamp(430px, 76vh, 760px); }
+.gcard { position: relative; display: flex; flex-direction: column; padding: clamp(12px, 2vh, 22px) clamp(12px, 1.3vw, 22px); background: rgba(5, 7, 6, 0.9); border-right: 2px solid rgba(230, 234, 220, 0.45); color: var(--text); cursor: pointer; min-width: 0; outline: 2px solid transparent; outline-offset: -2px; text-align: left; }
+.gcard:last-child { border-right: 0; }
+.gcard:hover, .gcard:focus-visible { outline-color: var(--amber); z-index: 1; } .gcard:hover > b, .gcard:focus-visible > b { color: var(--amber); }
+.gcard::before { content: ''; position: absolute; left: 22px; top: -2px; width: 110px; height: 3px; background: transparent; } .gcard:hover::before, .gcard:focus-visible::before { background: var(--amber); }
+.gcard .gart { flex: 1 1 0; min-height: 0; position: relative; margin: 4px 0 12px; } .gcard .gart img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; transition: transform 0.25s; } .gcard:hover .gart img { transform: scale(1.04); }
+.gcard em { font: 600 10px var(--head); letter-spacing: 3px; color: var(--cyan); font-style: normal; }
+.gcard > b { font: 700 clamp(19px, 2vw, 30px)/1.05 var(--head); letter-spacing: 1.5px; margin: 3px 0 8px; min-height: 2.1em; display: flex; align-items: flex-end; }
+.gcard > span { font: clamp(12px, 1.7vh, 14px)/1.45 var(--mono); color: var(--dim); min-height: 5.8em; }
+.gcard .gfoot { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; margin-top: clamp(8px, 2vh, 20px); }
+.gcard .gfoot i { font: 600 11px var(--head); letter-spacing: 1.5px; font-style: normal; color: var(--dim); border-bottom: 1px solid var(--dim); padding-bottom: 3px; white-space: nowrap; } .gcard .gfoot i.has { color: var(--amber); border-color: var(--amber); }
+.gcard .gfoot .btn { margin-left: auto; width: auto; min-width: 0; min-height: 30px; padding: 0 11px; font-size: 11px; }
+.gcard.still { cursor: default; border: 2px solid rgba(230, 234, 220, 0.6); width: clamp(300px, 28vw, 400px); height: clamp(380px, 66vh, 620px); flex: none; margin-top: 22px; } .gcard.still:hover { outline-color: transparent; } .gcard.still:hover > b { color: var(--text); } .gcard.still::before { display: none; }
+.psave { display: flex; gap: clamp(10px, 1.6vw, 20px); align-items: flex-start; } .psave .pcard { flex: 1; }
+.pcard { margin-top: 22px; } .pcard.main { border-color: rgba(245, 213, 71, 0.75); } .pcard.main > h3 { border-color: rgba(245, 213, 71, 0.75); color: var(--amber); }
+.pcard > p { font: 12px/1.35 var(--mono); color: var(--dim); margin: 0 2px clamp(4px, 1vh, 8px); }
+.psave .slot { padding: clamp(8px, 1.6vh, 13px) 8px clamp(8px, 1.6vh, 13px) 10px; } .psave .slot div { font-size: 12.5px; } .psave .slot .btn { min-height: 36px; padding: 0 16px; font-size: 12px; } .psave .slot .btn.x { padding: 0 11px; }
+.psave .pfoot { justify-content: space-between; margin-top: 12px; } .psave .pfoot .btn { min-height: 36px; padding: 0 16px; font-size: 12px; }
+.slot { display: flex; align-items: center; gap: 8px; padding: clamp(3px, 0.8vh, 6px) 6px clamp(3px, 0.8vh, 6px) 8px; border: 1px solid rgba(230, 234, 220, 0.22); border-top: 0; }
+.slot:first-of-type { border-top: 1px solid rgba(230, 234, 220, 0.22); } .slot.cur { background: rgba(245, 213, 71, 0.07); }
+.slot i { font: 600 10px var(--head); letter-spacing: 1.5px; font-style: normal; color: var(--cyan); flex: none; }
+.slot div { flex: 1; min-width: 0; font: 11.5px/1.3 var(--mono); color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .slot div b { color: var(--text); font-weight: 600; margin-right: 6px; }
+.slot .btn, .pfoot .btn { flex: none; width: auto; min-width: 0; min-height: 30px; padding: 0 11px; font-size: 11px; } .slot .btn.x { padding: 0 8px; }
+.pfoot { display: flex; justify-content: flex-end; gap: 6px; margin-top: clamp(4px, 1vh, 8px); }
+/* COLLECTION, CAREER, STORE */
+.cgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; } .cgrid .tile { height: clamp(64px, 12vh, 104px); cursor: default; } .cgrid .tile b { font-size: clamp(13px, 2vh, 16px); } .cgrid .tile b::after { display: none; }
+.cgrid .tile.lock { opacity: 0.5; } .cgrid .tile .dot { position: absolute; right: 10px; top: 10px; width: 12px; height: 12px; border-radius: 50%; }
+.ctab { width: 100%; border-collapse: collapse; font: 12px var(--mono); } .ctab td, .ctab th { padding: clamp(4px, 0.9vh, 7px) 10px; border: 1px solid rgba(230, 234, 220, 0.22); text-align: left; color: var(--dim); } .ctab th { font: 600 11px var(--head); letter-spacing: 1.5px; color: var(--cyan); } .ctab td b { color: var(--text); }
+.soon { font: 12.5px/1.45 var(--mono); color: var(--dim); max-width: 62ch; } .soon b { color: var(--amber); font-weight: normal; }
+/* OPTIONS */
+.osub { display: flex; gap: 0; margin-bottom: 10px; } .osub button { flex: 1; height: 32px; background: none; border: 1px solid rgba(230, 234, 220, 0.3); border-left: 0; color: var(--dim); font: 600 11.5px var(--head); letter-spacing: 1.5px; cursor: pointer; } .osub button:first-child { border-left: 1px solid rgba(230, 234, 220, 0.3); } .osub button.on { background: rgba(230, 234, 220, 0.14); color: var(--text); }
+.oset { display: grid; grid-template-columns: 190px 1fr; gap: clamp(6px, 1.3vh, 10px) 14px; align-items: center; font: 600 12px var(--head); letter-spacing: 1.5px; color: var(--text); } .oset small { grid-column: 2; font: 11px/1.35 var(--mono); letter-spacing: 0; color: var(--dim); margin-top: -4px; }
+.oset input[type=range] { width: 100%; accent-color: var(--amber); } .oset .btn { width: auto; min-height: 32px; font-size: 12px; padding: 0 14px; } .oset .seg { display: flex; gap: 5px; flex-wrap: wrap; }
+.keys { display: grid; grid-template-columns: 210px 1fr; gap: 0; font: 12px var(--mono); } .keys dt, .keys dd { padding: clamp(3px, 0.8vh, 6px) 10px; border-bottom: 1px solid rgba(230, 234, 220, 0.16); margin: 0; } .keys dt { color: var(--amber); } .keys dd { color: var(--text); }
+.ver { margin-top: clamp(4px, 1vh, 10px); font: 10.5px var(--mono); color: var(--dim); letter-spacing: 1px; }
 /* the list of what is saved */
 .svrow { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--empty); text-align: left; }
 .svrow div { flex: 1; min-width: 0; } .svrow b { font: 600 13px var(--head); letter-spacing: 1px; display: block; } .svrow span { font-size: 12px; color: var(--dim); }
 .svrow.none b { color: var(--dim); }
-.ver { margin-top: clamp(2px, 0.8vh, 10px); font-size: 10.5px; color: var(--dim); }
 
 /* ---------- found your command ---------- */
 #s-found { overflow-y: auto; }
@@ -405,16 +438,13 @@ button small { display: block; font: 9.5px var(--mono); letter-spacing: 0.5px; o
 #tr-bar { transition: width 0.25s; background: var(--amber) !important; }
 
 /* ---------- the menu ---------- */
-#menu { position: fixed; inset: 0; z-index: 9; background: rgba(5, 7, 6, 0.9); display: flex; align-items: center; justify-content: center; padding: 14px; }
+/* (0.61) the menu inside a game: the main menu's bar, tabs and panels, over the game dimmed behind it */
+#menu { position: fixed; inset: 0; z-index: 9; background: rgba(5, 7, 6, 0.9); overflow-y: auto; }   /* (no blur: over a live 3D view it costs whole frames) */
 #menu[hidden] { display: none; }
-#menu .box { width: min(420px, 100%); max-height: 92dvh; overflow-y: auto; padding: 16px; }
-#menu h2 { font: 700 18px var(--head); letter-spacing: 2px; color: var(--amber); margin-bottom: 4px; text-transform: uppercase; }
-#menu .mm { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
-#menu .mm .btn { width: 100%; }
-#menu p { font-size: 12px; color: var(--dim); margin-bottom: 6px; }
-#menu label.rng { display: flex; align-items: center; gap: 8px; font: 600 10.5px var(--head); letter-spacing: 1px; color: var(--dim); margin-top: 10px; }
-#menu label.rng.msg { flex-wrap: wrap; } #menu #m-msg { display: flex; gap: 4px; flex: 1 0 100%; } #menu #m-msg .btn { flex: 1 1 0; width: auto; min-width: 0; margin: 0; padding: 7px 4px; font-size: 10.5px; } #menu label.rng.msg small { flex: 1 0 100%; font: 400 11px var(--body, inherit); letter-spacing: 0; text-transform: none; }
-#menu input[type=range] { flex: 1; accent-color: var(--amber); }
+.gmenu { width: min(1560px, 95vw); margin: 0 auto; padding: clamp(10px, 2.2vh, 26px) 0; }
+#m-bar .ttabs { max-width: 480px; }
+.gpage { width: min(620px, 100%); }
+.gbtns { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; } .gbtns .btn { width: 100%; min-height: 44px; }
 #modal { z-index: 10; }
 #toast { position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); background: var(--strip); border: 1px solid var(--amber-l); padding: 6px 12px; font-size: 12px;
   opacity: 0; transition: opacity 0.25s; pointer-events: none; z-index: 11; max-width: 92vw; text-align: center; }
@@ -502,3 +532,11 @@ button small { display: block; font: 9.5px var(--mono); letter-spacing: 0.5px; o
 .fold { margin-top: 6px; } .fold > summary { cursor: pointer; list-style: none; padding: 5px 0; letter-spacing: 1px; } .fold > summary::-webkit-details-marker { display: none; }
 .fold > summary::before { content: '+'; display: inline-block; width: 14px; color: var(--amber); } .fold[open] > summary::before { content: '\2212'; }
 .fold > summary:hover { color: var(--text); }
+
+/* (0.61) panels over the film: a picture behind the words, darkened where the words are, so they read */
+.tpan.pic { background: linear-gradient(180deg, rgba(5, 7, 6, 0.3) 0, rgba(5, 7, 6, 0.6) 40%, rgba(5, 7, 6, 0.94) 70%), url(../assets/menu/table.jpg) 50% 30% / cover; }
+.tpan.pic.cons { background: linear-gradient(180deg, rgba(5, 7, 6, 0.8), rgba(5, 7, 6, 0.95)), url(../assets/menu/consoles.jpg) 50% 50% / cover; }
+.tpan.pic > p { text-shadow: 0 1px 4px #000; }
+.chal div { background: rgba(5, 7, 6, 0.55); }
+.tile { background: linear-gradient(180deg, rgba(20, 26, 24, 0.82), rgba(8, 10, 9, 0.97)); }
+#t-tabs button { background: rgba(5, 7, 6, 0.9); }

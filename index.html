@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#0b0d0c">
 <meta name="description" content="Orbital Fury: Galactic Command. One war, fought from the map room, from orbit, from the gunship and from the ground. A prototype.">
 <title>Orbital Fury: Galactic Command</title>
-<link rel="icon" href="data:,">
+<link rel="icon" type="image/svg+xml" href="assets/icon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/gc.css">
@@ -14,44 +14,20 @@
 <body>
 
 <!-- ================= TITLE ================= -->
-<!-- (0.56) The campaign first, the three posts below it as endless play (each with its tutorial), all down the left;
-     behind it all, one moving picture of the war room, rendered in Blender (assets/menu/warroom.mp4, a 20 s loop). -->
+<!-- (0.60) One main menu for the whole game: a bar of tabs along the top (HOME, PLAY, COLLECTION, CAREER, STORE, OPTIONS)
+     and the tab's page under it, drawn by js/main.js (TABS). Behind it all, the war room (assets/menu/warroom.mp4). -->
 <section id="s-title" class="scr on">
   <video id="tbg" src="assets/menu/warroom.mp4" poster="assets/menu/warroom.jpg" autoplay loop muted playsinline disablepictureinpicture aria-hidden="true" tabindex="-1"></video>
   <div id="tscrim"></div>
   <div class="tmain">
-    <header class="thead">
-      <canvas id="t-crest" width="160" height="160"></canvas>
-      <div><p class="over">ORBITAL FURY</p><h1>GALACTIC COMMAND</h1><p class="tag">One war, fought from the war room, from orbit and on the ground.</p></div>
+    <header id="t-bar">
+      <img class="tlogo" src="assets/icon.svg" alt="" width="50" height="58">
+      <div class="tname"><span>ORBITAL FURY</span><b>GALACTIC COMMAND</b></div>
+      <nav id="t-tabs" class="ttabs" role="tablist" aria-label="Main menu"></nav>
+      <div class="twho"><span id="t-who"></span><canvas id="t-crest" width="160" height="160"></canvas></div>
     </header>
-    <div class="tbody" id="t-modes">
-      <article class="mcard main plate" data-mode="war">
-        <em>THE CAMPAIGN</em><h2>GALACTIC CAMPAIGN</h2>
-        <p>Hold the galaxy against three enemies. Run the war from the map: fleets, fronts, stations, bases and the fights on the ground, all in one campaign.</p>
-        <p class="msave" id="ms-war"><span id="b-continue-sub"></span></p>
-        <div class="mbt"><button class="plate btn go hidden" id="b-continue">CONTINUE</button><button class="plate btn" id="b-new">NEW CAMPAIGN</button></div>
-      </article>
-      <h3 class="thr"><b>ENDLESS PLAY</b><span>One post on its own. Learn each here, then take them to the campaign.</span></h3>
-      <article class="mcard mini plate" data-mode="fury">
-        <div class="mart"><svg viewBox="0 0 200 110" aria-hidden="true"><path d="M0 84 Q40 60 80 78 T160 70 T200 80 V110 H0 Z" fill="rgba(127,233,224,.08)" stroke="#7fe9e0" stroke-opacity=".35"/><path d="M0 96 Q50 82 100 94 T200 90" fill="none" stroke="#7fe9e0" stroke-opacity=".2"/><circle cx="104" cy="60" r="26" fill="none" stroke="#f5d547" stroke-width="1.6"/><circle cx="104" cy="60" r="3" fill="#f5d547"/><path d="M104 26 V44 M104 76 V94 M70 60 H88 M120 60 H138" stroke="#f5d547" stroke-width="1.6"/><path d="M176 6 L112 54" stroke="#fff2d0" stroke-width="2.4" stroke-dasharray="10 7"/><g fill="#ff6a4d"><rect x="92" y="54" width="5" height="5"/><rect x="110" y="64" width="5" height="5"/><rect x="102" y="70" width="4" height="4"/></g><g fill="#7fe9e0"><circle cx="56" cy="80" r="3"/><circle cx="64" cy="86" r="3"/><circle cx="48" cy="88" r="3"/></g></svg></div>
-        <div class="mtx"><em>THE GROUND</em><h2>ORBITAL FURY</h2><p class="msave" id="ms-fury"></p></div>
-        <div class="mbt"><button class="plate btn go" id="b-fury">PLAY</button><button class="plate btn" id="b-fury-tut">TUTORIAL</button></div>
-      </article>
-      <article class="mcard mini plate" data-mode="base">
-        <div class="mart"><svg viewBox="0 0 200 110" aria-hidden="true"><path d="M10 78 L100 104 L190 78 L100 52 Z" fill="rgba(127,233,224,.07)" stroke="#7fe9e0" stroke-opacity=".4"/><path d="M40 78 L100 95 L160 78" fill="none" stroke="#e6eadc" stroke-opacity=".45" stroke-dasharray="5 5"/><g stroke="#f5d547" fill="rgba(245,213,71,.14)"><path d="M84 66 L84 44 L100 38 L116 44 L116 66 L100 72 Z"/><path d="M84 44 L100 50 L116 44 M100 50 V72"/></g><g stroke="#7fe9e0" fill="rgba(127,233,224,.14)"><path d="M48 74 L48 62 L60 58 L72 62 L72 74 L60 78 Z"/><path d="M128 74 L128 60 L142 55 L156 60 L156 74 L142 79 Z"/></g><path d="M100 38 V18 M100 18 L114 23 L100 28" stroke="#f5d547" fill="rgba(245,213,71,.5)"/><g fill="#7fe9e0"><circle cx="88" cy="84" r="2"/><circle cx="96" cy="87" r="2"/><circle cx="104" cy="88" r="2"/><circle cx="112" cy="86" r="2"/></g></svg></div>
-        <div class="mtx"><em>THE BASE</em><h2>FOB COMMANDER</h2><p class="msave" id="ms-base"></p></div>
-        <div class="mbt"><button class="plate btn go hidden" id="b-base">CONTINUE</button><button class="plate btn" id="b-base-new">NEW</button><button class="plate btn" id="b-base-tut">TUTORIAL</button></div>
-      </article>
-      <article class="mcard mini plate" data-mode="orbit">
-        <div class="mart"><svg viewBox="0 0 200 110" aria-hidden="true"><path d="M-10 120 Q100 60 210 120" fill="rgba(127,233,224,.08)" stroke="#7fe9e0" stroke-opacity=".5"/><ellipse cx="100" cy="50" rx="62" ry="20" fill="none" stroke="#f5d547" stroke-width="1.6"/><ellipse cx="100" cy="50" rx="40" ry="12" fill="none" stroke="#f5d547" stroke-opacity=".5"/><rect x="88" y="34" width="24" height="32" fill="rgba(245,213,71,.16)" stroke="#f5d547"/><path d="M100 34 V14 M38 50 H88 M112 50 H162" stroke="#f5d547"/><g fill="rgba(127,233,224,.2)" stroke="#7fe9e0"><rect x="26" y="44" width="14" height="12"/><rect x="160" y="44" width="14" height="12"/></g><path d="M150 22 l12 -4 l-5 5 l5 5 z" fill="#7fe9e0"/><path d="M40 20 l10 -3 l-4 4 l4 4 z" fill="#7fe9e0" opacity=".6"/></svg></div>
-        <div class="mtx"><em>THE STATION</em><h2>ORBITAL COMMANDER</h2><p class="msave" id="ms-orbit"></p></div>
-        <div class="mbt"><button class="plate btn go hidden" id="b-orbit">CONTINUE</button><button class="plate btn" id="b-orbit-new">NEW</button><button class="plate btn" id="b-orbit-tut">TUTORIAL</button></div>
-      </article>
-      <footer class="tfoot">
-        <button class="plate btn" id="b-saves">SAVES</button><button class="plate btn" id="b-how">HOW IT FITS TOGETHER</button><button class="plate btn" id="b-settings">SETTINGS</button><button class="plate btn" id="b-credits">CREDITS</button>
-      </footer>
-      <p class="ver" id="t-ver"></p>
-    </div>
+    <main id="t-page"></main>
+    <p class="ver" id="t-ver"></p>
   </div>
 </section>
 

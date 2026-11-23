@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<!-- The game's own models drawn as glowing line art, for the menu's cards (assets/menu/art-*.png).
+     Open tools/lineart.html?scene=fury (war, fury, base, orbit, or model=<file>&part=<name>&frame=<pose>) and take a picture of
+     #art with a transparent background: test/lineart.py does that for every scene. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Line art</title>
+<style>
+  html, body { margin: 0; background: transparent; }
+  #art { width: 900px; height: 640px; display: block; filter: drop-shadow(0 0 1.2px #fff) drop-shadow(0 0 4px rgba(220, 255, 250, 0.75)) drop-shadow(0 0 14px rgba(127, 233, 224, 0.35)); }
+</style>
+</head>
+<body>
+<canvas id="art" width="900" height="640"></canvas>
+<script type="module" src="lineart.js"></script>
+</body>
+</html>

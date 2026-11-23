@@ -88,7 +88,7 @@ function show(id) { for (const s of document.querySelectorAll('.scr')) s.classLi
 // who you are when there is no war on: the identity kept from the last founding, or the saved campaign's
 const identity = () => { const c = read(KEY, null); return read(PROFILE, null) || (c && c.v === 2 && c.faction) || null; };
 const ago = (t) => { if (!t) return ''; const m = Math.max(0, Math.round((Date.now() - t) / 60000)); return m < 1 ? 'saved just now' : m < 60 ? `saved ${m} min ago` : m < 1440 ? `saved ${Math.round(m / 60)} h ago` : `saved ${Math.round(m / 1440)} d ago`; };
-// What is saved in each way of playing, in a line or two: shown on its card and in the SAVES list.
+// What is saved in each way of playing, in a line or two (the save in hand; the other slots keep theirs, below).
 function saves() {
   const c = read(KEY, null), okC = c && c.v === 2 && c.faction, meta = read(SOLO_META, {}) || {}; let f = null; try { f = JSON.parse(localStorage.getItem('ofs.session') || 'null'); } catch { f = null; }
   const okF = f && Array.isArray(f.missions);
@@ -99,30 +99,184 @@ function saves() {
     orbit: read(SOLO.orbit, null) ? { title: (meta.orbit && meta.orbit.name) || 'Your station', text: meta.orbit ? `${meta.orbit.tier || 'Tier'}${meta.orbit.profit ? ' · in profit' : ''}` : 'A station under way', at: meta.orbit && meta.orbit.at } : null,
   };
 }
-const NONE = { war: 'No campaign yet.', fury: 'Mission after mission against the enemy you pick.', base: 'Lay the roads, zone the ground, hold the wire.', orbit: 'Build it part by part and keep it in profit.' };
-function toTitle() {
-  state = 'title'; mode = null; solo = null; soloCamp = null; tutorial = false; War.show(false); show('s-title');
-  const saved = read(KEY, null), ok = saved && saved.v === 2 && saved.faction, me = (ok && saved.faction) || identity() || draft, S = saves();
-  $('b-continue').classList.toggle('hidden', !ok);
-  $('b-new').classList.toggle('go', !ok);
-  const crest = () => { const g = $('t-crest').getContext('2d'); g.clearRect(0, 0, 160, 160); drawLogo(g, me.logo, 4, 4, 152); };
-  if (me.logo.img) ensureLogo(me.logo).then(() => { if (state === 'title') crest(); }); crest();
-  for (const k of ['war', 'fury', 'base', 'orbit']) { const el = $('ms-' + k), v = S[k]; el.classList.toggle('none', !v); el.innerHTML = v ? `<b>${esc(v.title)}</b>${esc(v.text)}${v.at ? ' · ' + ago(v.at) : ''}` : NONE[k]; }
-  $('b-fury').textContent = S.fury ? 'CONTINUE' : 'PLAY';
-  $('b-base-new').textContent = S.base ? 'NEW' : 'PLAY'; $('b-orbit-new').textContent = S.orbit ? 'NEW' : 'PLAY';
-  for (const k of ['base', 'orbit']) { $('b-' + k).classList.toggle('hidden', !S[k]); $('b-' + k + '-new').classList.toggle('go', !S[k]); }
-  $('t-ver').textContent = `PROTOTYPE ${VERSION} · AN ORIGINAL SETTING · NOT AFFILIATED WITH ANY STUDIO`;
+// ---- (0.60) three saves for each game. One of the three is "in hand": it lives where the game has always kept its save, so
+// nothing else in the game knows about slots. The other two are parked, whole, under ofgc.slot.<game>.<n>, with a line
+// about each kept in ofgc.slots; choosing a slot parks the one in hand and brings the chosen one out.
+const GAMES = { war: { name: 'GALACTIC CAMPAIGN', over: 'THE CAMPAIGN', text: 'Hold the galaxy against three enemies. Fleets, fronts, stations, bases and the fights on the ground, all in one war.' },
+  fury: { name: 'ORBITAL FURY', over: 'THE GROUND', text: 'Mission after mission against the enemy you pick, covering your Vanguards from orbit.' },
+  base: { name: 'FOB COMMANDER', over: 'THE BASE', text: 'Lay the roads, zone the ground and keep a forward base running in profit.' },
+  orbit: { name: 'ORBITAL COMMANDER', over: 'THE STATION', text: 'Build a station part by part, house its people and keep it in profit.' } };
+const SLOTS = 'ofgc.slots', LAST = 'ofgc.last', parkKey = (g, n) => `ofgc.slot.${g}.${n}`;
+const slots = () => { const v = read(SLOTS, null) || {}; v.cur = v.cur || {}; v.sum = v.sum || {}; for (const g in GAMES) { v.cur[g] = v.cur[g] || 0; v.sum[g] = v.sum[g] || [null, null, null]; } return v; };
+function keysOf(g) {
+  if (g === 'fury') return ['ofs.session', 'ofs.campRun', 'ofs.slots'];
+  if (g !== 'war') return [SOLO[g]];
+  const out = [KEY]; try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.startsWith('ofgc.site.')) out.push(k); } } catch { /* no storage */ } return out;
 }
-$('b-continue').onclick = async () => { audio.click(); camp = read(KEY, null); if (!camp) return toTitle(); await ensureLogo(camp.faction.logo); toWar({ saved: camp.war, tutorial: settings.hints && !settings.hintsDone && !qs.has('seed') }); };
-$('b-new').onclick = () => { audio.click(); if (read(KEY, null)) return confirmBox('Start a new campaign?', 'The campaign in progress, with its stations and bases, will be lost.', 'START A NEW CAMPAIGN', () => toFound('war')); toFound('war'); };
+function clearHand(g) { for (const k of keysOf(g)) drop(k); if (SOLO[g]) { const m = read(SOLO_META, {}) || {}; delete m[g]; write(SOLO_META, m); } }
+// makes slot n the save in hand; false if the browser has no room left to park the other
+function useSlot(g, n) {
+  const v = slots(), cur = v.cur[g]; if (n === cur) return true;
+  try {
+    const bundle = {}; for (const k of keysOf(g)) { const x = localStorage.getItem(k); if (x != null) bundle[k] = x; }
+    if (SOLO[g]) { const m = (read(SOLO_META, {}) || {})[g]; if (m) bundle.__meta = JSON.stringify(m); }
+    if (Object.keys(bundle).length) localStorage.setItem(parkKey(g, cur), JSON.stringify(bundle)); else localStorage.removeItem(parkKey(g, cur));
+    v.sum[g][cur] = saves()[g];
+    clearHand(g);
+    const inb = JSON.parse(localStorage.getItem(parkKey(g, n)) || '{}');
+    for (const [k, x] of Object.entries(inb)) { if (k === '__meta') { const m = read(SOLO_META, {}) || {}; m[g] = JSON.parse(x); write(SOLO_META, m); } else localStorage.setItem(k, x); }
+    localStorage.removeItem(parkKey(g, n)); v.sum[g][n] = null; v.cur[g] = n; localStorage.setItem(SLOTS, JSON.stringify(v)); return true;
+  } catch { return false; }
+}
+const slotInfo = (g, n) => { const v = slots(); return n === v.cur[g] ? saves()[g] : v.sum[g][n]; };
+function delSlot(g, n) {
+  const v = slots();
+  if (n === v.cur[g]) { if (g === 'war') app.endCampaignQuiet(); else clearHand(g); } else { drop(parkKey(g, n)); v.sum[g][n] = null; write(SLOTS, v); }
+}
+function playSlot(g, n) {
+  audio.click();
+  if (!useSlot(g, n)) return confirmBox('No room to switch saves', 'This browser has no storage left to set the other save aside. Delete a save you no longer want, then try again.', 'OK', () => {});
+  write(LAST, { g, n });
+  if (g === 'war') return read(KEY, null) ? warContinue() : toFound('war');
+  if (g === 'fury') return enterFury(false);
+  soloGo(g, false);
+}
+async function warContinue() { camp = read(KEY, null); if (!camp) return toTitle(); write(LAST, { g: 'war', n: slots().cur.war }); await ensureLogo(camp.faction.logo); toWar({ saved: camp.war, tutorial: settings.hints && !settings.hintsDone && !qs.has('seed') }); }
+function warNew() { write(LAST, { g: 'war', n: slots().cur.war }); if (read(KEY, null)) return confirmBox('Start a new campaign?', 'The campaign in this save, with its stations and bases, will be lost. (To keep it, start the new one in another save on the PLAY tab.)', 'START A NEW CAMPAIGN', () => toFound('war')); toFound('war'); }
+
+// ---- the pictures: line art for each game, drawn here so the menu needs no image files for them
+// (0.61) each game's picture: its own models drawn as glowing line art (tools/lineart.html, test/lineart.py)
+const PIC = (g) => `<img src="assets/menu/art-${g}.png" alt="" draggable="false">`;
+const ART = {
+  war: '<svg viewBox="0 0 200 110" aria-hidden="true"><ellipse cx="100" cy="58" rx="88" ry="32" fill="rgba(127,233,224,.06)" stroke="#7fe9e0" stroke-opacity=".4"/><ellipse cx="100" cy="58" rx="58" ry="21" fill="none" stroke="#f5d547" stroke-width="1.6"/><ellipse cx="100" cy="58" rx="29" ry="10.5" fill="rgba(245,213,71,.12)" stroke="#f5d547" stroke-opacity=".6"/><circle cx="100" cy="58" r="4" fill="#f5d547"/><g fill="#e6eadc"><circle cx="72" cy="50" r="1.4"/><circle cx="126" cy="64" r="1.4"/><circle cx="112" cy="46" r="1.2"/><circle cx="84" cy="68" r="1.2"/><circle cx="58" cy="62" r="1"/><circle cx="140" cy="52" r="1"/><circle cx="100" cy="76" r="1"/><circle cx="98" cy="40" r="1"/></g><g fill="none" stroke-width="1.6"><circle cx="30" cy="46" r="7" stroke="#ff9a3d"/><circle cx="172" cy="50" r="7" stroke="#ff4d4d"/><circle cx="104" cy="92" r="7" stroke="#a77bff"/></g><g><circle cx="30" cy="46" r="2.4" fill="#ff9a3d"/><circle cx="172" cy="50" r="2.4" fill="#ff4d4d"/><circle cx="104" cy="92" r="2.4" fill="#a77bff"/></g><path d="M40 48 L60 54 M162 52 L142 56 M104 83 L102 72" stroke="#e6eadc" stroke-opacity=".5" stroke-dasharray="4 4"/><path d="M90 14 l16 5 l-16 5 l4 -5 z" fill="#f5d547"/><path d="M118 20 l10 3 l-10 3 l2.5 -3 z" fill="#7fe9e0"/></svg>',
+  fury: '<svg viewBox="0 0 200 110" aria-hidden="true"><path d="M0 84 Q40 60 80 78 T160 70 T200 80 V110 H0 Z" fill="rgba(127,233,224,.08)" stroke="#7fe9e0" stroke-opacity=".35"/><path d="M0 96 Q50 82 100 94 T200 90" fill="none" stroke="#7fe9e0" stroke-opacity=".2"/><circle cx="104" cy="60" r="26" fill="none" stroke="#f5d547" stroke-width="1.6"/><circle cx="104" cy="60" r="3" fill="#f5d547"/><path d="M104 26 V44 M104 76 V94 M70 60 H88 M120 60 H138" stroke="#f5d547" stroke-width="1.6"/><path d="M176 6 L112 54" stroke="#fff2d0" stroke-width="2.4" stroke-dasharray="10 7"/><g fill="#ff6a4d"><rect x="92" y="54" width="5" height="5"/><rect x="110" y="64" width="5" height="5"/><rect x="102" y="70" width="4" height="4"/></g><g fill="#7fe9e0"><circle cx="56" cy="80" r="3"/><circle cx="64" cy="86" r="3"/><circle cx="48" cy="88" r="3"/></g></svg>',
+  base: '<svg viewBox="0 0 200 110" aria-hidden="true"><path d="M10 78 L100 104 L190 78 L100 52 Z" fill="rgba(127,233,224,.07)" stroke="#7fe9e0" stroke-opacity=".4"/><path d="M40 78 L100 95 L160 78" fill="none" stroke="#e6eadc" stroke-opacity=".45" stroke-dasharray="5 5"/><g stroke="#f5d547" fill="rgba(245,213,71,.14)"><path d="M84 66 L84 44 L100 38 L116 44 L116 66 L100 72 Z"/><path d="M84 44 L100 50 L116 44 M100 50 V72"/></g><g stroke="#7fe9e0" fill="rgba(127,233,224,.14)"><path d="M48 74 L48 62 L60 58 L72 62 L72 74 L60 78 Z"/><path d="M128 74 L128 60 L142 55 L156 60 L156 74 L142 79 Z"/></g><path d="M100 38 V18 M100 18 L114 23 L100 28" stroke="#f5d547" fill="rgba(245,213,71,.5)"/><g fill="#7fe9e0"><circle cx="88" cy="84" r="2"/><circle cx="96" cy="87" r="2"/><circle cx="104" cy="88" r="2"/><circle cx="112" cy="86" r="2"/></g></svg>',
+  orbit: '<svg viewBox="0 0 200 110" aria-hidden="true"><path d="M-10 120 Q100 60 210 120" fill="rgba(127,233,224,.08)" stroke="#7fe9e0" stroke-opacity=".5"/><ellipse cx="100" cy="50" rx="62" ry="20" fill="none" stroke="#f5d547" stroke-width="1.6"/><ellipse cx="100" cy="50" rx="40" ry="12" fill="none" stroke="#f5d547" stroke-opacity=".5"/><rect x="88" y="34" width="24" height="32" fill="rgba(245,213,71,.16)" stroke="#f5d547"/><path d="M100 34 V14 M38 50 H88 M112 50 H162" stroke="#f5d547"/><g fill="rgba(127,233,224,.2)" stroke="#7fe9e0"><rect x="26" y="44" width="14" height="12"/><rect x="160" y="44" width="14" height="12"/></g><path d="M150 22 l12 -4 l-5 5 l5 5 z" fill="#7fe9e0"/><path d="M40 20 l10 -3 l-4 4 l4 4 z" fill="#7fe9e0" opacity=".6"/></svg>',
+};
+// ---- the tabs
+const TABS = [['home', 'HOME'], ['play', 'PLAY'], ['collection', 'COLLECTION'], ['career', 'CAREER'], ['store', 'STORE'], ['options', 'OPTIONS']];
+let tab = 'home', optTab = 'common', playGame = null;     // playGame: the game whose saves the PLAY tab is showing
+const NEWS = { title: 'One menu for the whole game', lines: ['Each game on PLAY has a picture card. A game with nothing saved starts at once; one with a save asks which.', 'The menu inside every game is this one: the same bar of tabs.', 'One main menu, with tabs along the top: Home, Play, Collection, Career, Store and Options.', 'Every game is started from PLAY, and each keeps three saves of its own.', 'Orbital Fury no longer has a menu of its own: it starts from here and comes back here.', 'A new icon for the game.', 'Collection, Store and the daily challenges are placeholders for what is coming.'] };
+const KEYS = {
+  war: [['Click a system', 'Select it; click another to send a fleet'], ['END ROUND', 'Play out the round'], ['Esc', 'The menu']],
+  fury: [['W A S D / arrows', 'Move the view'], ['Mouse wheel', 'Zoom'], ['Tab or M', 'The big map'], ['1 to 8', 'Pick a weapon; hold or click to fire'], ['G', 'Drop Infantry'], ['B', 'Build'], ['U', 'Load a supply pod (then 1, 2, 3)'], ['Click / drag a box', 'Pick troopers'], ['Right-click', 'Order the troopers you picked'], ['Esc', 'Pause']],
+  base: [['Drag', 'Move the view'], ['Right-drag, Q and E', 'Turn the view'], ['Mouse wheel', 'Zoom'], ['Drag with a road tool', 'Draw a road on the tiles (hold Shift to draw free)'], ['Click a building', 'Its status card'], ['Esc', 'The menu']],
+  orbit: [['Drag', 'Turn the view'], ['Mouse wheel', 'Zoom'], ['Click a part, then a green ring', 'Build it there'], ['Click a part', 'What it is and does'], ['Esc', 'The menu']],
+};
+const panel = (title, body, cls = '') => `<section class="tpan ${cls}"><h3>${title}</h3>${body}</section>`;
+function pageHome() {
+  const S = saves(), w = S.war, last = read(LAST, null), li = last && GAMES[last.g] ? slotInfo(last.g, last.n) : null;
+  return `<div class="trow">${panel('News', `<div class="hgrid">
+      <button class="tile hot" style="background:linear-gradient(180deg,rgba(8,10,9,.2) 25%,rgba(8,10,9,.95)),url(assets/menu/warroom.jpg) 70% 60%/cover" data-act="news"><em>UPDATE ${VERSION}</em><b>WHAT'S NEW</b><span>${esc(NEWS.title)}</span></button>
+      <button class="tile" data-act="jump"><i class="tart">${PIC(last && GAMES[last.g] ? last.g : 'war')}</i><em>${last && GAMES[last.g] ? GAMES[last.g].name : 'NOTHING PLAYED YET'}</em><b>JUMP IN</b><span>${li ? `${esc(li.title)} · ${esc(li.text)}` : last && GAMES[last.g] ? 'Pick up where you left off' : 'Choose a game on the PLAY tab'}</span></button>
+      <button class="tile" data-act="credits"><i class="tart"><img src="assets/icon.svg" alt=""></i><em>ABOUT THE GAME</em><b>LEARN MORE</b><span>Credits, and how the war fits together</span></button></div>`)}
+    <div class="hcamp">${panel('Galactic campaign', `<p>${GAMES.war.text}</p><p class="msave${w ? '' : ' none'}" id="ms-war">${w ? `<b>${esc(w.title)}</b>${esc(w.text)}${w.at ? ' · ' + ago(w.at) : ''}` : 'No campaign in this save yet.'}</p>
+      ${w ? '<button class="plate btn go" id="b-continue" data-act="war-continue">CONTINUE</button>' : ''}<button class="plate btn${w ? '' : ' go'}" id="b-new" data-act="war-new" style="margin-top:6px">NEW CAMPAIGN</button>`, 'pcard main pic')}
+      ${panel('Daily challenges', `<div class="chal"><div><span>FIRST BLOOD<small>Win a ground fight</small></span><i>SOON</i></div><div><span>QUARTERMASTER<small>End a day at the base in profit</small></span><i>SOON</i></div><div><span>DOCKMASTER<small>Raise a station a tier</small></span><i>SOON</i></div></div>`, 'pic cons')}</div></div>`;
+}
+// PLAY: a picture card for each game. A game with nothing saved starts straight away; one with a save shows its three
+// saves first (playGame), to load one or start another beside it.
+const hasSave = (g) => [0, 1, 2].some((n) => slotInfo(g, n));
+function slotRows(g) {
+  const v = slots();
+  return [0, 1, 2].map((n) => { const i = slotInfo(g, n);
+    return `<div class="slot${n === v.cur[g] && i ? ' cur' : ''}"><i>SAVE ${n + 1}</i><div>${i ? `<b>${esc(i.title)}</b>${esc(i.text)}${i.at ? ' · ' + ago(i.at) : ''}` : 'Empty'}</div>${i ? `<button class="plate btn x" data-act="del" data-g="${g}" data-n="${n}" aria-label="Delete save ${n + 1}" title="Delete this save">×</button>` : ''}<button class="plate btn${i ? ' go' : ''}" data-act="slot" data-g="${g}" data-n="${n}">${i ? 'LOAD' : 'NEW'}</button></div>`; }).join('');
+}
+function gameCard(g, still = false) {
+  const d = GAMES[g], n = [0, 1, 2].filter((k) => slotInfo(g, k)).length, tut = `<button class="plate btn" data-act="tut" data-g="${g}">${g === 'war' ? 'HOW IT FITS' : 'TUTORIAL'}</button>`;
+  return `<div class="gcard${g === 'war' ? ' main' : ''}${still ? ' still' : ''}" ${still ? '' : `role="button" tabindex="0" data-act="game" data-g="${g}"`}><div class="gart">${PIC(g)}</div><em>${d.over}</em><b>${d.name}</b><span>${d.text}</span><div class="gfoot"><i>${g === 'war' ? '1 PLAYER · THE CAMPAIGN' : '1 PLAYER · ENDLESS PLAY'}</i><i class="${n ? 'has' : ''}">${n ? `${n} OF 3 SAVES` : 'NEW GAME'}</i>${still ? '' : tut}</div></div>`;
+}
+function pagePlay() {
+  if (playGame) { const g = playGame;
+    return `<div class="psave">${gameCard(g, true)}${panel('Choose a save', `<p>Load a save, or start a new game in a save of its own. Each is kept apart.</p>${slotRows(g)}<div class="pfoot"><button class="plate btn" data-act="back">BACK</button><button class="plate btn" data-act="tut" data-g="${g}">${g === 'war' ? 'HOW IT FITS TOGETHER' : 'TUTORIAL'}</button></div>`, 'pcard' + (g === 'war' ? ' main' : ''))}</div>`; }
+  return '<div class="ggrid">' + Object.keys(GAMES).map((g) => gameCard(g)).join('') + '</div>';
+}
+function pageCollection() {
+  const foes = [['The Molt', GC.color.molt], ['The Foundry', GC.color.foundry], ['The Talon', GC.color.talon]];
+  const row = (title, items) => panel(title, `<div class="cgrid">${items.map((x) => Array.isArray(x) ? `<div class="tile"><i class="dot" style="background:${x[1]}"></i><em>ENEMY</em><b>${x[0].toUpperCase()}</b></div>` : `<div class="tile lock"><em>NOT YET MET</em><b>${x}</b></div>`).join('')}</div>`);
+  return `<p class="soon">Everything you meet in your career will be kept here to open and read about: enemies, objectives, buildings, station parts and people. <b>For now this is a placeholder.</b></p>` +
+    row('Enemies', [...foes, '???']) + row('Objectives', ['???', '???', '???', '???']) + row('Buildings and parts', ['???', '???', '???', '???']);
+}
+function pageCareer() {
+  const c = read(KEY, null), st = (c && c.stats) || {}, rows = [];
+  for (const g in GAMES) for (const n of [0, 1, 2]) { const i = slotInfo(g, n); if (i) rows.push(`<tr><td><b>${GAMES[g].name}</b></td><td>Save ${n + 1}</td><td>${esc(i.title)}</td><td>${esc(i.text)}</td></tr>`); }
+  const seen = ['base', 'orbit'].filter((k) => { try { return !!localStorage.getItem('ofgc.guide.' + k); } catch { return false; } }).length;
+  return panel('Your games', rows.length ? `<table class="ctab"><tr><th>GAME</th><th>SAVE</th><th>NAME</th><th>WHERE IT STANDS</th></tr>${rows.join('')}</table>` : '<p class="soon">Nothing played yet. Start a game on the PLAY tab and it will show here.</p>') +
+    panel('This campaign', `<table class="ctab"><tr><th>GROUND FIGHTS</th><th>WON</th><th>GUIDES SEEN</th></tr><tr><td><b>${st.ground || 0}</b></td><td><b>${st.groundWon || 0}</b></td><td><b>${seen}</b> of 2</td></tr></table>`) +
+    '<p class="soon">Milestones and totals across the campaign and every mini-game will be tracked here. <b>More to come.</b></p>';
+}
+function pageStore() {
+  return panel('The store', `<p class="soon">Campaign credits will be spent here on upgrades that carry into the campaign and the mini-games, and on your roster of Vanguards: their roles and their public personalities. <b>For now this is a placeholder.</b></p>
+    <div class="cgrid" style="margin-top:10px">${['VANGUARD ROLES', 'PERSONALITIES', 'SHIP UPGRADES', 'BASE UPGRADES'].map((x) => `<div class="tile lock"><em>COMING</em><b>${x}</b></div>`).join('')}</div>`);
+}
+// the common settings: on the OPTIONS tab here, and on the menu inside a game
+const optCommon = () => `<div class="oset">
+      <span>VOLUME</span><input type="range" class="o-vol" min="0" max="100" value="${Math.round(settings.volume * 100)}">
+      <span>SOUND</span><div class="seg"><button class="plate btn${settings.muted ? '' : ' on'}" data-act="o-mute">${settings.muted ? 'SOUND IS OFF' : 'SOUND IS ON'}</button></div>
+      <span>HINTS</span><div class="seg"><button class="plate btn${settings.hints ? ' on' : ''}" id="o-hints" data-act="o-hints">${settings.hints ? 'HINTS ARE ON' : 'HINTS ARE OFF'}</button></div><small>The coach's cards and tips, in every game.</small>
+      <span>MESSAGE TIME</span><div class="seg">${MSG_TIMES.map(([k, n]) => `<button class="plate btn${msgKey() === k ? ' on' : ''}" data-act="o-msg" data-k="${k}">${n}</button>`).join('')}</div><small>How long the messages in the corner of the base, the station and the ground battle stay up.</small>
+    </div>`;
+const optKeys = (k) => `<dl class="keys">${KEYS[k].map(([a, d]) => `<dt>${a}</dt><dd>${d}</dd>`).join('')}</dl><p class="soon" style="margin-top:10px">These are the controls as they stand. Changing them, and controller support, are to come.</p>`;
+// a click on one of the common settings; true if it was one
+function optAct(d) {
+  if (d.act === 'o-mute') { settings.muted = !settings.muted; audio.set(settings.volume, settings.muted); write(SET_KEY, settings); }
+  else if (d.act === 'o-hints') app.setHints(!settings.hints);
+  else if (d.act === 'o-msg') { settings.msg = d.k; setMsg(settings.msg); write(SET_KEY, settings); }
+  else return false;
+  return true;
+}
+const optBind = (root) => { const vol = root.querySelector('.o-vol'); if (vol) vol.oninput = () => { settings.volume = vol.value / 100; audio.set(settings.volume, settings.muted); write(SET_KEY, settings); }; };
+function pageOptions() {
+  const sub = [['common', 'COMMON'], ['war', 'WAR ROOM'], ['fury', 'GROUND'], ['base', 'BASE'], ['orbit', 'STATION']];
+  return panel('Options', `<div class="osub">${sub.map(([k, n]) => `<button class="${optTab === k ? 'on' : ''}" data-act="o-tab" data-k="${k}">${n}</button>`).join('')}</div>${optTab === 'common' ? optCommon() : optKeys(optTab)}`);
+}
+const PAGES = { home: pageHome, play: pagePlay, collection: pageCollection, career: pageCareer, store: pageStore, options: pageOptions };
+function drawTitle() {
+  $('t-tabs').innerHTML = TABS.map(([k, n], i) => `<button role="tab" aria-selected="${tab === k}" class="${tab === k ? 'on' : ''}" data-tab="${k}">${i === 0 ? '<kbd class="l">Q</kbd>' : ''}${n}${i === TABS.length - 1 ? '<kbd class="r">E</kbd>' : ''}</button>`).join('');
+  $('t-page').className = 'tp-' + tab + (tab === 'play' && !playGame ? ' wide' : '');
+  $('t-page').innerHTML = `<h2>${TABS.find((x) => x[0] === tab)[1]}</h2>` + PAGES[tab]();
+  optBind($('t-page'));
+}
+function setTab(k) { tab = k; playGame = null; audio.click(); drawTitle(); }
+function toTitle() {
+  state = 'title'; mode = null; solo = null; soloCamp = null; tutorial = false; playGame = null; War.show(false); show('s-title');
+  const saved = read(KEY, null), ok = saved && saved.v === 2 && saved.faction, id = (ok && saved.faction) || identity();
+  // the player's own crest is their command's; the game's icon stands for the game (the bar, the browser tab, the credits)
+  $('t-who').textContent = id ? id.name.toUpperCase() : ''; $('t-crest').style.display = id ? '' : 'none';
+  if (id) { const crest = () => { const g = $('t-crest').getContext('2d'); g.clearRect(0, 0, 160, 160); drawLogo(g, id.logo, 4, 4, 152); }; if (id.logo.img) ensureLogo(id.logo).then(() => { if (state === 'title') crest(); }); crest(); }
+  $('t-ver').textContent = `PROTOTYPE ${VERSION} · AN ORIGINAL SETTING · NOT AFFILIATED WITH ANY STUDIO`;
+  drawTitle();
+}
+$('t-tabs').onclick = (e) => { const b = e.target.closest('[data-tab]'); if (b) setTab(b.dataset.tab); };
+$('t-page').onclick = (e) => {
+  const b = e.target.closest('[data-act]'); if (!b) return; const d = b.dataset, g = d.g, n = +d.n;
+  if (d.act === 'slot') return playSlot(g, n);
+  if (d.act === 'game' && !hasSave(g)) return playSlot(g, 0);     // nothing saved: there is nothing to choose, so it starts
+  audio.click();
+  if (optAct(d)) return drawTitle();
+  if (d.act === 'game') { playGame = g; return drawTitle(); }
+  if (d.act === 'back') { playGame = null; return drawTitle(); }
+  if (d.act === 'war-continue') warContinue();
+  else if (d.act === 'war-new') warNew();
+  else if (d.act === 'news') { War.modal(`<h2>Update ${VERSION}</h2><p>${esc(NEWS.title)}.</p><ul class="nws">${NEWS.lines.map((x) => `<li>${esc(x)}</li>`).join('')}</ul><button class="plate btn go" data-x="close">CLOSE</button>`); $('modal').querySelector('[data-x=close]').onclick = () => { $('modal').hidden = true; audio.click(); }; }
+  else if (d.act === 'jump') { const l = read(LAST, null); if (l && GAMES[l.g]) playSlot(l.g, l.n); else setTab('play'); }
+  else if (d.act === 'credits') credits();
+  else if (d.act === 'tut') { if (g === 'war') how(); else if (g === 'fury') enterFury(true); else soloGo(g, false, true); }
+  else if (d.act === 'del') confirmBox(`Delete save ${n + 1} of ${GAMES[g].name}?`, 'It cannot be brought back.', 'DELETE IT', () => { delSlot(g, n); if (!hasSave(g)) playGame = null; drawTitle(); });
+  else if (d.act === 'o-tab') { optTab = d.k; drawTitle(); }
+};
+$('t-page').addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[role=button]')) { e.preventDefault(); e.target.click(); } });
+// Q and E step along the tabs, as shoulder buttons would
+window.addEventListener('keydown', (e) => {
+  if (state !== 'title' || !$('modal').hidden || !$('menu').hidden || e.ctrlKey || e.metaKey || e.altKey || /INPUT|TEXTAREA/.test((document.activeElement || {}).tagName || '')) return;
+  const dir = e.key === 'q' || e.key === 'Q' ? -1 : e.key === 'e' || e.key === 'E' ? 1 : 0; if (!dir) return;
+  const i = TABS.findIndex((x) => x[0] === tab); setTab(TABS[(i + dir + TABS.length) % TABS.length][0]);
+});
 // ---- (0.39) one post on its own: FOB Commander (the base) and Orbital Commander (the station)
 const SOLO_NAME = { base: 'FOB COMMANDER', orbit: 'ORBITAL COMMANDER' };
 function soloGo(kind, fresh, tut = false) {
-  audio.click();
   if (tut) { const me = identity() || draft; tutorial = true; return enterSolo(kind, me); }     // a practice post: no founding first, nothing saved
-  const go = () => { if (fresh) { drop(SOLO[kind]); const m = read(SOLO_META, {}) || {}; delete m[kind]; write(SOLO_META, m); } const me = identity(); if (!me) return toFound(kind); enterSolo(kind, me); };
-  if (fresh && read(SOLO[kind], null)) return confirmBox(kind === 'base' ? 'Start a new base?' : 'Start a new station?', `The ${kind === 'base' ? 'base' : 'station'} you have been building will be lost.`, kind === 'base' ? 'START A NEW BASE' : 'START A NEW STATION', go);
-  go();
+  const me = identity(); if (!me) return toFound(kind); enterSolo(kind, me);
 }
 async function enterSolo(kind, me) {
   await ensureLogo(me.logo);
@@ -130,37 +284,17 @@ async function enterSolo(kind, me) {
   const home = (me.capital || GC.names.capital || 'Aurelia');
   enterTheatre(kind, { system: { id: kind === 'base' ? 9001 : 9002, name: home, kind: 'capital', worlds: [{ name: home, type: 'capital' }], key: 0 } }, true);
 }
-$('b-base').onclick = () => soloGo('base', false); $('b-base-new').onclick = () => soloGo('base', true); $('b-base-tut').onclick = () => soloGo('base', false, true);
-$('b-orbit').onclick = () => soloGo('orbit', false); $('b-orbit-new').onclick = () => soloGo('orbit', true); $('b-orbit-tut').onclick = () => soloGo('orbit', false, true);
-// ---- (0.39) Orbital Fury mode: the ground game whole, with its own missions, difficulty and saves, in its own page
+// ---- Orbital Fury: the ground game whole, in its own page. (0.60) It has no menu of its own here: it starts on its
+// operation (the one saved, or a new one's setup) or its tutorial, and leaving that comes back to this menu.
 function enterFury(training = false) {
-  audio.click(); if (fury) return;
+  if (fury) return;
   const me = identity();
-  // (0.56) training: straight into its tutorial (a practice base, nothing kept), and back here when it ends
-  window.gcFury = { livery: me || draft, hints: settings.hints, training, onExit: () => setTimeout(leaveFury, 0) };
+  window.gcFury = { livery: me || draft, hints: settings.hints, training, direct: !training, onExit: () => setTimeout(leaveFury, 0) };
   state = 'fury'; fury = document.createElement('iframe'); fury.id = 'g-frame'; fury.title = 'Orbital Fury'; fury.setAttribute('allow', 'autoplay; fullscreen');
   fury.onload = () => { try { fury.contentWindow.focus(); } catch { /* not focusable yet */ } };
   fury.src = 'ground.html' + (qs.has('debug') ? '?debug' : ''); document.body.appendChild(fury);
 }
 function leaveFury() { if (fury) { fury.remove(); fury = null; } window.gcFury = null; toTitle(); }
-$('b-fury').onclick = () => enterFury(false); $('b-fury-tut').onclick = () => enterFury(true);
-// ---- (0.39) what is saved, in one list: every way of playing, what it holds, and a way to clear it
-function savesBox() {
-  const S = saves(), name = { war: 'GALACTIC', fury: 'ORBITAL FURY', base: 'FOB COMMANDER', orbit: 'ORBITAL COMMANDER' };
-  War.modal('<h2>Saves</h2><p class="dim">Everything is kept on this device, in this browser.</p>' + ['war', 'fury', 'base', 'orbit'].map((k) => { const v = S[k];
-    return `<div class="svrow${v ? '' : ' none'}"><div><b>${name[k]}</b><span>${v ? `${esc(v.title)} · ${esc(v.text)}${v.at ? ' · ' + ago(v.at) : ''}` : NONE[k]}</span></div>${v ? `<button class="plate btn sm" data-del="${k}">DELETE</button>` : ''}</div>`; }).join('') +
-    '<button class="plate btn go" data-x="close" style="margin-top:12px">CLOSE</button>');
-  const box = $('modal'); box.querySelector('[data-x=close]').onclick = () => { box.hidden = true; audio.click(); toTitle(); };
-  for (const b of box.querySelectorAll('[data-del]')) b.onclick = () => confirmBox(`Delete the ${name[b.dataset.del]} save?`, 'It cannot be brought back.', 'DELETE IT', () => {
-    const k = b.dataset.del;
-    if (k === 'war') app.endCampaignQuiet(); else if (k === 'fury') { for (const q of ['ofs.session', 'ofs.campRun', 'ofs.slots']) drop(q); } else { drop(SOLO[k]); const m = read(SOLO_META, {}) || {}; delete m[k]; write(SOLO_META, m); }
-    savesBox();
-  });
-}
-$('b-saves').onclick = () => { audio.click(); savesBox(); };
-$('b-how').onclick = () => { audio.click(); how(); };
-$('b-settings').onclick = () => { audio.click(); openMenu('settings'); };
-$('b-credits').onclick = () => { audio.click(); credits(); };
 
 function how(then) {
   War.modal(`<h2>One war, four jobs</h2><p>You run a private fleet. Three enemies are coming for your worlds. Win the war, and look good doing it.</p>
@@ -400,44 +534,37 @@ app.armoury = (then, done = 'DONE') => {
 };
 
 // ---------------------------------------------------------------- the menu (the same one everywhere)
-function openMenu(page = 'main') {
-  const inPlay = state !== 'title' && state !== 'found', m = $('menu'), was = frameUi.paused;
-  if (mode) frameUi.paused = true;
-  const close = () => { m.hidden = true; if (mode) { frameUi.paused = was; } audio.click(); };
-  if (page === 'settings') {
-    m.innerHTML = `<div class="plate amber box"><h2>Settings</h2>
-      <label class="rng">VOLUME<input type="range" id="m-vol" min="0" max="100" value="${Math.round(settings.volume * 100)}"></label>
-      <div class="mm"><button class="plate btn${settings.muted ? ' on' : ''}" id="m-mute">${settings.muted ? 'SOUND IS OFF' : 'SOUND IS ON'}</button>
-      <label class="rng msg">MESSAGE TIME<span id="m-msg">${MSG_TIMES.map(([k, n]) => `<button class="plate btn sm${msgKey() === k ? ' on' : ''}" data-msg="${k}">${n}</button>`).join('')}</span><small>How long the messages in the corner of the base, the station and the ground battle stay up.</small></label>
-      <button class="plate btn${settings.hints ? ' on' : ''}" id="m-hints">${settings.hints ? 'HINTS ARE ON' : 'HINTS ARE OFF'}<small>The coach's cards and tips. Turn them off when you know your way round, and on again whenever you like.</small></button>
-      <button class="plate btn go" id="m-back">${inPlay ? 'BACK' : 'CLOSE'}</button></div></div>`;
-    $('m-vol').oninput = () => { settings.volume = $('m-vol').value / 100; audio.set(settings.volume, settings.muted); write(SET_KEY, settings); };
-    $('m-mute').onclick = () => { settings.muted = !settings.muted; audio.set(settings.volume, settings.muted); write(SET_KEY, settings); openMenu('settings'); };
-    $('m-hints').onclick = () => { app.setHints(!settings.hints); audio.click(); openMenu('settings'); };
-    $('m-msg').onclick = (e) => { const b = e.target.closest('[data-msg]'); if (!b) return; settings.msg = b.dataset.msg; setMsg(settings.msg); write(SET_KEY, settings); audio.click(); openMenu('settings'); };
-    $('m-back').onclick = () => { if (inPlay) openMenu('main'); else close(); };
-  } else {
-    const g = War.war();
-    m.innerHTML = `<div class="plate amber box"><h2>${esc(app.faction.name)}</h2><p>${esc(app.faction.motto || '')}</p>
-      <p>${solo ? SOLO_NAME[solo][0] + SOLO_NAME[solo].slice(1).toLowerCase() : state === 'war' ? `The war room · round ${g ? g.round : 1}` : state === 'ground' ? 'Fire support' : state === 'orbit' ? 'Station command' : 'Base command'} · saved on this device</p>
-      <div class="mm"><button class="plate btn go" id="m-resume">RESUME</button>
-      <button class="plate btn" id="m-how">HOW THE WAR FITS TOGETHER</button>
-      <button class="plate btn" id="m-set">SETTINGS</button>
-      <button class="plate btn" id="m-title">SAVE AND GO TO THE MAIN MENU</button></div></div>`;
-    $('m-resume').onclick = close;
-    if ($('m-arm')) $('m-arm').onclick = () => { m.hidden = true; audio.click(); app.armoury(); };
-    $('m-how').onclick = () => { m.hidden = true; how(); if (mode) frameUi.paused = was; };
-    $('m-set').onclick = () => openMenu('settings');
-    $('m-title').onclick = () => {
+// (0.61) The menu inside a game is the main menu's own style: the bar with its tabs (GAME, OPTIONS, CONTROLS) and a panel.
+let menuWas = false;
+function closeMenu() { const m = $('menu'); if (m.hidden) return; m.hidden = true; if (mode) frameUi.paused = menuWas; audio.click(); }
+function openMenu(page = 'game') {
+  const m = $('menu');
+  if (m.hidden) { menuWas = frameUi.paused; if (mode) frameUi.paused = true; }
+  const g = War.war(), key = solo || (state === 'ground' ? 'fury' : KEYS[state] ? state : 'war');
+  const where = solo ? SOLO_NAME[solo][0] + SOLO_NAME[solo].slice(1).toLowerCase() : state === 'war' ? `The war room · round ${g ? g.round : 1}` : state === 'ground' ? 'Fire support' : state === 'orbit' ? 'Station command' : 'Base command';
+  const body = page === 'options' ? panel('Options', optCommon()) : page === 'controls' ? panel('Controls', optKeys(key))
+    : panel(esc(app.faction.name), `<p class="soon">${esc(app.faction.motto || '')}</p><p class="soon">${esc(where)} · saved on this device</p>
+      <div class="gbtns"><button class="plate btn go" id="m-resume" data-act="resume">RESUME</button><button class="plate btn" id="m-how" data-act="how">HOW THE WAR FITS TOGETHER</button><button class="plate btn" id="m-title" data-act="title">SAVE AND GO TO THE MAIN MENU</button></div>`);
+  m.innerHTML = `<div class="gmenu"><header id="m-bar"><img class="tlogo" src="assets/icon.svg" alt=""><div class="tname"><span>${esc(where.toUpperCase())}</span><b>PAUSED</b></div>
+    <nav class="ttabs" id="m-tabs">${[['game', 'GAME'], ['options', 'OPTIONS'], ['controls', 'CONTROLS']].map(([k, n]) => `<button class="${page === k ? 'on' : ''}" data-mtab="${k}">${n}</button>`).join('')}</nav></header>
+    <main class="gpage">${body}</main></div>`;
+  optBind(m);
+  m.onclick = (e) => {
+    const t = e.target.closest('[data-mtab]'); if (t) { audio.click(); return openMenu(t.dataset.mtab); }
+    const b = e.target.closest('[data-act]'); if (!b) return; const d = b.dataset;
+    if (optAct(d)) { audio.click(); return openMenu('options'); }
+    if (d.act === 'resume') closeMenu();
+    else if (d.act === 'how') { m.hidden = true; how(); if (mode) frameUi.paused = menuWas; }
+    else if (d.act === 'title') {
       m.hidden = true; audio.click();
       if (mode) { const out = mode.report ? mode.report() : {}; leaveTheatre(state === 'ground' ? { abandon: true } : out); }
       app.keep(); toTitle();
-    };
-  }
+    }
+  };
   m.hidden = false;
 }
 window.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') { if (!$('menu').hidden) { $('menu').hidden = true; return; } if (!$('modal').hidden) return; if (state !== 'title' && state !== 'found' && state !== 'fury') openMenu(); }
+  if (e.key === 'Escape') { if (!$('menu').hidden) { closeMenu(); return; } if (!$('modal').hidden) return; if (state !== 'title' && state !== 'found' && state !== 'fury') openMenu(); }
 });
 window.addEventListener('beforeunload', () => { if (mode && mode.store) mode.store(); soloNote(null); app.keep(); });
 document.addEventListener('visibilitychange', () => { if (document.hidden) { if (mode && mode.store) mode.store(); app.keep(); } });

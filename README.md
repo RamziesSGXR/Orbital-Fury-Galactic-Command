@@ -1,6 +1,6 @@
 # Orbital Fury: Galactic Command
 
-**Prototype 0.59.0.** One war, run from four posts, in one game.
+**Prototype 0.61.0.** One war, run from four posts, in one game.
 
 You found a command (a name, a crest, colours) and hold the centre of the galaxy against three enemies. Everything in
 the war is yours to run, and each part changes the others:
@@ -13,6 +13,32 @@ the war is yours to run, and each part changes the others:
 | **The base** | Found a base on the system's key world: roads, zones, and buildings that grow along them. | +35% output from the system for each charter. |
 
 A system that falls takes its station and its base with it.
+
+## What's new in 0.61: pictures, and the same menu inside the games
+
+- **PLAY** shows a picture card for each game: its own models drawn as glowing line art (tools/lineart.html draws them;
+  test/lineart.py writes assets/menu/art-*.png). A game with nothing saved starts at once; one with a save asks which save.
+- **HOME**'s tiles and panels have pictures behind them and solid backing, so they read over the moving war room. The
+  campaign panel shows the map table, rendered in Blender (assets/menu/table.jpg).
+- **The menu inside a game** is the main menu's own: the bar with its tabs (GAME, OPTIONS, CONTROLS) over a panel. The
+  ground game's pause box wears the same bar (GAME, SETTINGS, HELP).
+
+## What's new in 0.60: one menu for the whole game
+
+- **One main menu**, with a bar of tabs along the top: HOME, PLAY, COLLECTION, CAREER, STORE and OPTIONS (Q and E step
+  along them). js/main.js draws each tab's page (TABS, PAGES).
+- **HOME**: the campaign, NEWS (this update), JUMP IN (the last game and save played) and LEARN MORE (the credits). The daily
+  challenges are a placeholder.
+- **PLAY**: the campaign and the three mini-games, each with **three saves** and its tutorial. One save of the three is in
+  hand and lives where the game has always kept it; choosing another sets it aside whole (`ofgc.slot.<game>.<n>`) and brings
+  the chosen one out, so nothing else in the game knows about slots.
+- **Orbital Fury has no menu of its own** when opened from here: it starts on the operation saved or on a new one's setup,
+  and leaving comes back to this menu.
+- **OPTIONS**: the common settings, then each game's controls. **COLLECTION** and **STORE** are placeholders; **CAREER**
+  shows what the saves hold.
+- **The game's icon** (assets/icon.svg): an officer's bust on a pennant. It stands for the game in the menu bar and the
+  browser tab; the player's crest is for their command.
+- docs/DIRECTION.md records where the game is going: the Vanguards as famous elites, insurance, skill bonuses, and the rest.
 
 ## What's new in 0.56: one campaign, and endless play
 

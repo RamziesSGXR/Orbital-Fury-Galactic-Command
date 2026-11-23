@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 232" role="img" aria-label="Orbital Fury: Galactic Command">
+  <!-- The game's icon: an officer's bust on a pennant, black and gold. An original design for this game. -->
+  <defs>
+    <clipPath id="f"><path d="M38 34H162V176L100 204L38 176Z"/></clipPath>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f0a13a"/><stop offset="1" stop-color="#c8741c"/></linearGradient>
+  </defs>
+  <path d="M6 4H194V190L100 230L6 190Z" fill="#0a0c0b"/>
+  <path d="M16 14H184V183L100 219L16 183Z" fill="#f5d547"/>
+  <path d="M27 25H173V176L100 207L27 176Z" fill="#0a0c0b"/>
+  <path d="M38 34H162V176L100 204L38 176Z" fill="url(#sky)"/>
+  <g clip-path="url(#f)">
+    <!-- a ring world low behind him, and scan lines: the science-fiction of it -->
+    <ellipse cx="100" cy="150" rx="86" ry="20" fill="none" stroke="#0a0c0b" stroke-opacity=".28" stroke-width="3"/>
+    <g stroke="#0a0c0b" stroke-opacity=".10" stroke-width="2"><path d="M38 52H162M38 66H162M38 80H162M38 94H162M38 108H162"/></g>
+    <!-- shoulders and coat -->
+    <path d="M30 210L40 150Q44 134 66 128L84 122H116L134 128Q156 134 160 150L170 210Z" fill="#161b1c"/>
+    <!-- epaulettes: hard plates, not fringe -->
+    <path d="M40 134L72 122L78 134L46 148Z" fill="#f5d547"/><path d="M160 134L128 122L122 134L154 148Z" fill="#f5d547"/>
+    <path d="M46 140L74 129M154 140L126 129" stroke="#0a0c0b" stroke-width="2"/>
+    <!-- high collar with a lit seam -->
+    <path d="M80 104H120L124 130L100 140L76 130Z" fill="#1f2a2b"/>
+    <path d="M100 112V206" stroke="#7fe9e0" stroke-width="2.5"/>
+    <path d="M84 118L96 124M116 118L104 124" stroke="#f5d547" stroke-width="3" stroke-linecap="round"/>
+    <g fill="#f5d547"><circle cx="100" cy="152" r="3.2"/><circle cx="100" cy="170" r="3.2"/><circle cx="100" cy="188" r="3.2"/></g>
+    <!-- head, in profile to the right -->
+    <path d="M82 76Q82 62 100 62Q118 62 119 78L123 90L118 93L117 104Q112 112 100 110Q86 108 84 96Z" fill="#d9b48f"/>
+    <path d="M84 84Q82 96 88 104Q94 110 100 110L96 96Z" fill="#b98f6c"/>
+    <!-- a visor across the eyes -->
+    <path d="M96 78H121L122 85H98Z" fill="#7fe9e0"/><path d="M96 78H121" stroke="#0a0c0b" stroke-width="1.5"/>
+    <!-- the peaked cap -->
+    <path d="M70 60Q74 36 104 36Q134 36 136 58L130 64H76Z" fill="#161b1c"/>
+    <path d="M76 60H130L132 70H78Z" fill="#2d6a70"/>
+    <path d="M78 66H131" stroke="#f5d547" stroke-width="3"/>
+    <path d="M96 70H140Q134 78 118 78H98Z" fill="#0a0c0b"/>
+    <path d="M100 44L106 52L100 58L94 52Z" fill="#f5d547"/>
+  </g>
+</svg>
