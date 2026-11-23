@@ -1,11 +1,12 @@
 // The 3D view: a near-isometric camera you can rotate, the ground, the wire, every building and everyone walking about.
 import * as THREE from './vendor/three.js';
-import { B, ZONES, ZKEYS, UTIL, LAND } from './config.js';
+import { C, B, ZONES, ZKEYS, UTIL, LAND } from './config.js';
 import { dims, wingOf, PLAZA } from './sim.js';
 import { BIOMES } from './site.js';
 import { SCRUB_COL, loadBuildings, sharedGeo, makeMats, mergeStatic, buildModel, makePerson, poseKit, makeForklift, makeTruck, makeLRV, makeTank, makeCrate, makeDropship, wrap } from './models.js';
 const VMAKE = { lift: makeForklift, truck: makeTruck, lrv: makeLRV, tank: makeTank };
 import { Noise } from './noise.js';
+import { isLine } from './net.js';
 import { Crowd3D } from '../model3d.js';
 import { WL } from './site.js';
 
@@ -460,7 +461,7 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
     lay(this.roadMats[1], 1); lay(this.roadMats[3], 2); lay(this.roadMats[2], 3); lay(walk, 4); lay(dash, 5); lay(white, 5);
     const surfOf = k => k === 'dirt' ? 1 : k === 'path' ? 3 : 2, hwOf = sg => sg.k === 'path' ? 0.36 : sg.k === 'dirt' ? 0.44 : sg.w / 2, rut = lay(this.rutMat ||= new THREE.MeshStandardMaterial({ color: '#5d4a33', roughness: 1 }), 2), kerbed = sg => sg.k === 'paved' || sg.k === 'bridge', KW = 0.22;
     const yOf = sf => 0.012 + (sf === 2 ? 0.004 : sf === 1 ? 0.002 : 0.003);
-    const roads = net.segs.filter(g => g.k !== 'wall'), inc = new Map(), cut = new Map();
+    const roads = net.segs.filter(g => !isLine(g.k)), inc = new Map(), cut = new Map();     // (GC 0.64: field works are not roads either)
     for (const sg of roads) for (const [me, ot] of [[sg.a, sg.b], [sg.b, sg.a]]) { const n = nd(me), o = nd(ot), L = Math.hypot(o.x - n.x, o.z - n.z) || 1; (inc.get(me) || inc.set(me, []).get(me)).push({ sg, ang: Math.atan2(o.z - n.z, o.x - n.x), ux: (o.x - n.x) / L, uz: (o.z - n.z) / L, hw: hwOf(sg), L }); }
     const poly = (pts, c, y, mat) => {   // a fan from c round pts, facing up
       const pos = [], idx = []; pos.push(this.wx(c.x), y, this.wx(c.z)); for (const p of pts) pos.push(this.wx(p.x), y, this.wx(p.z));
@@ -531,18 +532,20 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
       }
     }
     mergeStatic(wallG); this.roadG.add(wallG);
-    // (GC 0.64) barbed wire: the ground fight's own model, a length of it a tile, with gaps where roads run through
-    const wg = sharedGeo(this.m, 'prop_wire'), wires = [];
-    if (wg) for (const sg of net.segs) {
-      if (sg.k !== 'wire') continue;
-      const a = nd(sg.a), b = nd(sg.b), L = Math.hypot(b.x - a.x, b.z - a.z), n = Math.max(1, Math.round(L)), ang = -Math.atan2(b.z - a.z, b.x - a.x);
-      for (let i = 0; i < n; i++) { const t = (i + 0.5) / n, x = a.x + (b.x - a.x) * t, z = a.z + (b.z - a.z) * t, tx = Math.floor(x), tz = Math.floor(z); if (s.roads[tz * N + tx]) continue; wires.push([x, z, ang, L / n]); }
-    }
-    if (wires.length) {
+    // (GC 0.64) field works (barbed wire, sandbags, trenches): the ground fight's own models, a length a tile, with gaps where roads
+    // run through. They stand at 0: like everything here, the height shader (HG) lifts every corner onto the ground under it, so
+    // on a slope they lie along it and nothing stands in the air.
+    for (const [k, W] of Object.entries(C.WORKS)) {
+      const wg = sharedGeo(this.m, W.file), runs = []; if (!wg) continue;
+      for (const sg of net.segs) {
+        if (sg.k !== k) continue;
+        const a = nd(sg.a), b = nd(sg.b), L = Math.hypot(b.x - a.x, b.z - a.z), n = Math.max(1, Math.round(L)), ang = -Math.atan2(b.z - a.z, b.x - a.x);
+        for (let i = 0; i < n; i++) { const t = (i + 0.5) / n, x = a.x + (b.x - a.x) * t, z = a.z + (b.z - a.z) * t, tx = Math.floor(x), tz = Math.floor(z); if (s.roads[tz * N + tx]) continue; runs.push([x, z, ang, L / n]); }
+      }
+      if (!runs.length) continue;
       this.m.model ||= new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0.04, side: THREE.DoubleSide });
-      const im = new THREE.InstancedMesh(wg, this.m.model, wires.length), M = new THREE.Matrix4(), Q = new THREE.Quaternion(), P = new THREE.Vector3(), S = new THREE.Vector3(), Y = new THREE.Vector3(0, 1, 0);
-      const low = (x, z, ang, l) => { if (!s.hAt) return 0; const c = Math.cos(ang) * l / 2, n = -Math.sin(ang) * l / 2; return Math.min(s.hAt(x, z), s.hAt(x + c, z + n), s.hAt(x - c, z - n)); };     // (seated at its lowest end: none of it in the air on a slope)
-      wires.forEach(([x, z, ang, l], i) => { P.set(this.wx(x), low(x, z, ang, l), this.wx(z)); Q.setFromAxisAngle(Y, ang); S.set(l / 2.1, 0.5, 0.55); im.setMatrixAt(i, M.compose(P, Q, S)); });
+      const im = new THREE.InstancedMesh(wg, this.m.model, runs.length), M = new THREE.Matrix4(), Q = new THREE.Quaternion(), P = new THREE.Vector3(), S = new THREE.Vector3(), Y = new THREE.Vector3(0, 1, 0);
+      runs.forEach(([x, z, ang, l], i) => { P.set(this.wx(x), 0, this.wx(z)); Q.setFromAxisAngle(Y, ang); S.set(l / W.len, W.h, W.d); im.setMatrixAt(i, M.compose(P, Q, S)); });
       im.castShadow = true; im.receiveShadow = true; this.roadG.add(im);
     }
     for (const [id, angs] of turns) {

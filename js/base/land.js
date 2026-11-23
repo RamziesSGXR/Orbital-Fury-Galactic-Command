@@ -139,7 +139,7 @@ export const Land = {
     return { ok: true };
   },
   // how much dirt track has been laid (the landing wants a few cells before the Command Post comes down)
-  trackLen() { let L = 0; for (const g of this.net.segs) if (g.k !== 'wall' && g.k !== 'wire') { const a = this.net.nodes.find(n => n.id === g.a), b = this.net.nodes.find(n => n.id === g.b); L += Math.hypot(b.x - a.x, b.z - a.z); } return L; },
+  trackLen() { let L = 0; for (const g of this.net.segs) if (g.k !== 'wall' && g.k !== 'wire' && g.k !== 'bags' && g.k !== 'trench') { const a = this.net.nodes.find(n => n.id === g.a), b = this.net.nodes.find(n => n.id === g.b); L += Math.hypot(b.x - a.x, b.z - a.z); } return L; },
   // both at once, for tests, the bot and the title demo: the Command Post at (x, z) facing south, the flag beside it
   canFound(x, z) {
     const N = this.N;

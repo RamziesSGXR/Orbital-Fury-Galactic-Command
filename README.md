@@ -1,6 +1,6 @@
 # Orbital Fury: Galactic Command
 
-**Prototype 0.64.0.** One war, run from four posts, in one game.
+**Prototype 0.65.0.** One war, run from four posts, in one game.
 
 You found a command (a name, a crest, colours) and hold the centre of the galaxy against three enemies. Everything in
 the war is yours to run, and each part changes the others:
@@ -13,6 +13,22 @@ the war is yours to run, and each part changes the others:
 | **The base** | Found a base on the system's key world: roads, zones, and buildings that grow along them. | +35% output from the system for each charter. |
 
 A system that falls takes its station and its base with it.
+
+## What's new in 0.65: FOB Commander's buildings on the ground, field works at the base
+
+- **The ground fight stands FOB Commander's buildings** wherever it has the same thing, whole and in your command's
+  colours: the work site's warehouse and hangar (a Fuel Depot or Supply Depot and a Vehicle Bay, a Science Lab for a lab
+  site), the radio mast (the Comms Tower), and every lot of the capital's outskirts (hab blocks, the BRAND-MART, the
+  casino, the war room, factories and more, each fitted to its lot and kept low so the streets stay in view).
+- **Field works in FOB Commander**: Sandbags and Trench join Barbed Wire on the ROADS tab, each the ground fight's own
+  model. Sandbags 3 supplies a tile, the most raid strength; trench 2, the least; wire 2. Together they add up to 20
+  (C.WORKS, C.WORKS_MAX). Fixed: in 0.64 the wire was drawn as a road and its model stood in the air on high ground.
+- **Nothing floats.** In FOB Commander the field works lie on the ground like everything else (the height shader seats
+  every corner). In the ground fight every model stands at the low point of its footprint. And the loose pieces the
+  check found are fixed: the Talon jammer's hides and shards, the broadcast tower's screen and horns, the Foundry
+  jammer's lights, the Molt jammer's sacs, the wreck's door, the Talon camp's crystal and rack, the sandbags, the work
+  site's sign. test/floating.py now finds none in the ground fight's models.
+- docs/DIRECTION.md keeps **the list** of what is left to do.
 
 ## What's new in 0.64: one kit for both games, wire and warheads at the base
 

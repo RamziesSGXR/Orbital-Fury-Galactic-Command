@@ -69,3 +69,22 @@ also why they are so capable and so well equipped: a great deal has been spent o
 - The galactic campaign's style of play (a different one may be tried).
 - Story reasons for the war.
 - The credits still name SESF and the old prototypes; the tutorial planet is still `mars` inside the code.
+
+## The list: what is left to do (kept up to date as things are built)
+
+Models and sharing (the 0.64 rework, continued):
+1. ~~The ground fight uses FOB Commander's buildings: the work site, the radio mast, the capital's city blocks.~~ **(0.65)**
+   Still to do: the oil pump as the base's Biofuel Extractor (the ground fight's derrick stays for now).
+2. ~~Sandbags and trenches buildable in FOB Commander.~~ **(0.65)**
+3. ~~Loose pieces in the ground fight's models.~~ **(0.65: none left)** Still flagged: FOB buildings' structure files and
+   station parts, which may be filled by code-made parts in the game; to look at in place.
+4. The enemy's posts and buildings in the same spirit (each enemy its own look), and FOB buildings that look dated.
+5. ~~fleet.py copied into the Blender scripts folder.~~ **(0.65: with sites.py, world.py and vehicles.py; the old ones kept
+   as *.before-0.64)**
+
+From the 17:41 list, not started:
+6. The Store: spending campaign credits on upgrades; the Vanguard roster (roles and personality traits to unlock).
+7. Vanguards in the other mini-games (the base and the station), with lives and insurance there too.
+8. Quick-time events like the demolition charge in the other games (set orders, skill bonuses).
+9. Weapon fire, explosions and textures with more character; reacting fog; flooding and weather; destructible buildings.
+10. Daily challenges (a placeholder today); controller support (desktop first).

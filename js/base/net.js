@@ -2,7 +2,7 @@
 // Segments are turned into tiles for walking, driving and building: roads mark their tiles with a surface, walls block
 // theirs, and where a road crosses a wall the tile becomes a gate. Whatever the walls fully enclose is the base.
 //
-// A segment: { id, a, b, k: 'dirt' | 'paved' | 'path' | 'bridge' | 'wall' | 'wire', w } where a and b are node ids and w is its width in tiles.
+// A segment: { id, a, b, k: 'dirt' | 'paved' | 'path' | 'bridge' | 'wall' | 'wire' | 'bags' | 'trench', w } where a and b are node ids and w is its width in tiles.
 // Coordinates are in tiles, so the centre of tile (i, j) is (i + 0.5, j + 0.5).
 
 export const KINDS = {
@@ -11,9 +11,12 @@ export const KINDS = {
   bridge: { name: 'Bridge', w: 2, surf: 2 },
   path: { name: 'Footpath', w: 1, surf: 3 },   // a paved walk, one cell: people move as on a paved road, vehicles ignore it   // a paved deck on piers: spans water, ravines and rough ground
   wall:  { name: 'Wall', w: 1, surf: 0 },
-  wire:  { name: 'Barbed Wire', w: 1, surf: 0 },   // (GC 0.64) a line of the ground fight's wire: no road, no wall, nobody walks through it
+  wire:  { name: 'Barbed Wire', w: 1, surf: 0 },   // (GC 0.64) field works, the ground fight's own: no road, no wall, nobody walks through them
+  bags:  { name: 'Sandbags', w: 1, surf: 0 },
+  trench: { name: 'Trench', w: 1, surf: 0 },
 };
-export const isLine = k => k === 'wall' || k === 'wire';   // drawn along a line and not a road
+export const FIELD = new Set(['wire', 'bags', 'trench']);
+export const isLine = k => k === 'wall' || FIELD.has(k);   // drawn along a line and not a road
 const RANK = [0, 2, 3, 1];   // where two cross, the better surface shows: paved, then dirt, then a footpath
 const REACH = 0.22;   // tiles within half the width plus this of the centreline belong to a segment (keeps diagonals 4-connected)
 
@@ -192,7 +195,7 @@ export function raster(net, N, block = null, win = null) {
     const a = node(net, s.a), b = node(net, s.b);
     for (const [x, z] of lineTiles(N, a.x, a.z, b.x, b.z, s.w)) {
       const i = z * N + x;
-      if (s.k === 'wall') walls[i] = 1; else if (s.k === 'wire') { if (!walls[i]) walls[i] = 3; } else if (RANK[KINDS[s.k].surf] > RANK[roads[i]]) roads[i] = KINDS[s.k].surf;     // (3: wire)
+      if (s.k === 'wall') walls[i] = 1; else if (FIELD.has(s.k)) { if (!walls[i]) walls[i] = 3; } else if (RANK[KINDS[s.k].surf] > RANK[roads[i]]) roads[i] = KINDS[s.k].surf;     // (3: field works)
     }
   }
   each(i => { if (walls[i] && roads[i]) walls[i] = walls[i] === 3 ? 0 : 2; });   // a road through a wall is a gate (and through wire, a gap in it)

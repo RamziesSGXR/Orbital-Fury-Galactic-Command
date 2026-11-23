@@ -3,7 +3,7 @@
 
 Each model's still frame is split into its separate pieces (triangles sharing a corner, corners at the same place welded).
 Points are scattered over every piece's surface; two pieces touch where any of their points come within `eps` (a share of
-the model's size) of each other. A piece touches the ground if it reaches the model's lowest point. A piece that cannot be
+the model's size) of each other. A piece touches the ground if it reaches the ground (0, where the models are built standing; or the lowest point, if nothing goes below 0). A piece that cannot be
 reached from the ground through pieces that touch is floating.
 
     python3 test/floating.py                 # every model; packs (buildings, station) part by part
@@ -82,8 +82,8 @@ def check(name, d, eps=0.015, step=None):
     for i, j in pairs:
         li, lj = PL[i], PL[j]
         if li != lj: adj[li].add(lj); adj[lj].add(li)
-    ymin = P[:, 1].min()
-    ground = [i for i in range(n) if P[PL == i, 1].min() <= ymin + e]
+    ymin = P[:, 1].min(); gl = max(ymin, 0.0) if ymin < 0 else ymin     # (the ground is at 0: what goes below it is sunk in)
+    ground = [i for i in range(n) if P[PL == i, 1].min() <= gl + e]
     seen, todo = set(ground), list(ground)
     while todo:
         x = todo.pop()

@@ -134,9 +134,9 @@ def cover0():       # a sandbag wall
     for i in range(5):
         o = blob('a%d' % i, r=0.34, scale=(0.62, 1.15, 0.62), sub=1, m=bag if i % 2 else bag_d, rough=0.12, seed=i); o.location = (-0.8 + i * 0.4, 0, 0.2)
     for i in range(4):
-        o = blob('b%d' % i, r=0.33, scale=(0.62, 1.1, 0.62), sub=1, m=bag_d if i % 2 else bag, rough=0.12, seed=i + 9); o.location = (-0.6 + i * 0.4, 0, 0.58)
+        o = blob('b%d' % i, r=0.33, scale=(0.62, 1.1, 0.62), sub=1, m=bag_d if i % 2 else bag, rough=0.12, seed=i + 9); o.location = (-0.6 + i * 0.4, 0, 0.5)
     for i in range(3):
-        o = blob('c%d' % i, r=0.31, scale=(0.62, 1.0, 0.6), sub=1, m=bag if i % 2 else bag_d, rough=0.12, seed=i + 15); o.location = (-0.4 + i * 0.4, 0, 0.92)
+        o = blob('c%d' % i, r=0.31, scale=(0.62, 1.0, 0.6), sub=1, m=bag if i % 2 else bag_d, rough=0.12, seed=i + 15); o.location = (-0.4 + i * 0.4, 0, 0.78)
 def cover1():       # a wooden barricade: planks on crossed posts
     start('prop_cover1')
     for z in (0.35, 0.75, 1.15): box('plank%d' % int(z * 100), (2.0, 0.1, 0.26), (0, 0, z), m=wood, bevel=0.01)
@@ -174,7 +174,7 @@ def worksite():     # a work site: scaffolding, stores and a mast, where somethi
     for z in (0.5, 1.0, 1.5): box('lvl%d' % int(z * 10), (1.1, 0.9, 0.04), (0, 0, z), m=wood, bevel=0.005)
     for s in (-1, 1): cyl('x%d' % s, (-0.5, s * 0.4, 0.04), (0.5, s * 0.4, 1.0), 0.02, m=steel_d, sides=3)
     box('crate1', (0.34, 0.26, 0.24), (0.7, -0.4, 0.16), m=uni, bevel=0.015, rot=(0, 0, R(20))); box('crate2', (0.3, 0.3, 0.2), (-0.72, 0.4, 0.14), m=wood, bevel=0.015, rot=(0, 0, R(-15)))
-    disc('drum', 0.11, 0.3, 0.04, uni_d, 8, at=(0.66, 0.5)); cyl('mast', (-0.6, -0.5, 0), (-0.6, -0.5, 2.0), 0.025, m=steel_d, sides=4); ball('lamp', (-0.6, -0.5, 2.04), hazard, 0.07); box('sign', (0.4, 0.03, 0.26), (0, -0.48, 1.25), m=hazard)
+    disc('drum', 0.11, 0.3, 0.04, uni_d, 8, at=(0.66, 0.5)); cyl('mast', (-0.6, -0.5, 0), (-0.6, -0.5, 2.0), 0.025, m=steel_d, sides=4); ball('lamp', (-0.6, -0.5, 2.04), hazard, 0.07); box('sign', (0.4, 0.03, 0.26), (0, -0.46, 1.14), m=hazard)
 
 OUT = {}
 ALL = (dropship, striker, lrv, mech, shuttle, dog, uav, mine, shieldgen, trench, cover0, cover1, cover2, lz, bridge, worksite)     # (GC 0.64: the wire is fleet.py's)

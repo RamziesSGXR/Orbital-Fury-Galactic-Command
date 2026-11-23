@@ -20,7 +20,7 @@ import { Utilities } from './utils.js';
 import { Land, GRID } from './land.js';
 import { Terrain, TERRA } from './terrain.js';
 import { Market, bindMarket } from './market.js';
-import { emptyNet, raster, addLine, addRoad, heal, snap, nearestSeg, removeSeg, segLen, lineTiles, node, KINDS, absorb, isLine } from './net.js';
+import { emptyNet, raster, addLine, addRoad, heal, snap, nearestSeg, removeSeg, segLen, lineTiles, node, KINDS, absorb, isLine, FIELD } from './net.js';
 
 export const MKEYS = ['def', 'pro', 'tru'];
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -209,7 +209,7 @@ export class Sim {
 
   // ---------------------------------------------------------------- roads and walls: one line tool
   roadPrice(type) { return type === 2 && this.hasTech('asphalt') ? Math.ceil(ROADS[2].cost / 2) : ROADS[type].cost; }
-  linePrice(k) { return k === 'wall' ? C.WALL : k === 'wire' ? C.WIRE : this.roadPrice(KINDS[k].surf) * (k === 'paved' ? 2 : k === 'bridge' ? 2 * C.BRIDGE : 1); }
+  linePrice(k) { return k === 'wall' ? C.WALL : FIELD.has(k) ? C.WORKS[k].cost : this.roadPrice(KINDS[k].surf) * (k === 'paved' ? 2 : k === 'bridge' ? 2 * C.BRIDGE : 1); }
   tilePrice(surf) { return surf ? this.roadPrice(surf) : 0; }   // what one cell of a road is worth   // per tile of length; paved is two wide
   snapLine(p, mode, k, from) { return snap(this.net, p, mode, KINDS[k].w, from); }
   // can this line go here, and what does it cost? a: snapped start, b: snapped end
@@ -219,7 +219,7 @@ export class Sim {
     // nothing joins a bridge partway across: roads meet it at its ends, where it stands on the ground
     for (const p of [a, b]) { const d = this.deckAt(p.x, p.z); if (d != null && Math.abs(d - this.hAt(p.x, p.z)) > 0.25) return { ok: false, why: 'Roads join a bridge at its ends, not across the span', cost: 0 }; }
     { const q = this.equipLock(k); if (q) return { ok: false, why: `${q}: until then the engineers can only scrape dirt tracks`, cost: 0 }; }
-    for (const [x, z] of tiles) { const t = this.terr?.[z * this.N + x]; if (t === GROUND.ROCK) return { ok: false, why: 'Solid rock in the way', cost: 0 }; if (t === GROUND.WATER) { if (k === 'wire') return { ok: false, why: 'Water: wire stops at the shore', cost: 0 }; if (k === 'wall') return dry ? { ok: false, why: 'Water', cost: 0 } : this.shoreWall(a, b); return { ok: false, why: 'Water: lay a bridge across it', cost: 0 }; } }
+    for (const [x, z] of tiles) { const t = this.terr?.[z * this.N + x]; if (t === GROUND.ROCK) return { ok: false, why: 'Solid rock in the way', cost: 0 }; if (t === GROUND.WATER) { if (FIELD.has(k)) return { ok: false, why: 'Water: field works stop at the shore', cost: 0 }; if (k === 'wall') return dry ? { ok: false, why: 'Water', cost: 0 } : this.shoreWall(a, b); return { ok: false, why: 'Water: lay a bridge across it', cost: 0 }; } }
     let cost = Math.ceil(len) * this.linePrice(k);
     if (!isLine(k)) {
       // a road is graded as it is laid: it follows the ground, eased into an even climb, and costs more the steeper it is
@@ -1339,13 +1339,13 @@ export class Sim {
     const guns = []; for (const b of this.b) { const g = this.stat(b, 'guns'); if (b.done && g && !b.off && (!B[b.type].need?.ammo || b.stock.ammo > 0)) guns.push([b.x + b.w / 2, b.z + b.d / 2, g]); }
     let manned = 0;
     gs.forEach((g, i) => { if (this.troops.some(t => t.gate === i && t.state === 'guard')) { manned++; posts.push([g.x, g.z, 5]); } });
-    let wall = 0, seen = 0, armed = 0, wire = 0; const wt = [];
+    let wall = 0, seen = 0, armed = 0, works = 0; const wt = [];
     const W = this.win(); for (let zz = W[1]; zz < W[3]; zz++) for (let xx = W[0], i = zz * N + xx; xx < W[2]; xx++, i++) if (this.walls[i] === 1) { wall++; const x = xx + 0.5, z = zz + 0.5; wt.push(x, z); if (posts.some(p => Math.hypot(p[0] - x, p[1] - z) <= p[2])) seen++; if (guns.some(p => Math.hypot(p[0] - x, p[1] - z) <= p[2])) armed++; }
-    for (let zz = W[1]; zz < W[3]; zz++) for (let xx = W[0], i = zz * N + xx; xx < W[2]; xx++, i++) if (this.walls[i] === 3) wire++;     // (GC 0.64) barbed wire, tiles of it
+    for (const sg of this.net.segs) if (FIELD.has(sg.k)) works += Math.ceil(segLen(this.net, sg)) * C.WORKS[sg.k].per;     // (GC 0.64) the field works: wire, sandbags, trenches
     const key = this.b.filter(b => b.done && (b.type === 'hq' || b.type === 'fueldepot'));
     let depth = 0;
     for (const b of key) { let m = 99; for (let k = 0; k < wt.length; k += 2) m = Math.min(m, Math.hypot(wt[k] - b.x - b.w / 2, wt[k + 1] - b.z - b.d / 2)); depth += Math.min(1, m / 7); }
-    const f = { wire, closed: !this.open, cover: wall ? seen / wall : 0, armed: wall ? armed / wall : 0, gates: gs.length, manned, entr: gs.length <= 2 ? 1 : Math.max(0, 1 - (gs.length - 2) * 0.35), depth: key.length ? depth / key.length : 1 };
+    const f = { works, closed: !this.open, cover: wall ? seen / wall : 0, armed: wall ? armed / wall : 0, gates: gs.length, manned, entr: gs.length <= 2 ? 1 : Math.max(0, 1 - (gs.length - 2) * 0.35), depth: key.length ? depth / key.length : 1 };
     // turrets are a bonus on top: a watched, manned wall scores well; an armed one scores more
     f.score = f.closed ? Math.min(100, Math.round(45 * f.cover + 25 * (gs.length ? manned / gs.length : 1) + 15 * f.entr + 15 * f.depth + 15 * f.armed)) : 0;
     return f;

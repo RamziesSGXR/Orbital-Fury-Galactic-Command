@@ -19,7 +19,9 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&l
 const ROADS = { road1: { name: 'Dirt Road', k: 'dirt', sub: 'drag to draw', desc: 'One tile wide and cheap. People and vehicles move faster on it than over open ground, and every building needs a road at its door.' },
   road2: { name: 'Paved Road', k: 'paved', sub: 'two tiles wide', desc: 'Two tiles wide, two lanes. Trucks run fastest here and do not queue behind each other. Needs a Concrete Plant.' },
   path: { name: 'Footpath', k: 'path', sub: 'for boots', desc: 'A paved walk one tile wide. People keep to it; vehicles do not use it.' },
-  wire: { name: 'Barbed Wire', k: 'wire', sub: 'slows raiders', desc: 'Razor wire on steel stakes, the same as on the ground. Lay it outside the wall: every tile of it adds to the strength the base puts against a raid. Nobody walks through it; a road through it leaves a gap.' },
+  wire: { name: 'Barbed Wire', k: 'wire', sub: 'slows raiders', desc: 'Razor wire on steel stakes, the same as on the ground. Lay it outside the wall: every tile adds to the strength the base puts against a raid (2 supplies a tile). Nobody walks through it; a road through it leaves a gap.' },
+  bags: { name: 'Sandbags', k: 'bags', sub: 'cover for the wall', desc: 'A chest-high line of sandbags, the ground fight\'s bastions. The most raid strength a tile of any field work (3 supplies a tile). Field works add up to 20 between them.' },
+  trench: { name: 'Trench', k: 'trench', sub: 'cheap, dug in', desc: 'A fighting trench between banks of sandbags, as on the ground. Cheap, and a little raid strength a tile (2 supplies a tile).' },
   wall: { name: 'Wall', k: 'wall', sub: 'close it for a bonus', desc: 'Draw it all the way round and the base is closed: better morale, and raiders have to come through a gate. A road through a wall makes a gate.' },
   unroad: { name: 'Bulldoze', k: null, sub: words('tap a road or wall'), desc: 'Tap a stretch of road or wall to take it out. Half its cost comes back.' } };
 const TABS = GROUPS.filter((g) => g[0] !== 'landscape');
@@ -151,7 +153,7 @@ function desk() {
 }
 // ---------------------------------------------------------------- the guide: how a base is played (js/modes/guide.js)
 const TUT = [
-  { t: 'ROADS FIRST', x: 'Everything is built along a road. Pick <b>DIRT ROAD</b> below and drag from the command post across open ground.', done: () => sim.net.segs.some((g) => g.k !== 'wall' && g.k !== 'wire') },
+  { t: 'ROADS FIRST', x: 'Everything is built along a road. Pick <b>DIRT ROAD</b> below and drag from the command post across open ground.', done: () => sim.net.segs.some((g) => !['wall', 'wire', 'bags', 'trench'].includes(g.k)) },
   { t: 'ZONE THE ROADSIDE', x: 'Open <b>ZONES</b>, pick <b>Life Support</b> and tap beside your road. Bunks, mess halls and latrines grow there by themselves as the base needs them.', done: () => sim.zone.some((v) => v) },
   { t: 'POWER, WATER, SEWAGE', x: 'Open <b>UTILITIES</b> and place a <b>Biofuel Generator</b> by the road. Each utility covers a circle round it: keep the bunks inside, and keep wells away from a sewage lagoon.', done: () => sim.b.some((b) => B[b.type].group === 'power') },
   { t: 'CHECK ON A BUILDING', x: 'With no tool in hand, tap any building: its card shows its crew, whether it has power, water and sewage, and what is wrong with it.', done: () => !!sel },
@@ -193,7 +195,7 @@ function bind() {
       if (drag) { if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > 6) drag.moved = true; if (drag.moved) { if (drag.btn === 2 || drag.btn === 1) view.spin(-dx * 0.008); else view.pan(dx, dy); } }
     }
     if (zoneDrag) { view.showPlots(zoneRect(zoneDrag, tileOf(e))); return; }
-    if (roadDrag && !roadDrag.bull) { const end = lineEnd(e), c = sim.checkLine(roadDrag, end, ROADS[tool].k); view.showLine(roadDrag, end, ROADS[tool].k === 'paved' ? 2 : 1, c.ok, ROADS[tool].k === 'wall' || ROADS[tool].k === 'wire'); return; }
+    if (roadDrag && !roadDrag.bull) { const end = lineEnd(e), c = sim.checkLine(roadDrag, end, ROADS[tool].k); view.showLine(roadDrag, end, ROADS[tool].k === 'paved' ? 2 : 1, c.ok, ['wall', 'wire', 'bags', 'trench'].includes(ROADS[tool].k)); return; }
     if (tool && !isRoad(tool) && !isZone(tool)) { const t = tileAt(e), sp = specOf(tool); view.setGhost(tool, t.tx, t.tz, t.rot, sim.canPlace(tool, t.tx, t.tz, t.rot, sp).ok, sp); }
   });
   const up = (e) => {

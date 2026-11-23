@@ -107,9 +107,10 @@ def camp():     # the Talon's roost: a hide tent on bone poles, a living crystal
     loft('skirt', [((0, 0, 0), 0.97, 0.97), ((0, 0, 0.26), 0.86, 0.86)], sides=7, m=t_hide_d, cap=False)
     box('flap', (0.44, 0.06, 0.6), (0, -0.74, 0.3), m=t_dark, rot=(R(-24), 0, 0), taper=0.5)
     for i in range(3): a = i / 3 * TAU + 0.2; cyl('pole%d' % i, (math.cos(a) * 0.06, math.sin(a) * 0.06, 1.5), (math.cos(a + math.pi) * 0.3, math.sin(a + math.pi) * 0.3, 2.15), 0.028, m=t_bone, sides=4)
-    blob('crystal', r=0.15, scale=(1, 1, 1.7), loc=(0, 0, 2.2), sub=1, m=t_lit)
+    blob('crystal', r=0.25, scale=(1, 1, 1.4), loc=(0, 0, 2.12), sub=1, m=t_lit)     # (GC 0.64: held by its poles, not hanging between them)
     for i in range(6): a = i / 6 * TAU + 0.5; cyl('stake%d' % i, (math.cos(a) * 1.02, math.sin(a) * 1.02, 0), (math.cos(a) * 1.0, math.sin(a) * 1.0, 0.85), 0.03, m=t_bone, sides=4, r2=0.012)
     box('rack', (0.5, 0.04, 0.04), (0.8, 0.62, 0.62), m=t_bone, rot=(0, 0, R(40)))
+    for s in (-1, 1): cyl('rackleg%d' % (s > 0), (0.8 + s * 0.19, 0.62 + s * 0.16, 0), (0.8 + s * 0.19, 0.62 + s * 0.16, 0.64), 0.02, m=t_bone, sides=4)     # (GC 0.64: the rack on two legs)
 def spire():    # a Molt side site: spore towers
     start('prop_spire')
     blob('mound', r=0.95, scale=(1, 1, 0.3), loc=(0, 0, 0.02), sub=2, m=m_mound, rough=0.22, seed=5)

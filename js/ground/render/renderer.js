@@ -41,6 +41,20 @@ const BURST = { bugs: ['#a9d63a', '#f2ff9a'], bots: ['#ff9a3a', '#fff0c0'], liza
 const PASS = { swing: 0.66, low: 53, high: 62 };
 // (GC 0.41) the field works that have a model of their own in 3D
 const FIELD3 = { foxhole: 'prop_trench', bastion: 'prop_cover0', site: 'prop_worksite' };
+// (GC 0.64) a work site's two buildings, by its kind: [warehouse, its size (metres a tile), hangar, its size], FOB Commander's
+const WORKSITE = { refinery: ['fueldepot', 5, 'vbay', 3.6], salvage: ['depot', 5, 'vbay', 3.6], lab: ['depot', 5, 'lab', 3.6] };
+// (GC 0.64) the capital's buildings are FOB Commander's too: each lot (sim/terrain.js _city) gets the one whose shape fits it best,
+// turned if that fits better, at the size that fills it (metres a tile, kept between 5 and 14), picked the same every time
+const CITY = [['block', 3, 3], ['mart', 3, 3], ['casino', 3, 3], ['vault', 3, 3], ['warroom', 4, 4], ['halls', 4, 3], ['factory', 4, 3], ['eob', 4, 3],
+  ['lab', 3, 2], ['barracks', 3, 2], ['mess', 3, 2], ['medbay', 3, 2], ['lecture', 3, 2], ['club', 2, 2], ['hab', 2, 2]];     // (no towers: the fight is watched from above, and a tower hides the street)
+function cityPick(b, i) {
+  if (b._fob) return b._fob;
+  const LW = b.x1 - b.x0, LH = b.y1 - b.y0, a = Math.log(LW / LH), fits = [];
+  for (const [t, w, d] of CITY) for (const turn of w === d ? [0] : [0, 1]) { const bw = turn ? d : w, bd = turn ? w : d, off = Math.abs(a - Math.log(bw / bd)); if (off < 0.42) fits.push({ t, turn, bw, bd, off }); }
+  const h = ((Math.floor(b.x0) * 73856093) ^ (Math.floor(b.y0) * 19349663) ^ (i * 83492791)) >>> 0, pick = fits.length ? fits[h % fits.length] : { t: 'block', turn: 0, bw: 3, bd: 3 };
+  const s = Math.max(5, Math.min(14, Math.min(LW / pick.bw, LH / pick.bd) * 0.94)), back = (h >> 8) & 1;
+  return (b._fob = { t: pick.t, s, hy: Math.min(s, 6), rot: (pick.turn ? Math.PI / 2 : 0) + (back ? Math.PI : 0) });     // (hy: never more than 6 m a storey-unit tall)
+}
 // (0.37) worn down: a unit or a building darkens and reddens as its health goes, so its state is read off the thing itself
 const WOUND = (o) => { const f = o.maxHp > 0 ? o.hp / o.maxHp : 1; return f > 0.8 ? null : f > 0.55 ? '#dcc4b6' : f > 0.3 ? '#bd8f7e' : '#9a5d4f'; };
 const TASK_LABEL = { base: 'lab.base', radio: 'lab.radio', propaganda: 'lab.prop', rescue: 'lab.rescue', arty: 'lab.artySite', jammer: 'lab.jam', spore: 'lab.spore' };
@@ -464,10 +478,11 @@ export class Renderer {
         else if (o.type === 'oil') put('site_derrick', o.x, o.y, Math.max(8, (o.r || 12) * 0.45), turn(o));     // (0.52) the rig is what is solid (C.solids.oil), so whoever holds the site stands outside it
       }
       { const hb = m.democharge; if (hb && (hb.state === 'landed' || hb.state === 'armed')) put('site_charge', hb.x, hb.y, 2.2, 0.6); }
+      { const TB = m.terrain && m.terrain.buildings; if (TB) for (let i = 0; i < TB.length; i++) { const b = TB[i], x = (b.x0 + b.x1) / 2, y = (b.y0 + b.y1) / 2; if (Math.abs(x - cx) > half + 40 || Math.abs(y - cy) > half + 40) continue; const c = cityPick(b, i); out.push({ k: 'bld:' + c.t, key: 'city' + i, x, y, s: c.s, hy: c.hy, rot: c.rot }); } }
       for (const q of m.loot || []) if (q.kind === 'wreck') put('site_wreck', q.x, q.y, Math.max(3, (q.r || 4) * 0.5), turn(q));     // (0.52) no bigger than its solid part: whoever searches it stands beside it, not inside it
       for (const sd of m.sides || []) {
-        if (sd.done || sd.failed || sd.hidden) { if (sd.kind === 'radio' && sd.done) put('side_radio', sd.x, sd.y, Math.max(5, sd.r * 0.7), turn(sd)); else if (sd.kind === 'rescue' && sd.done && !sd.hidden) put('side_redoubt', sd.x, sd.y, 8, turn(sd)); continue; }
-        if (sd.kind === 'radio') put('side_radio', sd.x, sd.y, Math.max(5, sd.r * 0.7), turn(sd));
+        if (sd.done || sd.failed || sd.hidden) { if (sd.kind === 'radio' && sd.done) { const s2 = Math.max(5, sd.r * 0.7); if (near(sd)) out.push({ k: 'bld:comms', key: 'radio' + (sd.id ?? 0), x: sd.x, y: sd.y, s: s2 * 0.55, rot: turn(sd) }); if (!M3.has('bld')) put('side_radio', sd.x, sd.y, s2, turn(sd)); } else if (sd.kind === 'rescue' && sd.done && !sd.hidden) put('side_redoubt', sd.x, sd.y, 8, turn(sd)); continue; }
+        if (sd.kind === 'radio') { const s2 = Math.max(5, sd.r * 0.7); if (near(sd)) out.push({ k: 'bld:comms', key: 'radio' + (sd.id ?? 0), x: sd.x, y: sd.y, s: s2 * 0.55, rot: turn(sd) }); if (!M3.has('bld')) put('side_radio', sd.x, sd.y, s2, turn(sd)); }     // (GC 0.64) the radio mast is FOB Commander's Comms Tower
         else if (sd.kind === 'arty') put('prop_post_arty', sd.x, sd.y, 4.4, Math.PI / 2 - (sd.face || 0));     // (GC 0.64: the abandoned field gun is the Artillery Cannon's own model)
         else if (sd.kind === 'jammer') put('side_jam_' + sd.fac, sd.x, sd.y, Math.max(4, sd.r * 0.6), turn(sd));
         else if (sd.kind === 'rescue') put('side_redoubt', sd.x, sd.y, 8, turn(sd));     // (0.52) true size: a ring of sandbags chest high, 13 m across
@@ -484,7 +499,11 @@ export class Renderer {
         if (p.what === 'wire' && M3.has('prop_wire')) { const E = p.ends || wireEnds(p.x, p.y, p.face0 ?? p.face ?? 0), L = Math.hypot(E[1].x - E[0].x, E[1].y - E[0].y), x = (E[0].x + E[1].x) / 2, y = (E[0].y + E[1].y) / 2; if (Math.abs(x - cx) < half && Math.abs(y - cy) < half) out.push({ k: 'wire', x, y, l: L / 2, s: 2.6, h: 3.2 * (0.35 + 0.65 * (p.wireMax ? Math.max(0, p.wireHp) / p.wireMax : 1)), rot: -Math.atan2(E[1].y - E[0].y, E[1].x - E[0].x) }); }
         else if (p.what === 'foxhole' && M3.has('prop_trench')) { const S2 = p.slots || foxholeSlots(p.x, p.y, p.face0 ?? p.face ?? 0, p.cap), a = S2[0], b = S2[S2.length - 1], L = Math.hypot(b.x - a.x, b.y - a.y) + 2.4, f = p.face0 ?? p.face ?? 0; if (near(p)) out.push({ k: 'trench', x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, l: L / 2, s: 2.0, h: 3.2, rot: S2.length > 1 ? -Math.atan2(b.y - a.y, b.x - a.x) : -(f + Math.PI / 2), tint: hit(p), flash: fl(p) }); }
         else if (p.what === 'lz' && M3.has('prop_lz') && near(p)) out.push({ k: 'lz', x: p.x, y: p.y, s: p.r || 9, h: 5 });
-        else if (p.what === 'site' && M3.has('prop_worksite') && near(p)) out.push({ k: 'worksite', x: p.x, y: p.y, s: Math.max(3.4, (p.r || 5) * 0.8), rot: ((p.id || 1) * 1.3) % 6.28 });
+        else if (p.what === 'site' && near(p)) {     // (GC 0.64) the work site's warehouse and hangar are FOB Commander's own, dressed for its kind, doors to the yard between them
+          const W = WORKSITE[p.siteKind] || WORKSITE.salvage, f = p.face || 0;
+          if (!p.fallen) for (const [k, at, s2, rot] of [[W[0], p.wh, W[1], Math.PI / 2 - f], [W[2], p.hg, W[3], -Math.PI / 2 - f]]) if (at) out.push({ k: 'bld:' + k, key: `site${p.id}${k}`, x: at.x, y: at.y, s: s2, rot });
+          if ((p.fallen || !M3.has('bld')) && M3.has('prop_worksite')) out.push({ k: 'worksite', x: p.x, y: p.y, s: Math.max(3.4, (p.r || 5) * 0.8), rot: ((p.id || 1) * 1.3) % 6.28 });
+        }
         else if (p.what === 'bridge' && M3.has('prop_bridge')) { const sp = p.span || { x1: p.x - 20, y1: p.y, x2: p.x + 20, y2: p.y }, L = Math.hypot(sp.x2 - sp.x1, sp.y2 - sp.y1), x = (sp.x1 + sp.x2) / 2, y = (sp.y1 + sp.y2) / 2; if (Math.abs(x - cx) < half + L / 2 && Math.abs(y - cy) < half + L / 2) out.push({ k: 'bridge', x, y, l: L / 2, s: p.w || 20, h: 5, rot: -Math.atan2(sp.y2 - sp.y1, sp.x2 - sp.x1), up: 0.3 }); }
       }
       for (const c of m.cover || []) { if (c.post && c.post.what !== 'bastion') continue; const k = 'cover' + (c.style || 0); if (M3.has('prop_' + k) && near(c)) out.push({ k, x: c.x, y: c.y, l: c.len / 2, s: 2.4, h: 3.4, rot: -(c.ang + Math.PI / 2) }); }     // (as tall as cover has to be for troopers drawn this large)

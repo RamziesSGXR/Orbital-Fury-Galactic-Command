@@ -107,7 +107,7 @@ def wreck():    # a burnt-out carrier: something worth searching
     disc('scorch', 0.95, 0.015, 0, burnt, 9)
     j = joint('hull', (0, 0, 0)); j.rotation_euler = (R(4), R(-7), R(24))
     box('body', (0.74, 1.5, 0.36), (0, 0, 0.42), m=burnt, parent=j, bevel=0.05, taper=0.8); box('nose', (0.7, 0.3, 0.2), (0, -0.82, 0.34), m=steel_d, parent=j, bevel=0.04, rot=(R(28), 0, 0))
-    box('ring', (0.36, 0.36, 0.05), (0, 0.1, 0.62), m=steel_d, parent=j, bevel=0.01); box('door', (0.4, 0.04, 0.3), (0, 0.9, 0.26), m=rust, parent=j, rot=(R(-58), 0, 0))
+    box('ring', (0.36, 0.36, 0.05), (0, 0.1, 0.62), m=steel_d, parent=j, bevel=0.01); box('door', (0.4, 0.04, 0.3), (0, 0.84, 0.26), m=rust, parent=j, rot=(R(-58), 0, 0))
     for i, y in enumerate((-0.5, 0.0, 0.5)):
         for s in (-1, 1):
             if (i, s) == (2, 1): continue
@@ -173,7 +173,7 @@ def jam_bugs(): # the Molt's jammer: a shrieker, a living horn that screams over
     disc('throat', 0.36, 0.02, 2.45, m_dark, 8); blob('glow', r=0.17, loc=(0, 0, 2.4), sub=1, m=m_hot)
     for i in range(7):
         a = i / 7 * TAU; spike('fang%d' % i, (math.cos(a) * 0.44, math.sin(a) * 0.44, 2.44), (math.cos(a) * 0.3, math.sin(a) * 0.3, 2.9), 0.055, m=bone)
-    for i, (z, a, r) in enumerate([(0.55, 0.4, 0.15), (0.95, 2.6, 0.13), (1.35, 4.4, 0.12), (1.8, 1.2, 0.11), (0.3, 5.3, 0.17)]): blob('sac%d' % i, r=r, loc=(math.cos(a) * 0.27, math.sin(a) * 0.27, z), sub=1, m=m_hot)
+    for i, (z, a, r) in enumerate([(0.55, 0.4, 0.15), (0.95, 2.6, 0.13), (1.35, 4.4, 0.12), (1.8, 1.2, 0.11), (0.3, 5.3, 0.17)]): blob('sac%d' % i, r=r, loc=(math.cos(a) * 0.2, math.sin(a) * 0.2, z), sub=1, m=m_hot)
     for i in range(5):
         a = i / 5 * TAU + 0.3; spike('root%d' % i, (math.cos(a) * 0.3, math.sin(a) * 0.3, 0.14), (math.cos(a) * 1.02, math.sin(a) * 1.02, 0.02), 0.09, m=m_dark)
 def jam_bots(): # the Foundry's jammer: a crawler with a mast of panels that drowns your call-ins
@@ -183,7 +183,7 @@ def jam_bots(): # the Foundry's jammer: a crawler with a mast of panels that dro
     box('strip', (0.5, 0.03, 0.06), (0, -0.66, 0.34), m=f_hot); disc('table', 0.36, 0.12, 0.45, f_steel, 10); cyl('mast', (0, 0, 0.55), (0, 0, 2.3), 0.065, m=f_steel, sides=7)
     for i in range(3):
         a = i / 3 * TAU + 0.5; x, y = math.cos(a), math.sin(a)
-        box('panel%d' % i, (0.5, 0.05, 0.85), (x * 0.3, y * 0.3, 1.62), m=f_dark, bevel=0.012, rot=(R(-12), 0, a + math.pi / 2)); box('glow%d' % i, (0.36, 0.02, 0.1), (x * 0.36, y * 0.36, 1.86), m=f_hot, rot=(R(-12), 0, a + math.pi / 2))
+        box('panel%d' % i, (0.5, 0.05, 0.85), (x * 0.3, y * 0.3, 1.62), m=f_dark, bevel=0.012, rot=(R(-12), 0, a + math.pi / 2)); box('glow%d' % i, (0.36, 0.02, 0.1), (x * 0.33, y * 0.33, 1.86), m=f_hot, rot=(R(-12), 0, a + math.pi / 2))
         cyl('arm%d' % i, (0, 0, 1.6), (x * 0.28, y * 0.28, 1.6), 0.025, m=f_steel, sides=4)
     box('bar', (1.0, 0.06, 0.06), (0, 0, 2.34), m=f_steel, rot=(0, 0, R(25))); lamp('e1', (math.cos(R(25)) * 0.5, math.sin(R(25)) * 0.5, 2.34), f_hot, 0.07); lamp('e2', (-math.cos(R(25)) * 0.5, -math.sin(R(25)) * 0.5, 2.34), f_hot, 0.07)
 def jam_lizards():  # the Talon's jammer: a living crystal hung between three great bones, that clouds the mind
@@ -192,10 +192,10 @@ def jam_lizards():  # the Talon's jammer: a living crystal hung between three gr
     for i in range(3):
         a = i / 3 * TAU + 0.6; cyl('bone%d' % i, (math.cos(a) * 0.86, math.sin(a) * 0.86, 0), (math.cos(a) * 0.1, math.sin(a) * 0.1, 1.75), 0.075, m=t_bone, sides=6, r2=0.03)
         spike('horn%d' % i, (math.cos(a) * 0.1, math.sin(a) * 0.1, 1.72), (math.cos(a) * 0.5, math.sin(a) * 0.5, 2.5), 0.05, m=t_bone)
-        box('hide%d' % i, (0.14, 0.02, 0.66), (math.cos(a + 1) * 0.2, math.sin(a + 1) * 0.2, 1.36), m=t_hide, rot=(R(8), 0, a + 1 + math.pi / 2))
+        box('hide%d' % i, (0.5, 0.02, 0.5), (math.cos(a + TAU / 6) * 0.135, math.sin(a + TAU / 6) * 0.135, 1.36), m=t_hide, rot=(0, 0, a + TAU / 6 + math.pi / 2))     # (GC 0.64: hung from bone to bone, not in the air)
     blob('crystal', r=0.3, scale=(1, 1, 1.75), loc=(0, 0, 2.2), sub=1, m=t_lit)
     for i in range(6):
-        a = i / 6 * TAU; spike('shard%d' % i, (math.cos(a) * 0.42, math.sin(a) * 0.42, 2.2), (math.cos(a) * 0.66, math.sin(a) * 0.66, 2.32), 0.05, m=t_lit, sides=4)
+        a = i / 6 * TAU; spike('shard%d' % i, (math.cos(a) * 0.24, math.sin(a) * 0.24, 2.2), (math.cos(a) * 0.62, math.sin(a) * 0.62, 2.32), 0.05, m=t_lit, sides=4)     # (GC 0.64: out of the crystal)
     blob('skull', r=0.13, scale=(1, 1.3, 0.9), loc=(0.62, -0.5, 0.12), sub=1, m=t_bone)
 
 # ---------------------------------------------------------------- the enemy's side sites (points of interest)
@@ -204,6 +204,8 @@ def broadcast():    # a propaganda tower: a screen, four horns, the hut it runs 
     disc('base', 0.9, 0.06, 0, conc_d, 9); box('hut', (0.66, 0.5, 0.4), (0.1, 0.36, 0.26), m=conc, bevel=0.03); box('door', (0.2, 0.03, 0.28), (0.1, 0.1, 0.22), m=accent)
     lattice('tw', 4, 0.26, 0.2, 0.06, 2.7, 4, steel_d, a0=math.pi / 4, rl=0.03, rb=0.016)
     box('frame', (1.16, 0.07, 0.68), (0, -0.32, 2.0), m=black, bevel=0.02); box('screen', (1.04, 0.03, 0.56), (0, -0.36, 2.0), m=accent_lit)
+    box('bracket', (0.4, 0.24, 0.08), (0, -0.2, 2.0), m=steel_d); box('bracket2', (0.4, 0.24, 0.08), (0, -0.2, 2.24), m=steel_d)     # (GC 0.64: the screen held on the mast)
+    disc('hub', 0.18, 0.3, 2.68, steel_d, 8)     # (GC 0.64: the horns' mount, on the mast's top)
     for i in range(4):
         a = i / 4 * TAU + math.pi / 4; x, y = math.cos(a), math.sin(a)
         cyl('horn%d' % i, (x * 0.16, y * 0.16, 2.82), (x * 0.56, y * 0.56, 2.92), 0.05, m=steel, sides=8, r2=0.2)

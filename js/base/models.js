@@ -905,7 +905,7 @@ export const BLD = { data: new Map(), veh: {}, shared: {}, asked: false };
 // post's model (tools/blender/fleet.py), so the two games show one Defence Turret, one Lookout Tower, one Landing Pad.
 //   file: the model; k: its size here (the models have a footprint radius of about one); spin: a second model on it that turns
 // Until the files come the building is drawn as before. LINES: the ground fight's field works laid along a line (the view lays them).
-export const LINES = ['prop_wire'];
+export const LINES = ['prop_wire', 'prop_cover0', 'prop_trench'];
 // one of those models as it was made (a footprint radius of about one), for the view to lay out
 export function sharedGeo(m, f) { const c = m._sharedRaw ||= new Map(); let g = c.get(f); if (!g && BLD.shared[f]) { g = staticGeo(BLD.shared[f]); c.set(f, g); } return g || null; }
 export const SHARED = {

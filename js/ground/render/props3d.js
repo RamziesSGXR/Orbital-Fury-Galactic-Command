@@ -125,7 +125,7 @@ class Blds {
       let g = this.live.get(key);
       if (!g) { try { g = this.M.buildModel(u.k.slice(4), this.m, true); } catch { g = null; } if (!g) continue; g.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } }); this.scene.add(g); this.live.set(key, g); }
       if (g.userData.r == null) { const b = new THREE.Box3().setFromObject(g); g.userData.r = Math.max(b.max.x - b.min.x, b.max.z - b.min.z) / 2 / (g.scale.x || 1); }
-      g.position.set(u.x, seat(ground, u.x, u.y, g.userData.r * u.s * 0.9) - (u.sink || 0), u.y); g.rotation.y = u.rot || 0; g.scale.setScalar(u.s);
+      g.position.set(u.x, seat(ground, u.x, u.y, g.userData.r * u.s * 0.9) - (u.sink || 0), u.y); g.rotation.y = u.rot || 0; g.scale.set(u.s, u.hy || u.s, u.s);
     }
     for (const [k, g] of this.live) if (!seen.has(k)) { this.scene.remove(g); this.live.delete(k); }
   }

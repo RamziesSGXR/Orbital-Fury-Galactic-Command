@@ -5,8 +5,16 @@ export const VERSION = '0.23.0';
 export const C = {
   N: 1725,                  // the map is N x N cells of 8 m: a 13.8 km section of the planet, GRID x GRID parcels of PARCEL cells each
   WALL: 4,
-  WIRE: 2, WIRE_PER: 0.5, WIRE_MAX: 14,
-  SILO: { days: 3, fuel: 12, max: 2, raid: 90, cr: 450, def: 4, salvage: 2 },     // (GC 0.64) the Missile Silo: days to a warhead, fuel a day, held, raid strength it adds, what shipping one pays, salvage times a raid's size     // (GC 0.64) barbed wire: supplies a tile; raid strength a tile of it, and the most it adds
+  // (GC 0.64) FIELD WORKS, laid along a line like a wall, with the ground fight's own models: supplies a tile, raid strength a
+  // tile, the model and its size here (x is stretched to the length; y tall, z deep, as shares of the model). WORKS_MAX: the most
+  // they add between them.
+  WORKS: {
+    wire:   { cost: 2, per: 0.5, file: 'prop_wire', len: 2.14, h: 0.5, d: 0.55 },
+    bags:   { cost: 3, per: 0.6, file: 'prop_cover0', len: 1.97, h: 0.42, d: 0.62 },
+    trench: { cost: 2, per: 0.4, file: 'prop_trench', len: 2.0, h: 0.36, d: 0.3 },
+  },
+  WORKS_MAX: 20,
+  SILO: { days: 3, fuel: 12, max: 2, raid: 90, cr: 450, def: 4, salvage: 2 },     // (GC 0.64) the Missile Silo: days to a warhead, fuel a day, held, raid strength it adds, what shipping one pays, salvage times a raid's size
   BRIDGE: 3,               // a road tile over water costs this many times as much
   // the charter: how much land the Bureau lets you hold. parcels: the most parcels of LAND you may own at once
   // four steps, after the design doc: a camp in an action area, a forward operating base behind a closed wall, a walled

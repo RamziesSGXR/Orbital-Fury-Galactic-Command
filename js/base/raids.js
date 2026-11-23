@@ -45,7 +45,7 @@ export const Raids = {
   // what the base can put against it: the wall as scored for defensibility, fighters fit for duty, and its guns
   raidStrength() {
     const f = this.fortify(), fit = this.troops.filter(t => this.trained(t) && !(t.hurt > 0) && t.state !== 'patrol').length;
-    return Math.round(f.score * 0.55 + Math.min(45, fit * 1.3) + f.armed * 20 + (this.has('armory') ? 6 : 0) + Math.min(C.WIRE_MAX, f.wire * C.WIRE_PER));     // (GC 0.64: and the wire)
+    return Math.round(f.score * 0.55 + Math.min(45, fit * 1.3) + f.armed * 20 + (this.has('armory') ? 6 : 0) + Math.min(C.WORKS_MAX, f.works));     // (GC 0.64: and the field works)
   },
   raidStep() {
     const r = this.raid; if (!r) return;
