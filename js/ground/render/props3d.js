@@ -89,9 +89,50 @@ const MODELS = {
 
 // (GC 0.40) the file a thing's model is kept in: 'tree:leaf' is prop_tree_leaf, 'post:mg' is prop_post_mg
 const FILE = (k) => 'prop_' + String(k).replace(/:/g, '_');
+// (GC 0.64) FOB COMMANDER'S BUILDINGS IN THE GROUND FIGHT. A thing on the ground that is one of the base's buildings ('bld:eob',
+// the Emergency Operations Bunker) is drawn whole, live parts and all, by the base's own maker (js/base/models.js), in your
+// command's colours. The base's code is fetched the first time one is asked for; until its models have come, nothing is drawn
+// (VIEW.m3 has 'bld' once they have, so the flat drawing can stand down). One stands for each key, at u.s metres a tile.
+// (GC 0.64) NOTHING HOVERS OFF A SLOPE. A thing is seated at the lowest point of the ground under its footprint (its middle and
+// eight points round it), so on a hillside its uphill edge sinks in rather than its downhill edge standing in the air. A tree
+// stands on its trunk; things laid along a line already follow the slope; things in the air are left alone. Kept a while per spot.
+const RING = Array.from({ length: 8 }, (_, i) => [Math.cos(i * Math.PI / 4), Math.sin(i * Math.PI / 4)]);
+const SEAT = new Map(); let seatN = 0;
+function seat(ground, x, z, r) {
+  if (!(r > 0.3)) return ground(x, z);
+  const key = `${Math.round(x * 4)},${Math.round(z * 4)},${Math.round(r * 4)}`; let y = SEAT.get(key);
+  if (y === undefined) { y = ground(x, z); for (const [c, s] of RING) y = Math.min(y, ground(x + c * r, z + s * r)); SEAT.set(key, y); }
+  return y;
+}
+const footOf = (u) => (u.l || u.up ? 0 : (u.k.startsWith('tree') ? 0.12 : u.k.startsWith('rock') ? 0.55 : 0.8) * u.s);
+const FLEET = { primary: '#3b4249', secondary: '#7fe9e0', logo: { shape: 'shield', symbol: 'star', pattern: 'none', bg: '#1d3f8a', fg: '#ffe600', rim: '#f4f4f4' } };
+class Blds {
+  constructor(scene) { this.scene = scene; this.live = new Map(); this.M = null; this.m = null; this.ready = false; this.asked = false; }
+  ask() {
+    if (this.asked) return; this.asked = true;
+    import('../../base/models.js').then((M) => {
+      let f = null; try { f = window.parent && window.parent.gc && window.parent.gc.app && window.parent.gc.app.faction; } catch { f = null; }
+      this.M = M; this.m = M.makeMats(f && f.logo && f.primary ? f : FLEET);
+      M.loadBuildings(() => { this.ready = true; VIEW.m3.add('bld'); });
+    }).catch((err) => console.warn('FOB buildings unavailable', err));
+  }
+  frame(list, ground) {
+    if (!list.length && !this.live.size) return;
+    if (!this.ready) { if (list.length) this.ask(); return; }
+    const seen = new Set();
+    for (const u of list) {
+      const key = u.key || `${u.k}|${Math.round(u.x)},${Math.round(u.y)}`; seen.add(key);
+      let g = this.live.get(key);
+      if (!g) { try { g = this.M.buildModel(u.k.slice(4), this.m, true); } catch { g = null; } if (!g) continue; g.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } }); this.scene.add(g); this.live.set(key, g); }
+      if (g.userData.r == null) { const b = new THREE.Box3().setFromObject(g); g.userData.r = Math.max(b.max.x - b.min.x, b.max.z - b.min.z) / 2 / (g.scale.x || 1); }
+      g.position.set(u.x, seat(ground, u.x, u.y, g.userData.r * u.s * 0.9) - (u.sink || 0), u.y); g.rotation.y = u.rot || 0; g.scale.setScalar(u.s);
+    }
+    for (const [k, g] of this.live) if (!seen.has(k)) { this.scene.remove(g); this.live.delete(k); }
+  }
+}
 export class Props3D {
   constructor(scene) {
-    this.scene = scene; this.kinds = new Map(); this.used = new Map();
+    this.scene = scene; this.kinds = new Map(); this.used = new Map(); this.blds = new Blds(scene);
     this.mat = new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true, flatShading: true });
     this.smooth = new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true });     // (the Blender models bring their own normals: rounded where they curve)
     // (GC 0.38) the objectives and side sites are models made in Blender (tools/blender/sites.py), listed in the index and
@@ -115,9 +156,11 @@ export class Props3D {
   // list: [{ k, x, y (the map's), s (footprint, metres), h (height scale, if not s), rot (radians), tint, dim }]; lit: how much light the hour leaves (0 to 1)
   frame(list, ground, lit = 1) {
     this.mat.color.setScalar(lit); this.smooth.color.setScalar(lit); this.used.clear();
+    const blds = []; if (++seatN > 240 || SEAT.size > 6000) { SEAT.clear(); seatN = 0; }     // (the seats are worked out again now and then: craters change the ground)
     for (const u of list) {
+      if (u.k.startsWith('bld:')) { blds.push(u); continue; }
       const m = this._kind(u.k); if (!m) continue; const n = this.used.get(m) || 0; if (n >= m.instanceMatrix.count) continue;
-      Q.setFromAxisAngle(UP, u.rot || 0); P.set(u.x, ground(u.x, u.y) - (u.sink || 0) + (u.up || 0), u.y); S.set(u.l || u.s, u.h || u.s, u.s);     // (GC 0.41) l: a thing laid along a line is stretched to its length
+      Q.setFromAxisAngle(UP, u.rot || 0); P.set(u.x, seat(ground, u.x, u.y, footOf(u)) - (u.sink || 0) + (u.up || 0), u.y); S.set(u.l || u.s, u.h || u.s, u.s);     // (GC 0.41) l: a thing laid along a line is stretched to its length
       if (u.l) {     // (GC 0.44) and it runs with the slope: each end on the ground where it is, not level through a hillside
         const c = Math.cos(u.rot || 0) * u.l, sn = Math.sin(u.rot || 0) * u.l, h1 = ground(u.x + c, u.y - sn), h0 = ground(u.x - c, u.y + sn), a = Math.atan2(h1 - h0, 2 * u.l);
         Q.multiply(Q2.setFromAxisAngle(FWD, a)); P.y = (h0 + h1) / 2 - (u.sink || 0) + (u.up || 0); S.x = u.l / Math.max(0.5, Math.cos(a));
@@ -125,6 +168,7 @@ export class Props3D {
       m.setMatrixAt(n, M4.compose(P, Q, S)); COL.set(u.tint || '#ffffff'); if (u.dim != null && u.dim < 1) COL.multiplyScalar(u.dim); if (u.flash) COL.multiplyScalar(2.4); m.setColorAt(n, COL);
       this.used.set(m, n + 1);
     }
+    this.blds.frame(blds, ground);
     let total = 0;
     for (const m of this.kinds.values()) { if (!m) continue; m.count = this.used.get(m) || 0; total += m.count; if (m.count) { m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; } }
     this.n = total;

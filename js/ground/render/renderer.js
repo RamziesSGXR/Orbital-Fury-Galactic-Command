@@ -456,6 +456,11 @@ export class Renderer {
       for (const o of m.objectives || []) {
         if (o.type === 'nuke') put('site_silo', o.x, o.y, 14, turn(o));     // (0.52) the launch site at its true size: an apron 28 m across, not four fifths of the ground to be held (72 m, with a missile 17 m thick that hid whoever held it)
         else if (o.type === 'vip') { if (!o.picked) put('site_crash', o.x, o.y, 7.5, ((o.x * 7 + o.y) | 0) % 6.28); put('site_pad', o.dx, o.dy, 11.5, 0); }     // (0.52: the wreck is the size of the shuttle that flies, 16 m)
+        else if (o.type === 'evac' && o.hx != null) {     // (GC 0.64) the shelter and the hangar are FOB Commander's own: the Emergency Operations Bunker, its door to the hangar, and a Vehicle Bay open toward it
+          const a = Math.atan2(o.hy - o.sy, o.hx - o.sx), ux = Math.cos(a), uy = Math.sin(a);
+          if (Math.abs(o.sx - cx) < half + 30 && Math.abs(o.sy - cy) < half + 30) out.push({ k: 'bld:eob', key: 'evac-s', x: o.sx, y: o.sy, s: 4.2, rot: Math.PI / 2 - a });
+          if (Math.abs(o.hx - cx) < half + 30 && Math.abs(o.hy - cy) < half + 30) out.push({ k: 'bld:vbay', key: 'evac-h', x: o.hx + ux * 12.5, y: o.hy + uy * 12.5, s: 8.4, rot: -Math.PI / 2 - a });
+        }
         else if (o.type === 'oil') put('site_derrick', o.x, o.y, Math.max(8, (o.r || 12) * 0.45), turn(o));     // (0.52) the rig is what is solid (C.solids.oil), so whoever holds the site stands outside it
       }
       { const hb = m.democharge; if (hb && (hb.state === 'landed' || hb.state === 'armed')) put('site_charge', hb.x, hb.y, 2.2, 0.6); }
@@ -463,7 +468,7 @@ export class Renderer {
       for (const sd of m.sides || []) {
         if (sd.done || sd.failed || sd.hidden) { if (sd.kind === 'radio' && sd.done) put('side_radio', sd.x, sd.y, Math.max(5, sd.r * 0.7), turn(sd)); else if (sd.kind === 'rescue' && sd.done && !sd.hidden) put('side_redoubt', sd.x, sd.y, 8, turn(sd)); continue; }
         if (sd.kind === 'radio') put('side_radio', sd.x, sd.y, Math.max(5, sd.r * 0.7), turn(sd));
-        else if (sd.kind === 'arty') put('side_howitzer', sd.x, sd.y, 5, Math.PI / 2 - (sd.face || 0));
+        else if (sd.kind === 'arty') put('prop_post_arty', sd.x, sd.y, 4.4, Math.PI / 2 - (sd.face || 0));     // (GC 0.64: the abandoned field gun is the Artillery Cannon's own model)
         else if (sd.kind === 'jammer') put('side_jam_' + sd.fac, sd.x, sd.y, Math.max(4, sd.r * 0.6), turn(sd));
         else if (sd.kind === 'rescue') put('side_redoubt', sd.x, sd.y, 8, turn(sd));     // (0.52) true size: a ring of sandbags chest high, 13 m across
       }

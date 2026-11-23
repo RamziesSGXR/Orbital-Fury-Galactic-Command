@@ -238,7 +238,9 @@ def spewer():   # the Molt's spore towers: three chimneys of chitin breathing sp
         a = i / 5 * TAU + 0.8; spike('root%d' % i, (math.cos(a) * 0.4, math.sin(a) * 0.4, 0.14), (math.cos(a) * 1.02, math.sin(a) * 1.02, 0.02), 0.08, m=m_dark)
 
 OUT = {}
-for fn in (silo, crash, pad, derrick, wreck, charge, radio, redoubt, howitzer, jam_bugs, jam_bots, jam_lizards, broadcast, relay, cache, spewer):
+# (GC 0.64) the landing pad is made by fleet.py now, shared with FOB Commander; the field gun is gone (the ground fight draws the
+# Artillery Cannon's model, prop_post_arty, for it). pad() and howitzer() are kept here only as they were.
+for fn in (silo, crash, derrick, wreck, charge, radio, redoubt, jam_bugs, jam_bots, jam_lizards, broadcast, relay, cache, spewer):
     fn(); bpy.context.view_layer.update()
     OUT[MADE[-1]] = export(MADE[-1], CUR, {'stand': (lambda: None)}, lod=0)
 # the picture: all of them set out in rows (after the export, which wants each at the origin)

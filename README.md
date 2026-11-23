@@ -1,6 +1,6 @@
 # Orbital Fury: Galactic Command
 
-**Prototype 0.63.0.** One war, run from four posts, in one game.
+**Prototype 0.64.0.** One war, run from four posts, in one game.
 
 You found a command (a name, a crest, colours) and hold the centre of the galaxy against three enemies. Everything in
 the war is yours to run, and each part changes the others:
@@ -13,6 +13,29 @@ the war is yours to run, and each part changes the others:
 | **The base** | Found a base on the system's key world: roads, zones, and buildings that grow along them. | +35% output from the system for each charter. |
 
 A system that falls takes its station and its base with it.
+
+## What's new in 0.64: one kit for both games, wire and warheads at the base
+
+- **The fleet's field kit** (tools/blender/fleet.py): your side's military pieces remade in one look (dark armour plate,
+  hazard stripes, cyan light strips) with nothing left from an old war: no towed guns on wheels, no timber towers, no
+  tripod machine guns in sandbags. The Artillery Cannon is a mass driver on an armoured plinth; the Heavy Turret Nest is a
+  twin autocannon behind a ring of blast barriers; the SAM Site a six-cell box launcher with a flat radar; the Lookout and
+  the Propaganda Tower steel masts (the Propaganda Tower with a lit screen and loudspeakers); the landing pad and the
+  barbed wire new too.
+- **Shared, not doubled.** The ground fight's abandoned field gun is the Artillery Cannon's own model (side_howitzer is
+  gone). FOB Commander draws its Defence Turret, Lookout Tower and Landing Pad with the ground fight's models (SHARED in
+  js/base/models.js), so each thing looks the same in both games. And the other way: the ground fight can stand FOB
+  Commander's own buildings, whole and in your command's colours ('bld:<type>' in js/ground/render/props3d.js, drawn by the
+  base's maker). The evacuation's shelter is now the base's Emergency Operations Bunker, and its hangar the Vehicle Bay.
+- **Barbed Wire in FOB Commander**: a line tool (ROADS), laid with the ground fight's wire model. Two supplies a tile;
+  every tile adds to the base's strength against a raid (up to 14). Nobody walks through it; a road through it leaves a
+  gap. It does not close the base: that is still the wall's job.
+- **The Missile Silo in FOB Commander**: the ground fight's launch site, as a building (Fortification Doctrine and an
+  Engineer Yard). Crewed, powered and fuelled, it assembles a mini-nuke over three days and holds two. A warhead is fired
+  at the next raid before it reaches the wire (and doubles its salvage), or ship one to the front from the silo's bar for
+  450 credits and Defence standing.
+- **test/floating.py** finds pieces of a model that touch nothing; **test/sheet.html** shows models side by side through
+  the game's loader.
 
 ## What's new in 0.62: a career, a collection, and stars who cost money
 

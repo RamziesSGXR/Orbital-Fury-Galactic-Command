@@ -20,7 +20,7 @@ import { Utilities } from './utils.js';
 import { Land, GRID } from './land.js';
 import { Terrain, TERRA } from './terrain.js';
 import { Market, bindMarket } from './market.js';
-import { emptyNet, raster, addLine, addRoad, heal, snap, nearestSeg, removeSeg, segLen, lineTiles, node, KINDS, absorb } from './net.js';
+import { emptyNet, raster, addLine, addRoad, heal, snap, nearestSeg, removeSeg, segLen, lineTiles, node, KINDS, absorb, isLine } from './net.js';
 
 export const MKEYS = ['def', 'pro', 'tru'];
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -168,7 +168,7 @@ export class Sim {
   walkGrid() {   // where people and vehicles can go: anywhere on the map that isn't a building or a wall; gates are open
     if (this._walkV === this.layoutV()) return this._walk;
     const N = this.N, w = new Uint8Array(N * N);
-    const W = this.win(); for (let z = W[1]; z < W[3]; z++) for (let x = W[0], i = z * N + x; x < W[2]; x++, i++) w[i] = !this.occ[i] && this.walls[i] !== 1 && (!this.blocked(i) || this.roads[i]) ? 1 : 0;
+    const W = this.win(); for (let z = W[1]; z < W[3]; z++) for (let x = W[0], i = z * N + x; x < W[2]; x++, i++) w[i] = !this.occ[i] && this.walls[i] !== 1 && this.walls[i] !== 3 && (!this.blocked(i) || this.roads[i]) ? 1 : 0;
     this._walk = w; this._walkV = this.layoutV(); return w;
   }
   layoutV() { return this.b.length * 7919 + this.nid * 31 + (this.roadsV || 0); }
@@ -209,7 +209,7 @@ export class Sim {
 
   // ---------------------------------------------------------------- roads and walls: one line tool
   roadPrice(type) { return type === 2 && this.hasTech('asphalt') ? Math.ceil(ROADS[2].cost / 2) : ROADS[type].cost; }
-  linePrice(k) { return k === 'wall' ? C.WALL : this.roadPrice(KINDS[k].surf) * (k === 'paved' ? 2 : k === 'bridge' ? 2 * C.BRIDGE : 1); }
+  linePrice(k) { return k === 'wall' ? C.WALL : k === 'wire' ? C.WIRE : this.roadPrice(KINDS[k].surf) * (k === 'paved' ? 2 : k === 'bridge' ? 2 * C.BRIDGE : 1); }
   tilePrice(surf) { return surf ? this.roadPrice(surf) : 0; }   // what one cell of a road is worth   // per tile of length; paved is two wide
   snapLine(p, mode, k, from) { return snap(this.net, p, mode, KINDS[k].w, from); }
   // can this line go here, and what does it cost? a: snapped start, b: snapped end
@@ -219,9 +219,9 @@ export class Sim {
     // nothing joins a bridge partway across: roads meet it at its ends, where it stands on the ground
     for (const p of [a, b]) { const d = this.deckAt(p.x, p.z); if (d != null && Math.abs(d - this.hAt(p.x, p.z)) > 0.25) return { ok: false, why: 'Roads join a bridge at its ends, not across the span', cost: 0 }; }
     { const q = this.equipLock(k); if (q) return { ok: false, why: `${q}: until then the engineers can only scrape dirt tracks`, cost: 0 }; }
-    for (const [x, z] of tiles) { const t = this.terr?.[z * this.N + x]; if (t === GROUND.ROCK) return { ok: false, why: 'Solid rock in the way', cost: 0 }; if (t === GROUND.WATER) { if (k === 'wall') return dry ? { ok: false, why: 'Water', cost: 0 } : this.shoreWall(a, b); return { ok: false, why: 'Water: lay a bridge across it', cost: 0 }; } }
+    for (const [x, z] of tiles) { const t = this.terr?.[z * this.N + x]; if (t === GROUND.ROCK) return { ok: false, why: 'Solid rock in the way', cost: 0 }; if (t === GROUND.WATER) { if (k === 'wire') return { ok: false, why: 'Water: wire stops at the shore', cost: 0 }; if (k === 'wall') return dry ? { ok: false, why: 'Water', cost: 0 } : this.shoreWall(a, b); return { ok: false, why: 'Water: lay a bridge across it', cost: 0 }; } }
     let cost = Math.ceil(len) * this.linePrice(k);
-    if (k !== 'wall') {
+    if (!isLine(k)) {
       // a road is graded as it is laid: it follows the ground, eased into an even climb, and costs more the steeper it is
       const pr = this.roadProfile(a, b), lim = k === 'path' ? TERRA.pathMax : TERRA.roadMax;
       if (pr.max > lim) return { ok: false, why: `Too steep even graded (${Math.round(pr.max * 100)}%, the most is ${Math.round(lim * 100)}%): ease the slope (LANDSCAPE) or go round`, cost: 0 };
@@ -293,8 +293,8 @@ export class Sim {
     const c = this.checkLine(a, b, k); if (!c.ok) return null;
     if (c.runs) { let first = null; for (const [p, q] of c.runs) { const s = addLine(this.net, p, q, k); if (s) { first ??= s; } } if (first) { this.spend('build', c.cost); this.rebuildNet(); } return first; }
     // a road is laid in stretches, one between each pair of roads it crosses, so every crossing is a junction
-    const parts = k === 'wall' || k === 'bridge' ? [addLine(this.net, a, b, k)].filter(Boolean) : addRoad(this.net, a, b, k), s = parts[0]; if (!s) return null;
-    if (k !== 'wall' && k !== 'bridge') { for (const q of parts) this.gradeRoad(q); for (const q of parts) if (this.net.segs.includes(q)) absorb(this.net, q); }   // (GC 0.63) graded first: absorbing can cut a stretch at a junction
+    const parts = isLine(k) || k === 'bridge' ? [addLine(this.net, a, b, k)].filter(Boolean) : addRoad(this.net, a, b, k), s = parts[0]; if (!s) return null;
+    if (!isLine(k) && k !== 'bridge') { for (const q of parts) this.gradeRoad(q); for (const q of parts) if (this.net.segs.includes(q)) absorb(this.net, q); }   // (GC 0.63) graded first: absorbing can cut a stretch at a junction
     if (k === 'bridge') for (const id of [s.a, s.b]) { const n = this.net.nodes.find(n => n.id === id); n.h ??= this.hAt(n.x, n.z); }   // the deck's ends stay where they were laid
     if (c.cost >= 0) this.spend('build', c.cost); else this.earn('refund', -c.cost);
     this.rebuildNet(); return s;
@@ -416,7 +416,7 @@ export class Sim {
   plotTiles() {
     const N = this.N, dist = new Map(), W = this.win(), DEPTH = 6, nodes = new Map(this.net.nodes.map(n => [n.id, n]));
     for (const sg of this.net.segs) {
-      if (sg.k === 'wall' || sg.k === 'bridge') continue;
+      if (isLine(sg.k) || sg.k === 'bridge') continue;
       const A = nodes.get(sg.a), B2 = nodes.get(sg.b); if (!A || !B2) continue;
       const L = Math.hypot(B2.x - A.x, B2.z - A.z); if (L < 0.5) continue;
       const ux = (B2.x - A.x) / L, uz = (B2.z - A.z) / L, hw = sg.k === 'paved' ? (sg.w || 2) / 2 : 0.5, R = hw + DEPTH + 1;
@@ -489,6 +489,13 @@ export class Sim {
     this.spend('repair', c); b.cond = 100; return true;
   }
   toggle(id) { const b = this.byId(id); if (b && (B[b.type].crew || B[b.type].pw < 0)) b.off = !b.off; }
+  // (GC 0.64) a warhead from the Missile Silo shipped to the front: credits and Defence standing
+  shipNuke(id) {
+    const b = this.byId(id), S = C.SILO; if (!b || b.type !== 'silo' || !(b.nukes > 0)) return false;
+    b.nukes--; this.earn('nuke', 0, S.cr); this.gain('def', S.def); this.stats.nukesShipped = (this.stats.nukesShipped || 0) + 1;
+    this.say('def', `A warhead from the Missile Silo is on its way to the front. ${S.cr} credits from Head Office; Defence standing rises.`); return true;
+  }
+  nukesReady() { return this.b.reduce((a, b) => a + (b.type === 'silo' && b.done && !b.off ? b.nukes || 0 : 0), 0); }
   setSquads(id, n) { const b = this.byId(id); if (b && B[b.type].squads) b.squads = clamp(n, 0, 3); }
   door(b) {   // the tile in front of a building, where people go in and out
     const cx = b.x + Math.floor(b.w / 2), cz = b.z + Math.floor(b.d / 2);
@@ -1332,12 +1339,13 @@ export class Sim {
     const guns = []; for (const b of this.b) { const g = this.stat(b, 'guns'); if (b.done && g && !b.off && (!B[b.type].need?.ammo || b.stock.ammo > 0)) guns.push([b.x + b.w / 2, b.z + b.d / 2, g]); }
     let manned = 0;
     gs.forEach((g, i) => { if (this.troops.some(t => t.gate === i && t.state === 'guard')) { manned++; posts.push([g.x, g.z, 5]); } });
-    let wall = 0, seen = 0, armed = 0; const wt = [];
+    let wall = 0, seen = 0, armed = 0, wire = 0; const wt = [];
     const W = this.win(); for (let zz = W[1]; zz < W[3]; zz++) for (let xx = W[0], i = zz * N + xx; xx < W[2]; xx++, i++) if (this.walls[i] === 1) { wall++; const x = xx + 0.5, z = zz + 0.5; wt.push(x, z); if (posts.some(p => Math.hypot(p[0] - x, p[1] - z) <= p[2])) seen++; if (guns.some(p => Math.hypot(p[0] - x, p[1] - z) <= p[2])) armed++; }
+    for (let zz = W[1]; zz < W[3]; zz++) for (let xx = W[0], i = zz * N + xx; xx < W[2]; xx++, i++) if (this.walls[i] === 3) wire++;     // (GC 0.64) barbed wire, tiles of it
     const key = this.b.filter(b => b.done && (b.type === 'hq' || b.type === 'fueldepot'));
     let depth = 0;
     for (const b of key) { let m = 99; for (let k = 0; k < wt.length; k += 2) m = Math.min(m, Math.hypot(wt[k] - b.x - b.w / 2, wt[k + 1] - b.z - b.d / 2)); depth += Math.min(1, m / 7); }
-    const f = { closed: !this.open, cover: wall ? seen / wall : 0, armed: wall ? armed / wall : 0, gates: gs.length, manned, entr: gs.length <= 2 ? 1 : Math.max(0, 1 - (gs.length - 2) * 0.35), depth: key.length ? depth / key.length : 1 };
+    const f = { wire, closed: !this.open, cover: wall ? seen / wall : 0, armed: wall ? armed / wall : 0, gates: gs.length, manned, entr: gs.length <= 2 ? 1 : Math.max(0, 1 - (gs.length - 2) * 0.35), depth: key.length ? depth / key.length : 1 };
     // turrets are a bonus on top: a watched, manned wall scores well; an armed one scores more
     f.score = f.closed ? Math.min(100, Math.round(45 * f.cover + 25 * (gs.length ? manned / gs.length : 1) + 15 * f.entr + 15 * f.depth + 15 * f.armed)) : 0;
     return f;
@@ -1353,6 +1361,13 @@ export class Sim {
     // the industrial complexes turn fuel into supplies
     for (const b of this.b) { const pm = B[b.type].pump; if (pm && b.done && !b.off) { const w = this.work(b); b.stock.fuel = Math.min(this.storeCap(b, 'fuel'), (b.stock.fuel || 0) + pm * w); } }
     for (const b of this.b) { const mk = this.stat(b, 'make'); if (!b.done || b.off || !mk || (B[b.type].need?.fuel && (b.stock.fuel || 0) < 1)) continue; const w = this.work(b); if (w <= 0) continue; if (B[b.type].need?.fuel) b.stock.fuel = Math.max(0, b.stock.fuel - 10 * w); this.earn(b.type === 'mine' ? 'mine' : 'industry', Math.round(mk * w)); }
+    // (GC 0.64) the Missile Silo assembles a warhead over a few days, crewed, powered and fuelled
+    for (const b of this.b) {
+      if (b.type !== 'silo' || !b.done || b.off) continue; const S = C.SILO; b.nukes ||= 0;
+      if (b.nukes >= S.max || (b.stock.fuel || 0) < S.fuel) continue; const w = Math.min(1, this.work(b)); if (w <= 0) continue;
+      b.stock.fuel -= S.fuel; b.nukeT = (b.nukeT || 0) + w / S.days;
+      if (b.nukeT >= 0.999) { b.nukeT = 0; b.nukes++; this.say('def', `The Missile Silo has a warhead ready (${b.nukes} of ${S.max}). It goes up at the next raid, or ship it to the front.`); this.events.push({ t: 'nuke' }); }
+    }
     this.marketDay();   // prices move, offers lapse, and the Head Office commitments are paid
     const f = this.flow; f.days.push(f.today); if (f.days.length > 7) f.days.shift(); f.today = this.newDay();
   }

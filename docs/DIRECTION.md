@@ -51,6 +51,15 @@ also why they are so capable and so well equipped: a great deal has been spent o
 ## Look and feel
 
 - Buildings, on the ground and in space, reworked with a cyberpunk science-fiction flair; floating parts fixed.
+  **(0.64: your side's field kit remade in one look (artillery, heavy turret, SAM site, lookout, propaganda tower, landing
+  pad, wire); not every building is to be redone, only what looks like an old war. test/floating.py finds loose pieces.
+  To come: the enemy's posts, the base's own buildings where they look dated, the station)**
+- One model for one thing across the mini-games, and no doubles: what the ground fight and FOB Commander both have looks
+  the same in both. **(0.64: the field gun is the artillery; FOB's Defence Turret, Lookout and Landing Pad are the ground
+  fight's)** FOB Commander builds what the ground fight has: **(0.64: barbed wire; the Missile Silo, which makes nukes)**
+  To come: sandbags and trenches, the comms mast and the radio mast as one. The ground fight uses FOB Commander's buildings
+  too: **(0.64: the evacuation's shelter and hangar are the base's bunker and vehicle bay)** To come: the work site's
+  warehouse and hangar, the oil pump (the base's extractor), the capital's city blocks (hab blocks), the radio mast.
 - Weapons that look and fire with more character; explosions that look and behave better; more detail in textures.
 - Ground fog that reacts; maps that change as you play (flooding, weather); buildings and objects that can be destroyed
   and change the land.

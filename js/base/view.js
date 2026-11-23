@@ -3,7 +3,7 @@ import * as THREE from './vendor/three.js';
 import { B, ZONES, ZKEYS, UTIL, LAND } from './config.js';
 import { dims, wingOf, PLAZA } from './sim.js';
 import { BIOMES } from './site.js';
-import { SCRUB_COL, loadBuildings, makeMats, mergeStatic, buildModel, makePerson, poseKit, makeForklift, makeTruck, makeLRV, makeTank, makeCrate, makeDropship, wrap } from './models.js';
+import { SCRUB_COL, loadBuildings, sharedGeo, makeMats, mergeStatic, buildModel, makePerson, poseKit, makeForklift, makeTruck, makeLRV, makeTank, makeCrate, makeDropship, wrap } from './models.js';
 const VMAKE = { lift: makeForklift, truck: makeTruck, lrv: makeLRV, tank: makeTank };
 import { Noise } from './noise.js';
 import { Crowd3D } from '../model3d.js';
@@ -531,6 +531,20 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
       }
     }
     mergeStatic(wallG); this.roadG.add(wallG);
+    // (GC 0.64) barbed wire: the ground fight's own model, a length of it a tile, with gaps where roads run through
+    const wg = sharedGeo(this.m, 'prop_wire'), wires = [];
+    if (wg) for (const sg of net.segs) {
+      if (sg.k !== 'wire') continue;
+      const a = nd(sg.a), b = nd(sg.b), L = Math.hypot(b.x - a.x, b.z - a.z), n = Math.max(1, Math.round(L)), ang = -Math.atan2(b.z - a.z, b.x - a.x);
+      for (let i = 0; i < n; i++) { const t = (i + 0.5) / n, x = a.x + (b.x - a.x) * t, z = a.z + (b.z - a.z) * t, tx = Math.floor(x), tz = Math.floor(z); if (s.roads[tz * N + tx]) continue; wires.push([x, z, ang, L / n]); }
+    }
+    if (wires.length) {
+      this.m.model ||= new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0.04, side: THREE.DoubleSide });
+      const im = new THREE.InstancedMesh(wg, this.m.model, wires.length), M = new THREE.Matrix4(), Q = new THREE.Quaternion(), P = new THREE.Vector3(), S = new THREE.Vector3(), Y = new THREE.Vector3(0, 1, 0);
+      const low = (x, z, ang, l) => { if (!s.hAt) return 0; const c = Math.cos(ang) * l / 2, n = -Math.sin(ang) * l / 2; return Math.min(s.hAt(x, z), s.hAt(x + c, z + n), s.hAt(x - c, z - n)); };     // (seated at its lowest end: none of it in the air on a slope)
+      wires.forEach(([x, z, ang, l], i) => { P.set(this.wx(x), low(x, z, ang, l), this.wx(z)); Q.setFromAxisAngle(Y, ang); S.set(l / 2.1, 0.5, 0.55); im.setMatrixAt(i, M.compose(P, Q, S)); });
+      im.castShadow = true; im.receiveShadow = true; this.roadG.add(im);
+    }
     for (const [id, angs] of turns) {
       const n = nd(id), bent = angs.length !== 2 || Math.abs(Math.cos(angs[0] - angs[1]) + 1) > 0.1;
       if (bent && !gateAt(n.x, n.z)) { const t = this.tower(n.x - 0.5, n.z - 0.5); this.roadG.add(t); }

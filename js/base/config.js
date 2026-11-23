@@ -5,6 +5,8 @@ export const VERSION = '0.23.0';
 export const C = {
   N: 1725,                  // the map is N x N cells of 8 m: a 13.8 km section of the planet, GRID x GRID parcels of PARCEL cells each
   WALL: 4,
+  WIRE: 2, WIRE_PER: 0.5, WIRE_MAX: 14,
+  SILO: { days: 3, fuel: 12, max: 2, raid: 90, cr: 450, def: 4, salvage: 2 },     // (GC 0.64) the Missile Silo: days to a warhead, fuel a day, held, raid strength it adds, what shipping one pays, salvage times a raid's size     // (GC 0.64) barbed wire: supplies a tile; raid strength a tile of it, and the most it adds
   BRIDGE: 3,               // a road tile over water costs this many times as much
   // the charter: how much land the Bureau lets you hold. parcels: the most parcels of LAND you may own at once
   // four steps, after the design doc: a camp in an action area, a forward operating base behind a closed wall, a walled
@@ -222,6 +224,8 @@ export const B = {
               desc: 'Vanguards pass through on their way to the front, kept in cryo until needed. Staffed and powered, it earns +3 Defence standing every day.' },
   vbay:     { name: 'Vehicle Bay', group: 'military', w: 3, d: 3, cost: 380, up: 20, crew: 1, needs: ['motorpool'], tech: 'lrv', need: { fuel: 40 }, armour: true,
               desc: 'Keeps a LRV, and a tank once Armoured Doctrine is researched. Special operations can take them along. A wrecked vehicle is replaced in two watches.' },
+  silo:     { name: 'Missile Silo', group: 'military', w: 3, d: 3, cost: 1400, up: 36, pw: -6, crew: 3, unique: true, tech: 'fortworks', needs: ['yard'], need: { fuel: 40 }, large: true,
+              desc: 'The launch site from the ground fight. Crewed, powered and fuelled, it assembles a mini-nuke over three days and holds two. A warhead in the silo is fired at the next raid before it reaches the wire; or ship it to the front for credits and Defence standing.' },
   shelter:  { name: 'Underground Bunker', group: 'military', w: 2, d: 2, cost: 280, up: 10, pw: -1, mor: 3, needs: ['barracks'],
               desc: 'A blast door and a long stairway down. Knowing it is there helps everyone sleep.' },
 

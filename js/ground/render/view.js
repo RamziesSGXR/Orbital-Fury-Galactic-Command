@@ -21,7 +21,7 @@ export const TRUE = {
   // he is seen over it. Sandbags 1.2 m, a barricade and a concrete barrier 1.3 m, wire 1 m, a foxhole's parapet 1.1 m. (They were
   // sized for troopers drawn three times life: a wall 3.8 m tall hid everyone behind it.) Their length is still the game's own.
   field: { cover0: [1.1, 1.07], cover1: [1.0, 0.85], cover2: [1.0, 0.85], wire: [1.0, 1.0], trench: [1.0, 1.2] },
-  prop: { crate: [0, 0.8], mine: [0, 0.3], shieldgen: [0, 1.6], aturret: [0, 0.9], 'post:mg': [0, 2.0], 'post:mggun': [0, 2.0], 'post:lookout': [0, 1.6], 'post:sam': [0.8], 'post:arty': [0.85], 'post:tower': [0.85], turret: [0.8], side_howitzer: [0.6], site_charge: [0, 1.0] },     // [a share of its size] or [0, metres]
+  prop: { crate: [0, 0.8], mine: [0, 0.3], shieldgen: [0, 1.6], aturret: [0, 0.9], 'post:mg': [0, 2.0], 'post:mggun': [0, 2.0], 'post:lookout': [0, 1.6], 'post:sam': [0.8], 'post:arty': [0.85], 'post:tower': [0.85], turret: [0.8], prop_post_arty: [0.6], site_charge: [0, 1.0] },     // [a share of its size] or [0, metres]
 };
 export const trueR = (k, r) => (VIEW.ts && TRUE.air[k] ? TRUE.air[k] : r);
 

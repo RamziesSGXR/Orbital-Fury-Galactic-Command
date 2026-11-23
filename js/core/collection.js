@@ -53,9 +53,11 @@ const OBJS = [
   ['oil', 'Pump the oil', 'The Molt\'s operation. Keep the enemy off the pump, or the tank barely fills. Build in front of it while it is quiet.', 'site_derrick'],
   ['cannon', 'Destroy the defence cannon', 'The Foundry\'s operation. While it stands the ship dodges and strikes go wide; aimed shots take it down fastest.', 'prop_cannon'],
   ['dome', 'Bring down the shield dome', 'The Talon\'s operation. The dome stops strikes: break its nodes, and fire in the moment it flickers.', 'prop_shieldgen'],
-  ['gun', 'Defend the defence gun', 'The capital\'s last gun charges on its own, slower with the enemy on it. Keep them off it more than anything.', 'side_howitzer'],
+  ['gun', 'Defend the defence gun', 'The capital\'s last gun charges on its own, slower with the enemy on it. Keep them off it more than anything.', 'prop_post_arty'],
 ];
 
+// (GC 0.64) buildings drawn with the ground fight's own model (js/base/models.js SHARED)
+const SHARED_ART = { turret: 'prop_post_mg', lookout: 'prop_post_lookout', pad: 'site_pad', silo: 'site_silo' };
 const GROUP = { core: 'Core', power: 'Power', industry: 'Industry', military: 'Military', living: 'Living', propaganda: 'Publicity' };
 export const KINDS = [
   ['foe', 'ENEMIES', 'Met on the ground: each one once seen in a fight. The count is how many you have killed.'],
@@ -72,7 +74,7 @@ export function catalogue() {
   for (const f of ['bugs', 'bots', 'lizards']) for (const [k, name, what, about, model] of FOES[f]) list.foe.push({ id: `${f}.${k}`, name, what: `${FOE[f].name} · ${what}`, tag: what, about, art: { model }, side: f });
   for (const [id, name, about, model] of WORLDS) list.world.push({ id, name, what: 'World', about, art: { model } });
   for (const [id, name, about, model] of OBJS) list.obj.push({ id, name, what: 'Objective', about, art: { model } });
-  for (const [id, b] of Object.entries(B)) if (b.name && b.desc && !b.hidden && id !== 'starter') list.building.push({ id, name: b.name, what: `Base · ${GROUP[b.group] || b.group}`, about: b.desc, art: { model: 'buildings', part: id } });
+  for (const [id, b] of Object.entries(B)) if (b.name && b.desc && !b.hidden && id !== 'starter') list.building.push({ id, name: b.name, what: `Base · ${GROUP[b.group] || b.group}`, about: b.desc, art: SHARED_ART[id] ? { model: SHARED_ART[id] } : { model: 'buildings', part: id } });
   for (const [id, p] of Object.entries(OC.parts)) if (p.name && p.about) list.part.push({ id, name: p.name, what: `Station · ${(OC.groups.find((g) => g.id === p.group) || {}).name || p.group}`, about: p.about, art: { model: 'station', part: id } });
   return list;
 }

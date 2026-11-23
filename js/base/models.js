@@ -900,12 +900,27 @@ export const SCRUB_COL = { desert: ['#8a7550', '#6e5d44'], steppe: ['#6b7a3e', '
 // (in assets/models/buildings.json, made by tools/blender/base.py from the plans tools/blender/dump_base.py writes), drawn with the
 // same material as the people and the ground's models. What moves, lights up, is glass, or carries a picture (a flag with your
 // crest, a sign) is still made here and stands on the model. plain: the old all-code building, as the plans are taken from.
-export const BLD = { data: new Map(), veh: {}, asked: false };
+export const BLD = { data: new Map(), veh: {}, shared: {}, asked: false };
+// (GC 0.64) SHARED WITH THE GROUND FIGHT. A building that is the same thing as one of the ground fight's posts is drawn with that
+// post's model (tools/blender/fleet.py), so the two games show one Defence Turret, one Lookout Tower, one Landing Pad.
+//   file: the model; k: its size here (the models have a footprint radius of about one); spin: a second model on it that turns
+// Until the files come the building is drawn as before. LINES: the ground fight's field works laid along a line (the view lays them).
+export const LINES = ['prop_wire'];
+// one of those models as it was made (a footprint radius of about one), for the view to lay out
+export function sharedGeo(m, f) { const c = m._sharedRaw ||= new Map(); let g = c.get(f); if (!g && BLD.shared[f]) { g = staticGeo(BLD.shared[f]); c.set(f, g); } return g || null; }
+export const SHARED = {
+  turret: { file: 'prop_post_mg', k: 0.6, spin: 'prop_post_mggun' },
+  lookout: { file: 'prop_post_lookout', k: 0.56 },
+  pad: { file: 'site_pad', k: 1.56 },
+  silo: { file: 'site_silo', k: 1.45 },     // (the ground fight's launch site: the Missile Silo)
+};
 export function loadBuildings(done) {
   if (BLD.asked || typeof fetch !== 'function') return; BLD.asked = true;
   fetch('assets/models/buildings.json').then((r) => (r.ok ? r.json() : null)).then((pack) => {     // (every building and its early forms, in one file)
     for (const [k, d] of Object.entries(pack || {})) if (d && d.frames) BLD.data.set(k, d);
-    return Promise.all(['veh_lrv', 'veh_dropship'].map((f) => fetch(`assets/models/${f}.json`).then((r) => (r.ok ? r.json() : null)).then((d) => { if (d && d.frames) BLD.veh[f] = d; }).catch(() => {})));
+    const files = new Set(LINES); for (const s of Object.values(SHARED)) { files.add(s.file); if (s.spin) files.add(s.spin); }
+    return Promise.all([...['veh_lrv', 'veh_dropship'].map((f) => fetch(`assets/models/${f}.json`).then((r) => (r.ok ? r.json() : null)).then((d) => { if (d && d.frames) BLD.veh[f] = d; }).catch(() => {})),
+      ...[...files].map((f) => fetch(`assets/models/${f}.json`).then((r) => (r.ok ? r.json() : null)).then((d) => { if (d && d.frames) BLD.shared[f] = d; }).catch(() => {}))]);
   }).then(() => { if (BLD.data.size && done) done(); }).catch(() => {});
 }
 // the meshes of a building that are its plain structure (the rest is alive in some way and stays as made)
@@ -932,8 +947,17 @@ function modelled(g, m, type) {
   m.model ||= new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0.04, side: THREE.DoubleSide });
   const mesh = new THREE.Mesh(geo, m.model); mesh.castShadow = true; mesh.receiveShadow = true; mesh.userData.model3 = true; g.add(mesh);
 }
+// a building drawn with the ground fight's model (SHARED): the model, and the part that turns in a group of its own
+function sharedModel(g, m, sh) {
+  const cache = m._shared ||= new Map(), geo = (f) => { let x = cache.get(f); if (!x) { x = staticGeo(BLD.shared[f]); x.scale(sh.k, sh.k, sh.k); cache.set(f, x); } return x; };
+  m.model ||= new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0.04, side: THREE.DoubleSide });
+  const put = (f, to) => { const o = new THREE.Mesh(geo(f), m.model); o.castShadow = true; o.receiveShadow = true; o.userData.model3 = true; to.add(o); return o; };
+  put(sh.file, g);
+  if (sh.spin && BLD.shared[sh.spin]) { const t = new THREE.Group(); g.add(t); put(sh.spin, t); g.userData.spin = t; }
+}
 export function buildModel(type, m, merge = false, spec = null, plain = false) {
-  const g = new THREE.Group(), std = spec?.std != null && spec.std < 2;
+  const g = new THREE.Group(), std = spec?.std != null && spec.std < 2, sh = !plain && !std && SHARED[type];
+  if (sh && BLD.shared[sh.file]) { sharedModel(g, m, sh); if (spec && (spec.design || spec.parts?.length)) decorate(g, m, spec); if (merge) mergeStatic(g); return g; }
   if (std) g.add(stdModel(type, spec.std, spec.w, spec.d, m)); else (MAKE[type] || MAKE.hab)(g, m);
   if (g.children.length === 1 && g.children[0].userData.crates) g.userData.crates = g.children[0].userData.crates;
   const file = std ? `${type}-s${spec.std}-${spec.w}x${spec.d}` : type;     // (the early standards, tents and prefabs, are models of their own, each way round)

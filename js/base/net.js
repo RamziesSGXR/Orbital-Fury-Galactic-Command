@@ -2,7 +2,7 @@
 // Segments are turned into tiles for walking, driving and building: roads mark their tiles with a surface, walls block
 // theirs, and where a road crosses a wall the tile becomes a gate. Whatever the walls fully enclose is the base.
 //
-// A segment: { id, a, b, k: 'dirt' | 'paved' | 'wall', w } where a and b are node ids and w is its width in tiles.
+// A segment: { id, a, b, k: 'dirt' | 'paved' | 'path' | 'bridge' | 'wall' | 'wire', w } where a and b are node ids and w is its width in tiles.
 // Coordinates are in tiles, so the centre of tile (i, j) is (i + 0.5, j + 0.5).
 
 export const KINDS = {
@@ -11,7 +11,9 @@ export const KINDS = {
   bridge: { name: 'Bridge', w: 2, surf: 2 },
   path: { name: 'Footpath', w: 1, surf: 3 },   // a paved walk, one cell: people move as on a paved road, vehicles ignore it   // a paved deck on piers: spans water, ravines and rough ground
   wall:  { name: 'Wall', w: 1, surf: 0 },
+  wire:  { name: 'Barbed Wire', w: 1, surf: 0 },   // (GC 0.64) a line of the ground fight's wire: no road, no wall, nobody walks through it
 };
+export const isLine = k => k === 'wall' || k === 'wire';   // drawn along a line and not a road
 const RANK = [0, 2, 3, 1];   // where two cross, the better surface shows: paved, then dirt, then a footpath
 const REACH = 0.22;   // tiles within half the width plus this of the centreline belong to a segment (keeps diagonals 4-connected)
 
@@ -58,7 +60,7 @@ export function snap(net, p, mode, w, from) {
   for (const s of net.segs) {
     const a = node(net, s.a), b = node(net, s.b), r = distSeg(x, z, a.x, a.z, b.x, b.z);
     // a line ending beside a road (close enough to touch it) joins its centreline, so the two become one junction
-    if (!(r.d < (s.k === 'wall' ? 0.6 : s.w / 2 + w / 2 + 0.35) && r.t > 0.02 && r.t < 0.98) || (best && r.d >= best.d)) continue;
+    if (!(r.d < (isLine(s.k) ? 0.6 : s.w / 2 + w / 2 + 0.35) && r.t > 0.02 && r.t < 0.98) || (best && r.d >= best.d)) continue;
     let hx = a.x + (b.x - a.x) * r.t, hz = a.z + (b.z - a.z) * r.t;
     if (ray) {   // where the line itself crosses this one, if it does so short of running off its end
       const ex = b.x - a.x, ez = b.z - a.z, den = ray.ux * ez - ray.uz * ex;
@@ -95,7 +97,7 @@ export function addLine(net, p, q, k, w = KINDS[k].w) {
   if (a === b) return null;
   const s = { id: net.nid++, a, b, k, w }; net.segs.push(s); return s;
 }
-const isRoad = s => s.k !== 'wall' && s.k !== 'bridge';
+const isRoad = s => !isLine(s.k) && s.k !== 'bridge';
 // where the stretch from a to b properly crosses road s (inside both, not at their ends): how far along a-b, and where
 function crossAt(net, a, b, s) {
   const c = node(net, s.a), d = node(net, s.b), rx = b.x - a.x, rz = b.z - a.z, ex = d.x - c.x, ez = d.z - c.z, den = rx * ez - rz * ex;
@@ -190,13 +192,13 @@ export function raster(net, N, block = null, win = null) {
     const a = node(net, s.a), b = node(net, s.b);
     for (const [x, z] of lineTiles(N, a.x, a.z, b.x, b.z, s.w)) {
       const i = z * N + x;
-      if (s.k === 'wall') walls[i] = 1; else if (RANK[KINDS[s.k].surf] > RANK[roads[i]]) roads[i] = KINDS[s.k].surf;
+      if (s.k === 'wall') walls[i] = 1; else if (s.k === 'wire') { if (!walls[i]) walls[i] = 3; } else if (RANK[KINDS[s.k].surf] > RANK[roads[i]]) roads[i] = KINDS[s.k].surf;     // (3: wire)
     }
   }
-  each(i => { if (walls[i] && roads[i]) walls[i] = 2; });   // a road through a wall is a gate
+  each(i => { if (walls[i] && roads[i]) walls[i] = walls[i] === 3 ? 0 : 2; });   // a road through a wall is a gate (and through wire, a gap in it)
   // flood in from the map edge; what it can't reach, walls and gates aside, is inside
   const out = new Uint8Array(N * N), stack = [];
-  const shut = i => walls[i] || (block && block[i] && !roads[i]);   // water and rock shut the base in like a wall, unless a road bridges them
+  const shut = i => (walls[i] && walls[i] !== 3) || (block && block[i] && !roads[i]);   // water and rock shut the base in like a wall, unless a road bridges them
   const seed = i => { if (!out[i] && !shut(i)) { out[i] = 1; stack.push(i); } };
   for (let x = X0; x < X1; x++) { seed(Z0 * N + x); seed((Z1 - 1) * N + x); }
   for (let z = Z0; z < Z1; z++) { seed(z * N + X0); seed(z * N + X1 - 1); }
@@ -215,7 +217,7 @@ export function raster(net, N, block = null, win = null) {
       const i = comp[h], x = i % N, z = (i / N) | 0;
       for (const j of [x > X0 ? i - 1 : -1, x < X1 - 1 ? i + 1 : -1, z > Z0 ? i - N : -1, z < Z1 - 1 ? i + N : -1]) {
         if (j < 0) continue;
-        if (walls[j]) walled = true;
+        if (walls[j] && walls[j] !== 3) walled = true;
         if (!out[j] && !shut(j) && !met[j]) { met[j] = 1; comp.push(j); }
       }
     }

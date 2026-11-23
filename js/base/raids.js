@@ -45,7 +45,7 @@ export const Raids = {
   // what the base can put against it: the wall as scored for defensibility, fighters fit for duty, and its guns
   raidStrength() {
     const f = this.fortify(), fit = this.troops.filter(t => this.trained(t) && !(t.hurt > 0) && t.state !== 'patrol').length;
-    return Math.round(f.score * 0.55 + Math.min(45, fit * 1.3) + f.armed * 20 + (this.has('armory') ? 6 : 0));
+    return Math.round(f.score * 0.55 + Math.min(45, fit * 1.3) + f.armed * 20 + (this.has('armory') ? 6 : 0) + Math.min(C.WIRE_MAX, f.wire * C.WIRE_PER));     // (GC 0.64: and the wire)
   },
   raidStep() {
     const r = this.raid; if (!r) return;
@@ -58,7 +58,9 @@ export const Raids = {
   },
   raidResolve() {
     const r = this.raid, q = kindOf(r.k); this.raid = null;
-    const str = this.raidStrength(), atk = this.raidAttack(r), margin = str - atk + this.rng.int(21) - 10, shelter = this.has('shelter');
+    const silo = this.b.find(b => b.type === 'silo' && b.done && !b.off && b.nukes > 0);     // (GC 0.64) a warhead in the silo goes up first
+    if (silo) silo.nukes--;
+    const str = this.raidStrength() + (silo ? C.SILO.raid : 0), atk = this.raidAttack(r), margin = str - atk + this.rng.int(21) - 10, shelter = this.has('shelter');
     const fit = this.rng.shuffle(this.troops.filter(t => !(t.hurt > 0) && t.state !== 'patrol'));
     const wound = n => { const w = fit.splice(0, Math.max(0, Math.round(n * (shelter ? 0.5 : 1)))); for (const t of w) { t.hurt = C.HEAL; t.state = 'hurt'; t.job = null; t.at = null; t.gate = null; } return w.length; };
     const damage = (n, by) => { const hit = this.rng.shuffle(this.b.filter(b => b.done && !B[b.type].fixed && b.type !== 'hq')).slice(0, n); for (const b of hit) b.cond = Math.max(5, b.cond - by - this.rng.int(10)); return hit.length; };
@@ -67,8 +69,8 @@ export const Raids = {
     // supplies of wire and sandbags and a night's sleep. Nobody is hurt and nothing is knocked down.
     void fit; void wound; void damage;
     if (margin >= 12) {
-      out = 'repelled'; const sal = r.size * 35; this.earn('salvage', sal); this.gain('def', 3); this.mood = Math.min(15, this.mood + 2); this.pride += 2; this.stats.raidsWon = (this.stats.raidsWon || 0) + 1;
-      text = `${q.name} turned back at the sight of the wall. ${sal} supplies of salvage recovered. Defence standing rises.`;
+      out = 'repelled'; const sal = r.size * 35 * (silo ? C.SILO.salvage : 1); this.earn('salvage', sal); if (silo) this.stats.nukesFired = (this.stats.nukesFired || 0) + 1; this.gain('def', 3); this.mood = Math.min(15, this.mood + 2); this.pride += 2; this.stats.raidsWon = (this.stats.raidsWon || 0) + 1;
+      text = silo ? `A warhead from the Missile Silo met ${q.name.toLowerCase()} before it reached the wire. ${sal} supplies of salvage recovered. Defence standing rises.` : `${q.name} turned back at the sight of the wall. ${sal} supplies of salvage recovered. Defence standing rises.`;
     } else if (margin >= -6) {
       out = 'held'; this.gain('def', 1); this.stats.raidsWon = (this.stats.raidsWon || 0) + 1;
       text = `${q.name} tested the perimeter and left. No harm done; a watched, closed wall would have earned a commendation.`;

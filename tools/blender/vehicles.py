@@ -177,7 +177,7 @@ def worksite():     # a work site: scaffolding, stores and a mast, where somethi
     disc('drum', 0.11, 0.3, 0.04, uni_d, 8, at=(0.66, 0.5)); cyl('mast', (-0.6, -0.5, 0), (-0.6, -0.5, 2.0), 0.025, m=steel_d, sides=4); ball('lamp', (-0.6, -0.5, 2.04), hazard, 0.07); box('sign', (0.4, 0.03, 0.26), (0, -0.48, 1.25), m=hazard)
 
 OUT = {}
-ALL = (dropship, striker, lrv, mech, shuttle, dog, uav, mine, shieldgen, wire, trench, cover0, cover1, cover2, lz, bridge, worksite)
+ALL = (dropship, striker, lrv, mech, shuttle, dog, uav, mine, shieldgen, trench, cover0, cover1, cover2, lz, bridge, worksite)     # (GC 0.64: the wire is fleet.py's)
 for fn in ALL:
     fn(); bpy.context.view_layer.update()
     OUT[MADE[-1]] = export(MADE[-1], CUR, {'stand': (lambda: None)}, lod=0)

@@ -254,7 +254,9 @@ export function drawEvac(ctx, m, now, px, labels, scale) {
   ctx.strokeStyle = 'rgba(230,230,210,0.35)'; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(o.sx, o.sy); ctx.lineTo(o.hx, o.hy); ctx.stroke();
   ctx.strokeStyle = 'rgba(255,230,0,0.6)'; ctx.lineWidth = px(1.4); ctx.setLineDash([px(4), px(6)]); ctx.lineDashOffset = -now * px(10);
   ctx.beginPath(); ctx.moveTo(o.sx, o.sy); ctx.lineTo(o.hx, o.hy); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
-  // the shelter: a bunker with its door toward the hangar
+  // the shelter: a bunker with its door toward the hangar (GC 0.64: in 3D, FOB Commander's own bunker and vehicle bay stand there instead)
+  const fob = VIEW.p3 && VIEW.m3.has('bld');
+  if (!fob) {
   ctx.save(); ctx.translate(o.sx, o.sy); ctx.rotate(ang);
   ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(-9.5, -7.5, 19, 15);
   ctx.fillStyle = 'rgba(200,205,195,0.92)'; ctx.fillRect(-8, -6, 16, 12);
@@ -271,6 +273,7 @@ export function drawEvac(ctx, m, now, px, labels, scale) {
   const parked = Math.max(0, Math.min(2, Math.ceil((E.need - o.saved) / E.shuttle)));
   for (let i = 0; i < parked; i++) shuttle(ctx, 14, i === 0 ? -5.5 : 5.5, 0, 6, 'rgba(235,240,245,0.95)', 'rgba(40,50,60,0.9)', px);
   ctx.restore();
+  }
   for (const c of m.civs) if (!c.dead && !c.safe) { if (VIEW.air) VIEW.air.push({ k: 'civ' + (c.id % 3), x: c.x, y: c.y, r: VIEW.ts ? TRUE.civ : Math.max(2.2, px(6)), face: c.face || 0, walk: m.t * 9 + c.id }); else drawCivBody(ctx, c, now, px); }     // (GC 0.27) in 3D the citizens are the game's own, walking
   for (const c of m.civs) if (c.dead) { ctx.strokeStyle = 'rgba(255,90,90,0.55)'; ctx.lineWidth = px(1.2); const r = Math.max(1, px(3)); ctx.beginPath(); ctx.moveTo(c.x - r, c.y - r); ctx.lineTo(c.x + r, c.y + r); ctx.moveTo(c.x + r, c.y - r); ctx.lineTo(c.x - r, c.y + r); ctx.stroke(); }
   if (!o.done) {

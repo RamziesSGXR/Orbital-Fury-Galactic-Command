@@ -132,7 +132,7 @@ function howitzerArt(ctx, x, y, face, now, px, live, who) {
 export function drawArty(ctx, m, now, px, labels, scale) {
   for (const s of m.sides || []) {
     if (s.kind !== 'arty' || s.done || s.failed) continue;
-    if (!(VIEW.p3 && VIEW.m3.has('side_howitzer'))) howitzerArt(ctx, s.x, s.y, s.face, now, px, false, s);
+    if (!(VIEW.p3 && VIEW.m3.has('prop_post_arty'))) howitzerArt(ctx, s.x, s.y, s.face, now, px, false, s);
     if (s.state === 'active') {
       const f = s.holdT / C.sides.arty.holdSec, R = Math.max(C.sides.arty.holdR, px(14));
       ctx.strokeStyle = 'rgba(127,216,255,0.35)'; ctx.lineWidth = px(3); ring(ctx, s.x, s.y, R); ctx.stroke();

@@ -1,0 +1,33 @@
+<!doctype html><meta charset="utf-8"><title>Models side by side</title>
+<style>html,body{margin:0;background:#1c2026;color:#dde;font:12px ui-monospace,monospace;overflow:hidden}canvas{display:block}.l{position:fixed;color:#fff;text-shadow:0 1px 2px #000;padding:4px 6px}</style>
+<script type="module">
+// A contact sheet: each model asked for in its own square, framed to fit, in its own colours.
+//   /test/sheet.html?m=prop_post_arty,prop_post_mg,buildings:turret&cols=3&cell=360&az=35&el=28
+// A model in a pack is pack:part (buildings:turret, station:core). frame=aim picks a frame where the model has it.
+import * as THREE from '../js/vendor/three.js';
+import { modelFrames } from '../js/ground/render/units3d.js';
+const q = new URLSearchParams(location.search), names = (q.get('m') || '').split(',').filter(Boolean);
+const cols = +(q.get('cols') || Math.min(4, names.length)), cell = +(q.get('cell') || 320), rows = Math.ceil(names.length / cols);
+const W = cols * cell, H = rows * cell, az = +(q.get('az') || 35) * Math.PI / 180, el = +(q.get('el') || 26) * Math.PI / 180;
+const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setSize(W, H); r.setScissorTest(true); document.body.appendChild(r.domElement);
+const mat = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
+const packs = {}, get = async (f) => (packs[f] ||= fetch(`../assets/models/${f}.json`).then((x) => x.json()));
+const cells = [];
+for (const [i, n] of names.entries()) {
+  const [f, part] = n.split(':'); let d = await get(f); if (part) d = d[part];
+  const scene = new THREE.Scene(); scene.add(new THREE.AmbientLight(0xffffff, 1.5)); const sun = new THREE.DirectionalLight(0xffffff, 2.4); sun.position.set(5, 9, 6); scene.add(sun);
+  let g;
+  if (d && d.frames) { const mf = modelFrames(d), fr = mf.frames; g = (fr[q.get('frame')] || fr.stand || Object.values(fr)[0]); }
+  const o = g ? new THREE.Mesh(g, mat) : new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: 'red' }));
+  scene.add(o); o.updateMatrixWorld(true);
+  const bb = new THREE.Box3().setFromObject(o), s = bb.getBoundingSphere(new THREE.Sphere());
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(s.radius * 8, s.radius * 8), new THREE.MeshLambertMaterial({ color: '#5d5a4a' })); floor.rotation.x = -Math.PI / 2; floor.position.y = bb.min.y - 0.001; scene.add(floor);
+  const cam = new THREE.PerspectiveCamera(30, 1, 0.01, 1000), dist = s.radius / Math.sin(15 * Math.PI / 180) * 1.02;
+  cam.position.set(s.center.x + Math.sin(az) * Math.cos(el) * dist, s.center.y + Math.sin(el) * dist, s.center.z + Math.cos(az) * Math.cos(el) * dist); cam.lookAt(s.center);
+  cells.push({ scene, cam, x: (i % cols) * cell, y: Math.floor(i / cols) * cell });
+  const l = document.createElement('div'); l.className = 'l'; l.style.left = (i % cols) * cell + 'px'; l.style.top = Math.floor(i / cols) * cell + 'px';
+  const sz = bb.getSize(new THREE.Vector3()); l.textContent = `${n}  ${sz.x.toFixed(2)}×${sz.y.toFixed(2)}×${sz.z.toFixed(2)}`; document.body.appendChild(l);
+}
+for (const c of cells) { r.setViewport(c.x, H - c.y - cell, cell, cell); r.setScissor(c.x, H - c.y - cell, cell, cell); r.setClearColor('#262b33'); r.clear(); r.render(c.scene, c.cam); }
+window.__done = true;
+</script>

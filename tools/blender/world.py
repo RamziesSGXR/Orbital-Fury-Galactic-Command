@@ -257,7 +257,7 @@ def ship_talon():   # the Talon: a pale blade between two horns
     blob('crystal', r=0.3, scale=(1.25, 0.8, 0.8), loc=(-0.45, 0, 0.3), sub=1, m=accent_lit); blob('core', r=0.25, scale=(1, 1, 0.72), loc=(-1.4, 0, 0), sub=1, m=accent_lit)
 
 OUT = {}
-PROPS = (tree_leaf, tree_pine, tree_jungle, tree_cactus, tree_dead, rock, rock_b, rock_spire, pillar, hive, fab, camp, spire, totem, turret, cannon, node, banner, flag, crate, post_mg, post_mggun, post_sam, post_arty, post_tower, post_lookout, aturret)
+PROPS = (tree_leaf, tree_pine, tree_jungle, tree_cactus, tree_dead, rock, rock_b, rock_spire, pillar, hive, fab, camp, spire, totem, turret, cannon, node, banner, flag, crate, aturret)     # (GC 0.64: the heavy turret, its gun, the artillery, the SAM site, the propaganda tower and the lookout are fleet.py's)
 SHIPS = (ship_fed, ship_molt, ship_foundry, ship_talon)
 for fn in PROPS + SHIPS:
     fn(); bpy.context.view_layer.update()

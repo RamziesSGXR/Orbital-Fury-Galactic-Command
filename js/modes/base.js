@@ -19,6 +19,7 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&l
 const ROADS = { road1: { name: 'Dirt Road', k: 'dirt', sub: 'drag to draw', desc: 'One tile wide and cheap. People and vehicles move faster on it than over open ground, and every building needs a road at its door.' },
   road2: { name: 'Paved Road', k: 'paved', sub: 'two tiles wide', desc: 'Two tiles wide, two lanes. Trucks run fastest here and do not queue behind each other. Needs a Concrete Plant.' },
   path: { name: 'Footpath', k: 'path', sub: 'for boots', desc: 'A paved walk one tile wide. People keep to it; vehicles do not use it.' },
+  wire: { name: 'Barbed Wire', k: 'wire', sub: 'slows raiders', desc: 'Razor wire on steel stakes, the same as on the ground. Lay it outside the wall: every tile of it adds to the strength the base puts against a raid. Nobody walks through it; a road through it leaves a gap.' },
   wall: { name: 'Wall', k: 'wall', sub: 'close it for a bonus', desc: 'Draw it all the way round and the base is closed: better morale, and raiders have to come through a gate. A road through a wall makes a gate.' },
   unroad: { name: 'Bulldoze', k: null, sub: words('tap a road or wall'), desc: 'Tap a stretch of road or wall to take it out. Half its cost comes back.' } };
 const TABS = GROUPS.filter((g) => g[0] !== 'landscape');
@@ -126,9 +127,14 @@ function supplyRow() {
   return `<span class="so"><i class="st">DROPSHIP BUYS</i>${Object.entries(SUPPLY_MODES).map(([k, m]) => `<button class="plate btn sm${P.mode === k ? ' on' : ''}" data-so="${k}" title="${esc(m.desc)}">${m.short}</button>`).join('')}` +
     `<i class="st">SPENDS AT MOST</i>${SUPPLY_CAPS.map((c) => `<button class="plate btn sm${P.cap === c ? ' on' : ''}" data-sc="${c}" title="${c >= 1 ? 'No cap: it may spend every supply the base has.' : `It never spends more than ${Math.round(c * 100)}% of the base's supplies in one morning.`}">${c >= 1 ? 'ALL' : Math.round(c * 100) + '%'}</button>`).join('')}</span>`;
 }
+// (GC 0.64) the Missile Silo: its warheads, and shipping one to the front
+function siloRow(b) {
+  const S = C.SILO, n = b.nukes || 0;
+  return `<span class="so"><i class="st ${n ? 'g' : ''}">WARHEADS ${n} OF ${S.max}</i>${n < S.max ? `<i class="st">NEXT ${Math.round((b.nukeT || 0) * 100)}%</i>` : ''}<button class="plate btn sm" data-nk="${b.id}" ${n ? '' : 'disabled'} title="Credits and Defence standing; the warhead is no longer here for a raid.">SHIP ONE TO THE FRONT · +${S.cr} CR</button></span>`;
+}
 function selBar() {
   const el = $('th-sel'), b = sel && sim.byId(sel), t = tool || hover; let html = '';
-  if (b) html = `<b>${esc(B[b.type].name)}</b>${statusOf(b).map(([x, tone]) => `<i class="st ${tone}">${esc(x)}</i>`).join('')}${b.type === 'hq' ? supplyRow() : ''}<span class="grow"></span>${b.type === 'hq' ? '' : '<button class="plate btn sm" data-bd="1">DEMOLISH</button>'}<button class="plate btn sm" data-bx="1">×</button><span class="dim desc">${esc(B[b.type].desc || B[b.type].why || '')}</span>`;
+  if (b) html = `<b>${esc(B[b.type].name)}</b>${statusOf(b).map(([x, tone]) => `<i class="st ${tone}">${esc(x)}</i>`).join('')}${b.type === 'hq' ? supplyRow() : ''}${b.type === 'silo' ? siloRow(b) : ''}<span class="grow"></span>${b.type === 'hq' ? '' : '<button class="plate btn sm" data-bd="1">DEMOLISH</button>'}<button class="plate btn sm" data-bx="1">×</button><span class="dim desc">${esc(B[b.type].desc || B[b.type].why || '')}</span>`;
   else if (t && (B[t] || ROADS[t] || (isZone(t) && ZONES[t.slice(5)]))) { const d = B[t] || ROADS[t] || ZONES[t.slice(5)]; html = `<b>${esc(d.name)}</b><span class="grow dim">${esc(words(d.desc || d.why || ''))}</span>`; }
   el.classList.toggle('hidden', !html);
   if (html !== selSig) { selSig = html; el.innerHTML = html; }
@@ -145,7 +151,7 @@ function desk() {
 }
 // ---------------------------------------------------------------- the guide: how a base is played (js/modes/guide.js)
 const TUT = [
-  { t: 'ROADS FIRST', x: 'Everything is built along a road. Pick <b>DIRT ROAD</b> below and drag from the command post across open ground.', done: () => sim.net.segs.some((g) => g.k !== 'wall') },
+  { t: 'ROADS FIRST', x: 'Everything is built along a road. Pick <b>DIRT ROAD</b> below and drag from the command post across open ground.', done: () => sim.net.segs.some((g) => g.k !== 'wall' && g.k !== 'wire') },
   { t: 'ZONE THE ROADSIDE', x: 'Open <b>ZONES</b>, pick <b>Life Support</b> and tap beside your road. Bunks, mess halls and latrines grow there by themselves as the base needs them.', done: () => sim.zone.some((v) => v) },
   { t: 'POWER, WATER, SEWAGE', x: 'Open <b>UTILITIES</b> and place a <b>Biofuel Generator</b> by the road. Each utility covers a circle round it: keep the bunks inside, and keep wells away from a sewage lagoon.', done: () => sim.b.some((b) => B[b.type].group === 'power') },
   { t: 'CHECK ON A BUILDING', x: 'With no tool in hand, tap any building: its card shows its crew, whether it has power, water and sewage, and what is wrong with it.', done: () => !!sel },
@@ -187,7 +193,7 @@ function bind() {
       if (drag) { if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > 6) drag.moved = true; if (drag.moved) { if (drag.btn === 2 || drag.btn === 1) view.spin(-dx * 0.008); else view.pan(dx, dy); } }
     }
     if (zoneDrag) { view.showPlots(zoneRect(zoneDrag, tileOf(e))); return; }
-    if (roadDrag && !roadDrag.bull) { const end = lineEnd(e), c = sim.checkLine(roadDrag, end, ROADS[tool].k); view.showLine(roadDrag, end, ROADS[tool].k === 'paved' ? 2 : 1, c.ok, ROADS[tool].k === 'wall'); return; }
+    if (roadDrag && !roadDrag.bull) { const end = lineEnd(e), c = sim.checkLine(roadDrag, end, ROADS[tool].k); view.showLine(roadDrag, end, ROADS[tool].k === 'paved' ? 2 : 1, c.ok, ROADS[tool].k === 'wall' || ROADS[tool].k === 'wire'); return; }
     if (tool && !isRoad(tool) && !isZone(tool)) { const t = tileAt(e), sp = specOf(tool); view.setGhost(tool, t.tx, t.tz, t.rot, sim.canPlace(tool, t.tx, t.tz, t.rot, sp).ok, sp); }
   });
   const up = (e) => {
@@ -222,7 +228,7 @@ function bind() {
   canvas.addEventListener('wheel', (e) => { e.preventDefault(); view.zoomBy(Math.exp(e.deltaY * 0.0012)); }, { passive: false });
   $('s-theatre').addEventListener('click', (e) => {
     if (mode.off) return;
-    const t = e.target.closest('[data-bg],[data-bt],[data-ba],[data-bd],[data-bx],[data-bo],[data-so],[data-sc]'); if (!t) return;
+    const t = e.target.closest('[data-bg],[data-bt],[data-ba],[data-bd],[data-bx],[data-bo],[data-so],[data-sc],[data-nk]'); if (!t) return;
     const d = t.dataset;
     if (d.bg) { group = d.bg; if (tool) setTool(tool); audio.click(); tabs(); bar(true); }
     else if (d.bt != null) setTool(d.bt);
@@ -231,6 +237,7 @@ function bind() {
     else if (d.bx) { sel = 0; view.select(null); selBar(); }
     else if (d.so || d.sc) { if (sim.setSupplyPlan(d.so ? 'mode' : 'cap', d.so || +d.sc)) audio.click(); selSig = ''; selBar(); }
     else if (d.bo) { deskSeen.set(+d.bo, performance.now()); audio.click(); desk(); }
+    else if (d.nk) { if (sim.shipNuke(+d.nk)) audio.click(); else audio.deny(); selSig = ''; selBar(); }
   });
   $('th-stats').addEventListener('click', (e) => { if (mode.off || !e.target.closest('[data-act=report]')) return; audio.click(); report(); });
   // with a mouse, resting on a tool shows what it is before it is picked
