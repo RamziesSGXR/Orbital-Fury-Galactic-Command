@@ -124,7 +124,7 @@ export const Build = {
       if (!b.done) {
         b.prog += dt / (b.time * C.BUILD) * pace;
         if (b.prog >= 1) {
-          b.prog = 1; b.done = true; this.events.push({ t: 'built', id: b.id }); this.roadsV++;
+          b.prog = 1; b.done = true; this.events.push({ t: 'built', id: b.id, refit: !!b.refit }); this.roadsV++;
           this.say('base', b.refit ? `${B[b.type].name} refitted: ${DESIGNS[b.design || 0].name}.` : `${B[b.type].name} complete${this.hasStd(b.type) ? ` (${STD[this.stdOf(b)].name.toLowerCase()})` : ''}. ${c.name} moves on.`);
           b.refit = false; c.job = null;
         }

@@ -39,6 +39,11 @@ export const CONFIG = {
   // When the last one falls with no lives left the mission is lost: there is no free recall.
   // countdown (0.18): seconds of real time the player gets before the Vanguards drop (the game runs; DEPLOY NOW sends them early)
   vanguards: { start: 4, max: 4, lives: 20, reinforceSec: 8, dropDelaySec: 5, initialDropSec: 3, podRadius: 10, podDmg: 500, countdown: 30 },
+  // (GC 0.62) THE VANGUARDS ARE STARS. Their lives are the difficulty's first lever: livesAt[level - 1] lives at levels 1 to 10, and
+  // livesBeyond fewer a level past 10, never under livesMin (`lives` above is only the tutorial's now). Every one who falls is
+  // an insurance claim: the policy pays `payout`, and signing the star who takes their place costs `contract`, so each death is
+  // `contract - payout` out of pocket, settled at the end of the mission.
+  stars: { livesAt: [30, 28, 26, 24, 22, 20, 18, 16, 14, 12], livesBeyond: 1, livesMin: 6, payout: 120, contract: 180 },
   // The Vanguard kit. Primary: the service rifle (CONFIG.combat.vanguard). Secondary: the Hand Cannon, a slow-loading, short-range,
   // heavy-penetration pistol that hits very hard. Four stims (heal over a few seconds and a burst of speed), three
   // heavy-penetration grenades (six to kill a medium), and a dodge that comes round every so often. A resupply restocks all of it.
@@ -672,7 +677,12 @@ export const CONFIG = {
                 // (0.38.1) armed, everyone in the blast (and runPad more) sprints out of it at runMul x the chase speed, fighting or
                 // not; anyone still in it when it goes off may dive clear: dodge.edge at the rim, dodge.mid at the centre (an Infantry
                 // trooper at infantry x that), and a dive that clears it still costs dodge.graze of his health
-                runMul: 1.3, runPad: 10, dodge: { edge: 0.85, mid: 0.2, infantry: 0.5, graze: 0.35 } },
+                runMul: 1.3, runPad: 10, dodge: { edge: 0.85, mid: 0.2, infantry: 0.5, graze: 0.35 },
+                // (GC 0.62) the assembly is learnt, not luck: each kind of target always takes the same order of parts (0 casing,
+                // 1 core, 2 detonator, 3 fuse), so a player who knows it is faster. A charge put together with no wrong part pays
+                // `clean` credits, and in under fastSec real seconds `fast` instead
+                orders: { keep: [0, 1, 2, 3], jammer: [1, 0, 3, 2], propaganda: [2, 0, 1, 3], spore: [3, 1, 0, 2], other: [1, 2, 0, 3] },
+                clean: 60, fast: 160, fastSec: 3.5 },
   },
 
   // Call-ins. Sixteen distinct picks, dealt into four groups of four. Each group belongs to one Vanguard.

@@ -24,6 +24,14 @@ with sync_playwright() as pw:
     assert pg.is_visible('#b-new') and not pg.is_visible('#b-continue'), 'HOME offers a new campaign when there is none'
     assert pg.evaluate("(() => { const v = document.getElementById('tbg'); return v.tagName === 'VIDEO' && v.getBoundingClientRect().width >= innerWidth - 1; })()"), 'the war room film is not behind the menu'
     pg.screenshot(path=f'{out}/menu-1-home.png')
+    # (0.62) COLLECTION: five kinds, nothing met on a new browser; a ground enemy met opens with its model drawn
+    tab('collection'); assert pg.evaluate("[document.querySelectorAll('#t-page .ckinds button').length, document.querySelectorAll('#t-page .chip.lock').length]") == [5, 18], 'the collection: five kinds, all eighteen enemies not yet met'
+    pg.evaluate("localStorage.setItem('ofgc.career', JSON.stringify({ v: 1, n: { missions: 2, won: 1 }, met: { foe: { 'bots.H': { at: Date.now(), n: 3 } } } }))")
+    tab('home'); tab('collection'); pg.wait_for_function("document.querySelector('#c-art canvas') || document.querySelector('#c-art.empty')", timeout=20000)
+    assert pg.evaluate("[document.querySelector('#t-page .chip.on b').textContent, !!document.querySelector('#c-art canvas')]") == ['Crusher', True], 'an enemy met opens with its model'
+    pg.screenshot(path=f'{out}/menu-1b-collection.png')
+    tab('career'); assert pg.evaluate("document.querySelector('#t-page .cstat b').textContent") == '2', 'the career counts the fights'
+    pg.evaluate("localStorage.removeItem('ofgc.career')"); tab('home')
     pg.keyboard.press('e'); pg.wait_for_timeout(200); assert pg.evaluate("document.querySelector('#t-tabs .on').dataset.tab") == 'play', 'E steps to the next tab'
     pg.keyboard.press('q'); pg.keyboard.press('q'); pg.wait_for_timeout(200); assert pg.evaluate("document.querySelector('#t-tabs .on').dataset.tab") == 'options', 'Q steps back, and round'
     tab('play'); assert pg.evaluate("[document.querySelectorAll('#t-page .gcard[data-act=game]').length, document.querySelectorAll('#t-page .gcard .gart img').length, document.querySelectorAll('#t-page .slot').length]") == [4, 4, 0], 'PLAY: four picture cards, and no saves to choose while there are none'

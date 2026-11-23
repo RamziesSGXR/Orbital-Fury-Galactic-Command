@@ -1255,6 +1255,26 @@ export class Sim {
     return rows.sort((a, b) => this.total(b.stand) - this.total(a.stand));
   }
   ranking() { this.rank = this.table().findIndex(r => r.me); return this.rank; }
+  // (0.62) the efficiency review: a skill bonus for a base laid out and run well. Enough clean latrines, a seat at the mess and a
+  // bunk for everyone, every crewed building fully crewed, and the power to run it all. Pays C.TIDY supplies; returns what it paid.
+  review() {
+    const R = C.TIDY; if (this.week < R.from) return 0;
+    const done = this.b.filter(b => b.done && !b.off), home = this.troops.filter(t => t.state !== 'patrol').length, P = this.potties || { n: 0 };
+    const short = done.filter(b => B[b.type].crew && this.crewFrac(b) < 1);
+    const checks = [
+      ['latrines', P.n > 0 && P.perPotty <= R.perPotty && !P.filthy, P.n ? (P.filthy ? 'a filthy latrine' : 'queues at the latrines') : 'no latrines'],
+      ['mess', (this.seats || 0) >= home, 'not enough seats at the mess'],
+      ['bunks', this.troops.length <= (this.beds || 0), 'troopers sleeping rough'],
+      ['crews', !short.length, short.length ? `${B[short[0].type].name} short of crew` : ''],
+      ['power', !this.power || this.power.ratio >= 1, 'not enough power'],
+    ];
+    const ok = checks.filter(c => c[1]).length, pay = ok * R.per + (ok === checks.length ? R.all : 0);
+    if (pay) this.earn('review', pay);
+    const miss = checks.filter(c => !c[1]).map(c => c[2]);
+    this.say('base', ok === checks.length ? `Efficiency review: latrines, mess, bunks, crews and power all in order. +${pay} supplies.`
+      : `Efficiency review: ${ok} of ${checks.length} in order${pay ? `, +${pay} supplies` : ''}. Marked down for ${miss.join(', ')}.`);
+    return pay;
+  }
 
   endWeek() {
     if (!this.inspected) this.inspect();
@@ -1290,6 +1310,7 @@ export class Sim {
     const place = ['1st', '2nd', '3rd', '4th'][rank];
     this.say('base', `Day ${this.week} closes. ${this.faction.name} ranks ${place} of 4: allocation ${amt} supplies. Upkeep ${bill}.`);
     if (unpaid) this.say('base', `Upkeep short: ${unpaid} building${unpaid > 1 ? 's' : ''} went unmaintained and are wearing down.`);
+    const review = this.review();
     if (rank < prev) this.say('riv', `Federation bulletin: ${this.faction.name} climbs to ${place}. Glory to the efficient.`);
     else if (rank > prev) this.say('riv', `Federation bulletin: ${this.table()[prev].name} overtakes ${this.faction.name}. Allocation reduced accordingly.`);
     if (this.citizens && this.week % 3 === 0) this.say('bur', this.rng.pick([
@@ -1300,7 +1321,7 @@ export class Sim {
     this.memo();
     this.week++; this.wt -= C.WEEK; this.inspected = false; this.raidPlan();
     this.newOffers(); this.newOrder();
-    this.events.push({ t: 'week', rank, amt });
+    this.events.push({ t: 'week', rank, amt, review });
   }
 
   // how defensible the base is, 0 to 100: watched wall, manned gates, few entrances, and the HQ and fuel kept away from the wall

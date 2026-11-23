@@ -1051,6 +1051,7 @@ export class Mission {
     e.dead = true; this.dirtyE = true;
     const st = SUBTYPES[e.kind], rw = e.sub ? C.special.reward : 1;
     this.stats.kills[e.kind]++;
+    const who = e.sub || e.v || e.kind; (this.stats.met ||= {})[who] = (this.stats.met[who] || 0) + 1;     // (0.62) for the career's collection
     if (e.sub) this.stats.specials = (this.stats.specials || 0) + 1;
     if (by === 'player') {
       const s = C.score, c = this.combo;
@@ -1234,6 +1235,13 @@ export class Mission {
     const rep = Math.round(lost * L.lifeCost + (L.lifeStep * lost * (lost - 1)) / 2), paid = Math.min(rep, Math.max(0, this.wallet.bal));
     this.wallet.bal -= paid; this.cr.infantryLives = paid;
     if (paid) this.notice(tr('n.infantryLives', { n: lost, cr: paid }), 'warn');
+    // (GC 0.62) every Vanguard who fell is an insurance claim: the policy pays out, and the star signed in their place costs more
+    const stars = this.stats.lostH || 0, SC = C.stars;
+    if (stars && !this.ls) {
+      const payout = stars * SC.payout, signed = Math.min(stars * SC.contract, Math.max(0, this.wallet.bal + payout));
+      this.wallet.bal += payout - signed; this.cr.insurance = payout; this.cr.contracts = signed;
+      this.notice(tr('n.insurance', { n: stars, cr: payout, c: signed }), 'warn');
+    }
     this.radio(outcome === 'victory' ? COMMS.victory : outcome === 'complete' ? COMMS.complete : outcome === 'timeout' ? COMMS.timeout : COMMS.defeat, 'end', 0);
     this.emit('end', { outcome });
   }
@@ -1266,7 +1274,7 @@ export class Mission {
       share: { player: d.player / tot, squad: d.squad / tot, callin: d.callin / tot },
       loadout: this.loadout.slice(), orbitals: loadoutIds(this.kit),
       credits: { kills: cr.kills, bases: cr.bases, pois: cr.pois, breaches: cr.breaches, objective: cr.objective, extraction: cr.extraction, drops: cr.drops, civ: cr.civ, boss: cr.boss, sides: cr.sides, site: cr.site || 0,
-        total: cr.total, spent: this.wallet.spent - cr.spent0, start: cr.start, balance: this.wallet.bal, infantryLives: cr.infantryLives || 0, infantryLost: this.stats.lostS || 0 },
+        total: cr.total, skill: cr.skill || 0, spent: this.wallet.spent - cr.spent0, start: cr.start, balance: this.wallet.bal, infantryLives: cr.infantryLives || 0, infantryLost: this.stats.lostS || 0, insurance: cr.insurance || 0, contracts: cr.contracts || 0, starsLost: this.stats.lostH || 0 },
       deaths: this.deaths.map((x) => ({ ...x })),
       teams: this.teams.map((tm) => ({ letter: tm.letter, ship: tm.ship, deaths: tm.deaths, ids: tm.ids.slice() })),
     };

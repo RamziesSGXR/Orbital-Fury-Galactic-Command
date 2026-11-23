@@ -40,6 +40,9 @@ export const C = {
   REVIEW: 14,              // days before a trooper's file comes round again
   // Head Office splits its allocation by rank: 1st, 2nd, 3rd, 4th.
   ALLOC: { base: 650, mult: [1.5, 1.15, 0.85, 0.6] },
+  // (0.62) the efficiency review at each day's close: supplies for a base laid out and run well. Each check passed pays `per`,
+  // all of them `all` more. From day `from` (the first days are for building).
+  TIDY: { per: 12, all: 30, from: 2, perPotty: 10 },
   FILL: [0.6, 0.5, 0.4, 0.3],   // share of empty bunks filled by each morning's recruits, by rank: housing is what makes a base grow
   STAND: { start: 40, rest: 30, drift: 0.12 },    // standings drift back toward "rest" every week
   PADLOAD: 140,            // most a supply dropship can bring to one landing pad
@@ -229,7 +232,7 @@ export const B = {
   vend:     { name: 'Vending Machine', group: 'living', w: 1, d: 1, cost: 45, up: 4, pw: -1, mor: 2,
               desc: 'Victory Cola. Tastes like winning, mostly.' },
   potty:    { name: 'Porta Potty', group: 'living', w: 1, d: 1, cost: 35, up: 2, mor: 2, potty: true,
-              desc: 'Somewhere to go. Gets dirtier the more recruits use it; idle troopers clean it. Filthy ones hurt morale, and too few means queues.' },
+              desc: 'Somewhere to go. Gets dirtier the more recruits use it; idle troopers clean it. Filthy ones hurt morale, and too few means queues (and a mark against you in the efficiency review each day).' },
   mess:     { staff: 2, name: 'Mess Hall', group: 'living', w: 3, d: 2, cost: 200, up: 15, pw: -3, crew: 1, mor: 8, eat: 24, need: { rations: 40 },
               desc: 'Feeds 24 recruits a watch, if the rations keep coming. The single biggest thing for morale.' },
   burger:   { staff: 2, name: 'Big Victory Burger', group: 'living', w: 2, d: 2, cost: 260, up: 34, pw: -2, mor: 10, chain: true, needs: ['mess'], eat: 16, need: { rations: 30 },

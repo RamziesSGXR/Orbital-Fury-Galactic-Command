@@ -8,6 +8,7 @@ import { Station } from '../orbit/sim.js';
 import { View } from '../orbit/view.js';
 import { ensureLogo } from '../orbit/logo.js';
 import { words } from '../core/words.js';
+import { note, best } from '../core/career.js';
 import { C as GC } from '../galaxy/config.js';
 import { makeGuide, guideSeen } from './guide.js';
 
@@ -129,16 +130,16 @@ function desk() {
 function drain() {
   for (const e of st.events) {
     switch (e.type) {
-      case 'built': case 'auto': audio.podLand(); break;
+      case 'built': case 'auto': audio.podLand(); if (e.part && e.type === 'built') note(app.tutorial ? {} : { parts: 1 }, [['part', e.part.type]]); break;
       case 'crate': break;
       case 'comms': case 'order': { const d = C.div[e.from]; ui.feed(`${(d && d.short) || String(e.from || 'STATION').toUpperCase()}: ${e.text}`, e.warn ? 'warn' : 'radio'); if (e.warn) audio.deny(); break; }
-      case 'week': audio.objective(); break;
+      case 'week': audio.objective(); if (!app.tutorial) note({ stationWeeks: 1 }); break;
       case 'raid':
         if (e.state === 'warn') { audio.siren(); ui.message(`${st.foe ? st.foe.name.toUpperCase() : 'RAIDERS'} INBOUND`, 4000); }
         else if (e.state === 'over') { if (e.hits.length) { audio.baseDown(); ui.message(`${st.foe ? st.foe.name.toUpperCase() : 'THE RAIDERS'} GOT THROUGH`, 4000); } else { audio.win(); ui.message('RAID DRIVEN OFF', 4000); } }
         break;
       case 'fire': try { view.fire(e); } catch { /* a shot not drawn */ } break;
-      case 'tier': audio.win(); ui.message(`${C.tiers[e.tier].name} STATUS GRANTED`, 5000); thumbs = {}; bar(true); break;
+      case 'tier': audio.win(); if (!app.tutorial) best({ stationTier: e.tier }); ui.message(`${C.tiers[e.tier].name} STATUS GRANTED`, 5000); thumbs = {}; bar(true); break;
       default:
     }
   }

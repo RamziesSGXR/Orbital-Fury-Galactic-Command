@@ -9,6 +9,7 @@ import { View } from '../base/view.js';
 import { REQUESTS } from '../base/desk.js';
 import { ensureLogo } from '../base/logo.js';
 import { words } from '../core/words.js';
+import { note } from '../core/career.js';
 // (0.46) what a base puts on air: every parade ground, speaker, billboard, banner, flag and monument standing is footage for the war's ratings
 const SHOWS = new Set(['parade', 'speaker', 'billboard', 'banner', 'hdbanner', 'flag', 'seflag', 'statue', 'monument', 'memorial', 'lecture', 'truth', 'plaque']);
 
@@ -253,8 +254,8 @@ const mode = {
       for (const ev of sim.drain()) {
         life.event(ev);
         if (ev.t === 'say') ui.feed(`${String(ev.ch || 'base').toUpperCase()}: ${ev.text}`, 'radio');
-        else if (ev.t === 'built') { audio.ready(); barSig = ''; }
-        else if (ev.t === 'week') { audio.objective(); barSig = ''; }
+        else if (ev.t === 'built') { audio.ready(); barSig = ''; const b = sim.b.find((o) => o.id === ev.id); if (b && !ev.refit) note(app.tutorial ? {} : { built: 1 }, [['building', b.type]]); }
+        else if (ev.t === 'week') { audio.objective(); barSig = ''; if (!app.tutorial) note({ baseDays: 1, baseFirst: ev.rank === 0 ? 1 : 0, baseReview: ev.review || 0 }); }
         else if (ev.t === 'desk') audio.chirp();
         else if (ev.t === 'raidAlarm') { audio.siren(); ui.message('MOVEMENT AT THE WIRE', 3000); }
       }

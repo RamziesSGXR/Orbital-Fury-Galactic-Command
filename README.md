@@ -1,6 +1,6 @@
 # Orbital Fury: Galactic Command
 
-**Prototype 0.61.0.** One war, run from four posts, in one game.
+**Prototype 0.62.0.** One war, run from four posts, in one game.
 
 You found a command (a name, a crest, colours) and hold the centre of the galaxy against three enemies. Everything in
 the war is yours to run, and each part changes the others:
@@ -13,6 +13,29 @@ the war is yours to run, and each part changes the others:
 | **The base** | Found a base on the system's key world: roads, zones, and buildings that grow along them. | +35% output from the system for each charter. |
 
 A system that falls takes its station and its base with it.
+
+## What's new in 0.62: a career, a collection, and stars who cost money
+
+- **A career** (js/core/career.js): one record on this browser, kept apart from the saves, that every game writes to. The
+  ground fight writes at its debrief (fights, kills, objectives, Vanguards and Infantry lost, insurance, contracts, skill
+  bonuses, credits, time); the base as buildings go up and days close; the station as parts are built, weeks pass and tiers
+  are granted. Tutorials count for what was met, not for the totals; the bot's test runs do not count.
+- **COLLECTION** shows everything the career has met, by kind: 18 enemies (each faction's light, medium, heavy, special,
+  variant and super heavy), 7 worlds, 8 objectives, every base building and every station part (read from their games' own
+  tables, js/core/collection.js). An entry opens with its model turning beside it as line art (js/core/lineart.js, loaded
+  when first needed), what it is, how it fights or what it does, when it was first met and how many.
+- **CAREER** shows the totals in boxes, the saves of every game, and how much of the collection is filled.
+- **Vanguards are stars.** The squad's lives now depend on the difficulty: 30 at level 1, two fewer a level to 12 at level
+  10, then one fewer a level to no fewer than 6 (C.stars, difficulty.js livesAt); a station's or the ratings' reinforcements
+  add to that. Each Vanguard lost is an insurance claim (+120 credits) and a new star's contract to sign (180 credits, as far
+  as the wallet goes), both on the debrief.
+- **A demolition charge has a set order** for each kind of objective, the same every time (C.democharge.orders), so it can
+  be learnt. Tapped with no mistakes it pays a skill bonus (60 credits), and more if it is quick (160 inside 3.5 seconds).
+- **The base's efficiency review** at each day's close (from day 2): enough clean latrines (no more than ten users each), a
+  mess seat and a bunk for everyone, every crewed building fully crewed, and enough power. 12 supplies for each in order,
+  30 more for all five; the report says what was marked down (C.TIDY, Sim.review).
+- The **how it fits** card, the credits and the ground tutorial's first card say who the Vanguards are: elite soldiers and
+  stars of the broadcast, insured like film stars.
 
 ## What's new in 0.61: pictures, and the same menu inside the games
 

@@ -22,6 +22,7 @@ import * as UI from './ui.js';
 import { sunAt, todName, todClock } from './render/sky.js';
 import { acceptSupply, declineSupply, fillSupply, launchSupply, supplyFilling } from './sim/supply.js';
 import { hbFilling, tapDemoCharge } from './sim/ops.js';
+import { note } from '../core/career.js';
 const handsBusy = (m) => !!m && (supplyFilling(m) || hbFilling(m));     // the supply loader or the Demolition Charge is open
 import { t, tEn, setLang, getLang, applyDom, startLang } from './i18n.js';
 import { clampLevel, LEVELS, levelName, levelAt, TOP } from './difficulty.js';
@@ -112,7 +113,7 @@ function lookStart(src) {
 function gcStart() {
   lookStart(GCX);
   // what the war sends down with you: reinforcements from a station and the ratings, a garrison from a base
-  if (GCX.support) { C.vanguards.lives = Math.max(8, C.vanguards.lives + (GCX.support.lives | 0)); if (GCX.support.garrison > 0) { C.infantry.defendChance = 1; C.infantry.defendN += GCX.support.garrison | 0; } }
+  if (GCX.support) { C.vanguards.bonus = GCX.support.lives | 0; if (GCX.support.garrison > 0) { C.infantry.defendChance = 1; C.infantry.defendN += GCX.support.garrison | 0; } }
   session = S.newSession(GCX.callsign, GCX.level, GCX.op);
   session.kit = GCX.kit; session.wallet = GCX.wallet; session.noSave = true; session.feed = 3; session.difficulty = clampLevel(GCX.level);
   session.next = { op: GCX.op, faction: GCX.faction, biome: GCX.biome, seed: GCX.seed, obj: GCX.obj, bump: 0 };
@@ -1487,6 +1488,18 @@ function finishLastStand() {
   setTimeout(() => { if (state === 'glass') cinema.play('outro', lsLines('outro', res), () => { if (state === 'glass') end(); }); }, 1400);
 }
 
+// (0.62) the career, kept across every game: what this fight met (its enemies, world and objectives) and what it cost.
+// A tutorial counts for what was met, not for the totals; the bot's test runs do not count at all.
+function noteCareer(res) {
+  if (BOT || !info) return;
+  const st = res.stats || {}, cr = res.credits || {}, f = info.faction, won = S.carriesOn(res.outcome), tut = !!(session && session.tutorial);
+  const met = [['world', info.biome], ...Object.entries(st.met || {}).map(([k, n]) => ['foe', f + '.' + k, n]), ...(res.objectives || []).map((o) => ['obj', o.type])];
+  if (st.bosses) met.push(['foe', f + '.boss', st.bossKills || 0]);
+  if (!Object.keys(st.met || {}).length) met.push(['foe', f + '.L', 0]);      // (met, even with nothing killed)
+  note(tut ? {} : { missions: 1, won: won ? 1 : 0, kills: res.kills || 0, objectives: (res.objectives || []).filter((o) => o.done).length, starsLost: st.lostH || 0, troopsLost: st.lostS || 0,
+    insurance: cr.insurance || 0, contracts: cr.contracts || 0, skill: cr.skill || 0, groundCr: cr.total || 0, groundSec: Math.round(res.t || 0) }, met);
+}
+
 function finishMission() {
   endHandled = true; setPlacing(null); setDrawing(false); setTac(false); disarm(); setHideUi(false); deselect();
   soft = false; hud.setSoft(false);
@@ -1494,6 +1507,7 @@ function finishMission() {
   endMood = S.carriesOn(res.outcome) ? 'win' : 'lose';     // (0.30) the debrief's music: VICTORY or FALLEN
   const t0 = tierNow();
   S.recordMission(session, info, res);
+  noteCareer(res);
   // (0.24) a milestone reached: the level bonus, and what it opens in the armory (marked NEW there until bought)
   const t1 = tierNow();
   let ms = null;

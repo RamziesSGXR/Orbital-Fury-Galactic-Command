@@ -322,6 +322,35 @@ button small { display: block; font: 9.5px var(--mono); letter-spacing: 0.5px; o
 .cgrid .tile.lock { opacity: 0.5; } .cgrid .tile .dot { position: absolute; right: 10px; top: 10px; width: 12px; height: 12px; border-radius: 50%; }
 .ctab { width: 100%; border-collapse: collapse; font: 12px var(--mono); } .ctab td, .ctab th { padding: clamp(4px, 0.9vh, 7px) 10px; border: 1px solid rgba(230, 234, 220, 0.22); text-align: left; color: var(--dim); } .ctab th { font: 600 11px var(--head); letter-spacing: 1.5px; color: var(--cyan); } .ctab td b { color: var(--text); }
 .soon { font: 12.5px/1.45 var(--mono); color: var(--dim); max-width: 62ch; } .soon b { color: var(--amber); font-weight: normal; }
+/* (0.62) the collection: kinds along the top, what has been met on the left, the open one on the right with its model turning */
+.ckinds button small { font: 10.5px var(--mono); color: var(--cyan); margin-left: 6px; letter-spacing: 0; }
+.crow { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr minmax(260px, 31%); gap: clamp(10px, 1.6vw, 20px); align-items: stretch; }
+.crow > .tpan { min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+.cbox .soon { margin-bottom: 2px; }
+.cbox > .chips, .cbox .cside { min-height: 0; }
+.chips { display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 5px; overflow: auto; align-content: start; }
+.chips.six { grid-template-columns: repeat(6, 1fr); }
+.chips.many { grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 4px; }
+.chip { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-height: 30px; padding: 4px 8px; text-align: left; border: 1px solid rgba(230, 234, 220, 0.28); background: rgba(14, 18, 16, 0.85); color: var(--text); cursor: pointer; font: inherit; }
+.chips.many .chip { min-height: 26px; padding: 3px 7px; }
+.chip b { font: 600 11.5px/1.15 var(--head); letter-spacing: 0.6px; } .chip small { font: 10.5px var(--mono); color: var(--cyan); }
+.chip:hover, .chip:focus-visible { border-color: var(--amber); outline: none; } .chip.on { border-color: var(--amber); background: rgba(245, 213, 71, 0.14); } .chip.on b { color: var(--amber); }
+.chip.lock { cursor: default; opacity: 0.4; border-style: dashed; } .chip.lock b { color: var(--dim); }
+.cside { display: flex; flex-direction: column; gap: 5px; } .cside + .cside { margin-top: clamp(6px, 1.6vh, 16px); } .cside > i { font: 600 11px var(--head); letter-spacing: 2.5px; font-style: normal; }
+.cside > i span { display: block; margin-top: 2px; font: 11.5px/1.35 var(--mono); letter-spacing: 0; color: var(--dim); }
+.chips.six .chip { display: grid; grid-template-columns: 1fr auto; align-content: end; min-height: clamp(46px, 8vh, 68px); padding: 6px 9px; } .chips.six .chip i { grid-column: 1 / 3; font: 600 9px var(--head); letter-spacing: 1.8px; color: var(--dim); font-style: normal; }
+.cdet .cart { flex: 1 1 0; min-height: 120px; position: relative; margin: 0 -4px 4px; background: radial-gradient(ellipse at 50% 60%, rgba(127, 233, 224, 0.1), transparent 70%); }
+.cdet .cart canvas { position: absolute; inset: 0; filter: drop-shadow(0 0 3px rgba(127, 233, 224, 0.7)); }
+.cdet .cart.empty::after { content: '?'; position: absolute; inset: 0; display: grid; place-items: center; font: 700 64px var(--head); color: rgba(230, 234, 220, 0.12); }
+.cdet > em { font: 600 10px var(--head); letter-spacing: 2.5px; color: var(--cyan); font-style: normal; }
+.cdet > b { font: 700 clamp(18px, 2.8vh, 24px)/1.05 var(--head); letter-spacing: 1.2px; }
+.cdet > p { font: 12.5px/1.45 var(--mono); color: var(--dim); }
+.cdet dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; margin: 0; font: 11.5px var(--mono); } .cdet dt { color: var(--cyan); font: 600 10px var(--head); letter-spacing: 2px; align-self: center; } .cdet dd { margin: 0; color: var(--text); }
+/* (0.62) the career: totals in boxes */
+.crow.car { flex: 0 1 auto; grid-template-columns: 1.4fr 1fr; }
+.cstats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; } .cstats.two { grid-template-columns: repeat(2, 1fr); } .cstats.three { grid-template-columns: repeat(3, 1fr); } .cstat b small { font: 600 11px var(--head); color: var(--dim); letter-spacing: 1px; }
+.cstat { display: flex; flex-direction: column; gap: 2px; padding: clamp(5px, 1vh, 9px) 10px; border: 1px solid rgba(230, 234, 220, 0.2); background: rgba(14, 18, 16, 0.7); }
+.cstat i { font: 600 9.5px var(--head); letter-spacing: 1.8px; color: var(--cyan); font-style: normal; } .cstat b { font: 700 clamp(16px, 2.6vh, 22px)/1.1 var(--head); letter-spacing: 1px; } .cstat small { font: 10.5px var(--mono); color: var(--dim); }
 /* OPTIONS */
 .osub { display: flex; gap: 0; margin-bottom: 10px; } .osub button { flex: 1; height: 32px; background: none; border: 1px solid rgba(230, 234, 220, 0.3); border-left: 0; color: var(--dim); font: 600 11.5px var(--head); letter-spacing: 1.5px; cursor: pointer; } .osub button:first-child { border-left: 1px solid rgba(230, 234, 220, 0.3); } .osub button.on { background: rgba(230, 234, 220, 0.14); color: var(--text); }
 .oset { display: grid; grid-template-columns: 190px 1fr; gap: clamp(6px, 1.3vh, 10px) 14px; align-items: center; font: 600 12px var(--head); letter-spacing: 1.5px; color: var(--text); } .oset small { grid-column: 2; font: 11px/1.35 var(--mono); letter-spacing: 0; color: var(--dim); margin-top: -4px; }

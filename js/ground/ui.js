@@ -23,7 +23,7 @@ import { situation, tipsFor } from './data/tips.js';
 import { t, tl, getLang, LANGS } from './i18n.js';
 import { postIcon } from './render/posts.js';
 import { squadColor } from './render/squads.js';
-import { LEVELS, levelFactors, reward, levelName } from './difficulty.js';
+import { LEVELS, levelFactors, reward, levelName, livesAt } from './difficulty.js';
 import { CAST, CAST_ORDER } from './data/story.js';
 
 const $ = (id) => document.getElementById(id);
@@ -2123,8 +2123,8 @@ export function fillDebrief(info, res, session, block = '', startCr = null) {
   const c = res.credits;
   $('d-credits').innerHTML = tbl([
     [t('deb.c.kills'), c.kills], [t('deb.c.bases'), c.bases], [t('deb.c.pois'), c.pois], [t('deb.c.sides'), c.sides || 0], [t('deb.r.clear'), c.clear || 0], [t('deb.c.breaches'), c.breaches],
-    [t('deb.c.drops'), c.drops || 0], [t('deb.c.civ'), c.civ || 0], [t('deb.c.boss'), c.boss || 0], [t('deb.c.site'), c.site || 0], [t('deb.c.objective'), c.objective], [t('deb.c.extraction'), c.extraction],
-    [res.opBonus > 1 ? t('deb.c.earnedB', { x: res.opBonus.toFixed(1) }) : t('deb.c.earned'), c.total, 'sum'], [t('deb.c.spent'), -c.spent], [t(res.leftS ? 'deb.c.infantryLivesLeft' : 'deb.c.infantryLives', { n: c.infantryLost || 0, k: res.leftS || 0 }), -(c.infantryLives || 0)], [t('deb.c.balance'), c.balance, 'sum', true],
+    [t('deb.c.drops'), c.drops || 0], [t('deb.c.civ'), c.civ || 0], [t('deb.c.boss'), c.boss || 0], [t('deb.c.site'), c.site || 0], [t('deb.c.objective'), c.objective], [t('deb.c.extraction'), c.extraction], [t('deb.c.skill'), c.skill || 0],
+    [res.opBonus > 1 ? t('deb.c.earnedB', { x: res.opBonus.toFixed(1) }) : t('deb.c.earned'), c.total, 'sum'], [t('deb.c.spent'), -c.spent], [t(res.leftS ? 'deb.c.infantryLivesLeft' : 'deb.c.infantryLives', { n: c.infantryLost || 0, k: res.leftS || 0 }), -(c.infantryLives || 0)], [t('deb.c.insurance', { n: c.starsLost || 0 }), c.insurance || 0], [t('deb.c.contracts', { n: c.starsLost || 0 }), -(c.contracts || 0)], [t('deb.c.balance'), c.balance, 'sum', true],
   ].filter(([, v, , keep]) => v !== 0 || keep));
   $('d-deaths').innerHTML = deathList(res);
   const top = Object.entries(s.callinBy).sort((a, q) => q[1] - a[1]).slice(0, 3).map(([id, n]) => `${CALLINS[id].name} x${n}`).join(', ');
@@ -2325,7 +2325,7 @@ export function buildDiff(cur, saved, onPick) {
 // for QUICK PLAY the enemy, and how an operation works); the tutorial only asks the callsign. mode: 'quick', 'camp' or 'tut';
 // o: { level, chapter (the campaign's), from (a checkpoint: the chapter cleared it carries on from), replaces (a saved run goes) }
 export function fillLock(mode, o = {}) {
-  const lives = C.vanguards.lives, tut = mode === 'tut', camp = mode === 'camp', level = o.level || 3;
+  const tut = mode === 'tut', camp = mode === 'camp', level = o.level || 3, lives = tut ? C.vanguards.lives : livesAt(level);     // (GC 0.62) the lives the level gives
   $('lock-eyebrow').textContent = t(tut ? 'lock.eyebrowTut' : camp ? 'lock.eyebrowCamp' : 'lock.eyebrowQuick');
   $('lock-h').textContent = t(tut ? 'title.tutName' : 'lock.title');
   let sub = '';

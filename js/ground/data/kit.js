@@ -1,5 +1,6 @@
 // The player's kit: what the destroyer can do, what it costs, and how upgrades scale. Pure data and rules, no DOM.
 // The player controls three things: the UAV scan, orbital call-ins, and Infantry. Credits buy more and better of each.
+import { livesAt, appliedLevel } from '../difficulty.js';
 import { CONFIG as C } from '../config.js';
 import { CALLINS, PLAYER_IDS } from './callin.js';
 import { t } from '../i18n.js';
@@ -161,7 +162,8 @@ export function gunStats(kit) {
   };
 }
 // Vanguard lives are the same every mission and reset at each drop. The Vanguards themselves are not upgraded in the armory.
-export const maxLives = () => C.vanguards.lives;
+// (GC 0.62) the lives the mission's level gives (difficulty.js, livesAt), and any the war sends down with it (C.vanguards.bonus)
+export const maxLives = () => Math.max(1, livesAt(appliedLevel()) + (C.vanguards.bonus | 0));
 
 // What a buildable does at a level (1 to 5; 0 = not unlocked: the level-1 numbers, for the armory to show).
 export function buildStats(what, level = 1) {

@@ -329,7 +329,7 @@ export function demochargeGoal(m, o) {
   return null;
 }
 function startFill(m, o, tg, callText) {
-  const order = m.rng.shuffle(HB_PARTS.map((_, i) => i));
+  const O2 = HB().orders || {}, kind = o.keepClear || o.type === 'fortress' ? 'keep' : (o.kind || o.type || 'other'), order = (O2[kind] || O2.other || [0, 1, 2, 3]).slice();     // (GC 0.62) the same order every time for each kind
   m.democharge = { o, tg, state: 'fill', fill: { t: 0, order, i: 0, n: 0, wrong: 0, taps: 0 }, armT: 0, x: 0, y: 0, n: (m.democharge && m.democharge.n || 0) + 1 };
   m.radio(callText || tr('c.hb.call'), 'hbcall', 0);
   m.emit('democharge_fill', { kind: o.type || o.kind || '' });
@@ -363,7 +363,10 @@ function launch(m) {
   let x = b.x + ux * ((b.r || 0) + K.off), y = b.y + uy * ((b.r || 0) + K.off);
   if (!m.terrain.isLand(x, y)) { const l = m.terrain.nearestLand(x, y, 60); if (l) { x = l.x; y = l.y; } }
   hb.state = 'inbound'; hb.x = x; hb.y = y; hb.landAt = m.t + K.dropSec; hb.armT = 0;
-  hb.secs = hb.fill.t / K.slowmo; hb.fill = null;
+  hb.secs = hb.fill.t / K.slowmo;
+  // (GC 0.62) skill pays: no wrong part, and fast
+  if (!hb.fill.wrong && K.clean) { const fast = hb.secs <= K.fastSec, pay = fast ? K.fast : K.clean; m.earn('skill', pay, x, y); m.stats.hbClean = (m.stats.hbClean || 0) + 1; m.notice(tr(fast ? 'n.hbFast' : 'n.hbClean', { s: hb.secs.toFixed(1), cr: pay }), 'good'); }
+  hb.fill = null;
   m.radio(tr('c.hb.inbound'), 'hbinbound', 0);
   m.emit('democharge_launch', { x, y });
 }

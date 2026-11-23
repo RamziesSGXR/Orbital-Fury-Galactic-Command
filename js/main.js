@@ -16,6 +16,8 @@ import { shopItems, buy, equip, unequip, shownAt, TIER_MAX } from './ground/data
 import { Audio } from './ground/audio.js';
 import { newKit, newWallet } from './ground/data/kit.js';
 import { words } from './core/words.js';
+import { career } from './core/career.js';
+import { catalogue, KINDS, FACTION_ABOUT } from './core/collection.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
@@ -156,7 +158,7 @@ const ART = {
 // ---- the tabs
 const TABS = [['home', 'HOME'], ['play', 'PLAY'], ['collection', 'COLLECTION'], ['career', 'CAREER'], ['store', 'STORE'], ['options', 'OPTIONS']];
 let tab = 'home', optTab = 'common', playGame = null;     // playGame: the game whose saves the PLAY tab is showing
-const NEWS = { title: 'One menu for the whole game', lines: ['Each game on PLAY has a picture card. A game with nothing saved starts at once; one with a save asks which.', 'The menu inside every game is this one: the same bar of tabs.', 'One main menu, with tabs along the top: Home, Play, Collection, Career, Store and Options.', 'Every game is started from PLAY, and each keeps three saves of its own.', 'Orbital Fury no longer has a menu of its own: it starts from here and comes back here.', 'A new icon for the game.', 'Collection, Store and the daily challenges are placeholders for what is coming.'] };
+const NEWS = { title: 'Your career, and what it has met', lines: ['COLLECTION fills as you play: every enemy, world, objective, building and station part you meet, each with its model to turn and a note on how it fights or what it does.', 'CAREER keeps your totals across every game and save: fights, kills, Vanguards lost, insurance claimed, buildings put up.', 'Vanguards are stars, insured like them. Each one lost pays out, and signing the next costs more. The harder the fight, the fewer lives the squad has.', 'A demolition charge has a set order for each objective, the same every time: learn it and tap it clean and fast for a skill bonus.', 'The base has a daily efficiency review: enough clean latrines, mess seats and bunks, full crews and the power for it all pay supplies.'] };
 const KEYS = {
   war: [['Click a system', 'Select it; click another to send a fleet'], ['END ROUND', 'Play out the round'], ['Esc', 'The menu']],
   fury: [['W A S D / arrows', 'Move the view'], ['Mouse wheel', 'Zoom'], ['Tab or M', 'The big map'], ['1 to 8', 'Pick a weapon; hold or click to fire'], ['G', 'Drop Infantry'], ['B', 'Build'], ['U', 'Load a supply pod (then 1, 2, 3)'], ['Click / drag a box', 'Pick troopers'], ['Right-click', 'Order the troopers you picked'], ['Esc', 'Pause']],
@@ -191,19 +193,40 @@ function pagePlay() {
     return `<div class="psave">${gameCard(g, true)}${panel('Choose a save', `<p>Load a save, or start a new game in a save of its own. Each is kept apart.</p>${slotRows(g)}<div class="pfoot"><button class="plate btn" data-act="back">BACK</button><button class="plate btn" data-act="tut" data-g="${g}">${g === 'war' ? 'HOW IT FITS TOGETHER' : 'TUTORIAL'}</button></div>`, 'pcard' + (g === 'war' ? ' main' : ''))}</div>`; }
   return '<div class="ggrid">' + Object.keys(GAMES).map((g) => gameCard(g)).join('') + '</div>';
 }
+// COLLECTION: everything the career has met (core/career.js), by kind, each open to read with its model turning beside it
+let colKind = 'foe', colSel = null;
+const metOf = (k) => (career().met[k] || {});
 function pageCollection() {
-  const foes = [['The Molt', GC.color.molt], ['The Foundry', GC.color.foundry], ['The Talon', GC.color.talon]];
-  const row = (title, items) => panel(title, `<div class="cgrid">${items.map((x) => Array.isArray(x) ? `<div class="tile"><i class="dot" style="background:${x[1]}"></i><em>ENEMY</em><b>${x[0].toUpperCase()}</b></div>` : `<div class="tile lock"><em>NOT YET MET</em><b>${x}</b></div>`).join('')}</div>`);
-  return `<p class="soon">Everything you meet in your career will be kept here to open and read about: enemies, objectives, buildings, station parts and people. <b>For now this is a placeholder.</b></p>` +
-    row('Enemies', [...foes, '???']) + row('Objectives', ['???', '???', '???', '???']) + row('Buildings and parts', ['???', '???', '???', '???']);
+  const cat = catalogue(), met = metOf(colKind), all = cat[colKind], seen = all.filter((e) => met[e.id]);
+  if (!colSel || !met[colSel] || !all.some((e) => e.id === colSel)) colSel = seen.length ? seen[0].id : null;
+  const tabs = KINDS.map(([k, n]) => { const m = metOf(k), got = cat[k].filter((e) => m[e.id]).length; return `<button class="${colKind === k ? 'on' : ''}" data-act="c-kind" data-k="${k}">${n} <small>${got}/${cat[k].length}</small></button>`; }).join('');
+  const chip = (e) => met[e.id] ? `<button class="chip${e.id === colSel ? ' on' : ''}" data-act="c-sel" data-id="${e.id}">${e.tag ? `<i>${e.tag}</i>` : ''}<b>${esc(e.name)}</b><small>${met[e.id].n || ''}</small></button>` : `<span class="chip lock">${e.tag ? `<i>${e.tag}</i>` : ''}<b>???</b></span>`;
+  let grid;
+  if (colKind === 'foe') grid = ['bugs', 'bots', 'lizards'].map((f) => `<div class="cside"><i style="color:${GC.color[{ bugs: 'molt', bots: 'foundry', lizards: 'talon' }[f]]}">${FACTION_ABOUT[f].name.toUpperCase()}${all.some((e) => e.side === f && met[e.id]) ? `<span>${FACTION_ABOUT[f].about}</span>` : ''}</i><div class="chips six">${all.filter((e) => e.side === f).map(chip).join('')}</div></div>`).join('');
+  else grid = `<div class="chips${all.length > 24 ? ' many' : ''}">${all.map(chip).join('')}</div>`;
+  const e = all.find((x) => x.id === colSel), m = e && met[e.id], about = KINDS.find((x) => x[0] === colKind)[2];
+  const card = e ? `<div class="cart" id="c-art"></div><em>${esc(e.what)}</em><b>${esc(e.name)}</b><p>${esc(e.about)}</p><dl><dt>FIRST MET</dt><dd>${new Date(m.at).toLocaleDateString()}</dd><dt>COUNT</dt><dd>${m.n}</dd></dl>`
+    : `<div class="cart empty"></div><em>NOTHING YET</em><b>Not yet met</b><p>${about} Play to fill it in.</p>`;
+  return `<div class="osub ckinds">${tabs}</div><div class="crow">${panel(`${seen.length} of ${all.length} met`, `<p class="soon">${about}</p>${grid}`, 'cbox')}${panel('Details', card, 'cdet')}</div>`;
+}
+// the open entry's model, drawn once the page is on screen
+function collectionArt() {
+  const box = $('c-art'), e = colSel && catalogue()[colKind].find((x) => x.id === colSel);
+  if (box && e) import('./core/lineart.js').then(({ showArt }) => showArt(box, e.art)).then((ok) => { if (!ok) box.classList.add('empty'); }).catch(() => box.classList.add('empty'));
 }
 function pageCareer() {
-  const c = read(KEY, null), st = (c && c.stats) || {}, rows = [];
-  for (const g in GAMES) for (const n of [0, 1, 2]) { const i = slotInfo(g, n); if (i) rows.push(`<tr><td><b>${GAMES[g].name}</b></td><td>Save ${n + 1}</td><td>${esc(i.title)}</td><td>${esc(i.text)}</td></tr>`); }
-  const seen = ['base', 'orbit'].filter((k) => { try { return !!localStorage.getItem('ofgc.guide.' + k); } catch { return false; } }).length;
-  return panel('Your games', rows.length ? `<table class="ctab"><tr><th>GAME</th><th>SAVE</th><th>NAME</th><th>WHERE IT STANDS</th></tr>${rows.join('')}</table>` : '<p class="soon">Nothing played yet. Start a game on the PLAY tab and it will show here.</p>') +
-    panel('This campaign', `<table class="ctab"><tr><th>GROUND FIGHTS</th><th>WON</th><th>GUIDES SEEN</th></tr><tr><td><b>${st.ground || 0}</b></td><td><b>${st.groundWon || 0}</b></td><td><b>${seen}</b> of 2</td></tr></table>`) +
-    '<p class="soon">Milestones and totals across the campaign and every mini-game will be tracked here. <b>More to come.</b></p>';
+  const c = career(), n = c.n, cat = catalogue();
+  const rows = [];
+  for (const g in GAMES) for (const k of [0, 1, 2]) { const i = slotInfo(g, k); if (i) rows.push(`<tr><td><b>${GAMES[g].name}</b></td><td>Save ${k + 1}</td><td>${esc(i.title)}</td><td>${esc(i.text)}</td></tr>`); }
+  const CR = ' <small>CR</small>', num = (v) => (v || 0).toLocaleString(), mins = Math.round((n.groundSec || 0) / 60);
+  const stat = (label, v, sub = '') => `<div class="cstat"><i>${label}</i><b>${v}</b>${sub ? `<small>${sub}</small>` : ''}</div>`;
+  const ground = [stat('FIGHTS', num(n.missions), `${num(n.won)} won`), stat('KILLS', num(n.kills)), stat('OBJECTIVES DONE', num(n.objectives)), stat('VANGUARDS LOST', num(n.starsLost), `${num(n.troopsLost)} Infantry`),
+    stat('INSURANCE CLAIMED', num(n.insurance) + CR, `${num(n.contracts)} CR on new contracts`), stat('SKILL BONUSES', num(n.skill) + CR), stat('CREDITS EARNED', num(n.groundCr) + CR), stat('TIME ON THE GROUND', mins >= 60 ? `${Math.floor(mins / 60)}H ${mins % 60}M` : `${mins}M`)].join('');
+  const post = [stat('BUILDINGS PUT UP', num(n.built)), stat('BASE DAYS', num(n.baseDays), `${num(n.baseFirst)} ranked first`), stat('STATION PARTS BUILT', num(n.parts)), stat('STATION WEEKS', num(n.stationWeeks), n.stationTier ? `best tier ${n.stationTier}` : '')].join('');
+  const col = KINDS.map(([k, name]) => { const m = c.met[k] || {}, got = cat[k].filter((e) => m[e.id]).length; return stat(name, `${got}/${cat[k].length}`); }).join('');
+  return `<div class="crow car">${panel('On the ground', `<div class="cstats">${ground}</div>`)}${panel('At the base and the station', `<div class="cstats two">${post}</div>`)}</div>
+    <div class="crow car">${panel('Your games', rows.length ? `<table class="ctab"><tr><th>GAME</th><th>SAVE</th><th>NAME</th><th>WHERE IT STANDS</th></tr>${rows.join('')}</table>` : '<p class="soon">Nothing played yet. Start a game on the PLAY tab and it will show here.</p>')}${panel('Collection', `<div class="cstats three">${col}</div>`)}</div>
+    <p class="soon">Your career is kept across every game and every save: deleting a save does not take it away. Tutorials count for what you meet, not for the totals.</p>`;
 }
 function pageStore() {
   return panel('The store', `<p class="soon">Campaign credits will be spent here on upgrades that carry into the campaign and the mini-games, and on your roster of Vanguards: their roles and their public personalities. <b>For now this is a placeholder.</b></p>
@@ -236,6 +259,7 @@ function drawTitle() {
   $('t-page').className = 'tp-' + tab + (tab === 'play' && !playGame ? ' wide' : '');
   $('t-page').innerHTML = `<h2>${TABS.find((x) => x[0] === tab)[1]}</h2>` + PAGES[tab]();
   optBind($('t-page'));
+  if (tab === 'collection') collectionArt();
 }
 function setTab(k) { tab = k; playGame = null; audio.click(); drawTitle(); }
 function toTitle() {
@@ -255,6 +279,8 @@ $('t-page').onclick = (e) => {
   audio.click();
   if (optAct(d)) return drawTitle();
   if (d.act === 'game') { playGame = g; return drawTitle(); }
+  if (d.act === 'c-kind') { colKind = d.k; colSel = null; return drawTitle(); }
+  if (d.act === 'c-sel') { colSel = d.id; return drawTitle(); }
   if (d.act === 'back') { playGame = null; return drawTitle(); }
   if (d.act === 'war-continue') warContinue();
   else if (d.act === 'war-new') warNew();
@@ -305,12 +331,14 @@ function how(then) {
       <div><b>THE BASE</b>Trains your troops and digs up materials.</div>
     </div>
     <p class="dim">Lose a system and the enemy takes its station and base too.</p>
+    <p class="dim">Your Vanguards are the war's celebrities: elite soldiers and the stars of the evening broadcast, each one a fortune spent on training and on film. When one falls the insurance pays out, and the next star costs more to sign.</p>
     <button class="plate btn go" data-x="close">${then ? 'TO THE WAR ROOM' : 'CLOSE'}</button>`);
   $('modal').querySelector('[data-x=close]').onclick = () => { $('modal').hidden = true; audio.click(); if (then) then(); };
 }
 function credits() {
   War.modal(`<h2>Credits</h2><p>Design and direction: Ramzies. Built with Claude (Anthropic) as a coding assistant.</p>
     <p>Galactic Command brings four prototypes into one game: Orbital Fury, Super Orbital Simulator, FOB Super Commander and Super Galactic Strategy. Art is drawn in code and sound is synthesised in the browser.</p>
+    <p>The setting: a war fought by private fleets for the cameras. Its Vanguards are influencers in armour, insured like film stars and signed like athletes; the bases grade themselves on morale and publicity; every victory is a broadcast.</p>
     <p>3D is drawn with three.js (MIT licence, js/vendor/THREE-LICENSE).</p>
     <p>Thanks to the SESF community for testing, ideas and feedback.</p>
     <p class="dim">An original setting. Not affiliated with or endorsed by any game studio or publisher.</p>

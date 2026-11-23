@@ -98,6 +98,8 @@ const set = (path, v) => { const ks = path.split('.'), last = ks.pop(); ks.reduc
 const BASE = Object.fromEntries(RULES.map(([p]) => [p, get(p)]));
 
 let applied = LEVELS;
+// (GC 0.62) how many lives the Vanguards share at level d (CONFIG.stars)
+export function livesAt(d) { const S = C.stars, n = clampAny(d); return n <= LEVELS ? S.livesAt[n - 1] : Math.max(S.livesMin, S.livesAt[LEVELS - 1] - S.livesBeyond * (n - LEVELS)); }
 export const appliedLevel = () => applied;
 
 // Write level d's values into CONFIG. Level 10 puts the tuned values back.
