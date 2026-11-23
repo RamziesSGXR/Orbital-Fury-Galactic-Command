@@ -13,7 +13,7 @@ with sync_playwright() as pw:
         pg.evaluate('localStorage.clear()'); pg.reload(); pg.wait_for_timeout(500)
         pg.screenshot(path=f'{out}/{name}-1-title.png')
         pg.click('#b-new'); pg.wait_for_timeout(200)
-        pg.fill('#f-name', 'Lantern Guard'); pg.click('[data-f=shape][data-d="1"]')
+        pg.click('#f-styles [data-lv=preset][data-id=sable]'); pg.fill('#f-name', 'Lantern Guard')
         pg.screenshot(path=f'{out}/{name}-2-found.png')
         pg.click('#f-go'); pg.wait_for_timeout(200)
         pg.screenshot(path=f'{out}/{name}-3-how.png')

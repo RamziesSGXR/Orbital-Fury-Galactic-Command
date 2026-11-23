@@ -255,7 +255,7 @@ button small { display: block; font: 9.5px var(--mono); letter-spacing: 0.5px; o
 .tname span { font: 600 10px var(--head); letter-spacing: 5px; color: var(--cyan); }
 .tname b { font: 700 clamp(15px, 2.4vh, 21px) var(--head); letter-spacing: 2.5px; color: var(--amber); }
 .ttabs { display: flex; flex: 1; min-width: 0; max-width: 900px; border-left: 2px solid var(--text); border-right: 2px solid var(--text); }
-.ttabs button { flex: 1 1 0; min-width: 0; height: clamp(36px, 5.6vh, 46px); background: rgba(5, 7, 6, 0.82); color: var(--dim); border: 0; border-right: 2px solid rgba(230, 234, 220, 0.55); font: 600 clamp(12px, 1.9vh, 15px) var(--head); letter-spacing: 2px; cursor: pointer; position: relative; }
+.ttabs button { flex: 1 1 0; min-width: 0; height: clamp(36px, 5.6vh, 46px); background: rgba(5, 7, 6, 0.82); color: var(--dim); border: 0; border-right: 2px solid rgba(230, 234, 220, 0.55); font: 600 clamp(12px, 1.9vh, 15px) var(--head); letter-spacing: 1.5px; white-space: nowrap; cursor: pointer; position: relative; }
 .ttabs button:last-child { border-right: 0; }
 .ttabs button:hover { color: var(--text); }
 .ttabs button.on { background: rgba(230, 234, 220, 0.16); color: var(--text); }
@@ -264,6 +264,7 @@ button small { display: block; font: 9.5px var(--mono); letter-spacing: 0.5px; o
 .ttabs kbd.l { left: -34px; } .ttabs kbd.r { right: -34px; }
 .twho { margin-left: auto; padding-left: 40px; display: flex; align-items: center; gap: 10px; font: 600 12px var(--head); letter-spacing: 1.5px; color: var(--text); white-space: nowrap; }
 .twho canvas { width: clamp(34px, 5.6vh, 46px); height: clamp(34px, 5.6vh, 46px); }
+.twho span { max-width: 210px; overflow: hidden; text-overflow: ellipsis; }
 #t-page { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: clamp(8px, 1.6vh, 14px); width: min(1010px, 100%); }
 #t-page.wide { width: 100%; }
 #t-page > h2 { font: 600 clamp(14px, 2.2vh, 17px) var(--head); letter-spacing: 2.5px; color: var(--text); margin: 0 0 -2px 2px; }
@@ -367,24 +368,19 @@ button small { display: block; font: 9.5px var(--mono); letter-spacing: 0.5px; o
 .fwrap { width: min(820px, 100%); margin: 0 auto; padding: 14px 12px 20px; }
 .fhd b { font: 700 20px var(--head); letter-spacing: 2px; color: var(--amber); display: block; }
 .fhd span { color: var(--dim); font-size: 12px; }
-.fgrid { display: grid; grid-template-columns: 1fr; gap: 12px; margin: 12px 0; }
-.fprev { text-align: center; }
-#f-crest { width: min(200px, 50vw); height: auto; aspect-ratio: 1; }
-#f-strip { display: flex; height: 10px; margin-top: 8px; } #f-strip i { flex: 1; }
-.fform label { display: block; font: 600 10px var(--head); letter-spacing: 1.5px; color: var(--dim); margin-bottom: 8px; }
+.fstyles.lvcards { margin-top: 12px; grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
+.fthree { display: grid; grid-template-columns: 1.2fr 1fr 1.2fr; gap: 10px; margin: 12px 0 0; }
+.fform label { display: block; min-width: 0; font: 600 10px var(--head); letter-spacing: 1.5px; color: var(--dim); margin-bottom: 8px; }
 .fform input { display: block; width: 100%; margin-top: 3px; background: #0e1211; border: 1px solid var(--cyan-l); color: var(--text);
   font: 14px var(--mono); padding: 9px 8px; border-radius: 0; user-select: text; }
 .fform input:focus { outline: 1px solid var(--amber); }
 .fpick { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
-.fpick span, .fcol span { font: 600 10px var(--head); letter-spacing: 1.5px; color: var(--dim); flex: 0 0 76px; }
-.fpick b { flex: 1; text-align: center; font: 600 12px var(--head); letter-spacing: 1px; color: var(--cyan); text-transform: uppercase; }
-.fcol { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.fpick span { font: 600 10px var(--head); letter-spacing: 1.5px; color: var(--dim); flex: 0 0 76px; }
 .sw { display: flex; flex-wrap: wrap; gap: 4px; flex: 1; }
 .sw button { width: 26px; height: 26px; border: 1px solid var(--empty); padding: 0; }
 .sw button.on { outline: 2px solid var(--amber); outline-offset: 1px; }
 .frow { display: grid; grid-template-columns: 1fr 1fr 2fr; gap: 8px; }
 .frow .go { min-height: 44px; }
-@media (min-width: 720px) { .fgrid { grid-template-columns: 300px 1fr; } }
 
 /* ---------- the frame every theatre shares ---------- */
 #th-top { display: flex; align-items: center; gap: 6px 10px; padding: 5px 8px; background: var(--strip); border-bottom: 1px solid var(--cyan-l); flex-wrap: wrap; }
@@ -575,3 +571,59 @@ button small { display: block; font: 9.5px var(--mono); letter-spacing: 0.5px; o
 #modal .brep h3 { margin-top: 14px; } #modal .brep .ck { list-style: none; padding: 0; margin: 6px 0; } #modal .brep .ck li { padding: 2px 0; } #modal .brep .ck .y { color: var(--green, #6fd08c); } #modal .brep .ck .n { color: var(--red, #e5564b); }
 #modal .brep .sb { display: grid; grid-template-columns: 92px 1fr 34px; gap: 6px; align-items: center; margin: 4px 0; } #modal .brep .sb i { height: 8px; background: rgba(255,255,255,0.1); position: relative; } #modal .brep .sb i u { position: absolute; inset: 0 auto 0 0; background: var(--amber, #f5d547); }
 #modal .brep table { width: 100%; border-collapse: collapse; font-size: 12px; } #modal .brep td, #modal .brep th { padding: 3px 4px; text-align: right; } #modal .brep td:first-child, #modal .brep th:first-child { text-align: left; } #modal .brep tr.me td { color: var(--amber, #f5d547); }
+
+/* ---------- (0.66) LIVERY: the look every game wears (js/core/livery.js, js/core/livery-ui.js) ---------- */
+.lvp { display: flex; flex-direction: column; min-height: 0; }
+.lvp .osub { margin-bottom: clamp(6px, 1.2vh, 10px); }
+.lvg { display: grid; grid-template-columns: clamp(180px, 31vh, 250px) minmax(0, 1fr); gap: 16px; min-height: 0; }
+.lvside { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.lvbig { aspect-ratio: 1; width: 100%; background: radial-gradient(circle, rgba(127, 233, 224, 0.07), rgba(0, 0, 0, 0) 70%); border: 1px solid rgba(230, 234, 220, 0.18); }
+.lvbig canvas { width: 100%; height: 100%; display: block; touch-action: none; }
+.lvbig.edit { cursor: move; background: #070908; border-color: rgba(245, 213, 71, 0.4); }
+.lvside > b { font: 700 15px var(--head); letter-spacing: 1.5px; color: var(--amber); text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lvside > small { font: 11.5px/1.3 var(--mono); color: var(--dim); margin-top: -5px; min-height: 15px; }
+.lvlook { display: grid; grid-template-columns: 1fr 1.8fr; gap: 6px; }
+.lvlook canvas { width: 100%; height: auto; border: 1px solid rgba(230, 234, 220, 0.18); background: #0a0d0c; display: block; }
+.lvhint { font: 10.5px/1.35 var(--mono); color: var(--dim); }
+.lvrow { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
+.lvrow .btn { min-height: clamp(26px, 4.4vh, 30px); min-width: 0; padding: 0 10px; font-size: 10.5px; flex: none; }
+.lvmain { display: flex; flex-direction: column; gap: clamp(5px, 1.15vh, 10px); min-width: 0; }
+.lvmain > .soon, .lvsec .soon { font: 11.5px/1.4 var(--mono); color: var(--dim); }
+.lvsec > span { display: block; font: 600 10.5px var(--head); letter-spacing: 1.5px; color: var(--dim); margin-bottom: 4px; }
+.lvsec > span small { font: 10px var(--mono); letter-spacing: 0; margin-left: 6px; }
+.lvtiles, .lvshapes { display: flex; gap: 4px; flex-wrap: wrap; }
+.lvtile, .lvshape { position: relative; width: clamp(30px, 5.6vh, 38px); height: clamp(30px, 5.6vh, 38px); padding: 0; background: #0c100f; border: 1px solid rgba(230, 234, 220, 0.22); flex: none; }
+.lvtile canvas, .lvshape canvas { width: 100%; height: 100%; display: block; }
+.lvtile { background: repeating-conic-gradient(#1a201e 0 25%, #2b3331 0 50%) 50% / 10px 10px; }
+.lvtile i { position: absolute; left: 2px; top: 0; font: 9px var(--mono); color: var(--dim); font-style: normal; pointer-events: none; }
+.lvtile:hover, .lvshape:hover { border-color: var(--text); }
+.lvtile.on, .lvshape.on { border-color: var(--amber); box-shadow: 0 0 0 1px var(--amber) inset; }
+.lvtile.off canvas { opacity: 0.22; }
+.lvgroups { display: flex; } .lvgroups button { flex: 1; height: 26px; background: none; border: 1px solid rgba(230, 234, 220, 0.3); border-left: 0; color: var(--dim); font: 600 10.5px var(--head); letter-spacing: 1.5px; cursor: pointer; }
+.lvgroups button:first-child { border-left: 1px solid rgba(230, 234, 220, 0.3); } .lvgroups button.on { background: rgba(230, 234, 220, 0.14); color: var(--text); }
+.lvsw { gap: 3px; align-items: center; } .lvsw button { width: clamp(17px, 1.5vw, 21px); height: clamp(17px, 1.5vw, 21px); }
+.lvsw button.mine { border-radius: 50%; } .lvsw .sep { width: 6px; }
+.lvsw input[type=color] { width: 32px; height: 22px; padding: 0; border: 1px solid rgba(230, 234, 220, 0.4); background: none; cursor: pointer; }
+.lvsl { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 18px; }
+.lvsl label { display: grid; grid-template-columns: 84px minmax(0, 1fr) 30px; align-items: center; gap: 6px; font: 600 10px var(--head); letter-spacing: 1.2px; color: var(--dim); }
+.lvsl input[type=range] { width: 100%; min-width: 0; accent-color: var(--amber); }
+.lvsl input[disabled] { opacity: 0.35; }
+.lvsl output { font: 11px var(--mono); color: var(--text); text-align: right; }
+.lvsl .lvtext { grid-column: 2 / 4; min-width: 0; background: #0e1211; border: 1px solid var(--cyan-l); color: var(--text); font: 13px var(--mono); padding: 3px 6px; user-select: text; text-transform: uppercase; }
+.lvcards { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+.lvcard { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 6px 0; background: linear-gradient(180deg, #131a18, #080a09); border: 1px solid rgba(230, 234, 220, 0.3); color: var(--text); text-align: center; min-width: 0; overflow: hidden; cursor: pointer; }
+.lvcard canvas { width: 84%; height: auto; aspect-ratio: 1; }
+.lvcard b { font: 700 12px/1.1 var(--head); letter-spacing: 1px; text-transform: uppercase; }
+.lvcard small { font: 10.5px/1.25 var(--mono); color: var(--dim); min-height: 26px; margin-bottom: 6px; }
+.lvcard .lvstrip { display: flex; align-self: stretch; height: 8px; margin: auto -6px 0; } .lvstrip i { flex: 1; }
+.lvcard:hover { border-color: var(--text); } .lvcard.on { border-color: var(--amber); box-shadow: 0 0 0 1px var(--amber) inset; } .lvcard.on b { color: var(--amber); }
+.lvcard.new { justify-content: center; padding-bottom: 8px; } .lvcard.new span { font: 300 46px/1 var(--head); color: var(--dim); }
+.lvcols { display: grid; grid-template-columns: 124px minmax(0, 1fr); gap: clamp(5px, 1.05vh, 9px) 12px; align-items: center; }
+.lvcols > span { font: 600 10.5px var(--head); letter-spacing: 1.4px; color: var(--dim); }
+.lvcols .seg { display: flex; gap: 5px; flex-wrap: wrap; } .lvcols .seg .btn { min-height: 28px; min-width: 0; padding: 0 10px; font-size: 10.5px; }
+.lvname { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.lvname label { font: 600 10.5px var(--head); letter-spacing: 1.5px; color: var(--dim); }
+.lvname input { display: block; width: 100%; margin-top: 3px; background: #0e1211; border: 1px solid var(--cyan-l); color: var(--text); font: 14px var(--mono); padding: 8px; border-radius: 0; user-select: text; }
+.lvname input:focus, .lvsl .lvtext:focus { outline: 1px solid var(--amber); }
+.lvwhere { list-style: none; padding: 0; margin: 0 0 6px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; font: 11.5px/1.35 var(--mono); color: var(--dim); }
+.lvwhere b { display: block; font: 600 10.5px var(--head); letter-spacing: 1.5px; color: var(--text); }

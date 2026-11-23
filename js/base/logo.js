@@ -1,5 +1,9 @@
 // The logo maker: a crest shape, a symbol, three colours and up to four letters, drawn in code.
 // The same drawing goes on flags, banners, billboards, the HQ and the statue plinth.
+// (GC 0.66) A logo with layers is a livery's emblem (js/core/livery.js), drawn by it; the crest shapes and symbols here are its
+// shapes too.
+import { drawEmblem } from '../core/livery.js';
+export { crest as drawCrest, symbol as drawSymbol };
 
 export const SHAPES = ['shield', 'circle', 'hex', 'diamond', 'square', 'chevron', 'star', 'pentagon', 'pennant', 'roundel', 'oval'];
 export const SYMBOLS = ['striker', 'fist', 'skull', 'helmet', 'star', 'sword', 'bolt', 'planet', 'globe', 'wings', 'gear', 'tower', 'flame', 'crosshair', 'anchor', 'chevrons', 'none'];
@@ -152,6 +156,7 @@ export function drawLogo(g, logo, x = 0, y = 0, s = 100) {
     const k = Math.min(s / up.width, s / up.height), w = up.width * k, h = up.height * k;
     g.drawImage(up, x + (s - w) / 2, y + (s - h) / 2, w, h); return;
   }
+  if (logo.layers) { drawEmblem(g, logo, x, y, s); return; }
   g.save(); g.translate(x, y); g.scale(s / 100, s / 100);
   crest(g, logo.shape); g.fillStyle = logo.bg; g.fill();
   g.lineWidth = 5; g.strokeStyle = logo.rim; g.stroke();

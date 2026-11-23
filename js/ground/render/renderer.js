@@ -475,7 +475,11 @@ export class Renderer {
           if (Math.abs(o.sx - cx) < half + 30 && Math.abs(o.sy - cy) < half + 30) out.push({ k: 'bld:eob', key: 'evac-s', x: o.sx, y: o.sy, s: 4.2, rot: Math.PI / 2 - a });
           if (Math.abs(o.hx - cx) < half + 30 && Math.abs(o.hy - cy) < half + 30) out.push({ k: 'bld:vbay', key: 'evac-h', x: o.hx + ux * 12.5, y: o.hy + uy * 12.5, s: 8.4, rot: -Math.PI / 2 - a });
         }
-        else if (o.type === 'oil') put('site_derrick', o.x, o.y, Math.max(8, (o.r || 12) * 0.45), turn(o));     // (0.52) the rig is what is solid (C.solids.oil), so whoever holds the site stands outside it
+        else if (o.type === 'oil') {     // (0.52) the rig is what is solid (C.solids.oil), so whoever holds the site stands outside it. (GC 0.66) It is FOB Commander's Biofuel Extractor, the same footprint as the old derrick; the derrick stands in until the base's buildings have come
+          const s2 = Math.max(8, (o.r || 12) * 0.45);
+          if (Math.abs(o.x - cx) < half + 30 && Math.abs(o.y - cy) < half + 30) out.push({ k: 'bld:extractor', key: 'oil' + (o.id ?? 0), x: o.x, y: o.y, s: s2, rot: turn(o) });
+          if (!M3.has('bld')) put('site_derrick', o.x, o.y, s2, turn(o));
+        }
       }
       { const hb = m.democharge; if (hb && (hb.state === 'landed' || hb.state === 'armed')) put('site_charge', hb.x, hb.y, 2.2, 0.6); }
       { const TB = m.terrain && m.terrain.buildings; if (TB) for (let i = 0; i < TB.length; i++) { const b = TB[i], x = (b.x0 + b.x1) / 2, y = (b.y0 + b.y1) / 2; if (Math.abs(x - cx) > half + 40 || Math.abs(y - cy) > half + 40) continue; const c = cityPick(b, i); out.push({ k: 'bld:' + c.t, key: 'city' + i, x, y, s: c.s, hy: c.hy, rot: c.rot }); } }

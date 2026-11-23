@@ -605,7 +605,7 @@ export default {
   'map.follow': 'FOLLOW SQUAD',
   'map.back': 'BACK',
   'credits.eyebrow': 'Credits',
-  'credits.lede': 'A free game made for the <b>SESF</b> community. You are the gunner on a Fire-Support Ship, covering four Vanguards from orbit.',
+  'credits.lede': 'A free game. You are the gunner on a Fire-Support Ship, covering four Vanguards from orbit.',
   'credits.project': 'SOURCE CODE',
   'credits.ver': 'Version {v}. Part of Orbital Fury: Galactic Command.',
   'credits.body': '<div class="cr-col cr-c1"><section><h4>CREATED BY</h4><dl class="cr-list"><dt>Design and direction</dt><dd><b>Ramzies</b></dd><dt>Community</dt><dd><b>SESF</b><small>Testing, ideas and feedback.</small></dd><dt>AI tools</dt><dd><b>Claude (Anthropic)</b><small>Used as a coding assistant.</small></dd></dl></section></div>',

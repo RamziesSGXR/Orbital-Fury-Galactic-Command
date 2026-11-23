@@ -43,7 +43,9 @@ function foeOf(sys) {
   return { id: f, name: GC.names.factions[f], color: GC.color[f] };
 }
 const stationFaction = (sys) => ({ ...structuredClone(C.founding.def), ...structuredClone(app.faction), station: `${sys.name} Station` });
-const livery = (f) => ({ ...C.livery.def, hull: f.primary, trim: f.secondary });
+// (0.66) the livery every game wears: the hull and trim, the accent, the finish and the lights (a soft wash of the glow colour)
+const soft = (c) => '#' + [1, 3, 5].map((i) => Math.round(parseInt(c.substr(i, 2), 16) * 0.45 + 255 * 0.55).toString(16).padStart(2, '0')).join('');
+const livery = (f) => ({ ...C.livery.def, hull: f.primary, trim: f.secondary, ...(f.livery ? { accent: f.livery.accent, plating: f.livery.finish, ...(/^#[0-9a-f]{6}$/i.test(f.livery.glow || '') ? { lights: soft(f.livery.glow) } : {}) } : {}) });
 
 // ---------------------------------------------------------------- the shared frame
 function tabs() {

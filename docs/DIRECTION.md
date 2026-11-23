@@ -74,17 +74,27 @@ also why they are so capable and so well equipped: a great deal has been spent o
 
 Models and sharing (the 0.64 rework, continued):
 1. ~~The ground fight uses FOB Commander's buildings: the work site, the radio mast, the capital's city blocks.~~ **(0.65)**
-   Still to do: the oil pump as the base's Biofuel Extractor (the ground fight's derrick stays for now).
+   ~~The oil pump as the base's Biofuel Extractor.~~ **(0.66)**
 2. ~~Sandbags and trenches buildable in FOB Commander.~~ **(0.65)**
-3. ~~Loose pieces in the ground fight's models.~~ **(0.65: none left)** Still flagged: FOB buildings' structure files and
-   station parts, which may be filled by code-made parts in the game; to look at in place.
+3. ~~Loose pieces in the ground fight's models.~~ **(0.65: none left)** ~~FOB buildings and station parts, looked at in
+   place.~~ **(0.66: test/floating_built.py finds none in the buildings as built; the station's frames are held by their
+   lines, the pylon's ring by struts)**
 4. The enemy's posts and buildings in the same spirit (each enemy its own look), and FOB buildings that look dated.
 5. ~~fleet.py copied into the Blender scripts folder.~~ **(0.65: with sites.py, world.py and vehicles.py; the old ones kept
    as *.before-0.64)**
 
-From the 17:41 list, not started:
+The livery:
+11. ~~One livery above every game, edited on the main menu: five ready-made styles, an emblem editor in layers, colours,
+    finish and uniform.~~ **(0.66)**
+
+Next, in this order (agreed after 0.65):
 6. The Store: spending campaign credits on upgrades; the Vanguard roster (roles and personality traits to unlock).
-7. Vanguards in the other mini-games (the base and the station), with lives and insurance there too.
-8. Quick-time events like the demolition charge in the other games (set orders, skill bonuses).
-9. Weapon fire, explosions and textures with more character; reacting fog; flooding and weather; destructible buildings.
-10. Daily challenges (a placeholder today); controller support (desktop first).
+7. Vanguards in FOB Commander (and the station), with lives and insurance there too; troopers and recruits managed one by
+   one at the base.
+8. Quick-time events like the demolition charge in FOB Commander and the station: set orders that can be learned, with
+   skill bonuses.
+9. Daily challenges (a placeholder on HOME today).
+10. Weapon fire and explosions with more character; ground fog that reacts; weather and flooding.
+12. Destructible buildings: in code if it can be done with detail, otherwise when Blender is to hand again.
+13. Later: controller support (desktop first); another style for the campaign; story reasons for the war.
+(Dropped: recolouring the enemies; each already has its own colours.)

@@ -308,7 +308,7 @@ export class View {
     M.trim.color.set(L.trim); M.craftTrim.color.set(L.trim); M.dark.color.set(L.accent).multiplyScalar(0.6); M.wire.color.set(L.accent).lerp(new THREE.Color(0xaab6b0), 0.5);
     const I = D.interior[L.interior] || D.interior.ministry;
     M.inner.color.set(I.floor); M.wall.color.set(I.wall); M.lane.color.set(I.lane); M.hall.color.set(I.floor).lerp(new THREE.Color(I.lane), 0.38);
-    M.glow.color.set(D.lights[L.lights] || D.lights.warm);
+    M.glow.color.set(D.lights[L.lights] || (/^#[0-9a-f]{6}$/i.test(L.lights || '') ? L.lights : D.lights.warm));     // (0.66) or a colour of the livery's own
     this._drawDecal();
     this.thumbs = null;
   }

@@ -399,6 +399,7 @@ export function buildPart(type, raw = false) {      // raw: the pieces as built,
     case 'pylon': {
       box(5, 0.7, 0.7, 'hull', 2.5, 0, 0); box(0.9, 0.9, 0.9, 'hull', 5, 0, 0); box(0.6, 4.2, 0.6, 'hull', 5, 2.5, 0);
       put(flat(new THREE.TorusGeometry(0.75, 0.14, 6, 20)), 'trim', 5, 4.7, 0, { noEdges: true });
+      for (const d of [-1, 1]) { box(0.38, 0.07, 0.07, 'glow', 5 + d * 0.46, 4.7, 0); box(0.07, 0.07, 0.38, 'glow', 5, 4.7, d * 0.46); }     // (GC 0.66) the beacon ring held to the mast by four lit struts
       for (const y of [1.2, 2.4, 3.6]) box(0.62, 0.1, 0.62, 'glow', 5, y, 0);
       put(new THREE.SphereGeometry(0.14, 8, 6), 'glow', 5, 5.05, 0);
       break;
@@ -412,6 +413,7 @@ export function buildPart(type, raw = false) {      // raw: the pieces as built,
       for (const [y, z] of [[h, h], [h, -h], [-h, h], [-h, -h]]) { box(x1 - 2, 0.18, 0.18, 'hull', (x1 + 2) / 2, y, z, { noEdges: true }); p.push(2, y, z, x1, y, z); }
       for (let x = 2; x <= x1 + 0.01; x += 3) {
         p.push(x, h, h, x, h, -h, x, h, -h, x, -h, -h, x, -h, -h, x, -h, h, x, -h, h, x, h, h);
+        p.push(x, h, 0.2, x, h + 0.1, 0.2, x, h, -0.2, x, h + 0.1, -0.2);     // (GC 0.66) the trim strip along the top pinned to each frame
         for (const [y, z] of [[h, h], [h, -h], [-h, h], [-h, -h]]) put(new THREE.SphereGeometry(0.1, 6, 4), 'glow', x, y, z);
       }
       wire(p);

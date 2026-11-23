@@ -14,7 +14,7 @@
 <body>
 
 <!-- ================= TITLE ================= -->
-<!-- (0.60) One main menu for the whole game: a bar of tabs along the top (HOME, PLAY, COLLECTION, CAREER, STORE, OPTIONS)
+<!-- (0.60) One main menu for the whole game: a bar of tabs along the top (HOME, PLAY, LIVERY, COLLECTION, CAREER, STORE, OPTIONS)
      and the tab's page under it, drawn by js/main.js (TABS). Behind it all, the war room (assets/menu/warroom.mp4). -->
 <section id="s-title" class="scr on">
   <video id="tbg" src="assets/menu/warroom.mp4" poster="assets/menu/warroom.jpg" autoplay loop muted playsinline disablepictureinpicture aria-hidden="true" tabindex="-1"></video>
@@ -34,32 +34,19 @@
 <!-- ================= FOUND YOUR FACTION ================= -->
 <section id="s-found" class="scr">
   <div class="fwrap">
-    <header class="fhd"><b>FOUND YOUR COMMAND</b><span>Your name, crest and colours go with you to every post.</span></header>
-    <div class="fgrid">
-      <div class="fprev plate"><canvas id="f-crest" width="320" height="320"></canvas><div id="f-strip"></div></div>
-      <div class="fform">
-        <label>COMMAND NAME<input id="f-name" maxlength="32" autocomplete="off"></label>
-        <label>HEADQUARTERS (YOUR CAPITAL)<input id="f-capital" maxlength="24" autocomplete="off"></label>
-        <label>MOTTO<input id="f-motto" maxlength="40" autocomplete="off"></label>
-        <label>LETTERS ON THE CREST<input id="f-text" maxlength="4" autocomplete="off"></label>
-        <div class="fpick"><span>SHAPE</span><button class="plate btn sm" data-f="shape" data-d="-1">‹</button><b id="f-shape"></b><button class="plate btn sm" data-f="shape" data-d="1">›</button></div>
-        <div class="fpick"><span>SYMBOL</span><button class="plate btn sm" data-f="symbol" data-d="-1">‹</button><b id="f-symbol"></b><button class="plate btn sm" data-f="symbol" data-d="1">›</button></div>
-        <div class="fpick"><span>PATTERN</span><button class="plate btn sm" data-f="pattern" data-d="-1">‹</button><b id="f-pattern"></b><button class="plate btn sm" data-f="pattern" data-d="1">›</button></div>
-        <div class="fcol"><span>FIELD</span><div id="f-bg" class="sw"></div></div>
-        <div class="fcol"><span>SYMBOL</span><div id="f-fg" class="sw"></div></div>
-        <div class="fcol"><span>PATTERN</span><div id="f-pc" class="sw"></div></div>
-        <div class="fcol"><span>RIM</span><div id="f-rim" class="sw"></div></div>
-        <div class="fpick"><span>YOUR OWN</span><button class="plate btn sm grow" id="f-up">UPLOAD A PICTURE</button><button class="plate btn sm hidden" id="f-unup">REMOVE</button><input type="file" id="f-file" class="hidden" accept="image/*" hidden></div>
-        <div class="fcol"><span>HULLS AND ROOFS</span><div id="f-primary" class="sw"></div></div>
-        <div class="fcol"><span>TRIM</span><div id="f-secondary" class="sw"></div></div>
-      </div>
+    <header class="fhd"><b>FOUND YOUR COMMAND</b><span>Pick a livery to start from. Your name, emblem and colours go with you to every game; make them your own on the LIVERY tab of the main menu, any time.</span></header>
+    <div class="fstyles lvcards" id="f-styles"></div>
+    <div class="fform fthree">
+      <label>COMMAND NAME<input id="f-name" maxlength="32" autocomplete="off"></label>
+      <label>HEADQUARTERS (YOUR CAPITAL)<input id="f-capital" maxlength="24" autocomplete="off"></label>
+      <label>MOTTO<input id="f-motto" maxlength="40" autocomplete="off"></label>
     </div>
     <div class="plate" id="f-open" style="padding:10px 12px;margin:10px 0">
       <div class="fpick"><span>THE ENEMY</span><span id="f-level" class="row grow" style="flex:1"></span></div>
       <div class="fpick"><span>OPENING FLEETS</span><span id="f-fleets" class="row grow" style="flex:1"></span></div>
       <div class="fpick" style="margin-bottom:0"><span>STATIONS AND BASES</span><span id="f-posts" class="row grow" style="flex:1"></span></div>
     </div>
-    <div class="frow"><button class="plate btn" id="f-back">BACK</button><button class="plate btn" id="f-roll">ROLL ANOTHER</button><button class="plate btn go" id="f-go">TAKE COMMAND</button></div>
+    <div class="frow"><button class="plate btn" id="f-back">BACK</button><button class="plate btn" id="f-roll">NEXT STYLE</button><button class="plate btn go" id="f-go">TAKE COMMAND</button></div>
   </div>
 </section>
 

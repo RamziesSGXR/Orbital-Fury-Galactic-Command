@@ -1,6 +1,6 @@
 // ORBITAL FURY: GALACTIC COMMAND. One war, one command, four posts.
 //
-// This file is the game's spine: the title, founding a command (name, crest, colours), the one campaign save, the menu,
+// This file is the game's spine: the title, founding a command (its name; its look is the livery, core/livery.js), the saves, the menu,
 // and the passage between the war room (the galaxy map) and the three theatres under it:
 //   GROUND  fire support from orbit over a ground battle   (js/modes/ground.js, rules in js/ground)
 //   ORBIT   the station over a system                      (js/modes/orbit.js,  rules in js/orbit)
@@ -10,7 +10,9 @@
 import { MSG_TIMES, msgKey, setMsg, timeMessage } from './core/msgtime.js';
 import { VERSION, C as GC } from './galaxy/config.js';
 import * as War from './galaxy/screen.js';
-import { drawLogo, ensureLogo, readUpload, SHAPES, SYMBOLS, PATTERNS, PALETTE } from './core/logo.js';
+import { drawLogo, ensureLogo } from './core/logo.js';
+import { livery, setLivery, hasLivery, fromCrest, asFaction, PRESETS } from './core/livery.js';
+import { pageLivery, bindLivery, liveryKey, styleCards, drawCards, fromPreset, isOwn } from './core/livery-ui.js';
 import { SEED } from './galaxy/tutorial.js';
 import { shopItems, buy, equip, unequip, shownAt, TIER_MAX } from './ground/data/kit.js';
 import { Audio } from './ground/audio.js';
@@ -37,17 +39,10 @@ function write(key, val) { try { localStorage.setItem(key, JSON.stringify(val));
 function drop(key) { try { localStorage.removeItem(key); } catch { /* no storage here */ } }
 
 // ---------------------------------------------------------------- the command (faction): one identity for every post
-const NAMES = ['Aurelian Vanguard', 'Ninth Meridian', 'Lantern Guard', 'Cinder Legion', 'Halcyon Watch', 'Iron Chorus', 'Harrow Company', 'Sable Dawn', 'Emberline Corps', 'Vigil of Tarsen'];
-const MOTTOS = ['As seen on every front.', 'First in, best lit.', 'Victory, brought to you by us.', 'Trusted by nine planets in ten.', 'We hold the line. Ask for us by name.', 'Results you can broadcast.'];
+// (0.66) Its look (name, motto, emblem, colours, how the troopers dress) is the livery, kept once above every game
+// (core/livery.js) and edited on the LIVERY tab. What a campaign keeps of its own is its capital and its opening.
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
-function rollFaction() {
-  const bg = pick(['#1b2a1a', '#111111', '#1d3f8a', '#3d4247', '#8a1c1c', '#2e4a2a']), fg = pick(['#ffe600', '#f4f4f4', '#ffb020', '#3da9ff']);
-  const pc = pick(['#3d4247', '#8a1c1c', '#1d3f8a', '#2e4a2a', '#111111', '#c0392b'].filter((c) => c !== bg));     // the pattern: dark, and never the field's or the symbol's colour
-  const name = pick(NAMES);
-  return { name, capital: pick(GC.names.capitals), motto: pick(MOTTOS), primary: pick(['#22262a', '#2e4a2a', '#3a4f6a', '#5d6a4a', '#8a5a44']), secondary: fg,
-    logo: { shape: pick(SHAPES), symbol: pick(SYMBOLS.filter((s) => s !== 'none')), bg, fg, rim: fg, text: name.split(/\s+/).map((w) => w[0]).join('').slice(0, 4).toUpperCase(), pattern: pick(PATTERNS), pc },
-    look: { uniform: '#5d6a4a', helmet: '#4c5a3c', armband: fg, crest: true } };
-}
+const baseDraft = () => ({ capital: pick(GC.names.capitals), open: { fleets: 'standard', posts: 'none', level: 'normal' } });
 
 // ---------------------------------------------------------------- the campaign: everything that is saved
 // { v, faction, war (the galaxy's own save), kit + wallet (the ship's armoury, carried from battle to battle),
@@ -62,7 +57,7 @@ let fury = null;           // the Orbital Fury mode's own page, while it is open
 const modes = {};          // loaded theatres, by name
 
 export const app = {
-  get faction() { return camp ? camp.faction : soloCamp ? soloCamp.faction : draft; },
+  get faction() { return asFaction(livery(), camp ? camp.faction : soloCamp ? soloCamp.faction : draft); },     // (0.66) the livery over the campaign's own
   get camp() { return camp || soloCamp; },
   audio, settings, version: VERSION,
   crest(canvas) { if (!canvas) return; const g = canvas.getContext('2d'); g.clearRect(0, 0, canvas.width, canvas.height); drawLogo(g, app.faction.logo, 2, 2, canvas.width - 4); },
@@ -88,7 +83,9 @@ function show(id) { for (const s of document.querySelectorAll('.scr')) s.classLi
 
 // ---------------------------------------------------------------- title
 // who you are when there is no war on: the identity kept from the last founding, or the saved campaign's
-const identity = () => { const c = read(KEY, null); return read(PROFILE, null) || (c && c.v === 2 && c.faction) || null; };
+const identity = () => { const c = read(KEY, null), id = read(PROFILE, null) || (c && c.v === 2 && c.faction) || null; return id ? asFaction(livery(), id) : hasLivery() ? asFaction(livery(), baseDraft()) : null; };
+// (0.66) a command founded before the livery keeps its crest, name and colours: they become its livery
+if (!hasLivery()) { const c = read(KEY, null), old = read(PROFILE, null) || (c && c.v === 2 && c.faction); if (old && old.logo && !old.logo.layers) setLivery({ ...fromCrest(old), ownName: true }); }
 const ago = (t) => { if (!t) return ''; const m = Math.max(0, Math.round((Date.now() - t) / 60000)); return m < 1 ? 'saved just now' : m < 60 ? `saved ${m} min ago` : m < 1440 ? `saved ${Math.round(m / 60)} h ago` : `saved ${Math.round(m / 1440)} d ago`; };
 // What is saved in each way of playing, in a line or two (the save in hand; the other slots keep theirs, below).
 function saves() {
@@ -143,7 +140,7 @@ function playSlot(g, n) {
   if (g === 'fury') return enterFury(false);
   soloGo(g, false);
 }
-async function warContinue() { camp = read(KEY, null); if (!camp) return toTitle(); write(LAST, { g: 'war', n: slots().cur.war }); await ensureLogo(camp.faction.logo); toWar({ saved: camp.war, tutorial: settings.hints && !settings.hintsDone && !qs.has('seed') }); }
+async function warContinue() { camp = read(KEY, null); if (!camp) return toTitle(); write(LAST, { g: 'war', n: slots().cur.war }); await ensureLogo(app.faction.logo); toWar({ saved: camp.war, tutorial: settings.hints && !settings.hintsDone && !qs.has('seed') }); }
 function warNew() { write(LAST, { g: 'war', n: slots().cur.war }); if (read(KEY, null)) return confirmBox('Start a new campaign?', 'The campaign in this save, with its stations and bases, will be lost. (To keep it, start the new one in another save on the PLAY tab.)', 'START A NEW CAMPAIGN', () => toFound('war')); toFound('war'); }
 
 // ---- the pictures: line art for each game, drawn here so the menu needs no image files for them
@@ -156,9 +153,9 @@ const ART = {
   orbit: '<svg viewBox="0 0 200 110" aria-hidden="true"><path d="M-10 120 Q100 60 210 120" fill="rgba(127,233,224,.08)" stroke="#7fe9e0" stroke-opacity=".5"/><ellipse cx="100" cy="50" rx="62" ry="20" fill="none" stroke="#f5d547" stroke-width="1.6"/><ellipse cx="100" cy="50" rx="40" ry="12" fill="none" stroke="#f5d547" stroke-opacity=".5"/><rect x="88" y="34" width="24" height="32" fill="rgba(245,213,71,.16)" stroke="#f5d547"/><path d="M100 34 V14 M38 50 H88 M112 50 H162" stroke="#f5d547"/><g fill="rgba(127,233,224,.2)" stroke="#7fe9e0"><rect x="26" y="44" width="14" height="12"/><rect x="160" y="44" width="14" height="12"/></g><path d="M150 22 l12 -4 l-5 5 l5 5 z" fill="#7fe9e0"/><path d="M40 20 l10 -3 l-4 4 l4 4 z" fill="#7fe9e0" opacity=".6"/></svg>',
 };
 // ---- the tabs
-const TABS = [['home', 'HOME'], ['play', 'PLAY'], ['collection', 'COLLECTION'], ['career', 'CAREER'], ['store', 'STORE'], ['options', 'OPTIONS']];
+const TABS = [['home', 'HOME'], ['play', 'PLAY'], ['livery', 'LIVERY'], ['collection', 'COLLECTION'], ['career', 'CAREER'], ['store', 'STORE'], ['options', 'OPTIONS']];
 let tab = 'home', optTab = 'common', playGame = null;     // playGame: the game whose saves the PLAY tab is showing
-const NEWS = { title: 'FOB Commander\'s buildings, on the ground', lines: ['The ground fight stands FOB Commander\'s own buildings: the work site\'s depot and hangar, the radio mast, and the capital\'s outskirts, lot by lot.', 'FOB Commander can lay Sandbags and Trenches as well as Barbed Wire: each adds to the strength the base puts against a raid.', 'Nothing floats: models sit on the ground on slopes, and the loose pieces in the enemy\'s sites are fixed.', 'Build a Missile Silo at the base: it assembles mini-nukes. Fire one at the next raid, or ship it to the front for credits.'] };
+const NEWS = { title: 'Your livery, worn in every game', lines: ['A LIVERY tab on the main menu: your command\'s name, emblem and colours, worn in the war room, on the ground, at the station and in FOB Commander.', 'Five ready-made styles to wear, or design your own.', 'An emblem editor in layers: 16 layers, 54 shapes, any colour; size, turn, mirror, outline, and layers kept inside the ones below.', 'Hull and roof colours, trim, accent and lights, the hull\'s finish, and the troopers\' uniform, helmet and armband.', 'The ground fight\'s oil pump is FOB Commander\'s Biofuel Extractor.'] };
 const KEYS = {
   war: [['Click a system', 'Select it; click another to send a fleet'], ['END ROUND', 'Play out the round'], ['Esc', 'The menu']],
   fury: [['W A S D / arrows', 'Move the view'], ['Mouse wheel', 'Zoom'], ['Tab or M', 'The big map'], ['1 to 8', 'Pick a weapon; hold or click to fire'], ['G', 'Drop Infantry'], ['B', 'Build'], ['U', 'Load a supply pod (then 1, 2, 3)'], ['Click / drag a box', 'Pick troopers'], ['Right-click', 'Order the troopers you picked'], ['Esc', 'Pause']],
@@ -253,21 +250,26 @@ function pageOptions() {
   const sub = [['common', 'COMMON'], ['war', 'WAR ROOM'], ['fury', 'GROUND'], ['base', 'BASE'], ['orbit', 'STATION']];
   return panel('Options', `<div class="osub">${sub.map(([k, n]) => `<button class="${optTab === k ? 'on' : ''}" data-act="o-tab" data-k="${k}">${n}</button>`).join('')}</div>${optTab === 'common' ? optCommon() : optKeys(optTab)}`);
 }
-const PAGES = { home: pageHome, play: pagePlay, collection: pageCollection, career: pageCareer, store: pageStore, options: pageOptions };
+const PAGES = { home: pageHome, play: pagePlay, livery: pageLivery, collection: pageCollection, career: pageCareer, store: pageStore, options: pageOptions };
 function drawTitle() {
   $('t-tabs').innerHTML = TABS.map(([k, n], i) => `<button role="tab" aria-selected="${tab === k}" class="${tab === k ? 'on' : ''}" data-tab="${k}">${i === 0 ? '<kbd class="l">Q</kbd>' : ''}${n}${i === TABS.length - 1 ? '<kbd class="r">E</kbd>' : ''}</button>`).join('');
   $('t-page').className = 'tp-' + tab + (tab === 'play' && !playGame ? ' wide' : '');
   $('t-page').innerHTML = `<h2>${TABS.find((x) => x[0] === tab)[1]}</h2>` + PAGES[tab]();
   optBind($('t-page'));
   if (tab === 'collection') collectionArt();
+  if (tab === 'livery') bindLivery($('t-page'), { redraw: drawTitle, changed: barCrest, audio, toast: app.toast });
 }
 function setTab(k) { tab = k; playGame = null; audio.click(); drawTitle(); }
-function toTitle() {
-  state = 'title'; mode = null; solo = null; soloCamp = null; tutorial = false; playGame = null; War.show(false); show('s-title');
-  const saved = read(KEY, null), ok = saved && saved.v === 2 && saved.faction, id = (ok && saved.faction) || identity();
-  // the player's own crest is their command's; the game's icon stands for the game (the bar, the browser tab, the credits)
+// the player's own emblem and name, in the bar: their command's; the game's icon stands for the game (the bar, the browser
+// tab, the credits). Nothing shows before a command is founded or a livery made.
+function barCrest() {
+  const id = identity();
   $('t-who').textContent = id ? id.name.toUpperCase() : ''; $('t-crest').style.display = id ? '' : 'none';
   if (id) { const crest = () => { const g = $('t-crest').getContext('2d'); g.clearRect(0, 0, 160, 160); drawLogo(g, id.logo, 4, 4, 152); }; if (id.logo.img) ensureLogo(id.logo).then(() => { if (state === 'title') crest(); }); crest(); }
+}
+function toTitle() {
+  state = 'title'; mode = null; solo = null; soloCamp = null; tutorial = false; playGame = null; War.show(false); show('s-title');
+  barCrest();
   $('t-ver').textContent = `PROTOTYPE ${VERSION} · AN ORIGINAL SETTING · NOT AFFILIATED WITH ANY STUDIO`;
   drawTitle();
 }
@@ -294,6 +296,7 @@ $('t-page').onclick = (e) => {
 $('t-page').addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[role=button]')) { e.preventDefault(); e.target.click(); } });
 // Q and E step along the tabs, as shoulder buttons would
 window.addEventListener('keydown', (e) => {
+  if (state === 'title' && tab === 'livery' && $('modal').hidden && liveryKey(e)) return;     // (0.66) the livery's keys: undo, nudge
   if (state !== 'title' || !$('modal').hidden || !$('menu').hidden || e.ctrlKey || e.metaKey || e.altKey || /INPUT|TEXTAREA/.test((document.activeElement || {}).tagName || '')) return;
   const dir = e.key === 'q' || e.key === 'Q' ? -1 : e.key === 'e' || e.key === 'E' ? 1 : 0; if (!dir) return;
   const i = TABS.findIndex((x) => x[0] === tab); setTab(TABS[(i + dir + TABS.length) % TABS.length][0]);
@@ -305,8 +308,8 @@ function soloGo(kind, fresh, tut = false) {
   const me = identity(); if (!me) return toFound(kind); enterSolo(kind, me);
 }
 async function enterSolo(kind, me) {
-  await ensureLogo(me.logo);
   solo = kind; soloCamp = { v: 2, faction: me, war: null, kit: newKit(), wallet: newWallet(), sites: {}, stats: {}, solo: true };
+  await ensureLogo(app.faction.logo);
   const home = (me.capital || GC.names.capital || 'Aurelia');
   enterTheatre(kind, { system: { id: kind === 'base' ? 9001 : 9002, name: home, kind: 'capital', worlds: [{ name: home, type: 'capital' }], key: 0 } }, true);
 }
@@ -315,7 +318,7 @@ async function enterSolo(kind, me) {
 function enterFury(training = false) {
   if (fury) return;
   const me = identity();
-  window.gcFury = { livery: me || draft, hints: settings.hints, training, direct: !training, onExit: () => setTimeout(leaveFury, 0) };
+  window.gcFury = { livery: asFaction(livery(), me || draft), hints: settings.hints, training, direct: !training, onExit: () => setTimeout(leaveFury, 0) };
   state = 'fury'; fury = document.createElement('iframe'); fury.id = 'g-frame'; fury.title = 'Orbital Fury'; fury.setAttribute('allow', 'autoplay; fullscreen');
   fury.onload = () => { try { fury.contentWindow.focus(); } catch { /* not focusable yet */ } };
   fury.src = 'ground.html' + (qs.has('debug') ? '?debug' : ''); document.body.appendChild(fury);
@@ -337,7 +340,7 @@ function how(then) {
 }
 function credits() {
   War.modal(`<h2>Credits</h2><p>Design and direction: Ramzies. Built with Claude (Anthropic) as a coding assistant.</p>
-    <p>Galactic Command brings four prototypes into one game: Orbital Fury, Super Orbital Simulator, FOB Super Commander and Super Galactic Strategy. Art is drawn in code and sound is synthesised in the browser.</p>
+    <p>Galactic Command is one war in four parts: the war room, where you give the fronts their orders; the ground fight, from a fire-support ship's gun; the orbital station; and FOB Commander, the bases. Art is drawn in code and sound is synthesised in the browser.</p>
     <p>The setting: a war fought by private fleets for the cameras. Its Vanguards are influencers in armour, insured like film stars and signed like athletes; the bases grade themselves on morale and publicity; every victory is a broadcast.</p>
     <p>3D is drawn with three.js (MIT licence, js/vendor/THREE-LICENSE).</p>
     <p>Thanks to the SESF community for testing, ideas and feedback.</p>
@@ -353,22 +356,17 @@ function confirmBox(title, text, yes, go) {
 
 
 // ---------------------------------------------------------------- found your command
-let draft = rollFaction();
-const CYCLE = { shape: SHAPES, symbol: SYMBOLS, pattern: PATTERNS };
+// (0.66) The founding screen: a livery to start from (the five styles, or the one you wear), the command's name, capital and
+// motto, and for a war its opening. The emblem and colours are made your own on the LIVERY tab.
+let draft = baseDraft();
+let fl = null;            // the livery the command is being founded in, kept only when it is
 let foundFor = 'war';     // what the founding is for: the war, or a single post ('base', 'orbit')
 function toFound(what = 'war') {
   foundFor = what; state = 'found'; show('s-found'); $('f-open').classList.toggle('hidden', what !== 'war');
-  $('f-name').value = draft.name; $('f-capital').value = draft.capital || ''; openDraw(); $('f-motto').value = draft.motto; $('f-text').value = draft.logo.text || '';
-  const sw = (id, get, set) => { $(id).innerHTML = PALETTE.map((c) => `<button style="background:${c}" data-c="${c}" class="${get() === c ? 'on' : ''}" aria-label="${c}"></button>`).join(''); $(id).onclick = (e) => { const b = e.target.closest('[data-c]'); if (!b) return; set(b.dataset.c); audio.click(); toFound(foundFor); }; };
-  sw('f-bg', () => draft.logo.bg, (c) => { draft.logo.bg = c; });
-  sw('f-fg', () => draft.logo.fg, (c) => { draft.logo.fg = c; });
-  sw('f-pc', () => draft.logo.pc, (c) => { draft.logo.pc = c; });
-  sw('f-rim', () => draft.logo.rim, (c) => { draft.logo.rim = c; });
-  $('f-unup').classList.toggle('hidden', !draft.logo.img); $('f-up').textContent = draft.logo.img ? 'CHANGE THE PICTURE' : 'UPLOAD A PICTURE';
-  sw('f-primary', () => draft.primary, (c) => { draft.primary = c; });
-  sw('f-secondary', () => draft.secondary, (c) => { draft.secondary = c; draft.look.armband = c; });
-  foundDraw();
+  draft = baseDraft(); fl = JSON.parse(JSON.stringify(livery()));
+  $('f-capital').value = draft.capital || ''; openDraw(); foundFill();
 }
+function foundFill() { $('f-name').value = fl.name || ''; $('f-motto').value = fl.motto || ''; foundDraw(); }
 // The opening: how much the command starts with. Fewer fleets and no posts is the harder war.
 const OPEN = { level: [['easy', 'EASY'], ['normal', 'NORMAL'], ['hard', 'HARD'], ['brutal', 'BRUTAL']], fleets: [['lean', 'LEAN'], ['standard', 'STANDARD'], ['strong', 'STRONG']], posts: [['none', 'NONE'], ['some', 'ONE EACH'], ['many', 'THREE EACH']] };
 function openDraw() {
@@ -378,36 +376,30 @@ function openDraw() {
     for (const b of $('f-' + k).querySelectorAll('button')) b.onclick = () => { draft.open[b.dataset.open] = b.dataset.v; audio.click(); openDraw(); };
   }
 }
+const wornOwn = () => hasLivery() && isOwn(livery()) ? livery() : null;
 function foundDraw() {
-  for (const k in CYCLE) $('f-' + k).textContent = draft.logo[k];
-  const g = $('f-crest').getContext('2d'); g.clearRect(0, 0, 320, 320); drawLogo(g, draft.logo, 10, 10, 300);
-  $('f-strip').innerHTML = `<i style="background:${draft.primary}"></i><i style="background:${draft.secondary}"></i><i style="background:${draft.logo.bg}"></i>`;
+  $('f-styles').innerHTML = styleCards(fl, wornOwn(), 'YOUR LIVERY', false); drawCards($('f-styles'), fl, wornOwn());
 }
-$('s-found').addEventListener('click', (e) => {
-  const b = e.target.closest('[data-f]'); if (!b) return;
-  const list = CYCLE[b.dataset.f], i = list.indexOf(draft.logo[b.dataset.f]);
-  draft.logo[b.dataset.f] = list[(i + +b.dataset.d + list.length) % list.length]; audio.click(); foundDraw();
-});
-$('f-name').oninput = () => { draft.name = $('f-name').value; };
-$('f-capital').oninput = () => { draft.capital = $('f-capital').value; };
-$('f-motto').oninput = () => { draft.motto = $('f-motto').value; };
-$('f-text').oninput = () => { draft.logo.text = $('f-text').value.toUpperCase(); foundDraw(); };
-$('f-roll').onclick = () => { draft = rollFaction(); audio.click(); toFound(foundFor); };
-// your own picture in place of the crest: shrunk to 128 px and kept with the campaign on this device
-$('f-up').onclick = () => $('f-file').click();
-$('f-file').onchange = async () => {
-  const f = $('f-file').files[0]; $('f-file').value = ''; if (!f) return;
-  try { draft.logo.img = await readUpload(f); audio.ready(); toFound(foundFor); } catch (err) { audio.deny(); app.toast(err.message || 'That picture could not be read.', 4000); }
+$('f-styles').onclick = (e) => {
+  const b = e.target.closest('[data-lv]'); if (!b) return; audio.click();
+  if (b.dataset.lv === 'preset') fl = fromPreset(b.dataset.id, fl); else if (wornOwn()) fl = JSON.parse(JSON.stringify(livery()));
+  foundFill();
 };
-$('f-unup').onclick = () => { delete draft.logo.img; audio.click(); toFound(foundFor); };
+$('f-name').oninput = () => { fl.name = $('f-name').value; fl.ownName = true; };
+$('f-capital').oninput = () => { draft.capital = $('f-capital').value; };
+$('f-motto').oninput = () => { fl.motto = $('f-motto').value; fl.ownName = true; };
+// the next of the five styles
+$('f-roll').onclick = () => { const i = PRESETS.findIndex((p) => p.preset === fl.preset && !isOwn(fl)); fl = fromPreset(PRESETS[(i + 1) % PRESETS.length].preset, fl); audio.click(); foundFill(); };
 $('f-back').onclick = () => { audio.click(); toTitle(); };
 $('f-go').onclick = () => {
   audio.ready();
-  draft.name = (draft.name || '').trim() || 'The Command'; draft.motto = (draft.motto || '').trim(); draft.capital = (draft.capital || '').replace(/[<>&]/g, '').trim() || GC.names.capital;
-  write(PROFILE, JSON.parse(JSON.stringify(draft)));
-  if (foundFor !== 'war') return enterSolo(foundFor, JSON.parse(JSON.stringify(draft)));
+  fl.name = (fl.name || '').trim() || 'The Command'; fl.motto = (fl.motto || '').trim(); draft.capital = (draft.capital || '').replace(/[<>&]/g, '').trim() || GC.names.capital;
+  setLivery(JSON.parse(JSON.stringify(fl)));
+  const me = asFaction(livery(), draft);
+  write(PROFILE, JSON.parse(JSON.stringify(me)));
+  if (foundFor !== 'war') return enterSolo(foundFor, JSON.parse(JSON.stringify(me)));
   app.endCampaignQuiet();
-  camp = { v: 2, faction: JSON.parse(JSON.stringify(draft)), war: null, kit: newKit(), wallet: newWallet(), sites: {}, stats: { ground: 0, groundWon: 0 }, at: Date.now() };
+  camp = { v: 2, faction: JSON.parse(JSON.stringify(me)), war: null, kit: newKit(), wallet: newWallet(), sites: {}, stats: { ground: 0, groundWon: 0 }, at: Date.now() };
   // (0.39) no asking whether to play a tutorial: the coach's hints are on or off (Settings), and a first war with them on is
   // the opening they were written for
   how(() => { const hints = settings.hints && !settings.hintsDone && !qs.has('seed'); toWar({ seed: qs.has('seed') ? Number(qs.get('seed')) : hints ? SEED : Date.now() % 100000, tutorial: hints }); });

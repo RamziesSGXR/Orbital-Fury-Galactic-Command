@@ -344,7 +344,7 @@ export function drawObjectives(ctx, m, now, px, labels, scale, pal) {
       const txt = o.done ? tr('lab.gunDone') : o.state === 'fire' ? tr('lab.gunFire', { n: o.shots + 1, of: o.need, p: Math.round(g.charge * 100) }) : tr('lab.gun');
       labels.push({ x: o.x, y: o.y, dy: -Math.max(o.r * scale, 12) - 6, text: txt, col: o.done ? '#7dff9b' : g.hp < g.maxHp * 0.4 ? '#ff6a4a' : '#ffe600', pri: 2 });
     } else if (o.type === 'oil') {
-      if (!(VIEW.p3 && VIEW.m3.has('site_derrick'))) raise(ctx, o, o.x, o.y, o.r * 1.5 + 6, 2.4, (c) => drawOilSite(c, o, now, px), RAISE_L);
+      if (!(VIEW.p3 && (VIEW.m3.has('bld') || VIEW.m3.has('site_derrick')))) raise(ctx, o, o.x, o.y, o.r * 1.5 + 6, 2.4, (c) => drawOilSite(c, o, now, px), RAISE_L);
       ctx.strokeStyle = col; ctx.lineWidth = px(active ? 2.2 : 1.4);
       ctx.setLineDash([px(8), px(6)]); ctx.lineDashOffset = -now * px(8); ring(ctx, o.x, o.y, o.r); if (!VIEW.quiet) ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
       if (!o.done && o.state !== 'travel' && o.state !== 'setup') {

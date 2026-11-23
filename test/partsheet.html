@@ -1,0 +1,29 @@
+<!doctype html><meta charset="utf-8"><base href="../"><title>Station parts as the game builds them</title>
+<style>html,body{margin:0;background:#0b0e12;color:#dde;font:12px ui-monospace,monospace;overflow:hidden}canvas{display:block}.l{position:fixed;color:#fff;text-shadow:0 1px 2px #000;padding:4px 6px}</style>
+<script type="module">
+// A contact sheet of station parts whole, as js/orbit/parts.js builds them: the Blender hull and trim with the lines, lights and
+// fittings made in code. Pieces that look loose in station.json can be checked here in place.
+//   /test/partsheet.html?p=drydock,pylon,rack,truss&cols=2&cell=500&az=30&el=30
+import * as THREE from './js/vendor/three.js';
+import { buildPart, loadHulls } from './js/orbit/parts.js';
+const q = new URLSearchParams(location.search), names = (q.get('p') || 'truss').split(',').filter(Boolean);
+const cols = +(q.get('cols') || Math.min(4, names.length)), cell = +(q.get('cell') || 320), rows = Math.ceil(names.length / cols);
+const W = cols * cell, H = rows * cell, az = +(q.get('az') || 35) * Math.PI / 180, el = +(q.get('el') || 26) * Math.PI / 180;
+const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setSize(W, H); r.setScissorTest(true); document.body.appendChild(r.domElement);
+await new Promise((res) => { loadHulls(res); setTimeout(res, 4000); });
+const COL = { hull: '#9aa4a8', trim: '#f5d547', glow: '#fff1b0', dark: '#3a3f44', pod: '#6a7a6a' };
+for (const [i, n] of names.entries()) {
+  const scene = new THREE.Scene(); scene.add(new THREE.AmbientLight(0xffffff, 1.3)); const sun = new THREE.DirectionalLight(0xffffff, 2.2); sun.position.set(5, 9, 6); scene.add(sun);
+  let g = null; try { g = buildPart(n); } catch (err) { console.warn(n, err); }
+  if (g) g.traverse((o) => { const c = COL[o.userData.role] || '#8a929a'; if (o.isMesh) o.material = new THREE.MeshLambertMaterial({ color: c, side: THREE.DoubleSide }); else if (o.isLineSegments) o.material = new THREE.LineBasicMaterial({ color: '#c9d4d0' }); });
+  const o = g || new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: 'red' }));
+  scene.add(o); o.updateMatrixWorld(true);
+  const bb = new THREE.Box3().setFromObject(o), s = bb.getBoundingSphere(new THREE.Sphere());
+  const cam = new THREE.PerspectiveCamera(30, 1, 0.01, 1000), dist = s.radius / Math.sin(15 * Math.PI / 180) * 1.02;
+  cam.position.set(s.center.x + Math.sin(az) * Math.cos(el) * dist, s.center.y + Math.sin(el) * dist, s.center.z + Math.cos(az) * Math.cos(el) * dist); cam.lookAt(s.center);
+  const x = (i % cols) * cell, y = Math.floor(i / cols) * cell;
+  r.setViewport(x, H - y - cell, cell, cell); r.setScissor(x, H - y - cell, cell, cell); r.render(scene, cam);
+  const l = document.createElement('div'); l.className = 'l'; l.style.left = x + 'px'; l.style.top = y + 'px'; l.textContent = n; document.body.appendChild(l);
+}
+window.__done = true;
+</script>

@@ -19,7 +19,7 @@ with sync_playwright() as pw:
         pg.click('#m-title'); title(); pg.wait_for_timeout(400)
     slot = lambda g, n: pg.inner_text(f'#t-page .slot:has([data-g={g}][data-n="{n}"]) div')
     # (0.60) one menu: six tabs, HOME first, the game's icon in the bar and in the browser tab
-    assert [b.get_attribute('data-tab') for b in pg.query_selector_all('#t-tabs [data-tab]')] == ['home', 'play', 'collection', 'career', 'store', 'options'], 'the six tabs'
+    assert [b.get_attribute('data-tab') for b in pg.query_selector_all('#t-tabs [data-tab]')] == ['home', 'play', 'livery', 'collection', 'career', 'store', 'options'], 'the seven tabs'
     assert pg.evaluate("document.querySelector('.tlogo').naturalWidth > 0 && document.querySelector('link[rel=icon]').href.endsWith('assets/icon.svg')"), "the game's icon is not shown"
     assert pg.is_visible('#b-new') and not pg.is_visible('#b-continue'), 'HOME offers a new campaign when there is none'
     assert pg.evaluate("(() => { const v = document.getElementById('tbg'); return v.tagName === 'VIDEO' && v.getBoundingClientRect().width >= innerWidth - 1; })()"), 'the war room film is not behind the menu'
@@ -32,16 +32,36 @@ with sync_playwright() as pw:
     pg.screenshot(path=f'{out}/menu-1b-collection.png')
     tab('career'); assert pg.evaluate("document.querySelector('#t-page .cstat b').textContent") == '2', 'the career counts the fights'
     pg.evaluate("localStorage.removeItem('ofgc.career')"); tab('home')
+    # (0.66) LIVERY: five styles and your own; the emblem in layers; the colours; the name. Nothing is kept until it is changed.
+    assert not pg.evaluate("localStorage.getItem('ofgc.livery')") and pg.evaluate("document.getElementById('t-crest').style.display") == 'none', 'no livery and no crest in the bar before one is chosen'
+    tab('livery'); assert pg.evaluate("document.querySelectorAll('#t-page .lvcard[data-lv=preset]').length") == 5, 'five ready-made styles'
+    pg.click('[data-lv=preset][data-id=nova]'); pg.wait_for_timeout(150)
+    lv = lambda: pg.evaluate("JSON.parse(localStorage.getItem('ofgc.livery'))")
+    assert lv()['preset'] == 'nova' and pg.inner_text('#t-who') == 'NOVA PRIME EXPEDITIONARY', 'a style is worn, and shows in the bar'
+    pg.click('[data-lv=sub][data-k=emblem]'); n0 = len(lv()['emblem']['layers'])
+    pg.click('[data-lv=group][data-g=MARKS]'); pg.click('[data-lv=add]'); pg.click('[data-lv=shape][data-k=crown]'); pg.wait_for_timeout(150)
+    bb = pg.query_selector('#lv-big').bounding_box(); pg.mouse.move(bb['x'] + bb['width'] / 2, bb['y'] + bb['height'] / 2); pg.mouse.down(); pg.mouse.move(bb['x'] + bb['width'] / 2, bb['y'] + bb['height'] / 2 - 40, steps=3); pg.mouse.up(); pg.wait_for_timeout(150)
+    L = lv(); crown = [x for x in L['emblem']['layers'] if x['k'] == 'crown']
+    assert len(L['emblem']['layers']) == n0 + 1 and crown and crown[0]['y'] < 50 and L.get('edited'), f'a layer added, shaped and dragged: {crown}'
+    pg.keyboard.press('Control+z'); pg.wait_for_timeout(150); assert [x for x in lv()['emblem']['layers'] if x['k'] == 'crown'][0]['y'] == 50, 'undo takes the drag back'
+    pg.screenshot(path=f'{out}/menu-1c-livery.png')
+    pg.click('[data-lv=sub][data-k=styles]'); assert pg.evaluate("document.querySelector('.lvcard.own').classList.contains('on')"), 'an edited style is your own'
+    pg.click('[data-lv=preset][data-id=helix]'); pg.click('[data-lv=own]'); pg.wait_for_timeout(150)
+    assert any(x['k'] == 'crown' for x in lv()['emblem']['layers']), 'your own design comes back after a style was tried'
+    pg.click('[data-lv=sub][data-k=name]'); pg.fill('#lv-n', 'Kestrel Group'); pg.press('#lv-n', 'Tab'); pg.wait_for_timeout(150)
+    assert lv()['name'] == 'Kestrel Group' and pg.evaluate("gc.app.faction.name") == 'Kestrel Group' and pg.evaluate("!!gc.app.faction.logo.layers"), 'the name is the command\'s everywhere'
+    tab('home')
     pg.keyboard.press('e'); pg.wait_for_timeout(200); assert pg.evaluate("document.querySelector('#t-tabs .on').dataset.tab") == 'play', 'E steps to the next tab'
     pg.keyboard.press('q'); pg.keyboard.press('q'); pg.wait_for_timeout(200); assert pg.evaluate("document.querySelector('#t-tabs .on').dataset.tab") == 'options', 'Q steps back, and round'
     tab('play'); assert pg.evaluate("[document.querySelectorAll('#t-page .gcard[data-act=game]').length, document.querySelectorAll('#t-page .gcard .gart img').length, document.querySelectorAll('#t-page .slot').length]") == [4, 4, 0], 'PLAY: four picture cards, and no saves to choose while there are none'
     game = lambda g: (tab('play'), pg.click(f'#t-page .gcard[data-g={g}]'), pg.wait_for_timeout(300))
     pg.screenshot(path=f'{out}/menu-2-play.png')
-    # FOB Commander with nothing saved: its card starts a game straight away (found a command, build), and it is in save 1
-    game('base')
-    assert pg.evaluate("gc.state") == 'found' and not pg.is_visible('#f-open'), 'a single post asks for a command but not for a war opening'
-    pg.fill('#f-name', 'Kestrel Group'); pg.click('#f-go')
+    # FOB Commander with nothing saved: its card starts a game straight away, and it is in save 1. (0.66) With a livery made
+    # there is no command to found first: the livery is the command
+    game('base'); pg.wait_for_function("gc.state !== 'title'", timeout=20000)
+    assert pg.evaluate("gc.state") != 'found', 'with a livery made, a single post starts without founding a command'
     pg.wait_for_function("gc.state === 'base' && document.getElementById('trans').hidden", timeout=60000); pg.wait_for_timeout(1500)
+    assert pg.evaluate("gc.mode.sim.faction.name") == 'Kestrel Group', 'the base wears the livery'
     leave(); game('base'); assert pg.evaluate("gc.state") == 'title' and pg.evaluate("document.querySelectorAll('#t-page .slot').length") == 3, 'a game with a save asks which save'
     print('base save 1:', slot('base', 0)); assert 'Empty' not in slot('base', 0) and 'Empty' in slot('base', 1)
     pg.screenshot(path=f'{out}/menu-2b-saves.png')
@@ -104,10 +124,13 @@ with sync_playwright() as pw:
     # every tab fits a desktop screen with nothing to scroll to
     for name, vw, vh in [('laptop', 1280, 720), ('small', 1366, 650), ('hd', 1920, 1080)]:
         pg.set_viewport_size({'width': vw, 'height': vh})
-        for t in ['home', 'play', 'collection', 'career', 'store', 'options']:
-            tab(t); sh, bottom, right = pg.evaluate("[document.getElementById('s-title').scrollHeight, Math.max(...[...document.querySelectorAll('#t-page .tpan, #t-page .btn, #t-ver')].map(e => e.getBoundingClientRect().bottom)), Math.max(...[...document.querySelectorAll('#t-bar > *, #t-page .tpan')].map(e => e.getBoundingClientRect().right))]")
+        for t in ['home', 'play', 'livery', 'livery:emblem', 'livery:colours', 'livery:name', 'collection', 'career', 'store', 'options']:
+            if ':' in t: pg.click(f"[data-lv=sub][data-k={t.split(':')[1]}]"); pg.wait_for_timeout(200)
+            else: tab(t)
+            if t == 'livery': pg.click("[data-lv=sub][data-k=styles]"); pg.wait_for_timeout(200)
+            sh, bottom, right = pg.evaluate("[document.getElementById('s-title').scrollHeight, Math.max(...[...document.querySelectorAll('#t-page .tpan, #t-page .btn, #t-ver')].map(e => e.getBoundingClientRect().bottom)), Math.max(...[...document.querySelectorAll('#t-bar > *, #t-page .tpan')].map(e => e.getBoundingClientRect().right))]")
             assert sh <= vh + 1 and bottom <= vh and right <= vw, f'the {t} tab does not fit a {vw}x{vh} screen (bottom {bottom}, right {right})'
-            if name == 'laptop': pg.screenshot(path=f'{out}/menu-8-{t}.png')
+            if name == 'laptop': pg.screenshot(path=f'{out}/menu-8-{t.replace(":", "-")}.png')
     br.close()
 print('ERRORS:' if errs else 'no page errors'); [print(' ', e[:300]) for e in errs[:20]]
 sys.exit(1 if errs else 0)

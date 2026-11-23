@@ -936,6 +936,42 @@ export function structural(root) {
   });
   return out;
 }
+// (GC 0.66) WHAT HOLDS UP the pieces of a structure file that stood in the air once the building was put together (the check:
+// FOB buildings whole, as built here; test/bldsheet.html shows them). Each: a post [x, z, y0, y1, width], a trestle under a
+// bench or table [x0, x1, z0, z1, y] (a leg at each end), a neck [x, z, r, y0, y1] (a short drum under a dome), a plate
+// [x0, x1, z0, z1, y] (a thin cap across a tower's legs), an arm [x0, x1, y, z] (a bracket from a mast to what hangs on it), a
+// rod [x0, y0, x1, y1, z] (a slanting bar, as up a raised arm). In the steel of the frames, the white of the tanks.
+const FAST = { post: [[-0.45, 0.15, 0, 0.9], [0.45, 0.15, 0, 0.9]], bench: [[-0.6, -0.2, 0.72, 0.88, 0.17], [0.2, 0.6, 0.72, 0.88, 0.17]] };
+const FAST1 = { post: [[-0.45, 0.13, 0, 0.72], [0.45, 0.13, 0, 0.72], [-0.77, 0.49, 0, 0.6], [0.77, 0.49, 0, 0.6]], bench: FAST.bench };
+const MESS = (z0, z1, xs, y) => ({ bench: xs.map((x) => [x, x + 0.6, z0, z1, y]) });
+const HOLD = {
+  batch: { post: [[1.3, -0.45, 0, 0.31, 0.05], [0.85, -0.45, 0, 0.55, 0.05]] },
+  factory: { post: [[-0.4, 0.9, 0, 0.44, 0.05], [0.3, 0.9, 0, 0.57, 0.05], [0.95, 0.9, 0, 0.67, 0.05]] },
+  fueldepot: { neck: [[0.45, -0.4, 0.27, 0.98, 1.26], [-0.45, -0.4, 0.27, 0.98, 1.26]] },
+  halls: { plate: [[-0.55, 0.55, -0.5, -0.2, 1.7, 0.1]] },
+  lab: { post: [[0.6, -0.49, 1.2, 1.42, 0.035]] },
+  mast: { plate: [[-0.1, 0.6, -0.55, 0.15, 6.4]], post: [[0.045, -0.4, 4.88, 6.42], [0.455, -0.4, 4.88, 6.42], [0.045, 0, 4.88, 6.42], [0.455, 0, 4.88, 6.42]],
+    arm: [[-0.24, 0.02, 3.04, -0.2], [-0.24, 0, 4.84, -0.2], [0.5, 0.74, 3.94, -0.2]], plate2: [[-0.06, -0.01, -0.56, 0.13, 4.84], [-0.02, 0.03, -0.5, 0.1, 3.04]] },
+  hq: { post: [[-0.45, -0.68, 2.05, 2.4, 0.05]] },
+  comms: { plate: [[0.02, 0.58, -0.48, 0.08, 3.6]] },
+  parade: { post: [[-0.7, -1.25, 0, 0.96, 0.045], [0.7, -1.25, 0, 0.96, 0.045]] },
+  medbay: { bench: [[0.72, 1.28, 0.74, 0.96, 0.15]] },
+  'medbay-s0-2x3': { post: [[0.6, 1.045, 0, 0.32]] }, 'medbay-s1-2x3': { post: [[0.6, 1.045, 0, 0.4]] },
+  'mess-s0-2x3': MESS(1.22, 1.34, [-0.85], 0.15), 'mess-s1-2x3': MESS(1.22, 1.34, [-0.85], 0.14),
+  'mess-s0-3x2': MESS(0.72, 0.84, [-0.1, -0.85], 0.15), 'mess-s1-3x2': MESS(0.72, 0.84, [-0.1, -0.85], 0.14),
+  statue: { rod: [[0.2, 1.78, 0.34, 2.5, 0]] },
+  vbay: { post: [[1.15, 0.2, 0, 0.42, 0.04]] },
+};
+for (const k of ['burger', 'chicken', 'cola']) { HOLD[`${k}-s0-2x2`] = FAST; HOLD[`${k}-s1-2x2`] = FAST1; }
+function holdUp(g, m, file) {
+  const H = HOLD[file]; if (!H) return;
+  for (const [x, z, y0, y1, w = 0.035] of H.post || []) box(g, w, y1 - y0, w, m.steel, x, (y0 + y1) / 2, z);
+  for (const [x0, x1, z0, z1, y] of H.bench || []) for (const x of [x0 + 0.05, x1 - 0.05]) box(g, 0.03, y, (z1 - z0) * 0.8, m.dark, x, y / 2, (z0 + z1) / 2);
+  for (const [x, z, r, y0, y1] of H.neck || []) cyl(g, r, r, y1 - y0, m.white, x, (y0 + y1) / 2, z);
+  for (const [x0, x1, z0, z1, y, h = 0.04] of [...(H.plate || []), ...(H.plate2 || [])]) box(g, x1 - x0, h, z1 - z0, m.steel, (x0 + x1) / 2, y, (z0 + z1) / 2);
+  for (const [x0, x1, y, z] of H.arm || []) box(g, x1 - x0, 0.03, 0.03, m.steel, (x0 + x1) / 2, y, z);
+  for (const [x0, y0, x1, y1, z, w = 0.03] of H.rod || []) { const L = Math.hypot(x1 - x0, y1 - y0), o = box(g, w, L, w, m.steel, (x0 + x1) / 2, (y0 + y1) / 2, z); if (o) o.rotation.z = -Math.atan2(x1 - x0, y1 - y0); }
+}
 function modelled(g, m, type) {
   for (const o of structural(g)) o.parent.remove(o);
   const cache = m._bld ||= new Map(); let geo = cache.get(type);
@@ -946,6 +982,7 @@ function modelled(g, m, type) {
   }
   m.model ||= new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0.04, side: THREE.DoubleSide });
   const mesh = new THREE.Mesh(geo, m.model); mesh.castShadow = true; mesh.receiveShadow = true; mesh.userData.model3 = true; g.add(mesh);
+  holdUp(g, m, type);
 }
 // a building drawn with the ground fight's model (SHARED): the model, and the part that turns in a group of its own
 function sharedModel(g, m, sh) {

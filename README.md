@@ -1,8 +1,8 @@
 # Orbital Fury: Galactic Command
 
-**Prototype 0.65.0.** One war, run from four posts, in one game.
+**Prototype 0.66.0.** One war, run from four posts, in one game.
 
-You found a command (a name, a crest, colours) and hold the centre of the galaxy against three enemies. Everything in
+You found a command (a name, a livery: emblem and colours) and hold the centre of the galaxy against three enemies. Everything in
 the war is yours to run, and each part changes the others:
 
 | Post | What you do there | What it does for the war |
@@ -13,6 +13,32 @@ the war is yours to run, and each part changes the others:
 | **The base** | Found a base on the system's key world: roads, zones, and buildings that grow along them. | +35% output from the system for each charter. |
 
 A system that falls takes its station and its base with it.
+
+## What's new in 0.66: the livery, one look over every game
+
+- **A LIVERY tab on the main menu**, and one livery worn by every game: the war room, the ground fight, the station and
+  FOB Commander all take your command's name, motto, emblem, colours and troopers' dress from it as they open
+  (js/core/livery.js; the editor is js/core/livery-ui.js).
+- **Five ready-made styles** in place of the random crests: Helix Dynamics, Crimson Meridian, Aurora Media Group, Sable &
+  Lantern and Nova Prime Expeditionary, each with its own emblem, colours, hull finish and uniform. Or design your own;
+  trying a style keeps your own design aside to come back to.
+- **An emblem editor in layers**, as in a shooter's: up to 16 layers from 54 shapes (frames, marks, the old crest
+  symbols, stripes and fields, letters), each with its colour, size, turn, place, opacity, mirror, outline only and
+  "keep inside the layers below" (a stripe across a shield and not past its edge). Drag a layer on the big emblem, wheel
+  to size it, Shift and wheel to turn it, the arrow keys to nudge it; Ctrl+Z undoes.
+- **Colours**: hulls and roofs, trim, accent and lights; the hull's finish (panelled, armour, smooth, weathered, hazard);
+  the troopers' uniform, helmet and armband; and a button that paints the emblem in the livery's colours. The station
+  now wears the accent, the finish and the lights too.
+- **Founding a command** starts from the five styles (or the livery you wear) with a name, capital and motto; a command
+  founded before keeps its crest, which becomes its livery. With a livery made, FOB Commander and Orbital Commander start
+  without founding first.
+- The ground fight's oil pump is FOB Commander's **Biofuel Extractor**, in your colours.
+- **Nothing floats at the base or the station.** test/floating_built.py checks FOB Commander's buildings whole, as the game
+  builds them (the structure file and the parts made in code together), and what it found is held up now: the fuel
+  tanks' domes, the batching plant's and the factory's conveyors, the diner signs and awnings, the benches and tables,
+  the parade stand's canopy, the masts' tops and antennas, the lab's and HQ's dishes, the statue's torch, the vehicle
+  bay's extinguisher (HOLD in js/base/models.js). On the station the pylon's beacon ring has struts and the dry dock's
+  trim is pinned to its frames. test/bldsheet.html and test/partsheet.html show buildings and station parts whole.
 
 ## What's new in 0.65: FOB Commander's buildings on the ground, field works at the base
 

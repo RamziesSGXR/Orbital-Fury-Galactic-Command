@@ -1,0 +1,33 @@
+<!doctype html><meta charset="utf-8"><base href="../"><title>FOB buildings as the game builds them</title>
+<style>html,body{margin:0;background:#1c2026;color:#dde;font:12px ui-monospace,monospace;overflow:hidden}canvas{display:block}.l{position:fixed;color:#fff;text-shadow:0 1px 2px #000;padding:4px 6px}</style>
+<script type="module">
+// A contact sheet of FOB Commander's buildings whole, as js/base/models.js builds them (the structure file and the parts
+// made in code together), in the command's livery. Loose-looking pieces in a structure file can be checked here in place.
+//   /test/bldsheet.html?b=command,comms,mast,medbay-s0-2x3&cols=4&cell=360&az=35&el=28
+import * as THREE from './js/vendor/three.js';
+import * as M from './js/base/models.js';
+import { livery, asFaction } from './js/core/livery.js';
+const q = new URLSearchParams(location.search), names = (q.get('b') || 'command').split(',').filter(Boolean);
+const cols = +(q.get('cols') || Math.min(4, names.length)), cell = +(q.get('cell') || 320), rows = Math.ceil(names.length / cols);
+const W = cols * cell, H = rows * cell, az = +(q.get('az') || 35) * Math.PI / 180, el = +(q.get('el') || 26) * Math.PI / 180;
+const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setSize(W, H); r.setScissorTest(true); document.body.appendChild(r.domElement);
+await new Promise((res) => M.loadBuildings(res));
+const mats = M.makeMats(asFaction(livery(), { capital: 'Test' }));
+const cells = [];
+for (const [i, n] of names.entries()) {
+  const scene = new THREE.Scene(); scene.add(new THREE.AmbientLight(0xffffff, 1.4)); const sun = new THREE.DirectionalLight(0xffffff, 2.2); sun.position.set(5, 9, 6); scene.add(sun);
+  const mm = /^(.+)-s(\d)-(\d)x(\d)$/.exec(n), type = mm ? mm[1] : n, spec = mm ? { std: +mm[2], w: +mm[3], d: +mm[4] } : null;     // an early standard: type-s<std>-<w>x<d>
+  let g = null; try { g = M.buildModel(type, mats, true, spec); } catch (err) { console.warn(n, err); }
+  const o = g || new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: 'red' }));
+  scene.add(o); o.updateMatrixWorld(true);
+  const bb = new THREE.Box3().setFromObject(o), s = bb.getBoundingSphere(new THREE.Sphere());
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(s.radius * 8, s.radius * 8), new THREE.MeshLambertMaterial({ color: '#5d5a4a' })); floor.rotation.x = -Math.PI / 2; floor.position.y = Math.min(0, bb.min.y) - 0.002; scene.add(floor);
+  const cam = new THREE.PerspectiveCamera(30, 1, 0.01, 1000), dist = s.radius / Math.sin(15 * Math.PI / 180) * 1.02;
+  cam.position.set(s.center.x + Math.sin(az) * Math.cos(el) * dist, s.center.y + Math.sin(el) * dist, s.center.z + Math.cos(az) * Math.cos(el) * dist); cam.lookAt(s.center);
+  cells.push({ scene, cam, x: (i % cols) * cell, y: Math.floor(i / cols) * cell });
+  const l = document.createElement('div'); l.className = 'l'; l.style.left = (i % cols) * cell + 'px'; l.style.top = Math.floor(i / cols) * cell + 'px';
+  l.textContent = n; document.body.appendChild(l);
+}
+for (const c of cells) { r.setViewport(c.x, H - c.y - cell, cell, cell); r.setScissor(c.x, H - c.y - cell, cell, cell); r.render(c.scene, c.cam); }
+window.__done = true;
+</script>
