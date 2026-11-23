@@ -658,7 +658,8 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
       this.lampHead = new THREE.MeshStandardMaterial({ color: '#2a2618', emissive: '#ffd890', emissiveIntensity: 0.1 });
       const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), gr = x.createRadialGradient(32, 32, 0, 32, 32, 32);
       gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.45, 'rgba(255,255,255,0.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = gr; x.fillRect(0, 0, 64, 64);
-      this.lampPool = new THREE.MeshBasicMaterial({ color: '#ffcf7a', map: new THREE.CanvasTexture(c), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending });
+      this.lampPool = new THREE.MeshBasicMaterial({ color: '#ffcf7a', map: new THREE.CanvasTexture(c), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending,
+        polygonOffset: true, polygonOffsetFactor: -8, polygonOffsetUnits: -24 });   // (GC 0.63) light lies over every road layer (they reach -5): it was lost under paving and footpaths
     }
     // a warm pool of light at every finished building's door, too
     const doors = s.b.filter(b => b.done && !B[b.type].pad && b.w * b.d > 1).map(b => { const [x, z] = s.door(b); return [x + 0.5, z + 0.5]; });

@@ -569,3 +569,9 @@ button small { display: block; font: 9.5px var(--mono); letter-spacing: 0.5px; o
 .chal div { background: rgba(5, 7, 6, 0.55); }
 .tile { background: linear-gradient(180deg, rgba(20, 26, 24, 0.82), rgba(8, 10, 9, 0.97)); }
 #t-tabs button { background: rgba(5, 7, 6, 0.9); }
+
+/* (0.63) a stat that opens a report, and the base report */
+#th-stats > div.act { cursor: pointer; pointer-events: auto; } #th-stats > div.act:hover { background: rgba(245,213,71,0.08); }
+#modal .brep h3 { margin-top: 14px; } #modal .brep .ck { list-style: none; padding: 0; margin: 6px 0; } #modal .brep .ck li { padding: 2px 0; } #modal .brep .ck .y { color: var(--green, #6fd08c); } #modal .brep .ck .n { color: var(--red, #e5564b); }
+#modal .brep .sb { display: grid; grid-template-columns: 92px 1fr 34px; gap: 6px; align-items: center; margin: 4px 0; } #modal .brep .sb i { height: 8px; background: rgba(255,255,255,0.1); position: relative; } #modal .brep .sb i u { position: absolute; inset: 0 auto 0 0; background: var(--amber, #f5d547); }
+#modal .brep table { width: 100%; border-collapse: collapse; font-size: 12px; } #modal .brep td, #modal .brep th { padding: 3px 4px; text-align: right; } #modal .brep td:first-child, #modal .brep th:first-child { text-align: left; } #modal .brep tr.me td { color: var(--amber, #f5d547); }

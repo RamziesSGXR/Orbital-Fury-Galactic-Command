@@ -30,7 +30,7 @@ export function makeMats(f) {
     civ0: std('#c9c2ad'), civ1: std('#7d8b99'), civ2: std('#a3b18a'), trim: std('#2a3038', { roughness: 0.7 }),
     floodPool: (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), gr = x.createRadialGradient(32, 32, 0, 32, 32, 32);
       gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.5, 'rgba(255,255,255,0.4)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = gr; x.fillRect(0, 0, 64, 64);
-      return new THREE.MeshBasicMaterial({ color: '#fff3d0', map: new THREE.CanvasTexture(c), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }); })(),
+      return new THREE.MeshBasicMaterial({ color: '#fff3d0', map: new THREE.CanvasTexture(c), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -8, polygonOffsetUnits: -24 }); })(),   // (GC 0.63) over every road layer
     coat: std('#141414'), cap: std('#e9e9e9'), paper: std('#f2f2ea'),
     dship: std('#4c5550', { metalness: 0.35, roughness: 0.6 }), olive: std('#4d5638', { metalness: 0.3, roughness: 0.7 }), oliveDark: std('#33392a', { metalness: 0.3, roughness: 0.7 }), lift: std('#e0b21c'), crate: std('#5d6a3e'), scaffold: new THREE.LineBasicMaterial({ color: '#ffd21f', transparent: true, opacity: 0.8 }),
   };

@@ -1,7 +1,8 @@
 // THE BASE: the base on a system's key world. The rules and the 3D are FOB Super Commander's (js/base); this file is how
 // the commander meets them inside Galactic Command: one base for each system, roads, zones and buildings from the shared
 // tool bar, requests on the shared desk, and its charter reported back to the map (the system pays more into the war).
-import { C, B, GROUPS, ZONES, GOODS, SUPPLY_MODES, SUPPLY_CAPS } from '../base/config.js';
+import { C, B, GROUPS, ZONES, GOODS, SUPPLY_MODES, SUPPLY_CAPS, MIN } from '../base/config.js';
+import { modal } from '../galaxy/screen.js';
 import { makeGuide, guideSeen } from './guide.js';
 import { Sim, LOOSE } from '../base/sim.js';
 import { Life } from '../base/life.js';
@@ -53,13 +54,43 @@ const specOf = (k) => (sim.designable(k) ? { design: 0, parts: [] } : sim.hasStd
 function stats() {
   const T = sim.time || { day: 1, hour: 8 }, mo = Math.round(sim.morale), S = C.STAGES[sim.stage || 0];
   ui.stats([{ k: 'SUPPLIES', v: Math.round(sim.supplies).toLocaleString('en-US'), tone: sim.supplies < 100 ? 'r' : 'a' }, { k: 'CREDITS', v: Math.round(sim.credits).toLocaleString('en-US') }, { k: 'TROOPS', v: sim.troops.length },
-    { k: 'MORALE', v: mo, tone: mo < 35 ? 'r' : '' }, { k: `DAY ${Math.floor(T.day)}`, v: `${String(Math.floor(T.hour)).padStart(2, '0')}:00` }, { k: 'CHARTER', v: (S.short || S.name).toUpperCase() }]);
+    { k: 'MORALE', v: mo, tone: mo < 35 ? 'r' : '' }, { k: `DAY ${Math.floor(T.day)}`, v: `${String(Math.floor(T.hour)).padStart(2, '0')}:00` },
+    ...(innerWidth < 640 ? [{ k: `CHARTER · ${ord(sim.ranking() + 1)}`, v: (S.short || S.name).toUpperCase(), act: 'report', title: 'The charter, your standing and your defences' }]   // a phone: one tile for both
+      : [{ k: 'STANDING', v: `${ord(sim.ranking() + 1)} OF ${sim.rivals.length + 1}`, act: 'report', title: 'Your standing with the Head Office against the other outfits, and your defences' }, { k: 'CHARTER', v: (S.short || S.name).toUpperCase(), act: 'report', title: 'What the next charter needs' }])]);
   let tip = '';
   if (isRoad(tool)) tip = tool === 'unroad' ? words('Tap a road or a wall to take it out.') : `${ROADS[tool].name}: drag across the ground to draw it. It keeps to the tiles${matchMedia('(pointer: fine)').matches ? '; hold Shift to draw free' : ''}.`;
   else if (isZone(tool)) tip = words('Tap beside a road to zone its block, or drag a rectangle.');
   else if (tool) tip = words(`${B[tool].name}: it snaps to a plot along a road. Tap to place.`);
-  else { const nx = C.STAGES[(sim.stage || 0) + 1]; if (nx) tip = `NEXT CHARTER · ${(nx.short || nx.name).toUpperCase()}: ` + (nx.needs || []).map((t) => `${B[t] ? B[t].name : t}${sim.has(t) ? ' ✓' : ''}`).join(' · '); }
+  else { const nx = C.STAGES[(sim.stage || 0) + 1], ck = sim.stageCheck(); if (nx && ck) { const met = ck.filter((c) => c.ok).length; tip = `NEXT CHARTER · ${(nx.short || nx.name).toUpperCase()}: ${met} of ${ck.length} terms met` + (met === ck.length ? ' · granted within the hour' : ` · still: ${ck.find((c) => !c.ok).text.replace(/ \(.*\)$/, '')}`) + ' · tap CHARTER for the list'; } }
   ui.tip(tip);
+}
+const ord = (n) => n + (n % 10 === 1 && n % 100 !== 11 ? 'ST' : n % 10 === 2 && n % 100 !== 12 ? 'ND' : n % 10 === 3 && n % 100 !== 13 ? 'RD' : 'TH');
+// (0.63) THE BASE REPORT: the numbers behind the base that had no place on screen. The charter's terms, the three standings
+// and where they put you against the other outfits (which sets the weekly allocation), and how defensible the base is.
+// Opened from STANDING or CHARTER at the top
+function report() {
+  const S = C.STAGES, st = sim.stage || 0, nx = S[st + 1], ck = sim.stageCheck() || [], tick = (ok) => `<span class="${ok ? 'y' : 'n'}">${ok ? '✓' : '✗'}</span>`;
+  const rank = sim.ranking(), rows = sim.table(), alloc = (r) => Math.round(C.ALLOC.base * C.ALLOC.mult[Math.min(r, C.ALLOC.mult.length - 1)] * (1 + (S[st].alloc || 0)));
+  const f = sim.fort || sim.fortify(), pct = (x) => `${Math.round(x * 100)}%`, A = sim.audit, I = sim.inspection;
+  let h = `<div class="brep"><h2>Base report</h2>`;
+  h += `<h3>CHARTER · ${esc((S[st].short || S[st].name).toUpperCase())}${nx ? ` → ${esc((nx.short || nx.name).toUpperCase())}` : ''}</h3>`;
+  h += nx ? `<p class="dim">The Bureau grants the next charter by itself as soon as every term is met, and takes its fee then. It brings more land, a bigger weekly allocation and new buildings.</p><ul class="ck">${ck.map((c) => `<li>${tick(c.ok)} ${esc(c.text)}</li>`).join('')}</ul>`
+    : `<p class="dim">The highest charter there is.</p>`;
+  h += `<h3>STANDING · ${ord(rank + 1)} OF ${rows.length}</h3><p class="dim">The Head Office ranks every outfit by its three standings added up. Your place sets the allocation paid each week: ${alloc(rank)} supplies now${rank > 0 ? `, ${alloc(rank - 1)} one place up` : ''}. Standings drift back toward ${C.STAND.rest} each week, so they have to be kept up.</p>`;
+  for (const m of ['def', 'pro', 'tru']) { const v = Math.round(sim.stand[m]); h += `<div class="sb"><b>${MIN[m].short}</b><i><u style="width:${v}%"></u></i><span>${v}</span></div><p class="sm2 dim" style="margin:0 0 4px">${esc(MIN[m].name)}: ${esc(MIN[m].wants)}</p>`; }
+  h += `<table><tr><th>Outfit</th><th>DEF</th><th>EXP</th><th>PUB</th><th>ALL</th></tr>${rows.map((r) => `<tr class="${r.me ? 'me' : ''}"><td>${esc(r.name)}</td>${['def', 'pro', 'tru'].map((m) => `<td>${Math.round(r.stand[m])}</td>`).join('')}<td>${sim.total(r.stand)}</td></tr>`).join('')}</table>`;
+  if (A || I) h += `<p class="sm2">${A ? `Last supply audit (week ${A.week}): <b>${A.score}</b>/100 · supply lines ${A.lines}, food ${A.food}, housing ${A.housing}, growth ${A.growth}. ` : ''}${I ? `Last inspection (week ${I.week}): <b>${I.score}</b>/100 · morale ${I.morale}, propaganda ${I.prop}, upkeep ${I.cond}.` : ''}</p>`;
+  h += `<h3>DEFENCE · ${f.closed ? `${f.score}/100` : 'NO CLOSED WALL'}</h3>`;
+  h += `<ul class="ck"><li>${tick(f.closed)} A wall all the way round, with a gate${f.closed ? '' : ' (until it closes, the base scores 0 and raiders walk in)'}</li>`;
+  if (f.closed) h += `<li>${tick(f.cover >= 0.9)} Wall watched by a lookout or tower: ${pct(f.cover)}</li>
+    <li>${tick(f.armed >= 0.5)} Wall covered by guns with ammunition: ${pct(f.armed)}</li>
+    <li>${tick(!f.gates || f.manned >= f.gates)} Gates with a guard: ${f.manned} of ${f.gates}</li>
+    <li>${tick(f.entr >= 1)} Two gates or fewer: ${f.gates}</li>
+    <li>${tick(f.depth >= 0.8)} Command post and fuel kept well back from the wall: ${pct(f.depth)}</li>`;
+  h += `</ul>`;
+  h += `<p class="dim sm2">Each week the perimeter review turns this score into Defence standing: above 45 gains it, below loses it. Patrols that come back win it too.</p>`;
+  modal(h + '</div><button class="plate btn go" data-x="close" style="margin-top:10px;position:sticky;bottom:0">CLOSE</button>');
+  $('modal').querySelector('[data-x=close]').onclick = () => { $('modal').hidden = true; audio.click(); };
 }
 // what a standing building is doing right now, as short labels: [text, tone] with tone 'g' good, 'r' trouble, '' plain
 function statusOf(b) {
@@ -201,6 +232,7 @@ function bind() {
     else if (d.so || d.sc) { if (sim.setSupplyPlan(d.so ? 'mode' : 'cap', d.so || +d.sc)) audio.click(); selSig = ''; selBar(); }
     else if (d.bo) { deskSeen.set(+d.bo, performance.now()); audio.click(); desk(); }
   });
+  $('th-stats').addEventListener('click', (e) => { if (mode.off || !e.target.closest('[data-act=report]')) return; audio.click(); report(); });
   // with a mouse, resting on a tool shows what it is before it is picked
   $('th-bar').addEventListener('pointerover', (e) => { if (mode.off || e.pointerType !== 'mouse') return; const t = e.target.closest('[data-bt]'); hover = t ? t.dataset.bt : null; selBar(); });
   $('th-bar').addEventListener('pointerleave', () => { if (hover) { hover = null; if (!mode.off) selBar(); } });

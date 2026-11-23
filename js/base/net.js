@@ -129,16 +129,47 @@ export function heal(net) {
   }
   return n;
 }
-// a new road laid along old ones takes their place: any road whose two ends both lie on the new one is removed
+// a new road laid along old ones takes their place. (GC 0.63) Not only a road whose two ends both lie on the new one: any
+// road running along inside the new one's width, wholly or in part, and a tile off its line or not (a dirt road keeps to
+// tile centres, a paved one to tile edges). The part under the new road goes; what sticks out past either end stays,
+// joined to that end; a road that met the old one under the new road is brought onto the new one, a junction there.
+// Before, those were left lying one on top of the other: kerbs and paint across the new road, and lights lost under it
 export function absorb(net, s) {
-  const a = node(net, s.a), b = node(net, s.b), gone = [];
-  for (const o of net.segs) {
-    if (o === s || o.k === 'wall' || o.k === 'bridge' || s.k === 'bridge') continue;
-    const p = node(net, o.a), q = node(net, o.b);
-    if (distSeg(p.x, p.z, a.x, a.z, b.x, b.z).d < 0.3 && distSeg(q.x, q.z, a.x, a.z, b.x, b.z).d < 0.3) gone.push(o.id);
+  if (!isRoad(s)) return 0;
+  const a = node(net, s.a), b = node(net, s.b), L = Math.hypot(b.x - a.x, b.z - a.z); if (L < 0.3) return 0;
+  const ux = (b.x - a.x) / L, uz = (b.z - a.z) / L, reach = s.w / 2 + 0.05;
+  const along = p => (p.x - a.x) * ux + (p.z - a.z) * uz, off = p => Math.abs((p.z - a.z) * ux - (p.x - a.x) * uz);
+  const gone = [], meet = [];
+  for (const o of [...net.segs]) {
+    if (o === s || !isRoad(o)) continue;
+    const p = node(net, o.a), q = node(net, o.b); if (!p || !q || off(p) > reach || off(q) > reach) continue;
+    const tp = along(p), tq = along(q), over = Math.min(Math.max(tp, tq), L) - Math.max(Math.min(tp, tq), 0);
+    if (over < 0.3) continue;   // only touching an end: a road carrying on, not one underneath
+    net.segs = net.segs.filter(x => x !== o); gone.push(o.id);
+    for (const [n, t] of [[p, tp], [q, tq]]) {
+      if (n.id === s.a || n.id === s.b) continue;
+      if (t < -0.3) net.segs.push({ ...o, id: net.nid++, a: n.id, b: s.a });
+      else if (t > L + 0.3) net.segs.push({ ...o, id: net.nid++, a: s.b, b: n.id });
+      else meet.push([n, t]);
+    }
   }
-  if (gone.length) { net.segs = net.segs.filter(o => !gone.includes(o.id)); const used = new Set(net.segs.flatMap(o => [o.a, o.b])); net.nodes = net.nodes.filter(n => used.has(n.id)); }
+  // a road that reached the old one under the new: its node goes onto the new road's line, and the new road is cut there
+  for (const [n, t] of meet) {
+    if (!net.segs.some(x => x.a === n.id || x.b === n.id)) continue;
+    const tc = Math.max(0, Math.min(L, t));
+    if (tc < 0.06) { relink(net, n.id, s.a); continue; }
+    if (tc > L - 0.06) { relink(net, n.id, s.b); continue; }
+    n.x = a.x + ux * tc; n.z = a.z + uz * tc;
+    const piece = net.segs.find(x => x.k === s.k && x.w === s.w && [x.a, x.b].every(id => { const m = node(net, id); return m && off(m) < 0.01; }) && Math.min(along(node(net, x.a)), along(node(net, x.b))) < tc - 0.01 && Math.max(along(node(net, x.a)), along(node(net, x.b))) > tc + 0.01);
+    if (piece) { net.segs = net.segs.filter(x => x !== piece); net.segs.push({ ...piece, id: net.nid++, b: n.id }, { ...piece, id: net.nid++, a: n.id }); }
+  }
+  if (gone.length) { const used = new Set(net.segs.flatMap(o => [o.a, o.b])); net.nodes = net.nodes.filter(n => used.has(n.id)); }
   return gone.length;
+}
+// every segment at node `from` moves to node `to` (and any that would join a node to itself goes)
+function relink(net, from, to) {
+  for (const x of net.segs) { if (x.a === from) x.a = to; if (x.b === from) x.b = to; }
+  net.segs = net.segs.filter(x => x.a !== x.b);
 }
 export function nearestSeg(net, x, z, max = 0.9) {
   let best = null;

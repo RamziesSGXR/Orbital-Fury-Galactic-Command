@@ -501,7 +501,7 @@ export const frameUi = {
   },
   stats(list) {     // [{ k: 'CREDITS', v: 120, tone: 'a' | '' | 'r' }]
     const sig = JSON.stringify(list); if (sig === this._sig) return; this._sig = sig;
-    $('th-stats').innerHTML = list.map((s) => `<div class="${s.tone === 'a' ? 'a' : ''}"${s.tone === 'r' ? ' style="border-color:var(--red)"' : ''}><b${s.tone === 'r' ? ' style="color:var(--red)"' : ''}>${esc(s.v)}</b><span>${esc(s.k)}</span></div>`).join('');
+    $('th-stats').innerHTML = list.map((s) => `<div class="${s.tone === 'a' ? 'a' : ''}${s.act ? ' act' : ''}"${s.act ? ` data-act="${esc(s.act)}" title="${esc(s.title || 'Tap for the details')}"` : ''}${s.tone === 'r' ? ' style="border-color:var(--red)"' : ''}><b${s.tone === 'r' ? ' style="color:var(--red)"' : ''}>${esc(s.v)}</b><span>${esc(s.k)}${s.act ? ' ›' : ''}</span></div>`).join('');   // (0.63) act: a stat that opens a report
   },
   message(text, ms = 2600) { const m = $('th-msg'); m.textContent = text; m.classList.add('show'); clearTimeout(this._mt); this._mt = setTimeout(() => m.classList.remove('show'), ms); },
   feed(text, tone = '') { const f = $('th-feed'), d = document.createElement('div'); d.className = tone; d.textContent = text; f.appendChild(d); while (f.children.length > 4) f.firstChild.remove(); timeMessage(d, 7000); },     // (0.58) how long: MESSAGE TIME in Settings

@@ -294,7 +294,7 @@ export class Sim {
     if (c.runs) { let first = null; for (const [p, q] of c.runs) { const s = addLine(this.net, p, q, k); if (s) { first ??= s; } } if (first) { this.spend('build', c.cost); this.rebuildNet(); } return first; }
     // a road is laid in stretches, one between each pair of roads it crosses, so every crossing is a junction
     const parts = k === 'wall' || k === 'bridge' ? [addLine(this.net, a, b, k)].filter(Boolean) : addRoad(this.net, a, b, k), s = parts[0]; if (!s) return null;
-    if (k !== 'wall' && k !== 'bridge') for (const q of parts) { absorb(this.net, q); if (this.net.segs.includes(q)) this.gradeRoad(q); }
+    if (k !== 'wall' && k !== 'bridge') { for (const q of parts) this.gradeRoad(q); for (const q of parts) if (this.net.segs.includes(q)) absorb(this.net, q); }   // (GC 0.63) graded first: absorbing can cut a stretch at a junction
     if (k === 'bridge') for (const id of [s.a, s.b]) { const n = this.net.nodes.find(n => n.id === id); n.h ??= this.hAt(n.x, n.z); }   // the deck's ends stay where they were laid
     if (c.cost >= 0) this.spend('build', c.cost); else this.earn('refund', -c.cost);
     this.rebuildNet(); return s;
@@ -695,6 +695,7 @@ export class Sim {
     if (h === C.PATROL_AT) this.standingPatrols();
     if (h === C.DEPLOY_AT) this.deployRun();
     if (h === 0) { this.checkOrders(); this.dayClose(); this.utilDay(); }
+    if (this.nextStage()) this.promote();   // (GC 0.63) the Bureau grants the next charter by itself, within the hour every term is met (nothing called promote before)
     if (h === 20 && !this.unpaidDays) { let cr = 0; for (const b of this.b) if (b.done && !b.off) cr += (C.SALES[b.type] || 0) * this.capF(b) + this.stat(b, 'sales'); if (cr) this.earn('sales', 0, cr); }
     this.mood *= 0.985;
     this.deskHour(h);
