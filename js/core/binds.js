@@ -20,6 +20,14 @@ const DEFS = {
   orbit: [
     ['rotate', 'Turn the part you are placing', 'KeyR', []], ['build', 'Build it at the ring under the cursor', 'Enter', ['NumpadEnter']],
     ['pause', 'Pause and go on', 'Space', []],
+    // (GC 0.76) the standalone station game's keys
+    ['flyFwd', 'Move the view forward', 'KeyW', ['ArrowUp']], ['flyBack', 'Move the view back', 'KeyS', ['ArrowDown']],
+    ['flyLeft', 'Move the view left', 'KeyA', ['ArrowLeft']], ['flyRight', 'Move the view right', 'KeyD', ['ArrowRight']],
+    ['turnLeft', 'Turn the view left', 'KeyQ', []], ['turnRight', 'Turn the view right', 'KeyE', []],
+    ['commander', "Commander's channel: the accounts and orders", 'KeyO', []], ['upgrades', 'The upgrade path', 'KeyU', []], ['comms', 'Station comms', 'KeyC', []],
+    ['fitout', 'Fit out the chosen part\'s rooms', 'KeyI', []], ['demolish', 'Demolish the chosen part', 'KeyX', ['Delete']], ['focus', 'Focus on the chosen part; follow the chosen person', 'KeyF', []],
+    ['view', 'Next view: hull, blueprint, life signs', 'KeyV', []], ['inside', 'Take the hull away (inside)', 'KeyT', []], ['cutaway', 'Cut the station open', 'KeyG', []], ['dots', 'Show the free ports\' dots', 'KeyJ', []],
+    ['slower', 'Slower', 'BracketLeft', []], ['faster', 'Faster', 'BracketRight', []],
   ],
 };
 // keys that can't be given to anything: the menu's own, and the modifiers

@@ -1,6 +1,6 @@
 # Orbital Fury: Galactic Command
 
-**Prototype 0.75.0.** One war, run from four posts, in one game.
+**Prototype 0.76.0.** One war, run from four posts, in one game.
 
 You found a command (a name, a livery: emblem and colours) and hold the centre of the galaxy against three enemies. Everything in
 the war is yours to run, and each part changes the others:
@@ -261,7 +261,10 @@ This is one application with one save, one faction and one interface, not four g
   - `ground.js` hosts Orbital Fury whole (`ground.html`, `js/ground/`, `css/fury.css`): its armoury, briefing, mission and debrief.
     A small adapter at the top of `js/ground/main.js` (`GCX`) starts the one mission the war room chose, with the campaign's
     armoury and credits, and hands the result back. Its title, saved operations and Discord feed are not part of this game.
-  - `orbit.js` runs Super Orbital Simulator's station (`js/orbit/`). It reports the station's tier.
+  - `orbit.js` runs Super Orbital Simulator's station (`js/orbit/`). It reports the station's tier. Its panels, brought over
+    from the standalone game in 0.76, are in `orbit-panels.js`: COMMS (C), the Commander's channel with the accounts, the tax and
+    each division's orders (O), the upgrade path (U), the top bar's readouts (hover: where it comes from; click: the accounts),
+    speech bubbles. `orbit.js` has the card for a part, a person or the station, fitting out rooms (I), the views and the keys.
   - `base.js` runs FOB Super Commander's base (`js/base/`). It reports the base's charter.
 - `js/core/logo.js` is the crest maker shared by every post. `css/gc.css` is the one stylesheet.
 - `js/core/roster.js` keeps the STORE's command credits, the Vanguard roster and the upgrades; `js/core/store-ui.js` is the

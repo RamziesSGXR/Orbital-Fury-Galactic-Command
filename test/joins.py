@@ -67,7 +67,7 @@ with sync_playwright() as pw:
         if not touch: n1 = pg.evaluate('gc.mode.station.parts.size'); tap(x, y); pg.wait_for_timeout(300); check(n1 == pg.evaluate('gc.mode.station.parts.size'), name + ': nothing should be built where it does not fit')
         pg.screenshot(path=f'/tmp/shots/{name}-joins.png')
         (pg.tap if touch else pg.click)('[data-ob=x]'); pg.wait_for_timeout(200)
-        check(pg.evaluate('document.getElementById("th-sel").classList.contains("hidden") && !gc.mode.view.ghost && !gc.mode.view.markers.children.length'), name + ': cancel should clear build mode')
+        check(pg.evaluate('!document.getElementById("th-sel").classList.contains("build") && !gc.mode.view.ghost && !gc.mode.view.markers.children.length'), name + ': cancel should clear build mode')   # (0.76) the card goes back to the station overview
         print(name, 'build mode', 'ok' if not fails else fails)
         pg.close()
     br.close()
