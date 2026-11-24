@@ -670,3 +670,43 @@ button small { display: block; font: 9.5px var(--mono); letter-spacing: 0.5px; o
 .lvname input:focus, .lvsl .lvtext:focus { outline: 1px solid var(--amber); }
 .lvwhere { list-style: none; padding: 0; margin: 0 0 6px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; font: 11.5px/1.35 var(--mono); color: var(--dim); }
 .lvwhere b { display: block; font: 600 10.5px var(--head); letter-spacing: 1.5px; color: var(--text); }
+
+/* ---------- (0.71) the main menu, easier to read ----------
+   Feedback: "main menu text can be hard to read". Sentences in Barlow (Share Tech Mono is a readout face), small print
+   no smaller than 12.5 px, labels with less spacing, the dim text brighter, solid backing behind words that sit on a
+   picture, and a shadow under text over the war room. */
+#s-title { --dim: rgba(230, 234, 220, 0.8); --read: 'Barlow', 'Segoe UI', system-ui, sans-serif; }
+#s-title .tile span, #s-title .gcard > span, #s-title .hcamp p, #s-title .pcard > p, #s-title .soon, #s-title .cdet > p,
+#s-title .cside > i span, #s-title .osub, #s-title .chal small, #s-title .tpan p, #s-title .tpan small, #s-title label small {
+  font-family: var(--read); font-weight: 500; letter-spacing: 0.1px; }
+#s-title .tile span { font-size: 15px; line-height: 1.35; }
+#s-title .gcard > span { font-size: clamp(14px, 1.9vh, 16.5px); line-height: 1.45; color: rgba(230, 234, 220, 0.86); }
+#s-title .hcamp p, #s-title .pcard > p, #s-title .soon, #s-title .cdet > p { font-size: 14.5px; line-height: 1.45; }
+#s-title .chal small, #s-title .cside > i span, #s-title label small { font-size: 13.5px; }
+#s-title .slot div, #s-title .ctab, #s-title .cdet dl, #s-title .hcamp .msave { font-size: 13.5px; }
+/* labels: a step bigger, spaced less (wide spacing at 9 or 10 px is what made them hard to read) */
+#s-title .tile em, #s-title .gcard em, #s-title .cdet > em, #s-title .cdet dt, #s-title .cstat i, #s-title .stbal i, #s-title .slot i { font-size: 11.5px; letter-spacing: 1.6px; }
+#s-title .chal i, #s-title .gcard .gfoot i, #s-title .cside > i { font-size: 12px; letter-spacing: 1.2px; }
+#s-title .chal div { font-size: 14px; } #s-title .chip b { font-size: 12.5px; } #s-title .chip small, #s-title .cstat small { font-size: 12px; }
+#s-title .ttabs button { color: rgba(230, 234, 220, 0.78); } #s-title .tname span { font-size: 11px; letter-spacing: 3.5px; }
+#s-title #t-page > h2 { color: var(--amber); }
+/* words never sit on a busy picture: the campaign panel's picture fades out before the words, a tile's art stays faint behind them */
+#s-title .tpan.pic { background: linear-gradient(180deg, rgba(5, 7, 6, 0.55) 0, rgba(5, 7, 6, 0.92) 26%, rgba(5, 7, 6, 0.97) 100%), url(../assets/menu/table.jpg) 50% 30% / cover; }
+#s-title .tpan, #s-title .tpan > h3 { background-color: rgba(5, 7, 6, 0.95); }
+#s-title .tile .tart { opacity: 0.42; width: 34%; }
+#s-title .tile:has(.tart) > em, #s-title .tile:has(.tart) > span { max-width: 70%; }
+#s-title .tile > em, #s-title .tile > b, #s-title .tile > span, #s-title #t-page > h2, #s-title .tname, #s-title .tfoot { text-shadow: 0 1px 2px #000, 0 0 10px rgba(0, 0, 0, 0.85); }
+/* the crest and line art sit in the tile's top corner, smaller, never under the headline */
+#s-title .tile .tart { top: 10px; bottom: auto; height: 52%; width: 30%; align-items: flex-start; }
+#s-title .gcard > b { font-size: clamp(19px, 1.8vw, 28px); }
+#s-title #t-ver { font: 500 12px var(--read); letter-spacing: 0.6px; color: rgba(230, 234, 220, 0.6); }
+/* the rest of the small print, found by measuring every tab: nothing read under 12 px */
+#s-title .tile em, #s-title .gcard em, #s-title .cdet > em, #s-title .cstat i, #s-title .stbal i { font-size: 12px; }
+#s-title .osub button { font-size: 12.5px; } #s-title .osub button small { font-size: 12px; }
+#s-title .gcard .gfoot .btn { font-size: 12px; } #s-title .tname span { font-size: 11.5px; }
+#s-title .chip i, #s-title .chips.six .chip i { font-size: 11px; letter-spacing: 1px; }
+#s-title .lvcard small, #s-title .lvside small, #s-title .oset small { font: 500 12.5px/1.35 var(--read); letter-spacing: 0; }
+#s-title .vcard span, #s-title .sfx li { font: 500 12.5px/1.35 var(--read); letter-spacing: 0; } #s-title .vpick i { font-size: 12px; letter-spacing: 1.2px; }
+/* sentences in the pop-up boxes (news, credits, the base report) in the reading letter too */
+:root { --read: 'Barlow', 'Segoe UI', system-ui, sans-serif; }
+#modal p, #modal li { font-family: var(--read); font-weight: 500; font-size: 14px; line-height: 1.45; letter-spacing: 0.1px; }

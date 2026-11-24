@@ -1,0 +1,11 @@
+/* (0.71) The game's fonts, kept with the game (assets/fonts, SIL Open Font License): no web font service, so the look
+   is the same offline and in a desktop build. Chakra Petch for headings and labels, Barlow for anything read as
+   sentences, Share Tech Mono for readouts. */
+@font-face { font-family: 'Chakra Petch'; font-weight: 400; font-style: normal; font-display: swap; src: url(../assets/fonts/chakra-petch-latin-400-normal.woff2) format('woff2'); }
+@font-face { font-family: 'Chakra Petch'; font-weight: 500; font-style: normal; font-display: swap; src: url(../assets/fonts/chakra-petch-latin-500-normal.woff2) format('woff2'); }
+@font-face { font-family: 'Chakra Petch'; font-weight: 600; font-style: normal; font-display: swap; src: url(../assets/fonts/chakra-petch-latin-600-normal.woff2) format('woff2'); }
+@font-face { font-family: 'Chakra Petch'; font-weight: 700; font-style: normal; font-display: swap; src: url(../assets/fonts/chakra-petch-latin-700-normal.woff2) format('woff2'); }
+@font-face { font-family: 'Share Tech Mono'; font-weight: 400; font-style: normal; font-display: swap; src: url(../assets/fonts/share-tech-mono-latin-400-normal.woff2) format('woff2'); }
+@font-face { font-family: 'Barlow'; font-weight: 400; font-style: normal; font-display: swap; src: url(../assets/fonts/barlow-latin-400-normal.woff2) format('woff2'); }
+@font-face { font-family: 'Barlow'; font-weight: 500; font-style: normal; font-display: swap; src: url(../assets/fonts/barlow-latin-500-normal.woff2) format('woff2'); }
+@font-face { font-family: 'Barlow'; font-weight: 600; font-style: normal; font-display: swap; src: url(../assets/fonts/barlow-latin-600-normal.woff2) format('woff2'); }
