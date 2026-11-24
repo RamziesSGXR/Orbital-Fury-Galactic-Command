@@ -3,7 +3,7 @@
 <script type="module">
 // A contact sheet of FOB Commander's buildings whole, as js/base/models.js builds them (the structure file and the parts
 // made in code together), in the command's livery. Loose-looking pieces in a structure file can be checked here in place.
-//   /test/bldsheet.html?b=command,comms,mast,medbay-s0-2x3&cols=4&cell=360&az=35&el=28
+//   /test/bldsheet.html?b=command,comms,mast,medbay-s0-2x3&cols=4&cell=360&az=35&el=28   (&plain: as built in code, without the Blender structure file)
 import * as THREE from './js/vendor/three.js';
 import * as M from './js/base/models.js';
 import { livery, asFaction } from './js/core/livery.js';
@@ -17,7 +17,7 @@ const cells = [];
 for (const [i, n] of names.entries()) {
   const scene = new THREE.Scene(); scene.add(new THREE.AmbientLight(0xffffff, 1.4)); const sun = new THREE.DirectionalLight(0xffffff, 2.2); sun.position.set(5, 9, 6); scene.add(sun);
   const mm = /^(.+)-s(\d)-(\d)x(\d)$/.exec(n), type = mm ? mm[1] : n, spec = mm ? { std: +mm[2], w: +mm[3], d: +mm[4] } : null;     // an early standard: type-s<std>-<w>x<d>
-  let g = null; try { g = M.buildModel(type, mats, true, spec); } catch (err) { console.warn(n, err); }
+  let g = null; try { g = M.buildModel(type, mats, true, spec, q.has('plain')); } catch (err) { console.warn(n, err); }
   const o = g || new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: 'red' }));
   scene.add(o); o.updateMatrixWorld(true);
   const bb = new THREE.Box3().setFromObject(o), s = bb.getBoundingSphere(new THREE.Sphere());

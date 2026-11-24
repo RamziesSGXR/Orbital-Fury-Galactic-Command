@@ -1,6 +1,6 @@
 # Orbital Fury: Galactic Command
 
-**Prototype 0.66.0.** One war, run from four posts, in one game.
+**Prototype 0.67.0.** One war, run from four posts, in one game.
 
 You found a command (a name, a livery: emblem and colours) and hold the centre of the galaxy against three enemies. Everything in
 the war is yours to run, and each part changes the others:
@@ -13,6 +13,31 @@ the war is yours to run, and each part changes the others:
 | **The base** | Found a base on the system's key world: roads, zones, and buildings that grow along them. | +35% output from the system for each charter. |
 
 A system that falls takes its station and its base with it.
+
+## What's new in 0.67: the enemy builds its own way, and what you destroy falls down
+
+- **Each enemy its own buildings** (made in Blender, tools/blender/enemy.py), from the look of its own creatures:
+  - **The Molt** grow theirs: a banded chitin nest with a toothed maw between two tusks and chimneys breathing spores; a
+    spitter on three claws; a scent relay on a feelered stalk; a larder of silk cocoons under bone ribs; a glowing brood
+    heart in a cradle of bones; a chorus of resonating horns.
+  - **The Foundry** cast and bolt theirs: a riveted works under a lit sawtooth roof, with stacks and a furnace door; an iron
+    turret with a muzzle brake; a lattice transmitter; a stockpile under a lean-to; a bank of brass-wound capacitors; a
+    loudspeaker trestle; and a new great gun in an iron pit.
+  - **The Talon** raise theirs: a hide pavilion on great curved ribs with a living crystal crown; a crystal lance cradled in
+    bone; a drum tower; a hoard of baskets and crystals; a geode in a ring of standing stones; a war-horn tower; and the
+    shield node, a pale crystal held up by bone tines.
+- **Each enemy has its own turret** now, where all three shared one grey gun. The places worth taking out (relay, cache,
+  battery, broadcast) are each enemy's own too.
+- **FOB Commander's buildings out of an old war, brought up to date:** the barracks (a modular block with an upper
+  module and a lit entrance, where it was a timber hut under a gable), the armoury (an armoured vault with a blast door),
+  the mess hall (a glazed canteen under a canopy, where it was a Quonset hut), the shelter (a concrete berm capped in
+  armour, where it was a mound of sand), the PA mast (line-array cabinets, where it was an air-raid siren), the patrol
+  post and the HQ. Concrete barriers instead of sandbags everywhere, the early tent and prefab forms too. All 266 rebuilt
+  in Blender from their plans (tools/blender/base.py now packs assets/models/buildings.json itself).
+- **What you destroy falls down.** A nest, turret, gun or site that is destroyed collapses over a second and a half and
+  stays as a scorched ruin: towers topple, shells and halls sag, lights go out, rubble lies about. Every ruin is made with
+  the model, so nothing hangs in the air (test/floating.py checks the standing frame; each ruin's pieces rest on what is
+  under them).
 
 ## What's new in 0.66: the livery, one look over every game
 

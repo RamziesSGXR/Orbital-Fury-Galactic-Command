@@ -49,15 +49,22 @@ function frameSet(d, fit, remap, only) {
 // triangles, for when it is small on the screen or the field is crowded.
 // (GC 0.38) A thing that stands still (an objective, a side site), from a model file: its one frame at the size it was made
 // (a footprint radius of about one, standing on the ground). remap as above.
-export function staticGeo(d, remap = null) {
+// to: another frame of the model (GC 0.67: 'dead', a building's ruin) laid on as a morph target, so one geometry can go from
+// the standing frame to it (an instanced mesh sets how far along each copy is with setMorphAt)
+export function staticGeo(d, remap = null, to = null) {
   const tris = new Uint16Array(b64(d.tris).buffer.slice(0)), cols = b64(d.cols), mi = d.mi ? b64(d.mi) : null, nt = d.nt, c = new THREE.Color();
-  const q = new Uint16Array(b64(d.frames.stand).buffer.slice(0)), pos = new Float32Array(nt * 9), col = new Float32Array(nt * 9);
+  const at = (f) => { const q = new Uint16Array(b64(d.frames[f]).buffer.slice(0)), pos = new Float32Array(nt * 9);
+    for (let i = 0; i < nt * 3; i++) { const v = tris[i] * 3, o = i * 3; pos[o] = d.min[0] + q[v] / 65535 * d.size[0]; pos[o + 1] = d.min[1] + q[v + 1] / 65535 * d.size[1]; pos[o + 2] = d.min[2] + q[v + 2] / 65535 * d.size[2]; }
+    return pos; };
+  const pos = at('stand'), col = new Float32Array(nt * 9);
   for (let t = 0; t < nt; t++) {
     const nm = mi && d.pal ? d.pal[mi[t]] : null, rc = nm && remap ? remap[nm] : null;
     if (rc) c.set(rc); else c.setRGB(cols[t * 3] / 255, cols[t * 3 + 1] / 255, cols[t * 3 + 2] / 255, THREE.SRGBColorSpace);
-    for (let k = 0; k < 3; k++) { const v = tris[t * 3 + k] * 3, o = t * 9 + k * 3; pos[o] = d.min[0] + q[v] / 65535 * d.size[0]; pos[o + 1] = d.min[1] + q[v + 1] / 65535 * d.size[1]; pos[o + 2] = d.min[2] + q[v + 2] / 65535 * d.size[2]; col[o] = c.r; col[o + 1] = c.g; col[o + 2] = c.b; }
+    for (let k = 0; k < 3; k++) { const o = t * 9 + k * 3; col[o] = c.r; col[o + 1] = c.g; col[o + 2] = c.b; }
   }
-  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.setAttribute('normal', new THREE.BufferAttribute(crease(tris, pos, d.nv, 40), 3)); return g;
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.setAttribute('normal', new THREE.BufferAttribute(crease(tris, pos, d.nv, 40), 3));
+  if (to && d.frames[to]) { const p2 = at(to); g.morphAttributes.position = [new THREE.BufferAttribute(p2, 3)]; g.morphAttributes.normal = [new THREE.BufferAttribute(crease(tris, p2, d.nv, 40), 3)]; g.morphTargetsRelative = false; }
+  return g;
 }
 // only: a pattern for the frames wanted (the standing frame always comes), so nobody builds poses they never show
 export function modelFrames(d, remap = null, only = null) {

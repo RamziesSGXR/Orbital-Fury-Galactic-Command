@@ -79,7 +79,9 @@ Models and sharing (the 0.64 rework, continued):
 3. ~~Loose pieces in the ground fight's models.~~ **(0.65: none left)** ~~FOB buildings and station parts, looked at in
    place.~~ **(0.66: test/floating_built.py finds none in the buildings as built; the station's frames are held by their
    lines, the pylon's ring by struts)**
-4. The enemy's posts and buildings in the same spirit (each enemy its own look), and FOB buildings that look dated.
+4. ~~The enemy's posts and buildings in the same spirit (each enemy its own look), and FOB buildings that look dated.~~
+   **(0.67: tools/blender/enemy.py, with ruins; the barracks, armoury, mess hall, patrol post, HQ, shelter and PA mast
+   redone, barriers for sandbags everywhere)**
 5. ~~fleet.py copied into the Blender scripts folder.~~ **(0.65: with sites.py, world.py and vehicles.py; the old ones kept
    as *.before-0.64)**
 
@@ -95,6 +97,6 @@ Next, in this order (agreed after 0.65):
    skill bonuses.
 9. Daily challenges (a placeholder on HOME today).
 10. Weapon fire and explosions with more character; ground fog that reacts; weather and flooding.
-12. Destructible buildings: in code if it can be done with detail, otherwise when Blender is to hand again.
+12. Destructible buildings: ~~the enemy's, on the ground~~ **(0.67: each falls into its ruin)**; FOB Commander's next.
 13. Later: controller support (desktop first); another style for the campaign; story reasons for the war.
 (Dropped: recolouring the enemies; each already has its own colours.)

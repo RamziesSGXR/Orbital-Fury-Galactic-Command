@@ -40,8 +40,11 @@ def odd(name, v, idx, m):
             except ValueError: pass
     bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0005)
     return _obj(name, bm, [m], None)
+try: ONLY     # (GC 0.67) a list of plan names builds just those
+except NameError: ONLY = None
 OUT = {}; COLS = 18; GAP = 7.0
 for bi, (typ, plan) in enumerate(PLANS.items()):
+    if ONLY and typ not in ONLY: continue
     CUR = coll('bld_' + typ)
     for n, p in enumerate(plan['parts']):
         m_ = bmat(p['k'], p['c']); nm = '%s_%03d' % (typ, n)
@@ -58,4 +61,12 @@ for bi, (typ, plan) in enumerate(PLANS.items()):
         if o is not root and o.parent is None: o.parent = root
     root.location = ((bi % COLS) * GAP - (COLS - 1) * GAP / 2, -(bi // COLS) * GAP, 0)
 bpy.context.view_layer.update()
-PIC = [shot('base_a', dist=46, target=(-30, -7, 0.5), az=14, el=40, res=(1800, 1000))]
+if not ONLY: PIC = [shot('base_a', dist=46, target=(-30, -7, 0.5), az=14, el=40, res=(1800, 1000))]
+def pack(out=os.path.join(ROOT, 'renders', 'export', 'buildings.json')):
+    """(GC 0.67) Every building's export, packed as the game reads them: assets/models/buildings.json."""
+    P = {}
+    for typ in PLANS:
+        f = os.path.join(ROOT, 'export', 'bld_' + typ + '.json')
+        if os.path.exists(f): P[typ] = json.load(open(f))
+    with open(out, 'w') as fh: json.dump(P, fh, separators=(',', ':'))
+    return len(P), os.path.getsize(out)

@@ -456,13 +456,25 @@ export class Renderer {
         else if ((o.kind === 'banner' || o.kind === 'flag') && !dn) out.push({ k: o.kind, x: o.x, y: o.y, s: o.s, rot: o.a, tint: pal.enemy }); }
     }
     const fk = { bugs: 'hive', bots: 'fab', lizards: 'camp' }[m.faction.id] || 'fab', hit = (o) => WOUND(o), fl = (o) => t - (o.hurtAt ?? -99) < 0.1;
+    // (GC 0.67) each enemy its own turret (tools/blender/enemy.py), and what it builds falls in when destroyed and lies there:
+    // fall(o, dead) is how far it has fallen (0 to 1, over FALL seconds, gathering speed), or null while it stands. Whatever is
+    // first seen already destroyed (a save, a strike out of sight) is seen fallen.
+    const tk = VIEW.m3.has('prop_turret_' + m.faction.id) ? 'turret:' + m.faction.id : 'turret', P3 = this._g3 && this._g3.props;
+    const fell = this._fell || (this._fell = new WeakMap()), up = this._up || (this._up = new WeakSet()), FALL = 1.4;
+    const fall = (o, dead, k) => {
+      if (!dead) { up.add(o); return null; }
+      if (!P3 || !P3.hasRuin(k)) return undefined;
+      let t0 = fell.get(o); if (t0 == null) { t0 = up.has(o) ? t : -99; fell.set(o, t0); }
+      const f = Math.min(1, Math.max(0, (t - t0) / FALL)); return f * f;
+    };
+    const RUIN = '#8f8880';
     for (const b of m.bases || []) {
-      if (b.destroyed || !near(b)) continue;
+      if (!near(b)) continue;
       if (b.spawners) {
         if (!b.seen) continue;     // (still under its smoke)
-        for (const sp of b.spawners) if (!sp.dead) out.push({ k: fk, x: sp.x, y: sp.y, s: Math.max(2.2, sp.r * 1.35), rot: (b.id * 1.7 + sp.x) % 6.28, tint: hit(sp), flash: fl(sp) });
-        for (const T of b.turrets || []) if (!T.dead) out.push({ k: 'turret', x: T.x, y: T.y, s: Math.max(1.3, T.r * 1.1), rot: face(T.face), tint: hit(T) || pal.enemy, flash: fl(T) });
-      } else out.push({ k: b.cannon ? 'cannon' : b.node ? 'node' : fk, x: b.x, y: b.y, s: Math.max(2.2, (b.r || 8) * (b.cannon ? 0.8 : b.node ? 0.6 : 0.85)), rot: b.cannon ? face(b.face) : (b.id * 1.7) % 6.28, tint: hit(b, b.lastHit) });
+        for (const sp of b.spawners) { const f = fall(sp, sp.dead, fk); if (f === undefined) continue; out.push({ k: fk, x: sp.x, y: sp.y, s: Math.max(2.2, sp.r * 1.35), rot: (b.id * 1.7 + sp.x) % 6.28, tint: f != null ? RUIN : hit(sp), flash: f == null && fl(sp), fall: f }); }
+        for (const T of b.turrets || []) { const f = fall(T, T.dead, tk); if (f === undefined) continue; out.push({ k: tk, x: T.x, y: T.y, s: Math.max(1.3, T.r * 1.1), rot: face(T.face), tint: f != null ? RUIN : hit(T) || (tk === 'turret' ? pal.enemy : null), flash: f == null && fl(T), fall: f }); }
+      } else { const k = b.cannon ? 'cannon' : b.node ? 'node' : fk, f = fall(b, b.destroyed, k); if (f === undefined) continue; out.push({ k, x: b.x, y: b.y, s: Math.max(2.2, (b.r || 8) * (b.cannon ? 0.8 : b.node ? 0.6 : 0.85)), rot: b.cannon ? face(b.face) : (b.id * 1.7) % 6.28, tint: f != null ? RUIN : hit(b, b.lastHit), fall: f }); }
     }
     // (GC 0.38) THE OBJECTIVES AND SIDE SITES, as the models made for them (tools/blender/sites.py); each only once its file has come
     { const M3 = VIEW.m3, turn = (o) => (((o.id || 1) * 2.3 + o.x * 0.01) % 6.28), put = (k, x, y, s2, rot, o) => { if (M3.has(k) && Math.abs(x - cx) < half && Math.abs(y - cy) < half) out.push({ k, x, y, s: s2, rot, tint: o ? hit(o) : null, flash: o ? fl(o) : false }); };
@@ -493,8 +505,10 @@ export class Renderer {
       }
     }
     { const pk = { bugs: ['spire', 'hive'], bots: ['node', 'fab'], lizards: ['totem', 'camp'] }[m.faction.id] || ['node', 'fab'];     // the enemy's side sites
-      const PK = { spore: 'poi_spewer', propaganda: 'poi_broadcast', relay: 'poi_relay', cache: 'poi_cache' };
-      for (const p of m.pois || []) if (!p.done && near(p)) out.push({ k: VIEW.m3.has(PK[p.kind]) ? PK[p.kind] : pk[(p.id || 0) % 2], x: p.x, y: p.y, s: Math.max(2.4, (p.r || 12) * 0.42), rot: ((p.id || 1) * 2.3) % 6.28, tint: hit(p), flash: fl(p), dim: m.visLevel(p.x, p.y) > 0 ? 1 : 0.7 }); }
+      const PK = { spore: 'poi_spewer', propaganda: 'poi_broadcast', relay: 'poi_relay', cache: 'poi_cache', battery: 'poi_battery' }, fac = m.faction.id;
+      // (GC 0.67) each enemy's own: poi_relay_bugs, poi_broadcast_lizards and so on, where it has one
+      const kOf = (p) => { const b = PK[p.kind]; return b && VIEW.m3.has(b + '_' + fac) ? b + '_' + fac : b && VIEW.m3.has(b) ? b : pk[(p.id || 0) % 2]; };
+      for (const p of m.pois || []) { if (!near(p)) continue; const k = kOf(p), f = fall(p, p.done, k); if (f === undefined) continue; out.push({ k, x: p.x, y: p.y, s: Math.max(2.4, (p.r || 12) * 0.42), rot: ((p.id || 1) * 2.3) % 6.28, tint: f != null ? RUIN : hit(p), flash: f == null && fl(p), dim: m.visLevel(p.x, p.y) > 0 ? 1 : 0.7, fall: f }); } }
     // (GC 0.41) FIELD WORKS, as models: wire, foxholes, walls of sandbags, timber or concrete, the light bridge, the landing
     // zone's lights, a work site, mines and the shield generator. Things laid along a line are stretched to their length (l).
     { const M3 = VIEW.m3;

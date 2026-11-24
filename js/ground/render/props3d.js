@@ -89,6 +89,7 @@ const MODELS = {
 
 // (GC 0.40) the file a thing's model is kept in: 'tree:leaf' is prop_tree_leaf, 'post:mg' is prop_post_mg
 const FILE = (k) => 'prop_' + String(k).replace(/:/g, '_');
+const MORPH = { morphTargetInfluences: [0] };     // (how far a ruin has fallen, handed to setMorphAt)
 // (GC 0.64) FOB COMMANDER'S BUILDINGS IN THE GROUND FIGHT. A thing on the ground that is one of the base's buildings ('bld:eob',
 // the Emergency Operations Bunker) is drawn whole, live parts and all, by the base's own maker (js/base/models.js), in your
 // command's colours. The base's code is fetched the first time one is asked for; until its models have come, nothing is drawn
@@ -139,19 +140,24 @@ export class Props3D {
     // fetched as the game starts. Until one has come, the old flat drawing of it is used (VIEW.m3 says which have come).
     this.files = new Map(); this.accent = '#ff5a3a';
     fetch('assets/models/index.json').then((r) => (r.ok ? r.json() : null)).then((ix) => {
-      for (const name of (ix && ix.props) || []) fetch(`assets/models/${name}.json`).then((r) => (r.ok ? r.json() : null)).then((d) => { if (d && d.frames && d.frames.stand) { this.files.set(name, d); for (const k of [...this.kinds.keys()]) if (k === name || FILE(k) === name) this._drop(k); VIEW.m3.add(name); } }).catch(() => {});
+      for (const name of (ix && ix.props) || []) fetch(`assets/models/${name}.json`).then((r) => (r.ok ? r.json() : null)).then((d) => { if (d && d.frames && d.frames.stand) { this.files.set(name, d); for (const k of [...this.kinds.keys()]) { const b = k.replace(/~fall$/, ''); if (b === name || FILE(b) === name) this._drop(k); } VIEW.m3.add(name); } }).catch(() => {});
     }).catch(() => {});
   }
   has(k) { return !!MODELS[k] || this.files.has(k) || this.files.has(FILE(k)); }
+  // (GC 0.67) whether a model has its ruin (a `dead` frame): the enemy's buildings fall in when destroyed and stay fallen
+  hasRuin(k) { const f = this.files.get(k) || this.files.get(FILE(k)); return !!(f && f.frames && f.frames.dead); }
   _drop(k) { const m = this.kinds.get(k); if (m) { this.scene.remove(m); m.geometry.dispose(); } this.kinds.delete(k); }
   // the enemy's own colour, for the parts of a model that wear it (its screen, its lamps, its door)
-  setAccent(hex) { if (!hex || hex === this.accent) return; this.accent = hex; for (const k of this.files.keys()) this._drop(k); }
+  setAccent(hex) { if (!hex || hex === this.accent) return; this.accent = hex; for (const k of [...this.kinds.keys()]) { const b = k.replace(/~fall$/, ''); if (this.files.has(b) || this.files.has(FILE(b))) this._drop(k); } }
   _kind(k) {
     let m = this.kinds.get(k); if (m !== undefined) return m;
-    const file = this.files.get(k) || this.files.get(FILE(k)), make = MODELS[k]; if (!file && !make) { this.kinds.set(k, null); return null; }     // (GC 0.40) a model from Blender if it has come, else the one built here
-    const geo = file ? staticGeo(file, { accent: this.accent, accent_lit: this.accent }) : bake(make(), null, true);
-    m = new THREE.InstancedMesh(geo, file ? this.smooth : this.mat, file && !this.files.has(FILE(k)) ? 96 : CAP); m.count = 0; m.frustumCulled = false; m.castShadow = true; m.receiveShadow = true; m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    this.scene.add(m); this.kinds.set(k, m); return m;
+    const fall = k.endsWith('~fall'), b = fall ? k.slice(0, -5) : k;     // (GC 0.67) k~fall: the same model going from standing to its ruin
+    const file = this.files.get(b) || this.files.get(FILE(b)), make = fall ? null : MODELS[b]; if (!file && !make) { this.kinds.set(k, null); return null; }     // (GC 0.40) a model from Blender if it has come, else the one built here
+    if (fall && !(file.frames && file.frames.dead)) { this.kinds.set(k, null); return null; }
+    const geo = file ? staticGeo(file, { accent: this.accent, accent_lit: this.accent }, fall ? 'dead' : null) : bake(make(), null, true);
+    m = new THREE.InstancedMesh(geo, file ? this.smooth : this.mat, fall ? 48 : file && !this.files.has(FILE(b)) ? 96 : CAP); m.frustumCulled = false; m.castShadow = true; m.receiveShadow = true; m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    if (fall) for (let i = 0; i < m.count; i++) m.setMorphAt(i, MORPH);     // (its morph table is made the size of the whole mesh, before it is cut to what is drawn)
+    m.count = 0; this.scene.add(m); this.kinds.set(k, m); return m;
   }
   // list: [{ k, x, y (the map's), s (footprint, metres), h (height scale, if not s), rot (radians), tint, dim }]; lit: how much light the hour leaves (0 to 1)
   frame(list, ground, lit = 1) {
@@ -159,13 +165,14 @@ export class Props3D {
     const blds = []; if (++seatN > 240 || SEAT.size > 6000) { SEAT.clear(); seatN = 0; }     // (the seats are worked out again now and then: craters change the ground)
     for (const u of list) {
       if (u.k.startsWith('bld:')) { blds.push(u); continue; }
-      const m = this._kind(u.k); if (!m) continue; const n = this.used.get(m) || 0; if (n >= m.instanceMatrix.count) continue;
+      const m = this._kind(u.fall != null ? u.k + '~fall' : u.k); if (!m) continue; const n = this.used.get(m) || 0; if (n >= m.instanceMatrix.count) continue;
       Q.setFromAxisAngle(UP, u.rot || 0); P.set(u.x, seat(ground, u.x, u.y, footOf(u)) - (u.sink || 0) + (u.up || 0), u.y); S.set(u.l || u.s, u.h || u.s, u.s);     // (GC 0.41) l: a thing laid along a line is stretched to its length
       if (u.l) {     // (GC 0.44) and it runs with the slope: each end on the ground where it is, not level through a hillside
         const c = Math.cos(u.rot || 0) * u.l, sn = Math.sin(u.rot || 0) * u.l, h1 = ground(u.x + c, u.y - sn), h0 = ground(u.x - c, u.y + sn), a = Math.atan2(h1 - h0, 2 * u.l);
         Q.multiply(Q2.setFromAxisAngle(FWD, a)); P.y = (h0 + h1) / 2 - (u.sink || 0) + (u.up || 0); S.x = u.l / Math.max(0.5, Math.cos(a));
       }
       m.setMatrixAt(n, M4.compose(P, Q, S)); COL.set(u.tint || '#ffffff'); if (u.dim != null && u.dim < 1) COL.multiplyScalar(u.dim); if (u.flash) COL.multiplyScalar(2.4); m.setColorAt(n, COL);
+      if (u.fall != null) { MORPH.morphTargetInfluences[0] = u.fall; m.setMorphAt(n, MORPH); if (m.morphTexture) m.morphTexture.needsUpdate = true; }
       this.used.set(m, n + 1);
     }
     this.blds.frame(blds, ground);

@@ -127,9 +127,15 @@ function prism(g, len, w, h, mat, x, y, z) {   // a gable roof running along x
   const geo = new THREE.ExtrudeGeometry(s, { depth: len, bevelEnabled: false }); geo.translate(0, 0, -len / 2); geo.rotateY(Math.PI / 2);
   return add(g, geo, mat, x, y, z);
 }
-function sandbags(g, m, x, z, len, ry = 0) {
+// (GC 0.67) A line of concrete barriers, len long, along x (turned ry): the fleet's way of walling a door or a yard. (It was
+// sandbags, which belong to an old war.) Each section is the sloped barrier's own profile, a stripe of hazard paint along the top
+// of every other one.
+const BARRIER = (() => { const s = new THREE.Shape(); s.moveTo(-0.065, 0); s.lineTo(0.065, 0); s.lineTo(0.04, 0.05); s.lineTo(0.026, 0.17); s.lineTo(-0.026, 0.17); s.lineTo(-0.04, 0.05); s.closePath();
+  const geo = new THREE.ExtrudeGeometry(s, { depth: 0.27, bevelEnabled: false }); geo.translate(0, 0, -0.135); geo.rotateY(Math.PI / 2); return geo; })();
+function barriers(g, m, x, z, len, ry = 0) {
   const s = new THREE.Group(); s.position.set(x, 0, z); s.rotation.y = ry; g.add(s);
-  for (let i = 0; i < Math.round(len / 0.22); i++) for (let r = 0; r < 2; r++) box(s, 0.2, 0.09, 0.14, r ? m.sandDark : m.sand, -len / 2 + 0.11 + i * 0.22 + (r ? 0.11 : 0), 0.05 + r * 0.09, 0);
+  const n = Math.max(1, Math.round(len / 0.29)), step = len / n;
+  for (let i = 0; i < n; i++) { const bx = -len / 2 + (i + 0.5) * step; add(s, BARRIER.clone(), m.concrete, bx, 0, 0); if (i % 2 === 0) box(s, 0.2, 0.012, 0.04, m.hazard, bx, 0.176, 0, { cast: false }); }
 }
 function flagCloth(g, mat, w, h, x, y, z) {
   const geo = new THREE.PlaneGeometry(w, h, 10, 3); geo.translate(w / 2, 0, 0);
@@ -164,7 +170,7 @@ const MAKE = {
     const dish = new THREE.Group(); dish.position.set(-0.45, 2.15, -0.6); g.add(dish);
     cyl(dish, 0.02, 0.02, 0.25, m.metal, 0, -0.1, 0); add(dish, new THREE.SphereGeometry(0.25, 14, 6, 0, Math.PI * 2, 0, 1.0), m.white, 0, 0.05, 0, { rx: -0.9 });
     g.userData.spin = dish;
-    sandbags(g, m, -0.95, 1.25, 0.8); sandbags(g, m, 0.95, 1.25, 0.8);
+    barriers(g, m, -0.95, 1.25, 0.8); barriers(g, m, 0.95, 1.25, 0.8);
   },
   starter(g, m) {   // the HQ and its pad, side by side: the base's first footprint
     const a = new THREE.Group(); MAKE.hq(a, m); a.position.x = -1.5; const b = new THREE.Group(); MAKE.pad(b, m); b.position.x = 1.5; g.add(a, b);
@@ -198,12 +204,19 @@ const MAKE = {
     const glow = box(g, 0.9, 0.12, 0.03, m.glowY, -0.1, 0.55, 0.42); g.userData.glow = glow;
     cyl(g, 0.22, 0.22, 0.9, m.prim, 0.72, 0.3, 0.25, { rz: Math.PI / 2 }); box(g, 0.05, 0.05, 0.6, m.steel, 0.55, 0.5, -0.1);
   },
-  barracks(g, m) {
+  barracks(g, m) {   // (GC 0.67) a modular barracks: a plinth, a long storey with an armoured fascia, an upper module set back with the crest on it, a lit entrance, plant on the roof, barriers at the door (it was a timber hut under a gable, sandbagged)
     slab(g, m, 3, 2);
-    box(g, 2.7, 0.75, 1.5, m.wall, 0, 0.45, -0.1); prism(g, 2.8, 1.62, 0.45, m.prim, 0, 0.82, -0.1);
-    for (let i = 0; i < 6; i++) if (i !== 2 && i !== 3) box(g, 0.25, 0.18, 0.03, m.window, -1.1 + i * 0.44, 0.55, 0.66);
-    box(g, 0.4, 0.55, 0.05, m.dark, 0, 0.35, 0.66); box(g, 0.6, 0.06, 0.2, m.prim, 0, 0.66, 0.76);
-    sandbags(g, m, -0.9, 0.85, 0.9); sandbags(g, m, 0.9, 0.85, 0.9);
+    box(g, 2.76, 0.12, 1.62, m.trim, 0, 0.1, -0.1); box(g, 2.62, 0.62, 1.48, m.wall, 0, 0.47, -0.1); box(g, 2.7, 0.08, 1.56, m.dark, 0, 0.82, -0.1);
+    box(g, 2.72, 0.12, 0.08, m.prim, 0, 0.8, 0.66, { rx: -0.35 });
+    box(g, 1.5, 0.46, 1.0, m.white, -0.45, 1.09, -0.3); box(g, 1.56, 0.06, 1.06, m.prim, -0.45, 1.35, -0.3);
+    box(g, 0.9, 0.12, 0.02, m.window, -0.7, 1.12, 0.205); plane(g, 0.34, 0.34, m.logo, 0.05, 1.1, 0.205);
+    for (const x of [-0.8, 0.8]) box(g, 1.0, 0.16, 0.02, m.window, x, 0.52, 0.63);
+    for (let i = 0; i < 7; i++) if (i !== 3) box(g, 0.05, 0.62, 0.03, m.trim, -1.29 + i * 0.43, 0.47, 0.635);
+    box(g, 0.38, 0.5, 0.04, m.dark, 0, 0.41, 0.63); box(g, 0.64, 0.05, 0.3, m.trim, 0, 0.72, 0.78); box(g, 0.52, 0.02, 0.02, m.glowB, 0, 0.69, 0.92);
+    box(g, 2.64, 0.025, 0.02, m.glowB, 0, 0.175, 0.638);
+    box(g, 0.4, 0.2, 0.36, m.metal, 0.85, 0.96, -0.4); cyl(g, 0.12, 0.12, 0.04, m.dark, 0.85, 1.08, -0.4); box(g, 0.3, 0.14, 0.26, m.metal, 0.85, 0.93, 0.2);
+    cyl(g, 0.012, 0.015, 0.6, m.steel, -1.05, 1.68, -0.6); ball(g, 0.03, m.glowR, -1.05, 1.99, -0.6);
+    barriers(g, m, -0.9, 0.86, 0.9); barriers(g, m, 0.9, 0.86, 0.9);
   },
   parade(g, m) {
     box(g, 3.9, 0.06, 2.9, m.asphalt, 0, 0.03, 0, { cast: false });
@@ -213,14 +226,17 @@ const MAKE = {
     box(g, 1.5, 0.04, 0.6, m.prim, 0, 0.95, -1.25); for (const x of [-0.7, 0.7]) box(g, 0.04, 0.6, 0.04, m.steel, x, 0.65, -1.25);
     for (const x of [-1.7, 1.7]) { cyl(g, 0.02, 0.025, 1.6, m.metal, x, 0.8, -1.3); flagCloth(g, m.flag, 0.6, 0.4, x, 1.4, -1.3); }
   },
-  armory(g, m) {
+  armory(g, m) {   // (GC 0.67) an armoured vault: slab-sided steel, armour plate leaning on its flanks, a raised roof with vents, a blast door under chevrons and a light, barriers along its sides (it was a shed, sandbagged)
     slab(g, m, 2, 2);
-    box(g, 1.6, 0.7, 1.5, m.concrete, 0, 0.4, -0.05);
-    for (const [x, z, ry] of [[-0.85, 0, Math.PI / 2], [0.85, 0, Math.PI / 2]]) sandbags(g, m, x, z, 1.4, ry);
-    box(g, 1.7, 0.1, 1.6, m.primDark, 0, 0.8, -0.05);
-    box(g, 0.6, 0.5, 0.05, m.steel, 0, 0.3, 0.72);
-    for (let i = 0; i < 5; i++) box(g, 0.12, 0.08, 0.02, i % 2 ? m.dark : m.hazard, -0.24 + i * 0.12, 0.6, 0.73);
-    cyl(g, 0.015, 0.015, 0.8, m.metal, 0.6, 1.2, -0.5);
+    box(g, 1.7, 0.1, 1.6, m.trim, 0, 0.09, -0.05); box(g, 1.5, 0.66, 1.4, m.steel, 0, 0.47, -0.05);
+    for (const s of [-1, 1]) box(g, 0.08, 0.6, 1.3, m.primDark, s * 0.78, 0.42, -0.05, { rz: s * 0.22 });
+    box(g, 1.62, 0.08, 1.5, m.dark, 0, 0.84, -0.05); box(g, 1.2, 0.14, 1.0, m.primDark, 0, 0.95, -0.15);
+    for (const x of [-0.42, 0.42]) box(g, 0.22, 0.12, 0.22, m.metal, x, 1.08, -0.25);
+    box(g, 0.8, 0.6, 0.06, m.trim, 0, 0.42, 0.66); box(g, 0.64, 0.5, 0.05, m.metal, 0, 0.38, 0.69);
+    for (let i = 0; i < 6; i++) box(g, 0.1, 0.07, 0.01, i % 2 ? m.dark : m.hazard, -0.25 + i * 0.1, 0.58, 0.72);
+    box(g, 0.6, 0.025, 0.02, m.glowB, 0, 0.665, 0.7);
+    cyl(g, 0.015, 0.015, 0.8, m.metal, 0.6, 1.4, -0.5); ball(g, 0.03, m.glowR, 0.6, 1.82, -0.5);
+    for (const x of [-0.95, 0.95]) barriers(g, m, x, -0.05, 1.4, Math.PI / 2);
   },
   hab(g, m) {
     slab(g, m, 2, 2);
@@ -236,14 +252,17 @@ const MAKE = {
     box(g, 0.34, 0.6, 0.26, m.cola, 0, 0.3, -0.05); box(g, 0.22, 0.38, 0.02, m.colaFace, -0.03, 0.35, 0.09);
     box(g, 0.05, 0.2, 0.02, m.glowB, 0.12, 0.38, 0.09); box(g, 0.36, 0.07, 0.28, m.hazard, 0, 0.63, -0.05);
   },
-  mess(g, m) {
+  mess(g, m) {   // (GC 0.67) the canteen: a long flat-roofed hall glazed along its front, a lit sign, a cantilevered canopy over the tables, kitchen extract on the roof (it was a Quonset hut)
     slab(g, m, 3, 2);
-    box(g, 2.6, 0.55, 1.3, m.wall, 0, 0.32, -0.15);
-    add(g, new THREE.CylinderGeometry(0.66, 0.66, 2.62, 16, 1, false, 0, Math.PI), m.prim, 0, 0.6, -0.15, { rz: Math.PI / 2 });
-    for (let i = 0; i < 4; i++) box(g, 0.3, 0.16, 0.03, m.window, -0.9 + i * 0.6, 0.4, 0.51);
-    box(g, 0.4, 0.45, 0.04, m.dark, 0.6, 0.27, 0.52); box(g, 0.8, 0.15, 0.04, m.hazard, -0.3, 0.75, 0.52);
-    for (const x of [-0.8, 0.2]) { box(g, 0.6, 0.04, 0.22, m.metal, x, 0.22, 0.8); box(g, 0.6, 0.03, 0.08, m.steel, x, 0.13, 0.65); box(g, 0.6, 0.03, 0.08, m.steel, x, 0.13, 0.95); }
-    cyl(g, 0.06, 0.06, 0.3, m.steel, -1.0, 1.25, -0.3);
+    box(g, 2.7, 0.1, 1.42, m.trim, 0, 0.09, -0.15); box(g, 2.6, 0.6, 1.3, m.wall, 0, 0.44, -0.15); box(g, 2.72, 0.08, 1.44, m.prim, 0, 0.78, -0.15);
+    box(g, 1.7, 0.36, 0.02, m.window, -0.35, 0.42, 0.505);
+    for (let i = 0; i < 6; i++) box(g, 0.03, 0.38, 0.03, m.trim, -1.2 + i * 0.34, 0.42, 0.51);
+    box(g, 0.4, 0.5, 0.04, m.dark, 0.85, 0.39, 0.51); box(g, 0.9, 0.11, 0.03, m.glowY, -0.35, 0.67, 0.52);
+    box(g, 2.4, 0.05, 0.5, m.trim, -0.1, 0.74, 0.75); for (const x of [-1.25, 1.05]) box(g, 0.04, 0.7, 0.04, m.steel, x, 0.37, 0.97);
+    box(g, 2.4, 0.02, 0.02, m.glowB, -0.1, 0.71, 0.995);
+    for (const x of [-0.8, 0.2]) { box(g, 0.6, 0.04, 0.22, m.metal, x, 0.22, 0.8); box(g, 0.6, 0.03, 0.08, m.steel, x, 0.13, 0.65); box(g, 0.6, 0.03, 0.08, m.steel, x, 0.13, 0.95); for (const sx of [-0.26, 0.26]) box(g, 0.03, 0.2, 0.03, m.steel, x + sx, 0.1, 0.8); }
+    for (const x of [-0.6, 0.4]) { cyl(g, 0.13, 0.13, 0.1, m.metal, x, 0.87, -0.4); cyl(g, 0.1, 0.1, 0.02, m.dark, x, 0.93, -0.4); }
+    cyl(g, 0.06, 0.06, 0.4, m.steel, -1.0, 1.02, -0.5);
   },
   dome(g, m) {
     cyl(g, 0.88, 0.92, 0.14, m.concrete, 0, 0.07, 0, { seg: 24 });
@@ -273,9 +292,10 @@ const MAKE = {
     box(g, 0.9, 0.6, 0.03, m.steel, 0, 0.36, 0.62); for (let i = 0; i < 6; i++) box(g, 0.9, 0.012, 0.035, m.dark, 0, 0.1 + i * 0.1, 0.63);
     box(g, 0.5, 0.12, 0.02, m.hazard, 0.55, 0.72, 0.62);
   },
-  shelter(g, m) {
-    add(g, new THREE.CylinderGeometry(0.75, 0.95, 0.4, 6), m.sand, 0, 0.2, -0.2);
-    box(g, 0.9, 0.06, 0.9, m.concrete, 0, 0.42, -0.2);
+  shelter(g, m) {   // (GC 0.67) a hardened shelter: a six-sided concrete berm capped in armour plate (it was a mound of sand)
+    add(g, new THREE.CylinderGeometry(0.75, 0.95, 0.4, 6), m.concrete, 0, 0.2, -0.2);
+    box(g, 0.9, 0.06, 0.9, m.steel, 0, 0.42, -0.2); box(g, 0.6, 0.05, 0.6, m.primDark, 0, 0.47, -0.2);
+    box(g, 0.5, 0.02, 0.02, m.glowB, 0, 0.385, 0.705);
     box(g, 0.7, 0.4, 0.5, m.concrete, 0, 0.2, 0.45); box(g, 0.5, 0.3, 0.04, m.steel, 0, 0.17, 0.71);
     for (let i = 0; i < 5; i++) box(g, 0.1, 0.06, 0.02, i % 2 ? m.dark : m.hazard, -0.2 + i * 0.1, 0.36, 0.72);
     for (const x of [-0.3, 0.3]) { cyl(g, 0.05, 0.05, 0.45, m.steel, x, 0.65, -0.4); add(g, new THREE.ConeGeometry(0.08, 0.08, 8), m.steel, x, 0.9, -0.4, { rx: Math.PI }); }
@@ -374,7 +394,7 @@ const MAKE = {
     box(g, 1.6, 0.8, 1.2, m.wall, 0, 0.45, -0.2); box(g, 1.66, 0.08, 1.26, m.prim, 0, 0.88, -0.2);
     box(g, 0.4, 0.55, 0.04, m.dark, -0.4, 0.33, 0.41); box(g, 0.6, 0.4, 0.03, m.white, 0.35, 0.5, 0.41); for (let i = 0; i < 3; i++) box(g, 0.04, 0.04, 0.01, m.red, 0.2 + i * 0.15, 0.55 - i * 0.06, 0.43);
     cyl(g, 0.02, 0.025, 1.5, m.steel, 0.6, 1.6, -0.6); for (const y of [1.9, 2.1, 2.3]) box(g, 0.3, 0.015, 0.015, m.steel, 0.6, y, -0.6); ball(g, 0.04, m.glowR, 0.6, 2.36, -0.6);
-    sandbags(g, m, 0, 0.75, 1.4);
+    barriers(g, m, 0, 0.75, 1.4); box(g, 1.62, 0.025, 0.02, m.glowB, 0, 0.12, 0.415);
   },
   comms(g, m) {   // a lattice mast with red warning lights, like the ones over every Head Office city
     slab(g, m, 2, 2);
@@ -460,11 +480,12 @@ const MAKE = {
     box(g, 2.6, 0.08, 0.3, m.white, 0, 0.95, 0.6); box(g, 2.6, 0.1, 0.3, m.concrete, 0, 0.05, 0.62);
     plane(g, 0.4, 0.4, m.logo, 0, 1.12, 0.66); box(g, 0.45, 0.55, 0.03, m.dark, 0, 0.33, 0.51);
   },
-  speaker(g, m) {
+  speaker(g, m) {   // (GC 0.67) a PA mast: three stacked line-array cabinets facing out round a slim pole, a ring light on top (it was an air-raid siren)
     box(g, 0.25, 0.08, 0.25, m.concrete, 0, 0.04, 0); cyl(g, 0.025, 0.03, 1.5, m.steel, 0, 0.78, 0);
-    box(g, 0.12, 0.12, 0.12, m.dark, 0, 1.5, 0);
-    for (let i = 0; i < 3; i++) { const a = i * Math.PI * 2 / 3 + 0.3, h = new THREE.Group(); h.position.set(0, 1.5, 0); h.rotation.y = a; g.add(h);
-      add(h, new THREE.ConeGeometry(0.11, 0.3, 10, 1, true), m.metal, 0, 0, 0.18, { rx: Math.PI / 2 }); }
+    box(g, 0.12, 0.3, 0.12, m.dark, 0, 1.52, 0);
+    for (let i = 0; i < 3; i++) { const a = i * Math.PI * 2 / 3 + 0.3, h = new THREE.Group(); h.position.set(0, 1.42, 0); h.rotation.y = a; g.add(h);
+      for (let k = 0; k < 3; k++) { box(h, 0.16, 0.08, 0.1, m.dark, 0, k * 0.085, 0.1, { rx: 0.06 * k }); box(h, 0.13, 0.055, 0.012, m.metal, 0, k * 0.085, 0.152, { rx: 0.06 * k }); } }
+    cyl(g, 0.06, 0.06, 0.03, m.glowB, 0, 1.69, 0); cyl(g, 0.015, 0.015, 0.2, m.steel, 0, 1.8, 0);
   },
   billboard(g, m) {
     for (const x of [-0.7, 0.7]) box(g, 0.08, 1.2, 0.08, m.steel, x, 0.6, 0);
@@ -825,7 +846,7 @@ function rows(g, m, w, d, k, front = 0.35) {
 function stdModel(type, k, w, d, m) {
   const g = new THREE.Group(), fz = d / 2 - 0.2;
   box(g, w - 0.08, 0.03, d - 0.08, k === 0 ? m.gravel : m.concrete, 0, 0.015, 0, { cast: false });
-  const corners = () => { sandbags(g, m, -w / 2 + 0.4, fz, 0.6); sandbags(g, m, w / 2 - 0.4, fz, 0.6); };
+  const corners = () => { barriers(g, m, -w / 2 + 0.4, fz, 0.6); barriers(g, m, w / 2 - 0.4, fz, 0.6); };
   switch (type) {
     case 'range': case 'course': {   // the training ground is the same at every standard; the shelter beside it is not
       MAKE[type](g, m);
@@ -881,7 +902,7 @@ function stdModel(type, k, w, d, m) {
       if (k === 1) container(g, m, 0.75, -0.15, Math.PI / 2, m.box2, 0, 0.7);
       break;
     }
-    default: rows(g, m, w, d, k); signPost(g, m, -w / 2 + 0.3, fz); if (k === 0) sandbags(g, m, w / 2 - 0.45, fz, 0.6);
+    default: rows(g, m, w, d, k); signPost(g, m, -w / 2 + 0.3, fz); if (k === 0) barriers(g, m, w / 2 - 0.45, fz, 0.6);
   }
   // the prefab years: an asphalt hardstand with parking bays painted along the front and chain-link round the back and sides
   if (k === 1 && type !== 'range' && type !== 'course' && w >= 2 && d >= 2) {
@@ -1015,7 +1036,7 @@ function decorate(g, m, spec) {
       box(g, wg * 0.45, 0.5, 0.16, m.concrete, wx + s * wg * 0.22, 0.25, z1 + 0.02);   // front, with a gap by the building
       box(g, wg - 0.2, 0.03, D - 0.1, m.dirt || m.concrete, wx, 0.015, cz);   // the yard
       for (let i = 0; i < 3; i++) box(g, 0.22, 0.16, 0.16, m.oliveDark || m.dark, wx - s * 0.1, 0.08 + i * 0.165, cz - D * 0.25);
-      sandbags(g, m, wx, cz + D * 0.15, wg * 0.5);
+      barriers(g, m, wx, cz + D * 0.15, wg * 0.5);
       box(g, wg * 0.5, 0.04, 0.05, m.hazard, wx + s * wg * 0.22, 0.52, z1 + 0.02);
     }
   } else if (wg && spec.design === 2) {   // Monumental wings: a lower colonnaded pavilion each side, gold-roofed
@@ -1032,7 +1053,7 @@ function decorate(g, m, spec) {
   if (spec.design === 1) {   // Fortified: blast walls along the sides and back, sandbags at the door, armour plate on the corners
     for (const s of [-1, 1]) box(g, 0.14, 0.42, D * 0.85, m.concrete, cx + s * (W / 2 + 0.02), 0.21, cz - D * 0.05);
     box(g, W * 0.9, 0.42, 0.14, m.concrete, cx, 0.21, z0 - 0.02);
-    for (const s of [-1, 1]) sandbags(g, m, cx + s * W * 0.32, z1 + 0.05, W * 0.22);
+    for (const s of [-1, 1]) barriers(g, m, cx + s * W * 0.32, z1 + 0.05, W * 0.22);
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(g, 0.18, top * 0.9, 0.18, m.oliveDark || m.dark, cx + sx * W / 2, top * 0.45, cz + sz * D / 2);
     box(g, W * 0.6, 0.05, 0.06, m.hazard, cx, 0.46, z0 - 0.06);
   } else if (spec.design === 2) {   // Monumental: a colonnade in front, gold trim, tall banners, steps
