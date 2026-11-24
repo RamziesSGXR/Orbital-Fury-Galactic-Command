@@ -722,3 +722,31 @@ button small { display: block; font: 9.5px var(--mono); letter-spacing: 0.5px; o
 .kb-key.wait { color: var(--ground); background: var(--amber); }
 .kb-note { margin: 8px 0; }
 .kb-row .plate.btn.kb-key { min-height: 0; height: 28px; line-height: 1; }
+/* (GC 0.75) the PLAY cards: a 16:9 picture of each game at the top, the words under it; the cards only as tall as they need */
+.ggrid { height: auto; align-items: stretch; }
+.gcard .gart { flex: none; aspect-ratio: 16 / 9; margin: 0 0 14px; overflow: hidden; border: 1px solid rgba(230, 234, 220, 0.22); background: #000; }
+.gcard .gart img { object-fit: cover; }
+.gcard.still { height: auto; }
+
+/* (GC 0.75) your crest, at the right of the bar on the main menu and on the menu inside a game: it opens your livery */
+button.twho { background: none; border: 1px solid transparent; padding: 3px 4px 3px 12px; margin-left: auto; cursor: pointer; text-align: right; }
+button.twho:hover, button.twho:focus-visible { border-color: rgba(230, 234, 220, 0.45); background: rgba(5, 7, 6, 0.5); outline: none; }
+button.twho.on { border-color: var(--amber); background: rgba(245, 213, 71, 0.08); }
+.twho .twn { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; max-width: 220px; }
+.twho .twn > span { max-width: 210px; overflow: hidden; text-overflow: ellipsis; }
+.twho .twn small { font: 600 9.5px var(--head); letter-spacing: 2px; color: var(--dim); }
+button.twho:hover .twn small, button.twho.on .twn small { color: var(--amber); }
+#t-bar button.twho { margin-left: 30px; }     /* (room for the E beside the last tab) */
+#m-bar .twho canvas { width: 40px; height: 40px; }
+.gpage.wide { width: min(1010px, 100%); }
+.gpage .lvp { max-height: none; }
+/* OPTIONS: GAMEPLAY, DISPLAY, AUDIO and CONTROLS, each its own page; a setting on each row, what it does beside it */
+.opan .osec { margin-bottom: clamp(10px, 1.8vh, 16px); }
+.opan .osec button { height: 36px; }
+.opan .o2 { margin: 0 0 4px; } .opan .o2 button { height: 28px; font-size: 11px; }
+.opan .oset { grid-template-columns: 170px minmax(250px, 390px) minmax(0, 1fr); gap: clamp(5px, 1.15vh, 10px) 16px; }
+.opan .oset .ol { white-space: nowrap; }
+.opan .oset small { grid-column: 3; margin-top: 0; }
+.opan .oset .seg .btn { min-height: 30px; padding: 0 12px; }
+.ovol { display: flex; align-items: center; gap: 12px; } .ovol input { flex: 1; min-width: 0; accent-color: var(--amber); } .ovol b { width: 44px; text-align: right; font: 600 12px var(--mono); color: var(--amber); }
+.ovol.soon input { opacity: 0.35; } .ovol.soon b { color: var(--dim); letter-spacing: 1px; }

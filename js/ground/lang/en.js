@@ -548,6 +548,11 @@ export default {
   'set.style': 'Music', 'set.styleHint': 'Dynamic follows the fight, with a drop and a swarm. Ambient keeps a match calm',
   'set.st.dynamic': 'Dynamic', 'set.st.ambient': 'Ambient', 'set.st.off': 'Off',
   'set.sfx': 'Effects volume', 'set.sfxHint': 'Weapons, explosions, alarms and the ship',
+  'set.amb': 'Ambience volume', 'set.ambHint': 'The field around you (packs, squads, fights, buildings) and the hum of the ship',     // (GC 0.75)
+  'set.voice': 'Voices volume', 'set.voiceHint': 'Vanguards, Infantry and the radio',
+  'set.uiVol': 'Interface volume', 'set.uiVolHint': 'Clicks, the armoury and the supply pod\'s keys',
+  'set.bg': 'Quiet in the background', 'set.bgHint': 'No sound while the game is hidden or another tab is on top',
+  'set.shake': 'Screen shake', 'set.shakeHint': 'The view shaking under big blasts and landings', 'set.shake.full': 'Full', 'set.shake.half': 'Half',
   'set.bubbles': 'Speech bubbles', 'set.bubblesHint': 'What Vanguards and Infantry say before they act',
   'set.light': 'Lighting', 'set.lightHint': 'Night on the ground, flashlights and lamps, muzzle flashes, the light of the hour',     // (0.38)
   'set.feed': 'community feed', 'set.feedHint': 'Posts to the community Discord once, when your operation ends: your callsign, the operation, your squad names, how far you got and the score',     // (0.43)

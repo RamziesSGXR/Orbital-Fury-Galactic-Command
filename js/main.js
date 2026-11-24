@@ -36,8 +36,24 @@ const qs = new URLSearchParams(location.search);
 
 // ---------------------------------------------------------------- settings and sound
 const settings = { volume: 0.6, muted: false, hints: true, hintsDone: false, ...read(SET_KEY, {}) };     // (0.39) hints: the coach's cards, on or off
+// (GC 0.75) and the settings every game shares: the sound in its parts, the picture, the ground's map aids. A player who
+// set them in the ground game before keeps what they chose there. The ground game (its own page) takes them from here
+// (window.gcOptions) and sends back a change made on its own SETTINGS.
+const SHARED = { sfx: 1, music: 0.5, amb: 1, voice: 1, ui: 1, bgMute: false, quality: 'auto', fps: 'auto', shake: 1, reduceFlash: false, colorblind: false, lighting: true, showNames: false, showBlasts: false, bubbles: true };
+const SHARE = ['volume', 'muted', ...Object.keys(SHARED)];
+{ const gs = read('ofs.settings', {}) || {}; for (const k in SHARED) if (!(k in settings)) settings[k] = k in gs ? gs[k] : SHARED[k]; }
+const shared = () => Object.fromEntries(SHARE.map((k) => [k, settings[k]]));
 export const audio = new Audio();
-audio.set(settings.volume, settings.muted);
+function applySound() { audio.set(settings.volume, settings.muted, settings.music, settings.sfx); audio.levels(settings); audio.background(document.hidden && !!settings.bgMute); }
+applySound();
+document.addEventListener('visibilitychange', () => audio.background(document.hidden && !!settings.bgMute));
+// a setting changed here: kept, heard, and passed to whatever is open (a post's view; the ground game in its own page)
+function saveSettings() {
+  write(SET_KEY, settings); applySound();
+  if (mode && mode.settings) try { mode.settings(settings); } catch (err) { console.error(err); }
+  for (const f of document.querySelectorAll('iframe#g-frame')) try { if (f.contentWindow.gcApply) f.contentWindow.gcApply(shared()); } catch { /* not ready yet: it reads them as it opens */ }
+}
+window.gcOptions = { get: shared, set: (o) => { for (const k of SHARE) if (k in o) settings[k] = o[k]; write(SET_KEY, settings); applySound(); } };
 for (const k of ['pointerdown', 'keydown']) window.addEventListener(k, () => audio.unlock(), { once: true, capture: true });
 function read(key, fallback) { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; } }
 function write(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); return true; } catch { return false; } }
@@ -45,7 +61,7 @@ function drop(key) { try { localStorage.removeItem(key); } catch { /* no storage
 
 // ---------------------------------------------------------------- the command (faction): one identity for every post
 // (0.66) Its look (name, motto, emblem, colours, how the troopers dress) is the livery, kept once above every game
-// (core/livery.js) and edited on the LIVERY tab. What a campaign keeps of its own is its capital and its opening.
+// (core/livery.js) and edited from your crest, on every screen (GC 0.75; it was the LIVERY tab). What a campaign keeps of its own is its capital and its opening.
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
 const baseDraft = () => ({ capital: pick(GC.names.capitals), open: { fleets: 'standard', posts: 'none', level: 'normal' } });
 
@@ -69,6 +85,7 @@ export const app = {
   keep() { if (!camp) return; const g = War.war(); if (g && g.phase === 'plan' && !g.over) camp.war = g.save(); camp.at = Date.now(); write(KEY, camp); },
   toast(text, ms = 2200) { const t = $('toast'); t.textContent = text; t.classList.add('show'); clearTimeout(app._tt); app._tt = setTimeout(() => t.classList.remove('show'), ms); },
   menu: () => openMenu(),
+  livery: () => openMenu('livery'),     // (GC 0.75) your crest, in a game: the livery, on the menu
   newWar(seed, tutorial) { camp.war = null; War.open(app, { seed: seed || (Date.now() % 100000), tutorial }); app.keep(); },
   saveSettings() { write(SET_KEY, settings); },
   // the coach's hints, on or off (the war room is told, if it is open)
@@ -151,6 +168,8 @@ function warNew() { write(LAST, { g: 'war', n: slots().cur.war }); if (read(KEY,
 // ---- the pictures: line art for each game, drawn here so the menu needs no image files for them
 // (0.61) each game's picture: its own models drawn as glowing line art (tools/lineart.html, test/lineart.py)
 const PIC = (g) => `<img src="assets/menu/art-${g}.png" alt="" draggable="false">`;
+// (GC 0.75, Ramzies: "the play menu images don't really show what each game is about") each game's card shows the game itself: a 16:9 picture taken in it
+const SHOT = (g) => `<img src="assets/menu/play-${g}.jpg" alt="${GAMES[g] ? GAMES[g].name : ''}" draggable="false">`;
 const ART = {
   war: '<svg viewBox="0 0 200 110" aria-hidden="true"><ellipse cx="100" cy="58" rx="88" ry="32" fill="rgba(127,233,224,.06)" stroke="#7fe9e0" stroke-opacity=".4"/><ellipse cx="100" cy="58" rx="58" ry="21" fill="none" stroke="#f5d547" stroke-width="1.6"/><ellipse cx="100" cy="58" rx="29" ry="10.5" fill="rgba(245,213,71,.12)" stroke="#f5d547" stroke-opacity=".6"/><circle cx="100" cy="58" r="4" fill="#f5d547"/><g fill="#e6eadc"><circle cx="72" cy="50" r="1.4"/><circle cx="126" cy="64" r="1.4"/><circle cx="112" cy="46" r="1.2"/><circle cx="84" cy="68" r="1.2"/><circle cx="58" cy="62" r="1"/><circle cx="140" cy="52" r="1"/><circle cx="100" cy="76" r="1"/><circle cx="98" cy="40" r="1"/></g><g fill="none" stroke-width="1.6"><circle cx="30" cy="46" r="7" stroke="#ff9a3d"/><circle cx="172" cy="50" r="7" stroke="#ff4d4d"/><circle cx="104" cy="92" r="7" stroke="#a77bff"/></g><g><circle cx="30" cy="46" r="2.4" fill="#ff9a3d"/><circle cx="172" cy="50" r="2.4" fill="#ff4d4d"/><circle cx="104" cy="92" r="2.4" fill="#a77bff"/></g><path d="M40 48 L60 54 M162 52 L142 56 M104 83 L102 72" stroke="#e6eadc" stroke-opacity=".5" stroke-dasharray="4 4"/><path d="M90 14 l16 5 l-16 5 l4 -5 z" fill="#f5d547"/><path d="M118 20 l10 3 l-10 3 l2.5 -3 z" fill="#7fe9e0"/></svg>',
   fury: '<svg viewBox="0 0 200 110" aria-hidden="true"><path d="M0 84 Q40 60 80 78 T160 70 T200 80 V110 H0 Z" fill="rgba(127,233,224,.08)" stroke="#7fe9e0" stroke-opacity=".35"/><path d="M0 96 Q50 82 100 94 T200 90" fill="none" stroke="#7fe9e0" stroke-opacity=".2"/><circle cx="104" cy="60" r="26" fill="none" stroke="#f5d547" stroke-width="1.6"/><circle cx="104" cy="60" r="3" fill="#f5d547"/><path d="M104 26 V44 M104 76 V94 M70 60 H88 M120 60 H138" stroke="#f5d547" stroke-width="1.6"/><path d="M176 6 L112 54" stroke="#fff2d0" stroke-width="2.4" stroke-dasharray="10 7"/><g fill="#ff6a4d"><rect x="92" y="54" width="5" height="5"/><rect x="110" y="64" width="5" height="5"/><rect x="102" y="70" width="4" height="4"/></g><g fill="#7fe9e0"><circle cx="56" cy="80" r="3"/><circle cx="64" cy="86" r="3"/><circle cx="48" cy="88" r="3"/></g></svg>',
@@ -158,9 +177,12 @@ const ART = {
   orbit: '<svg viewBox="0 0 200 110" aria-hidden="true"><path d="M-10 120 Q100 60 210 120" fill="rgba(127,233,224,.08)" stroke="#7fe9e0" stroke-opacity=".5"/><ellipse cx="100" cy="50" rx="62" ry="20" fill="none" stroke="#f5d547" stroke-width="1.6"/><ellipse cx="100" cy="50" rx="40" ry="12" fill="none" stroke="#f5d547" stroke-opacity=".5"/><rect x="88" y="34" width="24" height="32" fill="rgba(245,213,71,.16)" stroke="#f5d547"/><path d="M100 34 V14 M38 50 H88 M112 50 H162" stroke="#f5d547"/><g fill="rgba(127,233,224,.2)" stroke="#7fe9e0"><rect x="26" y="44" width="14" height="12"/><rect x="160" y="44" width="14" height="12"/></g><path d="M150 22 l12 -4 l-5 5 l5 5 z" fill="#7fe9e0"/><path d="M40 20 l10 -3 l-4 4 l4 4 z" fill="#7fe9e0" opacity=".6"/></svg>',
 };
 // ---- the tabs
-const TABS = [['home', 'HOME'], ['play', 'PLAY'], ['livery', 'LIVERY'], ['collection', 'COLLECTION'], ['career', 'CAREER'], ['store', 'STORE'], ['options', 'OPTIONS']];
-let tab = 'home', optTab = 'common', playGame = null;     // playGame: the game whose saves the PLAY tab is showing
-const NEWS = { title: 'Smarter Vanguards, upgrades you can see, and your own keys', lines: ['Vanguards pick the right call-in for the moment: the big barrages for big packs, armour-breakers for armour. A strike too big to throw is marked with a laser, and they stop saving call-ins for a moment that never comes.', 'Posts show their upgrades: sandbags, then steel plates, then ammunition and a floodlight, then barriers and a pennant.', 'Change any key, for every game, on OPTIONS (and CONTROLS in a game\'s menu). A key another action has swaps with it.', 'Models are loaded before you drop, and up close the ground has a grain of its own.', 'Earlier, 0.73: 3D in place of 2D all through the ground fight, smoother people, a new walker, and a view you can turn.'] };
+// (GC 0.75, Ramzies: "we don't need the livery menu on the main menu page") the livery is opened by your crest, at the right
+// of the bar on every screen: it is a page here (PAGES.livery) with no tab of its own
+const TABS = [['home', 'HOME'], ['play', 'PLAY'], ['collection', 'COLLECTION'], ['career', 'CAREER'], ['store', 'STORE'], ['options', 'OPTIONS']];
+const tabName = (k) => (TABS.find((x) => x[0] === k) || [k, k === 'livery' ? 'YOUR LIVERY' : k.toUpperCase()])[1];
+let tab = 'home', optTab = 'play', playGame = null;     // playGame: the game whose saves the PLAY tab is showing
+const NEWS = { title: 'Your crest opens your livery, OPTIONS in four parts, and people who hold on', lines: ['Click your crest, at the top right of every screen and on the menu inside a game, for your livery. It has no tab of its own now.', 'OPTIONS is GAMEPLAY, DISPLAY, AUDIO and CONTROLS. Full screen, graphics, frame rate, screen shake, flashing and colour-safe colours; effects, ambience, voices and the interface each with its own volume.', 'PLAY shows a picture from inside each game.', 'Rifles and slates stay in the hands that hold them, and shoes and boots have a shape.', 'Earlier, 0.74: smarter Vanguards, upgrades you can see on the posts, and every key your own.'] };
 // (GC 0.73) what is done with the mouse and Esc (fixed); every key below them can be changed (js/core/keys-ui.js)
 const KEYS = {
   war: [['Click a system', 'Select it; click another to send a fleet'], ['Drag, mouse wheel', 'Move and zoom the map'], ['END ROUND', 'Play out the round'], ['Esc', 'The menu']],
@@ -189,7 +211,7 @@ function slotRows(g) {
 }
 function gameCard(g, still = false) {
   const d = GAMES[g], n = [0, 1, 2].filter((k) => slotInfo(g, k)).length, tut = `<button class="plate btn" data-act="tut" data-g="${g}">${g === 'war' ? 'HOW IT FITS' : 'TUTORIAL'}</button>`;
-  return `<div class="gcard${g === 'war' ? ' main' : ''}${still ? ' still' : ''}" ${still ? '' : `role="button" tabindex="0" data-act="game" data-g="${g}"`}><div class="gart">${PIC(g)}</div><em>${d.over}</em><b>${d.name}</b><span>${d.text}</span><div class="gfoot"><i>${g === 'war' ? '1 PLAYER · THE CAMPAIGN' : '1 PLAYER · ENDLESS PLAY'}</i><i class="${n ? 'has' : ''}">${n ? `${n} OF 3 SAVES` : 'NEW GAME'}</i>${still ? '' : tut}</div></div>`;
+  return `<div class="gcard${g === 'war' ? ' main' : ''}${still ? ' still' : ''}" ${still ? '' : `role="button" tabindex="0" data-act="game" data-g="${g}"`}><div class="gart">${SHOT(g)}</div><em>${d.over}</em><b>${d.name}</b><span>${d.text}</span><div class="gfoot"><i>${g === 'war' ? '1 PLAYER · THE CAMPAIGN' : '1 PLAYER · ENDLESS PLAY'}</i><i class="${n ? 'has' : ''}">${n ? `${n} OF 3 SAVES` : 'NEW GAME'}</i>${still ? '' : tut}</div></div>`;
 }
 function pagePlay() {
   if (playGame) { const g = playGame;
@@ -231,44 +253,105 @@ function pageCareer() {
     <div class="crow car">${panel('Your games', rows.length ? `<table class="ctab"><tr><th>GAME</th><th>SAVE</th><th>NAME</th><th>WHERE IT STANDS</th></tr>${rows.join('')}</table>` : '<p class="soon">Nothing played yet. Start a game on the PLAY tab and it will show here.</p>')}${panel('Collection', `<div class="cstats three">${col}</div>`)}</div>
     <p class="soon">Your career is kept across every game and every save: deleting a save does not take it away. Tutorials count for what you meet, not for the totals.</p>`;
 }
-// the common settings: on the OPTIONS tab here, and on the menu inside a game
-const optCommon = () => `<div class="oset">
-      <span>VOLUME</span><input type="range" class="o-vol" min="0" max="100" value="${Math.round(settings.volume * 100)}">
-      <span>SOUND</span><div class="seg"><button class="plate btn${settings.muted ? '' : ' on'}" data-act="o-mute">${settings.muted ? 'SOUND IS OFF' : 'SOUND IS ON'}</button></div>
-      <span>HINTS</span><div class="seg"><button class="plate btn${settings.hints ? ' on' : ''}" id="o-hints" data-act="o-hints">${settings.hints ? 'HINTS ARE ON' : 'HINTS ARE OFF'}</button></div><small>The coach's cards and tips, in every game.</small>
-      <span>MESSAGE TIME</span><div class="seg">${MSG_TIMES.map(([k, n]) => `<button class="plate btn${msgKey() === k ? ' on' : ''}" data-act="o-msg" data-k="${k}">${n}</button>`).join('')}</div><small>How long the messages in the corner of the base, the station and the ground battle stay up.</small>
-    </div>`;
+// ---- OPTIONS (GC 0.75, Ramzies: "more of the normal setup where controls is its own button and menu, and display settings,
+// and other such settings there. As well as more nuanced audio settings"): GAMEPLAY, DISPLAY, AUDIO and CONTROLS, each a page
+// of its own. The same pages are on the menu inside a game (CONTROLS there is a tab of the menu, for the game being played).
+// Every setting here does something: one that only one game has says which.
+const OSECT = [['play', 'GAMEPLAY'], ['display', 'DISPLAY'], ['audio', 'AUDIO'], ['controls', 'CONTROLS']];
+const CTL = [['war', 'WAR ROOM'], ['fury', 'GROUND'], ['base', 'BASE'], ['orbit', 'STATION']];
+let ctlTab = 'war', mOpt = 'play';     // the game whose keys CONTROLS shows; the page of OPTIONS on the menu inside a game
+const curOf = (key) => (key === 'msg' ? msgKey() : settings[key]);
+const seg = (key, opts) => `<div class="seg">${opts.map(([v, n]) => `<button class="plate btn${String(curOf(key)) === String(v) ? ' on' : ''}" data-act="o-set" data-k="${key}" data-v="${v}">${n}</button>`).join('')}</div>`;
+const onoff = (key) => seg(key, [[true, 'ON'], [false, 'OFF']]);
+const orow = (label, ctl, hint = '') => `<span class="ol">${label}</span>${ctl}<small>${hint}</small>`;
+const pct = (v) => `${Math.round((v ?? 1) * 100)}%`;
+const vol = (key, label, hint, soon = false) => orow(label, `<div class="ovol${soon ? ' soon' : ''}"><input type="range" min="0" max="100" step="5" data-vol="${key}" value="${Math.round((settings[key] ?? 1) * 100)}" aria-label="${label}"${soon ? ' disabled' : ''}><b>${soon ? 'SOON' : pct(settings[key])}</b></div>`, hint);
+const optPlay = () => `<div class="oset">${orow('HINTS', onoff('hints'), "The coach's cards and tips, in every game.")
+  + orow('MESSAGE TIME', seg('msg', MSG_TIMES.map(([k, n]) => [k, n])), 'How long the messages in the corner of the base, the station and the ground fight stay up.')
+  + orow('NAMES ON THE MAP', onoff('showNames'), 'On the ground: the names of buildings and enemies, not only of what you pick or aim at.')
+  + orow('BLAST RINGS', onoff('showBlasts'), 'On the ground: a ring where each enemy rocket, shell and grenade will land. Your own strikes always show theirs.')
+  + orow('SPEECH BUBBLES', onoff('bubbles'), 'On the ground: what your Vanguards and Infantry say before they act.')}</div>`;
+const optDisplay = () => `<div class="oset">${orow('SCREEN', `<div class="seg"><button class="plate btn${document.fullscreenElement ? '' : ' on'}" data-act="o-fs" data-v="0">WINDOW</button><button class="plate btn${document.fullscreenElement ? ' on' : ''}" data-act="o-fs" data-v="1">FULL SCREEN</button></div>`, 'The game on the whole screen. Esc or F11 leaves it too.')
+  + orow('GRAPHICS', seg('quality', [['auto', 'AUTO'], ['high', 'HIGH'], ['low', 'LOW']]), 'The ground, the base and the station. AUTO lowers the detail when the frames slow down.')
+  + orow('FRAME RATE', seg('fps', [['auto', 'AUTO'], ['30', '30'], ['60', '60'], ['144', '144'], ['max', 'NO CAP']]), 'Frames a second at most. AUTO is 30 on a phone and as many as your screen shows elsewhere.')
+  + orow('SCREEN SHAKE', seg('shake', [[1, 'FULL'], [0.5, 'HALF'], [0, 'OFF']]), 'The view shaking on the ground under big blasts and landings.')
+  + orow('FLASHING', seg('reduceFlash', [[false, 'FULL'], [true, 'REDUCED']]), 'Reduced: slower strobes and softer explosions on the ground.')
+  + orow('COLOUR-SAFE', onoff('colorblind'), 'On the ground: enemies in yellow, your own in bright blue.')
+  + orow('LIGHTING', onoff('lighting'), 'The hour on the ground: night, flashlights and lamps, muzzle flashes.')}</div>`;
+const optAudio = () => `<div class="oset">${orow('SOUND', seg('muted', [[false, 'ON'], [true, 'OFF']]), 'All of it, in every game.')
+  + vol('volume', 'MASTER', 'Everything together.')
+  + vol('sfx', 'EFFECTS', 'Guns and blasts, alarms, buildings going up, ships docking.')
+  + vol('amb', 'AMBIENCE', 'The field around you on the ground: packs, squads, fights, and the hum of the ship.')
+  + vol('voice', 'VOICES', 'Your Vanguards, your Infantry and the radio.')
+  + vol('ui', 'INTERFACE', 'Clicks, the armoury\'s coins, the supply pod\'s keys.')
+  + vol('music', 'MUSIC', 'The score is still being written.', true)
+  + orow('IN THE BACKGROUND', seg('bgMute', [[false, 'KEEP PLAYING'], [true, 'GO QUIET']]), 'When the game is hidden or another tab is on top.')}</div>`;
 const optKeys = (k) => keysPanel(k, KEYS[k] || []);     // (GC 0.73: the keys can be changed here; controller support is still to come)
-// a click on one of the common settings; true if it was one
-function optAct(d) {
-  if (d.act === 'o-mute') { settings.muted = !settings.muted; audio.set(settings.volume, settings.muted); write(SET_KEY, settings); }
-  else if (d.act === 'o-hints') app.setHints(!settings.hints);
-  else if (d.act === 'o-msg') { settings.msg = d.k; setMsg(settings.msg); write(SET_KEY, settings); }
-  else return false;
+const optControls = () => `<div class="osub o2">${CTL.map(([k, n]) => `<button class="${ctlTab === k ? 'on' : ''}" data-act="o-ctl" data-k="${k}">${n}</button>`).join('')}</div>${optKeys(ctlTab)}`;
+// the OPTIONS page: its section buttons, then the section (inGame: the menu inside a game, whose CONTROLS is its own tab)
+function optBody(inGame) {
+  const t = inGame ? mOpt : optTab, secs = inGame ? OSECT.slice(0, 3) : OSECT;
+  const body = t === 'display' ? optDisplay() : t === 'audio' ? optAudio() : t === 'controls' ? optControls() : optPlay();
+  return `<div class="osub osec">${secs.map(([k, n]) => `<button class="${t === k ? 'on' : ''}" data-act="o-tab" data-k="${k}">${n}</button>`).join('')}</div>${body}`;
+}
+// a click on OPTIONS; true if it was one (the page is then drawn again)
+function optAct(d, inGame = false) {
+  if (d.act === 'o-tab') { if (inGame) mOpt = d.k; else optTab = d.k; }
+  else if (d.act === 'o-ctl') ctlTab = d.k;
+  else if (d.act === 'o-fs') { const on = d.v === '1'; try { if (on && !document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => app.toast('This browser kept the game in its window.')); else if (!on && document.fullscreenElement) document.exitFullscreen(); } catch { app.toast('This browser has no full screen for the game.'); } }
+  else if (d.act === 'o-set') {
+    const k = d.k, v = d.v === 'true' ? true : d.v === 'false' ? false : k === 'shake' ? Number(d.v) : d.v;
+    if (k === 'hints') { app.setHints(v); return true; }
+    if (k === 'msg') setMsg(v);
+    settings[k] = v; saveSettings();
+  } else return false;
   return true;
 }
-const optBind = (root) => { const vol = root.querySelector('.o-vol'); if (vol) vol.oninput = () => { settings.volume = vol.value / 100; audio.set(settings.volume, settings.muted); write(SET_KEY, settings); }; };
-function pageOptions() {
-  const sub = [['common', 'COMMON'], ['war', 'WAR ROOM'], ['fury', 'GROUND'], ['base', 'BASE'], ['orbit', 'STATION']];
-  return panel('Options', `<div class="osub">${sub.map(([k, n]) => `<button class="${optTab === k ? 'on' : ''}" data-act="o-tab" data-k="${k}">${n}</button>`).join('')}</div>${optTab === 'common' ? optCommon() : optKeys(optTab)}`);
+// the volume sliders: heard as they move, kept when let go (with a blip at the new level, where there is one to hear)
+function optBind(root, redraw) {
+  for (const r of root.querySelectorAll('input[data-vol]')) {
+    const k = r.dataset.vol, out = r.parentElement.querySelector('b');
+    r.oninput = () => { settings[k] = r.value / 100; out.textContent = pct(settings[k]); applySound(); };
+    r.onchange = () => { saveSettings(); audio.unlock(); if (k === 'ui') audio.click(); else if (k === 'volume' || k === 'sfx') audio.ready(); };
+  }
+  if (redraw) { optBind.redraw = redraw; }
 }
+document.addEventListener('fullscreenchange', () => { if (optBind.redraw && document.querySelector('[data-act=o-fs]')) optBind.redraw(); });
+function pageOptions() { return panel('Options', optBody(false), 'opan'); }
 const PAGES = { home: pageHome, play: pagePlay, livery: pageLivery, collection: pageCollection, career: pageCareer, store: pageStore, options: pageOptions };
 function drawTitle() {
   $('t-tabs').innerHTML = TABS.map(([k, n], i) => `<button role="tab" aria-selected="${tab === k}" class="${tab === k ? 'on' : ''}" data-tab="${k}">${i === 0 ? '<kbd class="l">Q</kbd>' : ''}${n}${i === TABS.length - 1 ? '<kbd class="r">E</kbd>' : ''}</button>`).join('');
   $('t-page').className = 'tp-' + tab + (tab === 'play' && !playGame ? ' wide' : '');
-  $('t-page').innerHTML = `<h2>${TABS.find((x) => x[0] === tab)[1]}</h2>` + PAGES[tab]();
-  optBind($('t-page')); bindKeysPanel($('t-page'), drawTitle);
+  $('t-page').innerHTML = `<h2>${tabName(tab)}</h2>` + PAGES[tab]();
+  $('t-me').classList.toggle('on', tab === 'livery');
+  optBind($('t-page'), drawTitle); bindKeysPanel($('t-page'), drawTitle);
   if (tab === 'collection') collectionArt();
-  if (tab === 'livery') bindLivery($('t-page'), { redraw: drawTitle, changed: () => { barCrest(); WarRoom.restyle(); }, audio, toast: app.toast });
+  if (tab === 'livery') bindLivery($('t-page'), { redraw: drawTitle, changed: liveryChanged, audio, toast: app.toast });
   if (tab === 'store') bindStore($('t-page'), { redraw: drawTitle, audio, toast: app.toast });
 }
 function setTab(k) { tab = k; playGame = null; audio.click(); drawTitle(); }
 // the player's own emblem and name, in the bar: their command's; the game's icon stands for the game (the bar, the browser
-// tab, the credits). Nothing shows before a command is founded or a livery made.
+// tab, the credits). (GC 0.75) The crest is the way to the livery, so it is always there: before a command is founded or a
+// livery made it is an empty shield to fill in.
+function emptyShield(cv) {
+  const g = cv.getContext('2d'), w = cv.width; g.clearRect(0, 0, w, w); g.save(); g.scale(w / 100, w / 100);
+  g.strokeStyle = 'rgba(230,234,220,.75)'; g.lineWidth = 4; g.setLineDash([9, 6]); g.beginPath(); g.moveTo(50, 8); g.lineTo(88, 20); g.lineTo(84, 60); g.quadraticCurveTo(76, 80, 50, 94); g.quadraticCurveTo(24, 80, 16, 60); g.lineTo(12, 20); g.closePath(); g.stroke();
+  g.setLineDash([]); g.strokeStyle = '#f5d547'; g.lineWidth = 6; g.beginPath(); g.moveTo(50, 34); g.lineTo(50, 66); g.moveTo(34, 50); g.lineTo(66, 50); g.stroke(); g.restore();
+}
+function paintCrest(cv, logo) {
+  if (!cv) return; const w = cv.width, draw = () => { const g = cv.getContext('2d'); g.clearRect(0, 0, w, w); drawLogo(g, logo, w * 0.025, w * 0.025, w * 0.95); };
+  if (logo.img) ensureLogo(logo).then(() => { if (cv.isConnected) draw(); }); draw();
+}
 function barCrest() {
   const id = identity();
-  $('t-who').textContent = id ? id.name.toUpperCase() : ''; $('t-crest').style.display = id ? '' : 'none';
-  if (id) { const crest = () => { const g = $('t-crest').getContext('2d'); g.clearRect(0, 0, 160, 160); drawLogo(g, id.logo, 4, 4, 152); }; if (id.logo.img) ensureLogo(id.logo).then(() => { if (state === 'title') crest(); }); crest(); }
+  $('t-who').textContent = id ? id.name.toUpperCase() : 'NO LIVERY YET';
+  if (id) paintCrest($('t-crest'), id.logo); else emptyShield($('t-crest'));
+}
+// after the livery changes, wherever it was changed: every crest on show, and the war room behind the menu
+function liveryChanged() {
+  barCrest(); WarRoom.restyle();
+  for (const id of ['crest-th', 'crest-war']) if ($(id)) app.crest($(id));
+  const mc = $('m-crest'); if (mc) { const id = identity(); if (id) paintCrest(mc, id.logo); }
 }
 function toTitle() {
   state = 'title'; mode = null; solo = null; soloCamp = null; tutorial = false; playGame = null; War.show(false); show('s-title');
@@ -277,6 +360,7 @@ function toTitle() {
   drawTitle();
 }
 $('t-tabs').onclick = (e) => { const b = e.target.closest('[data-tab]'); if (b) setTab(b.dataset.tab); };
+$('t-me').onclick = () => setTab('livery');
 $('t-page').onclick = (e) => {
   const b = e.target.closest('[data-act]'); if (!b) return; const d = b.dataset, g = d.g, n = +d.n;
   if (d.act === 'slot') return playSlot(g, n);
@@ -294,7 +378,6 @@ $('t-page').onclick = (e) => {
   else if (d.act === 'credits') credits();
   else if (d.act === 'tut') { if (g === 'war') how(); else if (g === 'fury') enterFury(true); else soloGo(g, false, true); }
   else if (d.act === 'del') confirmBox(`Delete save ${n + 1} of ${GAMES[g].name}?`, 'It cannot be brought back.', 'DELETE IT', () => { delSlot(g, n); if (!hasSave(g)) playGame = null; drawTitle(); });
-  else if (d.act === 'o-tab') { optTab = d.k; drawTitle(); }
 };
 $('t-page').addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[role=button]')) { e.preventDefault(); e.target.click(); } });
 // Q and E step along the tabs, as shoulder buttons would
@@ -302,7 +385,7 @@ window.addEventListener('keydown', (e) => {
   if (state === 'title' && tab === 'livery' && $('modal').hidden && liveryKey(e)) return;     // (0.66) the livery's keys: undo, nudge
   if (state !== 'title' || !$('modal').hidden || !$('menu').hidden || e.ctrlKey || e.metaKey || e.altKey || /INPUT|TEXTAREA/.test((document.activeElement || {}).tagName || '')) return;
   const dir = e.key === 'q' || e.key === 'Q' ? -1 : e.key === 'e' || e.key === 'E' ? 1 : 0; if (!dir) return;
-  const i = TABS.findIndex((x) => x[0] === tab); setTab(TABS[(i + dir + TABS.length) % TABS.length][0]);
+  const i = TABS.findIndex((x) => x[0] === tab); setTab(TABS[i < 0 ? (dir > 0 ? 0 : TABS.length - 1) : (i + dir + TABS.length) % TABS.length][0]);     // (from the livery, which has no tab: to either end)
 });
 // ---- (0.39) one post on its own: FOB Commander (the base) and Orbital Commander (the station)
 const SOLO_NAME = { base: 'FOB COMMANDER', orbit: 'ORBITAL COMMANDER' };
@@ -361,7 +444,7 @@ function confirmBox(title, text, yes, go) {
 
 // ---------------------------------------------------------------- found your command
 // (0.66) The founding screen: a livery to start from (the five styles, or the one you wear), the command's name, capital and
-// motto, and for a war its opening. The emblem and colours are made your own on the LIVERY tab.
+// motto, and for a war its opening. The emblem and colours are made your own from the crest in the bar.
 let draft = baseDraft();
 let fl = null;            // the livery the command is being founded in, kept only when it is
 let foundFor = 'war';     // what the founding is for: the war, or a single post ('base', 'orbit')
@@ -506,6 +589,7 @@ export const frameUi = {
   leave: (out) => leaveTheatre(out),
 };
 $('th-menu').onclick = () => openMenu();
+$('th-livery').onclick = () => openMenu('livery');     // (GC 0.75) the crest opens your livery; MENU, beside the pause, opens the menu
 $('th-pause').onclick = () => { frameUi.paused = !frameUi.paused; $('th-pause').textContent = frameUi.paused ? '▶' : 'II'; $('th-pause').classList.toggle('on', frameUi.paused); audio.click(); };
 $('th-speed').onclick = () => { const s = frameUi.speeds; frameUi.speed = s[(s.indexOf(frameUi.speed) + 1) % s.length]; $('th-speed').textContent = frameUi.speed + '×'; audio.click(); };
 $('th-leave').onclick = () => { audio.click(); if (mode && mode.askLeave) mode.askLeave(); else if (mode) leaveTheatre(mode.report ? mode.report() : {}); };
@@ -560,24 +644,28 @@ app.armoury = (then, done = 'DONE') => {
 
 // ---------------------------------------------------------------- the menu (the same one everywhere)
 // (0.61) The menu inside a game is the main menu's own style: the bar with its tabs (GAME, OPTIONS, CONTROLS) and a panel.
+// (GC 0.75) Your crest is at the right of its bar too, as on the main menu: it opens your livery, here on the menu.
 let menuWas = false;
 function closeMenu() { const m = $('menu'); if (m.hidden) return; m.hidden = true; if (mode) frameUi.paused = menuWas; audio.click(); }
 function openMenu(page = 'game') {
   const m = $('menu');
   if (m.hidden) { menuWas = frameUi.paused; if (mode) frameUi.paused = true; }
-  const g = War.war(), key = solo || (state === 'ground' ? 'fury' : KEYS[state] ? state : 'war');
+  const g = War.war(), key = solo || (state === 'ground' ? 'fury' : KEYS[state] ? state : 'war'), me = app.faction;
   const where = solo ? SOLO_NAME[solo][0] + SOLO_NAME[solo].slice(1).toLowerCase() : state === 'war' ? `The war room · round ${g ? g.round : 1}` : state === 'ground' ? 'Fire support' : state === 'orbit' ? 'Station command' : 'Base command';
-  const body = page === 'options' ? panel('Options', optCommon()) : page === 'controls' ? panel('Controls', optKeys(key))
-    : panel(esc(app.faction.name), `<p class="soon">${esc(app.faction.motto || '')}</p><p class="soon">${esc(where)} · saved on this device</p>
+  const body = page === 'livery' ? pageLivery() : page === 'options' ? panel('Options', optBody(true), 'opan') : page === 'controls' ? panel('Controls', optKeys(key))
+    : panel(esc(me.name), `<p class="soon">${esc(me.motto || '')}</p><p class="soon">${esc(where)} · saved on this device</p>
       <div class="gbtns"><button class="plate btn go" id="m-resume" data-act="resume">RESUME</button><button class="plate btn" id="m-how" data-act="how">HOW THE WAR FITS TOGETHER</button><button class="plate btn" id="m-title" data-act="title">SAVE AND GO TO THE MAIN MENU</button></div>`);
-  m.innerHTML = `<div class="gmenu"><header id="m-bar"><img class="tlogo" src="assets/icon.svg" alt=""><div class="tname"><span>${esc(where.toUpperCase())}</span><b>PAUSED</b></div>
-    <nav class="ttabs" id="m-tabs">${[['game', 'GAME'], ['options', 'OPTIONS'], ['controls', 'CONTROLS']].map(([k, n]) => `<button class="${page === k ? 'on' : ''}" data-mtab="${k}">${n}</button>`).join('')}</nav></header>
-    <main class="gpage">${body}</main></div>`;
-  optBind(m); bindKeysPanel(m, () => openMenu('controls'));
+  m.innerHTML = `<div class="gmenu"><header id="m-bar"><img class="tlogo" src="assets/icon.svg" alt=""><div class="tname"><span>${esc(where.toUpperCase())}</span><b>${page === 'livery' ? 'YOUR LIVERY' : 'PAUSED'}</b></div>
+    <nav class="ttabs" id="m-tabs">${[['game', 'GAME'], ['options', 'OPTIONS'], ['controls', 'CONTROLS']].map(([k, n]) => `<button class="${page === k ? 'on' : ''}" data-mtab="${k}">${n}</button>`).join('')}</nav>
+    <button class="twho${page === 'livery' ? ' on' : ''}" id="m-me" type="button" data-mtab="livery" title="Your livery: your name, emblem and colours"><span class="twn"><span>${esc(String(me.name || '').toUpperCase())}</span><small>YOUR LIVERY</small></span><canvas id="m-crest" width="160" height="160"></canvas></button></header>
+    <main class="gpage${page === 'livery' || page === 'options' ? ' wide' : ''}">${body}</main></div>`;
+  paintCrest($('m-crest'), me.logo);
+  optBind(m, () => openMenu('options')); bindKeysPanel(m, () => openMenu('controls'));
+  if (page === 'livery') bindLivery(m, { redraw: () => openMenu('livery'), changed: () => { liveryChanged(); const n = m.querySelector('#m-me .twn > span'); if (n) n.textContent = String(app.faction.name || '').toUpperCase(); }, audio, toast: app.toast });
   m.onclick = (e) => {
     const t = e.target.closest('[data-mtab]'); if (t) { audio.click(); return openMenu(t.dataset.mtab); }
-    const b = e.target.closest('[data-act]'); if (!b) return; const d = b.dataset;
-    if (optAct(d)) { audio.click(); return openMenu('options'); }
+    const b = e.target.closest('[data-act]'); if (!b || !m.contains(b)) return; const d = b.dataset;
+    if (optAct(d, true)) { audio.click(); return openMenu('options'); }
     if (d.act === 'resume') closeMenu();
     else if (d.act === 'how') { m.hidden = true; how(); if (mode) frameUi.paused = menuWas; }
     else if (d.act === 'title') {
@@ -589,6 +677,7 @@ function openMenu(page = 'game') {
   m.hidden = false;
 }
 window.addEventListener('keydown', (e) => {
+  if (!$('menu').hidden && $('modal').hidden && liveryKey(e)) return;     // (GC 0.75) the livery's keys, on the menu inside a game
   if (e.key === 'Escape') { if (!$('menu').hidden) { closeMenu(); return; } if (!$('modal').hidden) return; if (state !== 'title' && state !== 'found' && state !== 'fury') openMenu(); }
 });
 window.addEventListener('beforeunload', () => { if (mode && mode.store) mode.store(); soloNote(null); app.keep(); });
@@ -596,8 +685,12 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) { if 
 
 // ---------------------------------------------------------------- the clock: one loop for the whole game
 let last = performance.now();
+let nextDraw = 0;
 function loop(ms) {
   requestAnimationFrame(loop);
+  // (GC 0.75) FRAME RATE in OPTIONS: at most that many frames a second (AUTO and NO CAP: as many as the screen shows)
+  const cap = { 30: 30, 60: 60, 144: 144 }[settings.fps] || 0;
+  if (cap) { if (ms < nextDraw - 1.5) return; nextDraw = Math.max(nextDraw + 1000 / cap, ms); }
   const now = ms / 1000, dt = Math.min(0.1, Math.max(0, (ms - last) / 1000)); last = ms;
   try {
     // (0.72: the title's backdrop is the live war room, js/core/warroom.js, on its own clock while the menu shows)

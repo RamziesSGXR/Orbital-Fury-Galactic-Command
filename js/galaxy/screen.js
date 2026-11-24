@@ -63,7 +63,7 @@ function top() {
   if (app) { const d = g.takeDue(); if (d) { app.camp.wallet.bal += d; app.camp.wallet.earned = (app.camp.wallet.earned || 0) + d; } }
   const cap = g.resMax(), cell = (k, cls) => `<div class="${cls}"><b>${Math.floor(g.res[k])}<i style="color:var(--dim)">/${cap}</i></b><span>${RES[k]}</span></div>`;
   const loot = `<div class="lt" style="--lc:var(--cyan)"><b>${g.fleets.reduce((a, f) => a + (f.owner === 'fed' ? f.ships : 0), 0)}</b><span>SHIPS</span></div>`;
-  $('top').innerHTML = `<button class="crest" data-a="menu" aria-label="Menu"><canvas id="crest-war" width="64" height="64"></canvas></button><div class="ttl">${esc(N.fed.toUpperCase())}<small>HIGH COMMAND</small></div><div class="rd">ROUND ${g.round}</div>
+  $('top').innerHTML = `<button class="crest" data-a="livery" aria-label="Your livery" title="Your livery"><canvas id="crest-war" width="64" height="64"></canvas></button><div class="ttl">${esc(N.fed.toUpperCase())}<small>HIGH COMMAND</small></div><div class="rd">ROUND ${g.round}</div>
     <div class="ro">${cell('fuel', 'a')}${cell('ammo', 'a')}${cell('tech', 'a')}${cell('army', '')}${loot}</div><span class="sm2 ${g.ratBand() === 'high' ? 'cy' : g.ratBand() === 'mid' ? '' : 'rd2'}" style="align-self:center;white-space:nowrap">RATINGS ${Math.round(g.rat)}%</span><button class="plate amber btn sm" data-a="armoury">ARMOURY · ${app ? Math.floor(app.camp.wallet.bal) : 0} CR</button><button class="plate btn sm" data-a="menu">MENU</button>`;
   if (app) app.crest($('crest-war'));
   const last = g.log[g.log.length - 1];
@@ -436,6 +436,7 @@ document.addEventListener('click', e => {
   const d = el.dataset;
   switch (d.a) {
     case 'menu': return app.menu();
+    case 'livery': return app.livery();     // (GC 0.75) your crest opens your livery, on every screen
     case 'armoury': return app.armoury();
     case 'show': g.show(+d.p, d.k); break;
     case 'totitle': $('modal').hidden = true; return app.endCampaign();

@@ -1,6 +1,6 @@
 # Orbital Fury: Galactic Command
 
-**Prototype 0.74.0.** One war, run from four posts, in one game.
+**Prototype 0.75.0.** One war, run from four posts, in one game.
 
 You found a command (a name, a livery: emblem and colours) and hold the centre of the galaxy against three enemies. Everything in
 the war is yours to run, and each part changes the others:
@@ -13,6 +13,19 @@ the war is yours to run, and each part changes the others:
 | **The base** | Found a base on the system's key world: roads, zones, and buildings that grow along them. | +35% output from the system for each charter. |
 
 A system that falls takes its station and its base with it.
+
+## What's new in 0.75: your crest opens your livery, and OPTIONS in four parts
+
+- **Your crest opens your livery**, from anywhere: at the right of the main menu's bar, in the war room's bar, in a post's
+  bar and on the menu inside a game. The main menu has no LIVERY tab now. Before a livery is made the crest is an empty
+  shield to fill in. A post's bar has a MENU button beside the pause for the menu itself.
+- **OPTIONS** is GAMEPLAY, DISPLAY, AUDIO and CONTROLS, each a page of its own. DISPLAY: full screen, graphics, frame rate,
+  screen shake, flashing, colour-safe colours, the ground's lighting. AUDIO: master, effects, ambience, voices, interface
+  (music when the score is ready), and quiet in the background. CONTROLS: every game's keys. The ground game takes these
+  from the main menu, and a change on its own SETTINGS comes back (window.gcOptions).
+- **PLAY** shows a 16:9 picture from inside each game (assets/menu/play-*.jpg).
+- **People hold what they hold**: the far models keep their hands and feet, so a rifle or a slate no longer floats, and
+  shoes and boots are shaped (toe, heel and sole) in place of blocks.
 
 ## What's new in 0.69: the STORE, and a roster of Vanguards
 

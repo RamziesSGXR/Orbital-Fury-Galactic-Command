@@ -128,6 +128,8 @@ export const DEFAULT_SETTINGS = {
   miniOpen: false,        // (0.42) a phone's minimap: folded away (MAP opens it) unless this is set
   volume: 0.6, muted: false, lefty: false,
   music: 0.5, sfx: 1, musicStyle: 'dynamic',   // (0.29) the music's volume, the effects' volume, and the music: 'dynamic' | 'ambient' | 'off'
+  amb: 1, voice: 1, ui: 1, bgMute: false,       // (GC 0.75) the ambience's, the voices' and the interface's volumes; quiet while the game is in the background
+  shake: 1,                                     // (GC 0.75) how much the screen shakes: 1, 0.5 or 0
   touchSens: 1, bubbles: true, cards: 'side', lang: 'en', uiScale: 1,
   mini: 2,           // the minimap's size (x its old size)
   layout: 'auto',   // (0.21) the HUD's layout: 'auto' (by the screen), 'phone', 'tab' or 'desk'

@@ -201,6 +201,7 @@ function bind() {
 const mode = {
   off: true,
   init(a, frame) { app = a; ui = frame; audio = a.audio; canvas = $('v-orbit'); },
+  settings(s) { if (view) view.setQuality(s.quality || 'auto'); },     // (GC 0.75) OPTIONS changed while the post is open
   async enter(a) {
     args = a; mode.off = false;
     const sys = a.system, saved = app.siteLoad('orbit', sys.id);
@@ -210,6 +211,7 @@ const mode = {
     st.faction = stationFaction(sys); st._noAdvice = true; st.foe = foeOf(sys);
     await ensureLogo(st.faction.logo);
     if (!view) { view = new View(canvas, st); bind(); }
+    view.setQuality(app.settings.quality || 'auto');     // (GC 0.75) GRAPHICS, in OPTIONS
     view.setStation(st); view.setFoe(st.foe);
     st.livery = { ...C.livery.def, ...(st.livery || {}), ...livery(st.faction) };
     try { view.setFaction(st.faction); view.setLivery(st.livery); } catch (err) { console.error(err); }

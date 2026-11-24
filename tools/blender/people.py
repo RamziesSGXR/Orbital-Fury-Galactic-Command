@@ -19,6 +19,22 @@ SLATE = ('cc_', 'in_')     # who carries a slate in the right hand
 hivis = mat('c_hivis', '#e8a22a'); glow = mat('c_glow', '#7af6ff', emit=2.5); amberl = mat('c_amber', '#ffb040', emit=2.0); shellm = mat('c_shell', '#8a939c', metal=0.3, rough=0.5); sole = mat('c_sole', '#c8ced2'); lining = mat('c_lining', '#c9d2dc')
 OUT = {}; L1, L2 = 0.29, 0.27; GRIP = (0, 0.0, -0.05); GUARD = (0, -0.2, -0.03)
 
+# (GC 0.75, Ramzies: "their shoes look like lego blocks") A SHOE THAT FOLLOWS THE FOOT. The upper rises from a rounded heel over a
+# high instep to a toe box that drops and rounds off; the sole under it follows the same outline a few millimetres proud of it
+# (narrow at the heel, wide at the ball, round at the toe), its edge rounded. Before, a flat block of sole twice the width of
+# the heel and toe stuck out under a tube. k: the build; boot: a soldier's boot (a deeper sole, a heel block, a toe cap).
+def shoe(name, parent, k, m, m_sole, boot=False):
+    w = 1.06 if boot else 1.0
+    up = [(0.078, 0.03, 0.026, -0.466), (0.064, 0.047, 0.043, -0.454), (0.02, 0.052, 0.047, -0.452), (-0.05, 0.054, 0.04, -0.458), (-0.115, 0.051, 0.029, -0.471),
+          (-0.165, 0.042, 0.021, -0.479), (-0.196, 0.028, 0.015, -0.484), (-0.212, 0.012, 0.008, -0.488)]
+    loft(PRE + name, [((0, y, z), rx * k * w, rz * (1.04 if boot else 1.0)) for y, rx, rz, z in up], sides=10, m=m, parent=parent)
+    t = 0.016 if boot else 0.011; zs = -0.5 + (0.004 if boot else 0.0)
+    so = [(0.084, 0.026), (0.07, 0.046), (0.03, 0.048), (-0.02, 0.05), (-0.08, 0.059), (-0.14, 0.057), (-0.185, 0.044), (-0.208, 0.026), (-0.222, 0.01)]
+    loft(PRE + name.replace('foot', 'sole'), [((0, y, zs), rx * k * w * 1.04, t) for y, rx in so], sides=10, m=m_sole, parent=parent)
+    if boot:
+        loft(PRE + name.replace('foot', 'heel'), [((0, 0.09, zs - 0.004), 0.03 * k, 0.014), ((0, 0.04, zs - 0.006), 0.048 * k, 0.016), ((0, 0.0, zs - 0.004), 0.046 * k, 0.012)], sides=9, m=m_sole, parent=parent)
+        loft(PRE + name.replace('foot', 'toecap'), [((0, -0.15, -0.474), 0.045 * k * w, 0.028), ((0, -0.19, -0.481), 0.031 * k * w, 0.02), ((0, -0.213, -0.486), 0.013 * k, 0.01)], sides=9, m=m_sole if boot == 'cap' else m, parent=parent)
+
 # (GC 0.69, Ramzies: "our characters have such a cartoonish look") THE SOLDIER AND THE VANGUARD, MADE OVER. The same joints, the same
 # lengths and the same poses as before, so every frame the game asks for still comes out; what hangs on the joints is new.
 # A grown man's build (about seven and a half heads tall): a small head in a close helmet, the face behind a dark visor and a
@@ -48,8 +64,7 @@ def trooper(van):
     kn = joint('knee.L', (0, 0, -0.42), h)
     loft(PRE + 'shin.L', [((0, 0, 0.01), 0.058 * k, 0.062 * k), ((0, 0.012, -0.1), 0.062 * k, 0.07 * k), ((0, 0.006, -0.22), 0.053 * k, 0.058 * k), ((0, 0, -0.3), 0.048 * k, 0.052 * k)], sides=9, m=legs, parent=kn)
     loft(PRE + 'bootup.L', [((0, 0.002, -0.27), 0.053 * k, 0.058 * k), ((0, 0.004, -0.36), 0.056 * k, 0.062 * k), ((0, 0.006, -0.44), 0.058 * k, 0.064 * k)], sides=9, m=plated if van else boots, parent=kn, cap=False)
-    loft(PRE + 'foot.L', [((0, 0.06, -0.455), 0.05 * k, 0.045), ((0, -0.03, -0.462), 0.057 * k, 0.04), ((0, -0.13, -0.474), 0.05 * k, 0.03), ((0, -0.185, -0.482), 0.034 * k, 0.019)], sides=9, m=plated if van else boots, parent=kn)
-    bx(PRE + 'sole.L', (0.114 * k, 0.272, 0.028), (0, -0.063, -0.496), m=tread, parent=kn, bevel=0.008)
+    shoe('foot.L', kn, k, plated if van else boots, tread, boot=True)     # (GC 0.75: a boot that follows the foot)
     if van:
         bx(PRE + 'cuisse.L', (0.15, 0.05, 0.24), (0, -0.088, -0.19), m=plate, parent=h, bevel=0.02, taper=0.86)
         bx(PRE + 'tasset.L', (0.13, 0.03, 0.13), (0.02, -0.1, 0.0), m=plate, parent=h, bevel=0.012, taper=1.15)
@@ -154,7 +169,7 @@ def civilian(cz):
     top, legs = CLOTH[cz]; skin = SKIN[{'a': 4, 'b': 1, 'c': 2, 'e': 4, 'i': 2, 'm': 3, 'p': 4, 'w': 1}[cz]]
     hair = HAIR[{'a': 0, 'b': 1, 'c': 2}.get(cz, HAIRX.get(cz, 0))]
     work = cz in 'bepw'; k = {'c': 0.94, 'b': 0.96, 'm': 0.97}.get(cz, 1.0)     # (the officer, the dock hand and the medic a little slighter)
-    hand_m = boots if work else skin; shoe = boots if work else capm
+    hand_m = boots if work else skin; shoe_m = boots if work else capm
     root = joint('root'); pel = joint('pelvis', (0, 0, 1.0), root)
     loft(PRE + 'hips', [((0, 0, 0.085), 0.15 * k, 0.104 * k), ((0, 0, -0.03), 0.164 * k, 0.114 * k), ((0, 0, -0.11), 0.14 * k, 0.102 * k)], sides=10, m=legs, parent=pel)
     loft(PRE + 'belt', [((0, 0, 0.07), 0.155 * k, 0.108 * k), ((0, 0, 0.1), 0.153 * k, 0.106 * k)], sides=10, m=strap, parent=pel, cap=False)
@@ -163,8 +178,7 @@ def civilian(cz):
     kn = joint('knee.L', (0, 0, -0.42), h)
     loft(PRE + 'shin.L', [((0, 0, 0.01), 0.055 * k, 0.059 * k), ((0, 0.012, -0.1), 0.059 * k, 0.066 * k), ((0, 0.006, -0.22), 0.05 * k, 0.055 * k), ((0, 0, -0.34), 0.044 * k, 0.048 * k), ((0, 0.004, -0.44), 0.042 * k, 0.046 * k)], sides=9, m=legs, parent=kn)
     if work: loft(PRE + 'bootup.L', [((0, 0.002, -0.3), 0.051 * k, 0.056 * k), ((0, 0.006, -0.44), 0.056 * k, 0.062 * k)], sides=9, m=boots, parent=kn, cap=False)
-    loft(PRE + 'foot.L', [((0, 0.055, -0.452), 0.047 * k, 0.046), ((0, -0.03, -0.462), 0.053 * k, 0.04), ((0, -0.13, -0.474), 0.047 * k, 0.03), ((0, -0.18, -0.482), 0.033 * k, 0.019)], sides=9, m=shoe, parent=kn)
-    bx(PRE + 'sole.L', (0.104 * k, 0.26, 0.024), (0, -0.06, -0.498), m=tread, parent=kn)
+    shoe('foot.L', kn, k, shoe_m, tread, boot=work)     # (GC 0.75: a shoe that follows the foot)
     if cz == 'a': bx(PRE + 'legpanel.L', (0.03, 0.1, 0.14), (0.08, 0, -0.2), m=shellm, parent=h)
     if cz == 'p': bx(PRE + 'legpocket.L', (0.04, 0.12, 0.15), (0.085, 0, -0.22), m=legs, parent=h, bevel=0.012)
     if cz == 'e': bx(PRE + 'kneepad.L', (0.09, 0.045, 0.1), (0, -0.052, -0.005), m=strap, parent=kn)
@@ -265,7 +279,8 @@ def civilian(cz):
     mirror_x(sho)
     bx(PRE + 'wristband', (0.06, 0.05, 0.04), (0, -0.016, -L2 + 0.09), m=shellm, parent=J('elbow.L'))     # a band on the left wrist with a small face
     bx(PRE + 'wristface', (0.03, 0.008, 0.022), (0, -0.044, -L2 + 0.09), m=glowd, parent=J('elbow.L'))
-    if cz in 'ci': bx(PRE + 'slate', (0.15, 0.012, 0.2), (0.0, -0.06, -L2 + 0.02), m=legs, parent=J('elbow.R')); bx(PRE + 'slateface', (0.12, 0.006, 0.16), (0.0, -0.068, -L2 + 0.02), m=glowd, parent=J('elbow.R'))
+    if cz in 'ci':     # (GC 0.75) the slate on a joint of its own, put in the hand for each pose (slate_at): it was hung off the forearm, and floated beside or above the hand
+        sj = joint('slatej', (0, 0, 0), root); bx(PRE + 'slate', (0.15, 0.012, 0.2), (0, 0, 0.1), m=legs, parent=sj); bx(PRE + 'slateface', (0.12, 0.006, 0.16), (0, 0.008, 0.1), m=glowd, parent=sj)
     rest(root); return root
 
 def person(kind):
@@ -491,7 +506,20 @@ def frames(armed):
     F.update({'look': p_look, 'drink': p_drink, 'salute': p_salute, 'heart': p_heart, 'mourn': p_mourn})
     for i in range(4): F['k%d' % i] = (lambda i=i: p_work(i))
     for i in range(3): F['n%d' % i] = (lambda i=i: p_note(i))
+    if not armed: F = {k: (lambda f=f, k=k: (f(), slate_at(k))) for k, f in F.items()}     # (GC 0.75) the slate goes where the hand is
     return F
+# (GC 0.75, Ramzies: "people are holding onto something and it just floats above their hand") Where the slate is in each pose:
+# read (the right hand under its lower edge, tilted up toward the eyes), hung from the left hand by its top edge along the thigh
+# while the right hand salutes, drinks or lies on the heart, and put away while both hands work or the body lies on the ground.
+def slate_at(nm):
+    o = bpy.data.objects.get(PRE + 'slatej')
+    if not o: return
+    if nm == 'down' or nm[0] == 'k': o.scale = (0.001, 0.001, 0.001); return
+    o.scale = (1, 1, 1); bpy.context.view_layer.update()
+    sd = 'L' if nm in ('drink', 'salute', 'heart', 'mourn') else 'R'
+    hand = J('elbow.' + sd).matrix_world @ Vector((0, 0, -L2)); inv = J('root').matrix_world.inverted()
+    if sd == 'R': o.location = inv @ (hand + Vector((0, 0.0, -0.012))); o.rotation_euler = (math.radians(55), 0, 0)
+    else: o.location = inv @ (hand + Vector((0.03, 0, 0.03))); o.rotation_euler = (math.pi, 0, -math.pi / 2)
 ROOTS = []
 for name, kind, pre in (('soldier', 'soldier', 'so_'), ('vanguard', 'vanguard', 'vg_'), ('citizen_a', 'a', 'ca_'), ('citizen_b', 'b', 'cb_'), ('citizen_c', 'c', 'cc_'),
                         ('engineer', 'e', 'en_'), ('inspector', 'i', 'in_'), ('medic', 'm', 'me_'), ('pilot', 'p', 'pi_'), ('crew', 'w', 'cw_')):

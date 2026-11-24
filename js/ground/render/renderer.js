@@ -638,7 +638,7 @@ export class Renderer {
     { const T = m.terrain, K = C.elev ? C.elev.size : 0; setElev(T && K ? (x, y) => 1 + K * (T.height(x, y) - 0.5) * 2 : null); }
     const v = this.updateView(cam, now), scale = v.scale;
     let ox = 0, oy = 0;
-    if (this.shake > 0.3) { ox = (Math.random() - 0.5) * this.shake * this.dpr; oy = (Math.random() - 0.5) * this.shake * this.dpr; this.shake *= 0.9; } else this.shake = 0;
+    if (this.shake > 0.3) { const sk = this.settings.shake ?? 1; ox = (Math.random() - 0.5) * this.shake * sk * this.dpr; oy = (Math.random() - 0.5) * this.shake * sk * this.dpr; this.shake *= 0.9; } else this.shake = 0;     // (GC 0.75: SCREEN SHAKE, full, half or none)
     const tx = v.tx + ox, ty = v.ty + oy;
     this._dtx = tx; this._dty = ty; this._ringV = { scale, tx, ty };
     // where a world point is on the SCREEN (turned with the view). Both take the point's x and y.

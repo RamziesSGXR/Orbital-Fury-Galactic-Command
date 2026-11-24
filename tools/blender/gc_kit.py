@@ -186,12 +186,14 @@ def _full(objs):
         me = o.data; me.calc_loop_triangles()
         out.append((o, [v.co.copy() for v in me.vertices], [(tuple(lt.vertices), lt.material_index) for lt in me.loop_triangles], list(me.materials)))
     return out
+import re
+KEEP_LIGHT = re.compile(r'hand|foot|sole|heel|toecap|glove')
 def _light(objs, ratio, size):
     """The same parts in far fewer triangles: the small ones left out, the rest cut down."""
     out = []
     for o in objs:
         me = o.data; bb = [Vector(c) for c in o.bound_box]; diag = (bb[6] - bb[0]).length * max(abs(c) for c in o.matrix_world.to_scale())
-        if diag < 0.085 * size: continue
+        if diag < 0.085 * size and not KEEP_LIGHT.search(o.name): continue     # (GC 0.75: a hand, a foot or a sole is never left out: a rifle or a slate held by a hand that was gone floated)
         me.calc_loop_triangles()
         if len(me.loop_triangles) <= 14:
             out.append((o, [v.co.copy() for v in me.vertices], [(tuple(lt.vertices), lt.material_index) for lt in me.loop_triangles], list(me.materials))); continue

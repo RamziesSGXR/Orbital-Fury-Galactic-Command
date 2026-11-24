@@ -11,6 +11,9 @@ export class Audio {
     this.ctx = null; this.master = null; this.volume = 0.6; this.muted = false; this.voices = 0; this.hum = null; this.noiseBuf = null;
     // (0.29) two buses under the master: the sound effects and the music, each with its own volume
     this.sfxBus = null; this.musBus = null; this.music = 0.5; this.sfx = 1;
+    // (GC 0.75) and three more, each with its own volume: the field's standing sounds and the ship's hum (ambience), the
+    // troopers' and the radio's voices, and the interface (clicks, the armoury's coins, the supply pod's keys)
+    this.ambBus = null; this.voiceBus = null; this.uiBus = null; this.amb = 1; this.voice = 1; this.ui = 1; this._busO = null;
     this.last = {}; this._pan = 0;
     this.ear = { x: 0, y: 0, h: 60, pw: 100 }; this.scape = new Map(); this.said = 0;     // (0.62.10) where the listener is; the sources playing; lines voiced
   }
@@ -31,9 +34,11 @@ export class Audio {
       } catch { this.master.connect(this.ctx.destination); }
       this.sfxBus = this.ctx.createGain(); this.sfxBus.connect(this.master);
       this.musBus = this.ctx.createGain(); this.musBus.connect(this.master);
-      // (0.62.10) under the effects: the field's standing sounds (packs, squads, fights, buildings) and the voices
-      this.ambBus = this.ctx.createGain(); this.ambBus.gain.value = 0.9; this.ambBus.connect(this.sfxBus);
-      this.voiceBus = this.ctx.createGain(); this.voiceBus.gain.value = 0.9; this.voiceBus.connect(this.sfxBus);
+      // (0.62.10) the field's standing sounds (packs, squads, fights, buildings) and the voices. (GC 0.75) Each straight to
+      // the master with its own volume, beside the effects rather than under them; and the interface's own
+      this.ambBus = this.ctx.createGain(); this.ambBus.connect(this.master);
+      this.voiceBus = this.ctx.createGain(); this.voiceBus.connect(this.master);
+      this.uiBus = this.ctx.createGain(); this.uiBus.connect(this.master);
       this._applyVolume();
       const len = this.ctx.sampleRate * 1.5, buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate), d = buf.getChannelData(0);
       for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
@@ -46,12 +51,20 @@ export class Audio {
     const n = (v, d) => (Number.isFinite(Number(v)) ? Math.max(0, Math.min(1, Number(v))) : d);
     this.volume = n(volume, 0.6); this.muted = !!muted; this.music = n(music, 0.5); this.sfx = n(sfx, 1); this._applyVolume();
   }
+  // (GC 0.75) the ambience's, the voices' and the interface's own volumes (0..1); one left out keeps what it was
+  levels({ amb = this.amb, voice = this.voice, ui = this.ui } = {}) {
+    const n = (v, d) => (Number.isFinite(Number(v)) ? Math.max(0, Math.min(1, Number(v))) : d);
+    this.amb = n(amb, 1); this.voice = n(voice, 1); this.ui = n(ui, 1); this._applyVolume();
+  }
+  // (GC 0.75) quiet while the game is in the background (the window hidden or another tab on top), if that is asked for
+  background(hidden) { this._bg = !!hidden; this._applyVolume(); }
   _applyVolume() {
     if (!this.master) return;
     const t = this.ctx.currentTime, to = (g, v) => { g.gain.cancelScheduledValues(t); g.gain.setTargetAtTime(v, t, 0.03); };
-    to(this.master, this.muted ? 0 : this.volume * 0.8);
+    to(this.master, this.muted || this._bg ? 0 : this.volume * 0.8);
     to(this.sfxBus, this.sfx);
     to(this.musBus, this.music * 0.7);
+    if (this.ambBus) { to(this.ambBus, this.amb * 0.9); to(this.voiceBus, this.voice * 0.9); to(this.uiBus, this.ui); }     // (each its own: EFFECTS is the guns, the blasts and the rest of the fight)
   }
 
   // True when this key may sound again (each sound has its own minimum gap, so a swarm doesn't turn into static).
@@ -65,8 +78,9 @@ export class Audio {
   // Where a voice goes: straight to the master, or through a stereo panner when the sound is off to one side.
   _out(pan = this._pan) {
     const c = this.ctx;
-    if (!pan || !c.createStereoPanner) return this.sfxBus;
-    const p = c.createStereoPanner(); p.pan.value = Math.max(-1, Math.min(1, pan)); p.connect(this.sfxBus);
+    const bus = this._busO || this.sfxBus;     // (GC 0.75: an interface sound goes to its own bus)
+    if (!pan || !c.createStereoPanner) return bus;
+    const p = c.createStereoPanner(); p.pan.value = Math.max(-1, Math.min(1, pan)); p.connect(bus);
     return p;
   }
   _noise(dur, f0, f1, gain, type = 'lowpass', q = 0.7, delay = 0) {
@@ -88,6 +102,9 @@ export class Audio {
     this.voices++; o.start(t); o.stop(t + dur + 0.05);
     o.onended = () => { this.voices--; };
   }
+
+  // (GC 0.75) a sound of the interface: played on its own bus, so INTERFACE in the sound options sets how loud it is
+  _ui(play) { const was = this._busO; this._busO = this.uiBus; try { play(); } finally { this._busO = was; } }
 
   // One shot of a named weapon or voice. `v` is how loud it is where the camera is (0..1), pan where it is (-1 left .. 1 right).
   snd(key, v = 1, pan = 0) {
@@ -133,9 +150,9 @@ export class Audio {
   // a critical hit from the destroyer: a short metallic ping; a hit on a heavy's back: a heavier clank
   crit(rear, v = 1, pan = 0) { if (!this._ok('crit', 0.09)) return; this._pan = pan; if (rear) { this._tone(300, 180, 0.12, 0.09 * v, 'square'); this._tone(1200, 800, 0.08, 0.05 * v, 'triangle'); } else this._tone(2400, 1700, 0.09, 0.05 * v, 'triangle'); this._pan = 0; }
   // Resupply: the request, a tap loading the pod, a full compartment, the launch and the landing.
-  supAsk() { if (!this.ctx) return; [784, 988, 784, 1175].forEach((f, i) => this._tone(f, f, 0.11, 0.08, 'triangle', i * 0.13)); }
-  supTap(i = 0) { if (!this._ok('suptap', 0.03)) return; this._noise(0.07, 1400 - i * 250, 300, 0.12, 'bandpass', 2); this._tone(300 + i * 70, 160, 0.06, 0.08, 'square'); }
-  supFull(i = 0) { if (!this.ctx) return; this._tone(1046 + i * 196, 1046 + i * 196, 0.16, 0.07, 'triangle'); }
+  supAsk() { this._ui(() => { if (!this.ctx) return; [784, 988, 784, 1175].forEach((f, i) => this._tone(f, f, 0.11, 0.08, 'triangle', i * 0.13)); }); }
+  supTap(i = 0) { this._ui(() => { if (!this._ok('suptap', 0.03)) return; this._noise(0.07, 1400 - i * 250, 300, 0.12, 'bandpass', 2); this._tone(300 + i * 70, 160, 0.06, 0.08, 'square'); }); }
+  supFull(i = 0) { this._ui(() => { if (!this.ctx) return; this._tone(1046 + i * 196, 1046 + i * 196, 0.16, 0.07, 'triangle'); }); }
   supLaunch(fast) { if (!this.ctx) return; this._noise(0.9, 300, 3000, 0.22, 'bandpass', 0.8); this._tone(220, 880, 0.6, 0.07, 'sawtooth'); if (fast) [1318, 1568, 2093].forEach((f, i) => this._tone(f, f, 0.12, 0.06, 'triangle', 0.3 + i * 0.09)); }
   supDown(v = 1, pan = 0) { if (!this.ctx) return; this._pan = pan; this._noise(0.5, 700, 90, 0.4 * v); this._tone(110, 45, 0.35, 0.35 * v); this._tone(880, 1320, 0.15, 0.05 * v, 'triangle', 0.35); this._pan = 0; }
   slowIn() { if (!this.ctx) return; this._tone(600, 140, 0.5, 0.08, 'sine'); }
@@ -144,7 +161,7 @@ export class Audio {
   shuttle(v = 1, pan = 0) { if (!this.ctx) return; this._pan = pan; this._noise(2.2, 400, 2400, 0.16 * v, 'bandpass', 0.7); this._tone(110, 330, 2, 0.08 * v, 'sawtooth'); this._pan = 0; }
   civDown(v = 1, pan = 0) { if (!this._ok('civ', 0.6)) return; this._pan = pan; this._tone(700, 380, 0.3, 0.05 * v, 'triangle'); this._pan = 0; }
   strikeCall(id) { if (!this.ctx) return; this._tone(1800, 500, 0.5, 0.12, 'sawtooth'); if (id === 'strike_barrage' || id === 'strike_rail') this._tone(300, 900, 3, 0.07, 'sawtooth'); }
-  deny() { if (!this.ctx) return; this._tone(160, 150, 0.18, 0.18, 'square'); }
+  deny() { this._ui(() => { if (!this.ctx) return; this._tone(160, 150, 0.18, 0.18, 'square'); }); }
   chirp() { if (!this._ok('chirp', 0.12)) return; this._tone(1500, 1900, 0.06, 0.07, 'square'); this._tone(1900, 1500, 0.06, 0.07, 'square', 0.08); }
   alarm() { if (!this.ctx) return; this._tone(880, 880, 0.12, 0.14, 'square'); this._tone(660, 660, 0.12, 0.14, 'square', 0.16); }
   ready() { if (!this.ctx) return; this._tone(700, 1000, 0.08, 0.08, 'triangle'); }
@@ -160,14 +177,14 @@ export class Audio {
   // (0.40) the nuke leaving the launch site: a long rising roar
   nukeLaunch() { if (!this.ctx) return; this._noise(3.4, 180, 1400, 0.38, 'bandpass', 0.7); this._tone(48, 90, 3, 0.3); this._tone(96, 160, 2.6, 0.08, 'sawtooth'); }
   nukeBlast() { if (!this.ctx) return; this._noise(3.2, 1500, 30, 0.95); this._tone(60, 22, 2.8, 0.9); this._tone(120, 30, 1.8, 0.5, 'sawtooth'); }
-  click() { if (!this.ctx) return; this._tone(900, 700, 0.04, 0.08, 'square'); }
+  click() { this._ui(() => { if (!this.ctx) return; this._tone(900, 700, 0.04, 0.08, 'square'); }); }
   // (0.19) The Mars cinematics: a long low swell under a line of text, a heavy hit, and the hiss and crack of a glassing beam.
   cineSwell(sec = 6) { if (!this.ctx) return; this._tone(41, 55, sec, 0.22, 'sine'); this._tone(82, 98, sec, 0.06, 'triangle'); this._noise(sec, 180, 60, 0.08, 'lowpass', 0.5); }
   cineHit() { if (!this.ctx) return; this._tone(70, 28, 2.4, 0.5, 'sine'); this._noise(1.6, 900, 40, 0.35); }
   cineLine() { if (!this._ok('cline', 0.4)) return; this._tone(1320, 1320, 0.05, 0.03, 'square'); }
   glassBeam(v = 1, pan = 0) { if (!this._ok('gbeam', 0.11)) return; this._pan = pan; this._noise(0.9, 3000, 120, 0.28 * v, 'bandpass', 0.9); this._tone(240, 50, 0.8, 0.22 * v, 'sawtooth'); this._pan = 0; }
   // Credits coming in: a small bright ping, rate limited so a kill streak is a trill and not a wall.
-  coin() { if (!this._ok('coin', 0.09)) return; this._tone(1500, 2100, 0.07, 0.045, 'triangle'); }
+  coin() { this._ui(() => { if (!this._ok('coin', 0.09)) return; this._tone(1500, 2100, 0.07, 0.045, 'triangle'); }); }
   // The UAV scan: a rising sweep and two radar blips.
   uav() {
     if (!this.ctx) return;
@@ -190,7 +207,7 @@ export class Audio {
   // over many seconds) and a faint high tone that comes and goes. All of it well under the guns and the music.
   humStart() {
     const c = this.ctx; if (!c || this.hum) return;
-    const out = c.createGain(); out.gain.value = 0; out.connect(this.sfxBus); out.gain.linearRampToValueAtTime(1, c.currentTime + 3);
+    const out = c.createGain(); out.gain.value = 0; out.connect(this.ambBus || this.sfxBus); out.gain.linearRampToValueAtTime(this.ambBus ? 1 / 0.9 : 1, c.currentTime + 3);     // (GC 0.75: the hum is ambience)
     const nodes = [];
     const osc = (type, f) => { const o = c.createOscillator(); o.type = type; o.frequency.value = f; o.start(); nodes.push(o); return o; };
     const gain = (v, to) => { const g = c.createGain(); g.gain.value = v; g.connect(to); return g; };

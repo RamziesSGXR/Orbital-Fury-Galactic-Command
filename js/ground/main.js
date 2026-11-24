@@ -141,6 +141,11 @@ for (const k of ['pointerdown', 'keydown']) window.addEventListener(k, () => aud
 const hud = new UI.Hud();
 const cam = { x: C.world.size / 2, y: C.world.size / 2, view: C.world.viewWidth, follow: true };
 let settings = S.getSettings();
+// (GC 0.75) inside Galactic Command, its OPTIONS are this game's too: the sound, the picture and the map's aids are taken from
+// there (window.parent.gcOptions), and a change made on this game's own SETTINGS goes back there. While it is open the main
+// menu's OPTIONS can change them too (gcApply, below).
+const GCO = (() => { try { return window.parent !== window && window.parent.gcOptions ? window.parent.gcOptions : null; } catch { return null; } })();
+if (GCO) try { Object.assign(settings, GCO.get()); } catch { /* the main menu's own, as they were */ }
 settings.lang = startLang(settings.lang);
 setLang(settings.lang);
 applyDom(document);
@@ -213,7 +218,7 @@ function applyLayout() {
 function applySettings() {
   renderer.setSettings(settings);
   renderer.quality = settings.quality === 'low' ? 'low' : 'high'; renderer.qset = settings.quality;     // (0.42: AUTO caps a phone's resolution; HIGH does not)
-  audio.set(settings.volume, settings.muted, settings.music, settings.sfx);
+  audio.set(settings.volume, settings.muted, settings.music, settings.sfx); audio.levels(settings); audio.background(document.hidden && !!settings.bgMute);
   music.setStyle(C.musicOn ? settings.musicStyle : 'off');     // (0.62.8) no score for now
   document.body.classList.toggle('lefty', !!settings.lefty);
   if (settings.cards !== 'off') settings.cards = 'side';     // (0.17.2: tips over the button, on or off)
@@ -233,8 +238,9 @@ function buildFor(biome, seed, keepDecals = false) {
   renderer.setTerrain(buildTerrain(biome, seed, { polarity: settings.polarity, quality: terrainQuality(), relief: !!settings.relief, sun }), keepDecals);
 }
 
-function onSettingChange(key) {
+function onSettingChange(key, fromGc = false) {
   applySettings();
+  if (GCO && !fromGc) try { GCO.set(settings); } catch { /* the main menu keeps its own */ }
   if (key === 'sfx' || key === 'volume') { audio.unlock(); audio.ready(); }     // (0.29) a blip at the new level, so it can be heard
   if (key === 'lang') relang();
   if ((key === 'polarity' || key === 'relief') && info) buildFor(info.biome, info.seed, true);
@@ -2097,7 +2103,9 @@ $('btn-post').onclick = async () => { await copyScore(); window.open(C.share.cha
 $('btn-share').onclick = async () => { try { await navigator.share({ text: $('f-text').value }); } catch { /* user cancelled */ } };
 $('callsign').value = S.load('callsign', '');
 { const old = S.load('session', null); if (old && old.story && !S.load('campRun', null)) { S.save('campRun', old); S.drop('session'); } }     // (0.37: runs from before are kept apart)
-document.addEventListener('visibilitychange', () => { if (document.hidden && live()) togglePause(true); });
+document.addEventListener('visibilitychange', () => { if (document.hidden && live()) togglePause(true); audio.background(document.hidden && !!settings.bgMute); });
+// (GC 0.75) the main menu's OPTIONS, changed while this game is open (its menu over the fight): taken at once
+window.gcApply = (o) => { const q = o.quality !== settings.quality; Object.assign(settings, o); onSettingChange(q ? 'quality' : 'gc', true); if (UI.isOn('s-settings')) UI.buildSettings(settings, onSettingChange); };
 // (0.46) A failed mission ends the operation unless it is retried. If the page is closed on that debrief, before CONTINUE, the
 // community feed still hears it ended (fetch keepalive outlives the page). (0.48.1: only when the page is closed, not when it is just
 // put away for a moment)

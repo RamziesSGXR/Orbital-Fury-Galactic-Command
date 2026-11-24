@@ -13,8 +13,9 @@
 <body>
 
 <!-- ================= TITLE ================= -->
-<!-- (0.60) One main menu for the whole game: a bar of tabs along the top (HOME, PLAY, LIVERY, COLLECTION, CAREER, STORE, OPTIONS)
-     and the tab's page under it, drawn by js/main.js (TABS). Behind it all, the war room, drawn live (js/core/warroom.js). -->
+<!-- (0.60) One main menu for the whole game: a bar of tabs along the top (HOME, PLAY, COLLECTION, CAREER, STORE, OPTIONS)
+     and the tab's page under it, drawn by js/main.js (TABS). Behind it all, the war room, drawn live (js/core/warroom.js).
+     (GC 0.75) Your crest, at the right of the bar, opens your livery: it is on every screen, in place of a LIVERY tab. -->
 <section id="s-title" class="scr on">
   <canvas id="tbg" aria-hidden="true" tabindex="-1"></canvas>
   <div id="tscrim"></div>
@@ -23,7 +24,7 @@
       <img class="tlogo" src="assets/icon.svg" alt="" width="50" height="58">
       <div class="tname"><span>ORBITAL FURY</span><b>GALACTIC COMMAND</b></div>
       <nav id="t-tabs" class="ttabs" role="tablist" aria-label="Main menu"></nav>
-      <div class="twho"><span id="t-who"></span><canvas id="t-crest" width="160" height="160"></canvas></div>
+      <button class="twho" id="t-me" type="button" title="Your livery: your name, emblem and colours"><span class="twn"><span id="t-who"></span><small>YOUR LIVERY</small></span><canvas id="t-crest" width="160" height="160"></canvas></button>
     </header>
     <main id="t-page"></main>
     <p class="ver" id="t-ver"></p>
@@ -33,7 +34,7 @@
 <!-- ================= FOUND YOUR FACTION ================= -->
 <section id="s-found" class="scr">
   <div class="fwrap">
-    <header class="fhd"><b>FOUND YOUR COMMAND</b><span>Pick a livery to start from. Your name, emblem and colours go with you to every game; make them your own on the LIVERY tab of the main menu, any time.</span></header>
+    <header class="fhd"><b>FOUND YOUR COMMAND</b><span>Pick a livery to start from. Your name, emblem and colours go with you to every game; make them your own any time: click your crest, at the top right of every screen.</span></header>
     <div class="fstyles lvcards" id="f-styles"></div>
     <div class="fform fthree">
       <label>COMMAND NAME<input id="f-name" maxlength="32" autocomplete="off"></label>
@@ -70,10 +71,10 @@
      world itself, and one bar of tools along the bottom. Each theatre fills these in (js/modes/*.js). -->
 <section id="s-theatre" class="scr">
   <header id="th-top">
-    <button class="crest" id="th-menu" aria-label="Menu"><canvas id="crest-th" width="64" height="64"></canvas></button>
+    <button class="crest" id="th-livery" aria-label="Your livery" title="Your livery"><canvas id="crest-th" width="64" height="64"></canvas></button>
     <div class="ttl"><span id="th-where"></span><small id="th-kind"></small></div>
     <div class="ro" id="th-stats"></div>
-    <div class="thb"><button class="plate btn sm" id="th-pause">II</button><button class="plate btn sm" id="th-speed">1×</button><button class="plate btn sm" id="th-leave">TO THE MAP</button></div>
+    <div class="thb"><button class="plate btn sm" id="th-pause">II</button><button class="plate btn sm" id="th-speed">1×</button><button class="plate btn sm" id="th-menu">MENU</button><button class="plate btn sm" id="th-leave">TO THE MAP</button></div>
   </header>
   <div id="th-war" class="hidden"></div>
   <div id="th-stage">

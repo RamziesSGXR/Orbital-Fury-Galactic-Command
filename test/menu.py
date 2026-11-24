@@ -18,8 +18,9 @@ with sync_playwright() as pw:
             print('  no menu after Escape:', pg.evaluate("[gc.state, document.getElementById('menu').hidden, document.getElementById('modal').hidden, document.activeElement.tagName + '#' + document.activeElement.id, document.getElementById('menu').innerHTML.slice(0, 1400), document.getElementById('menu').innerHTML.length]")); pg.screenshot(path=f'{out}/menu-fail.png'); raise
         pg.click('#m-title'); title(); pg.wait_for_timeout(400)
     slot = lambda g, n: pg.inner_text(f'#t-page .slot:has([data-g={g}][data-n="{n}"]) div')
-    # (0.60) one menu: six tabs, HOME first, the game's icon in the bar and in the browser tab
-    assert [b.get_attribute('data-tab') for b in pg.query_selector_all('#t-tabs [data-tab]')] == ['home', 'play', 'livery', 'collection', 'career', 'store', 'options'], 'the seven tabs'
+    # (0.60) one menu: six tabs, HOME first, the game's icon in the bar and in the browser tab. (GC 0.75) The livery has no tab: the crest at the right of the bar opens it
+    assert [b.get_attribute('data-tab') for b in pg.query_selector_all('#t-tabs [data-tab]')] == ['home', 'play', 'collection', 'career', 'store', 'options'], 'the six tabs'
+    tab = lambda t: (pg.click('#t-me') if t == 'livery' else pg.click(f'#t-tabs [data-tab={t}]'), pg.wait_for_timeout(250))
     assert pg.evaluate("document.querySelector('.tlogo').naturalWidth > 0 && document.querySelector('link[rel=icon]').href.endsWith('assets/icon.svg')"), "the game's icon is not shown"
     assert pg.is_visible('#b-new') and not pg.is_visible('#b-continue'), 'HOME offers a new campaign when there is none'
     assert pg.evaluate("(() => { const v = document.getElementById('tbg'); return v.tagName === 'CANVAS' && v.getBoundingClientRect().width >= innerWidth - 1; })()"), 'the war room is not behind the menu'   # (0.72) drawn live; test/warroom.py checks it further
@@ -33,8 +34,9 @@ with sync_playwright() as pw:
     tab('career'); assert pg.evaluate("document.querySelector('#t-page .cstat b').textContent") == '2', 'the career counts the fights'
     pg.evaluate("localStorage.removeItem('ofgc.career')"); tab('home')
     # (0.66) LIVERY: five styles and your own; the emblem in layers; the colours; the name. Nothing is kept until it is changed.
-    assert not pg.evaluate("localStorage.getItem('ofgc.livery')") and pg.evaluate("document.getElementById('t-crest').style.display") == 'none', 'no livery and no crest in the bar before one is chosen'
-    tab('livery'); assert pg.evaluate("document.querySelectorAll('#t-page .lvcard[data-lv=preset]').length") == 5, 'five ready-made styles'
+    assert not pg.evaluate("localStorage.getItem('ofgc.livery')") and pg.inner_text('#t-who') == 'NO LIVERY YET' and pg.is_visible('#t-crest'), 'before a livery is chosen, the crest is an empty shield to fill in'
+    tab('livery'); assert pg.evaluate("document.getElementById('t-me').classList.contains('on') && !document.querySelector('#t-tabs .on')"), 'the crest opens the livery, which has no tab'
+    assert pg.evaluate("document.querySelectorAll('#t-page .lvcard[data-lv=preset]').length") == 5, 'five ready-made styles'
     pg.click('[data-lv=preset][data-id=nova]'); pg.wait_for_timeout(150)
     lv = lambda: pg.evaluate("JSON.parse(localStorage.getItem('ofgc.livery'))")
     assert lv()['preset'] == 'nova' and pg.inner_text('#t-who') == 'NOVA PRIME EXPEDITIONARY', 'a style is worn, and shows in the bar'
@@ -53,6 +55,7 @@ with sync_playwright() as pw:
     tab('home')
     pg.keyboard.press('e'); pg.wait_for_timeout(200); assert pg.evaluate("document.querySelector('#t-tabs .on').dataset.tab") == 'play', 'E steps to the next tab'
     pg.keyboard.press('q'); pg.keyboard.press('q'); pg.wait_for_timeout(200); assert pg.evaluate("document.querySelector('#t-tabs .on').dataset.tab") == 'options', 'Q steps back, and round'
+    tab('livery'); pg.keyboard.press('e'); pg.wait_for_timeout(200); assert pg.evaluate("document.querySelector('#t-tabs .on').dataset.tab") == 'home', 'E from the livery: to the first tab'
     tab('play'); assert pg.evaluate("[document.querySelectorAll('#t-page .gcard[data-act=game]').length, document.querySelectorAll('#t-page .gcard .gart img').length, document.querySelectorAll('#t-page .slot').length]") == [4, 4, 0], 'PLAY: four picture cards, and no saves to choose while there are none'
     game = lambda g: (tab('play'), pg.click(f'#t-page .gcard[data-g={g}]'), pg.wait_for_timeout(300))
     pg.screenshot(path=f'{out}/menu-2-play.png')
@@ -78,7 +81,14 @@ with sync_playwright() as pw:
     game('orbit'); pg.wait_for_function("gc.state === 'orbit' && document.getElementById('trans').hidden", timeout=60000); pg.wait_for_timeout(1500)
     pg.keyboard.press('Escape'); pg.wait_for_selector('#m-tabs'); assert [b.inner_text() for b in pg.query_selector_all('#m-tabs button')] == ['GAME', 'OPTIONS', 'CONTROLS'], 'the menu inside a game has the same tabs'
     pg.click('#m-tabs [data-mtab=controls]'); assert 'green ring' in pg.inner_text('#menu'), "the station's controls are not on its menu"
-    pg.click('#m-tabs [data-mtab=options]'); pg.click('#menu [data-act=o-hints]'); pg.click('#menu [data-act=o-hints]'); pg.screenshot(path=f'{out}/menu-3-ingame.png')
+    pg.click('#m-tabs [data-mtab=options]'); pg.click('#menu [data-act=o-set][data-k=hints][data-v=false]'); assert not pg.evaluate("gc.app.settings.hints"), 'HINTS OFF on the menu inside a game'
+    pg.click('#menu [data-act=o-set][data-k=hints][data-v=true]'); pg.screenshot(path=f'{out}/menu-3-ingame.png')
+    # (GC 0.75) the crest on the menu's bar, and the one in the post's own bar, open the livery; MENU opens the menu
+    pg.click('#m-me'); pg.wait_for_selector('#menu .lvp'); assert pg.evaluate("document.getElementById('m-me').classList.contains('on')"), 'the crest on the menu opens the livery'
+    pg.keyboard.press('Escape'); pg.wait_for_timeout(200); pg.click('#th-livery'); pg.wait_for_selector('#menu .lvp')
+    pg.click('#menu [data-lv=sub][data-k=name]'); pg.fill('#lv-n', 'Kestrel Wing'); pg.press('#lv-n', 'Tab'); pg.wait_for_timeout(150)
+    assert lv()['name'] == 'Kestrel Wing' and 'KESTREL WING' in pg.inner_text('#m-me'), 'the livery changed inside a game is kept, and the crest says so'
+    pg.click('#menu [data-lv=sub][data-k=styles]'); pg.keyboard.press('Escape'); pg.wait_for_timeout(200); pg.click('#th-menu'); pg.wait_for_selector('#m-resume')
     pg.click('#m-tabs [data-mtab=game]'); pg.click('#m-resume'); pg.wait_for_timeout(200); assert pg.evaluate("document.getElementById('menu').hidden"), 'RESUME closes the menu'
     leave()
     # HOME: JUMP IN goes back to the last game played; NEWS and LEARN MORE open
@@ -95,9 +105,13 @@ with sync_playwright() as pw:
     fr.evaluate("(() => { const n = document.getElementById('btn-notice'); if (n && n.offsetParent) n.click(); })()"); pg.wait_for_timeout(400)
     fr.evaluate("closeLock()") if fr.evaluate("typeof closeLock === 'function'") else fr.evaluate("window.parent.gcFury.onExit()")
     title(); assert not [x for x in pg.frames if 'ground.html' in x.url], 'leaving the ground game should come back to the main menu'
-    # OPTIONS: the common settings, and each game's controls
-    tab('options'); a = pg.inner_text('#o-hints'); pg.click('#o-hints'); pg.wait_for_timeout(200); b = pg.inner_text('#o-hints'); assert a != b, 'the hints switch did not change'; pg.click('#o-hints')
-    pg.click('[data-act=o-tab][data-k=fury]'); assert 'Infantry drop' in pg.inner_text('#t-page'), "the ground game's controls are not listed"
+    # OPTIONS (GC 0.75): GAMEPLAY, DISPLAY, AUDIO and CONTROLS, each its own page; CONTROLS has each game's keys
+    tab('options'); assert [b.inner_text() for b in pg.query_selector_all('#t-page .osec button')] == ['GAMEPLAY', 'DISPLAY', 'AUDIO', 'CONTROLS'], 'the four pages of OPTIONS'
+    pg.click('[data-act=o-set][data-k=hints][data-v=false]'); pg.wait_for_timeout(150); assert not pg.evaluate("JSON.parse(localStorage.getItem('ofgc.settings')).hints"), 'HINTS OFF is kept'; pg.click('[data-act=o-set][data-k=hints][data-v=true]')
+    pg.click('[data-act=o-tab][data-k=audio]'); pg.fill('input[data-vol=voice]', '35'); pg.dispatch_event('input[data-vol=voice]', 'change'); pg.wait_for_timeout(100)
+    assert pg.evaluate("[JSON.parse(localStorage.getItem('ofgc.settings')).voice, gc.app.audio.voice]") == [0.35, 0.35], 'VOICES is kept and heard'
+    pg.click('[data-act=o-tab][data-k=display]'); pg.click('[data-act=o-set][data-k=shake][data-v="0.5"]'); assert pg.evaluate("gc.app.settings.shake") == 0.5, 'SCREEN SHAKE: HALF'
+    pg.click('[data-act=o-tab][data-k=controls]'); pg.click('[data-act=o-ctl][data-k=fury]'); assert 'Infantry drop' in pg.inner_text('#t-page'), "the ground game's controls are not listed"
     assert pg.evaluate("document.querySelectorAll('#t-page [data-kb][data-kg=fury]').length") > 20, "the ground game's keys can't be changed here"     # (GC 0.73: every key is a button to change it)
     pg.screenshot(path=f'{out}/menu-5-options.png')
     # the tutorials: a practice post with no story, not saved, and back to the menu
@@ -125,9 +139,11 @@ with sync_playwright() as pw:
     # every tab fits a desktop screen with nothing to scroll to
     for name, vw, vh in [('laptop', 1280, 720), ('small', 1366, 650), ('hd', 1920, 1080)]:
         pg.set_viewport_size({'width': vw, 'height': vh})
-        for t in ['home', 'play', 'livery', 'livery:emblem', 'livery:colours', 'livery:name', 'collection', 'career', 'store', 'options']:
-            if ':' in t: pg.click(f"[data-lv=sub][data-k={t.split(':')[1]}]"); pg.wait_for_timeout(200)
+        for t in ['home', 'play', 'livery', 'livery:emblem', 'livery:colours', 'livery:name', 'collection', 'career', 'store', 'options', 'options:display', 'options:audio', 'options:controls']:
+            if t.startswith('livery:'): pg.click(f"[data-lv=sub][data-k={t.split(':')[1]}]"); pg.wait_for_timeout(200)
+            elif t.startswith('options:'): pg.click(f"[data-act=o-tab][data-k={t.split(':')[1]}]"); pg.wait_for_timeout(200)
             else: tab(t)
+            if t == 'options': pg.click("[data-act=o-tab][data-k=play]"); pg.wait_for_timeout(200)
             if t == 'livery': pg.click("[data-lv=sub][data-k=styles]"); pg.wait_for_timeout(200)
             # (GC 0.73: the key buttons scroll inside their own list, .kbind: only the list itself has to fit)
             sh, bottom, right = pg.evaluate("[document.getElementById('s-title').scrollHeight, Math.max(...[...document.querySelectorAll('#t-page .tpan, #t-page .btn:not(.kb-key), #t-ver')].map(e => e.getBoundingClientRect().bottom)), Math.max(...[...document.querySelectorAll('#t-bar > *, #t-page .tpan')].map(e => e.getBoundingClientRect().right))]")

@@ -266,6 +266,7 @@ function bind() {
 const mode = {
   off: true,
   init(a, frame) { app = a; ui = frame; audio = a.audio; canvas = $('v-base'); },
+  settings(s) { if (view) view.setQuality(s.quality || 'auto'); },     // (GC 0.75) OPTIONS changed while the post is open
   async enter(a) {
     args = a; mode.off = false;
     const sys = a.system, saved = app.siteLoad('base', sys.id), f = baseFaction(sys);
@@ -275,6 +276,7 @@ const mode = {
     sim.faction = { ...sim.faction, ...f };
     await ensureLogo(sim.faction.logo);
     if (!view) { view = new View(canvas); bind(); }
+    view.setQuality(app.settings.quality || 'auto');     // (GC 0.75) GRAPHICS, in OPTIONS
     life = new Life(sim); view.attach(sim, life);
     const hq = sim.b.find((b) => b.type === 'hq');
     view.lookAt(hq ? hq.x + hq.w / 2 : sim.N / 2, hq ? hq.z + hq.d / 2 : sim.N / 2);

@@ -2216,7 +2216,7 @@ export function buildSettings(settings, onChange) {
   const select = (key, opts) => {
     const s = el('select');
     for (const [v, label] of opts) { const o = el('option'); o.value = v; o.textContent = label; s.appendChild(o); }
-    s.value = String(settings[key]); s.onchange = () => { settings[key] = key === 'uiScale' || key === 'mini' ? Number(s.value) : s.value; onChange(key); }; return s;
+    s.value = String(settings[key]); s.onchange = () => { settings[key] = key === 'uiScale' || key === 'mini' || key === 'shake' ? Number(s.value) : s.value; onChange(key); }; return s;
   };
   const range = (key, min, max, step) => {
     const r = el('input'); r.type = 'range'; r.min = min; r.max = max; r.step = step; r.value = settings[key]; r.dataset.k = key;
@@ -2236,7 +2236,11 @@ export function buildSettings(settings, onChange) {
   if (C.musicOn) row(t('set.music'), t('set.musicHint'), range('music', 0, 1, 0.05));     // (0.62.8) no score for now: its two settings go with it
   if (C.musicOn) row(t('set.style'), t('set.styleHint'), select('musicStyle', [['dynamic', t('set.st.dynamic')], ['ambient', t('set.st.ambient')], ['off', t('set.st.off')]]));
   row(t('set.sfx'), t('set.sfxHint'), range('sfx', 0, 1, 0.05));
+  row(t('set.amb'), t('set.ambHint'), range('amb', 0, 1, 0.05));     // (GC 0.75) the ambience, the voices and the interface, each its own
+  row(t('set.voice'), t('set.voiceHint'), range('voice', 0, 1, 0.05));
+  row(t('set.uiVol'), t('set.uiVolHint'), range('ui', 0, 1, 0.05));
   row(t('set.mute'), t('set.muteHint'), toggle('muted'));
+  row(t('set.bg'), t('set.bgHint'), toggle('bgMute'));
   sec('set.sec.display');
   row(t('set.layout'), t('set.layoutHint'), select('layout', [['auto', t('set.lay.auto')], ['phone', t('set.lay.phone')], ['tab', t('set.lay.tab')], ['desk', t('set.lay.desk')]]));
   row(t('set.ui'), t('set.uiHint'), select('uiScale', [['0.8', '80%'], ['0.9', '90%'], ['1', '100%'], ['1.15', '115%'], ['1.3', '130%']]));
@@ -2249,6 +2253,7 @@ export function buildSettings(settings, onChange) {
   row(t('set.bubbles'), t('set.bubblesHint'), toggle('bubbles'));
   row(t('set.cards'), t('set.cardsHint'), select('cards', [['side', t('set.on')], ['off', t('set.off')]]));
   row(t('set.flash'), t('set.flashHint'), toggle('reduceFlash'));
+  row(t('set.shake'), t('set.shakeHint'), select('shake', [['1', t('set.shake.full')], ['0.5', t('set.shake.half')], ['0', t('set.off')]]));     // (GC 0.75)
   row(t('set.color'), t('set.colorHint'), toggle('colorblind'));
   row(t('set.names'), t('set.namesHint'), toggle('showNames'));     // (0.54)
   row(t('set.blasts'), t('set.blastsHint'), toggle('showBlasts'));     // (0.58)

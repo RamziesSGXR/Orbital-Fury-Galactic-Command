@@ -1,4 +1,4 @@
-// THE LIVERY TAB (GC 0.66): the main menu's editor for the livery every game wears (core/livery.js).
+// THE LIVERY (GC 0.66): the editor for the livery every game wears (core/livery.js). (GC 0.75) Opened by your crest, on every screen.
 //   STYLES   the five ready-made liveries, and your own
 //   EMBLEM   the emblem in layers, as in a shooter's emblem editor: up to 16 shapes, each with its colour, size, turn,
 //            place, opacity, mirror, outline and "keep inside" (drawn only over the layers under it)
@@ -267,9 +267,9 @@ export function bindLivery(root, { redraw, changed = () => {}, audio = null, toa
     box._nudge = (dx, dy) => { const L = livery().emblem.layers[sel]; if (!L) return; snap(); L.x = clamp((L.x ?? 50) + dx, -20, 120); L.y = clamp((L.y ?? 50) + dy, -20, 120); syncSliders(); paint(box); keep(); changed(); };
   }
 }
-// keys while the LIVERY tab is open: Ctrl+Z undoes; the arrows nudge the layer picked (Shift: further)
+// keys while the livery is open (the main menu's, or the menu's inside a game): Ctrl+Z undoes; the arrows nudge the layer picked (Shift: further)
 export function liveryKey(e) {
-  const box = document.querySelector('#t-page .lvp'); if (!box) return false;
+  const box = document.querySelector('#menu:not([hidden]) .lvp') || document.querySelector('#s-title.on #t-page .lvp'); if (!box) return false;
   if (/INPUT|TEXTAREA/.test((document.activeElement || {}).tagName || '') && document.activeElement.type !== 'range') return false;
   if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z')) { if (box._undo) { e.preventDefault(); box._undo(); } return true; }
   const a = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
