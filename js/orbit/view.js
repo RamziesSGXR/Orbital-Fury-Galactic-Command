@@ -7,6 +7,7 @@
 import * as THREE from './vendor/three.js';
 import { C } from './config.js';
 import { Crowd3D } from '../model3d.js';
+import { surfScale } from '../surface.js';
 import { loadHulls, loadCraft, modelCraft, buildPart, buildShip, buildRoom, buildSuit, buildFigure, buildRaider, buildStriker, FIGURES, SLOTS, WALK, partPath, wayPoint, onWalk, slotSpot, doorSide, sillY, liftR, FL, LIFT_R } from './parts.js';
 import { paintWorld, WORLDS, WORLD_TYPES } from './planets.js';
 import { RNG } from './rng.js';
@@ -1471,6 +1472,7 @@ export class View {
     this._lod(); this._sunBox();
     this.sky.position.copy(this.camera.position);
     this.zone.visible = this.overlay && (this.mode === 'blueprint' || this.markers.children.length > 0);
+    if (((this._sfN = (this._sfN || 0) + 1) % 60) === 1) surfScale(this.scene, C.scale.m);     // (GC 0.70) the surface detail in metres
     this.renderer.render(this.scene, this.camera);
   }
 }

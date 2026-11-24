@@ -19,8 +19,259 @@ SLATE = ('cc_', 'in_')     # who carries a slate in the right hand
 hivis = mat('c_hivis', '#e8a22a'); glow = mat('c_glow', '#7af6ff', emit=2.5); amberl = mat('c_amber', '#ffb040', emit=2.0); shellm = mat('c_shell', '#8a939c', metal=0.3, rough=0.5); sole = mat('c_sole', '#c8ced2'); lining = mat('c_lining', '#c9d2dc')
 OUT = {}; L1, L2 = 0.29, 0.27; GRIP = (0, 0.0, -0.05); GUARD = (0, -0.2, -0.03)
 
+# (GC 0.69, Ramzies: "our characters have such a cartoonish look") THE SOLDIER AND THE VANGUARD, MADE OVER. The same joints, the same
+# lengths and the same poses as before, so every frame the game asks for still comes out; what hangs on the joints is new.
+# A grown man's build (about seven and a half heads tall): a small head in a close helmet, the face behind a dark visor and a
+# respirator (no painted-on eyes), shoulders wider than the waist, limbs that taper, real boots. The soldier wears fatigues under a
+# plate carrier with pouches and an assault pack; the Vanguard is a heavy trooper in plates over a dark suit, with a sealed helmet.
+# The fleet's colour is the fatigues and the helmet; its armband and trim are small (a band on the arm, a stripe, an edge).
+glove = mat('c_glove', '#2a2b28'); tread = mat('c_tread', '#18191a'); poly = mat('c_poly', '#6a6250'); maskm = mat('c_mask', '#43484c', rough=0.6)
+visorv = mat('c_visor_v', '#16262c', emit=0.35, metal=0.4, rough=0.2); lampd = mat('c_lamp_dim', '#9fe8ff', emit=1.2)
+def trooper(van):
+    def bx(n, size, loc, bevel=0.0, **kw):     # (a small part's edges are not cut: at the size it is seen it looks the same, in a third of the corners)
+        return box(n, size, loc, bevel=0.0 if (max(size) < 0.1 or min(size) < 0.03) else bevel, **kw)
+    k = 1.06 if van else 1.0; top, legs = (plated, plated) if van else (uni, unid); skin_none = None
+    gear = plate if van else kit
+    root = joint('root'); pel = joint('pelvis', (0, 0, 1.0), root)
+    # hips and belt
+    loft(PRE + 'hips', [((0, 0, 0.085), 0.152 * k, 0.106 * k), ((0, 0, -0.03), 0.166 * k, 0.116 * k), ((0, 0, -0.11), 0.142 * k, 0.104 * k)], sides=10, m=legs, parent=pel)
+    loft(PRE + 'belt', [((0, 0, 0.07), 0.162 * k, 0.114 * k), ((0, 0, 0.115), 0.16 * k, 0.112 * k)], sides=10, m=gear if van else kit, parent=pel, cap=False)
+    if van:
+        bx(PRE + 'codplate', (0.13, 0.035, 0.12), (0, -0.118, -0.03), m=plate, parent=pel, bevel=0.015, taper=1.25)
+        bx(PRE + 'beltunit', (0.12, 0.06, 0.08), (0, 0.125, 0.07), m=plated, parent=pel, bevel=0.015)
+    else:
+        bx(PRE + 'dump', (0.12, 0.055, 0.1), (0, 0.13, 0.03), m=kit, parent=pel, bevel=0.018)
+        for x in (-0.155, 0.155): bx(PRE + 'beltpouch', (0.055, 0.05, 0.08), (x, -0.045, 0.06), m=kit, parent=pel, bevel=0.012)
+    # legs: a thigh that tapers to the knee, a shin with a calf, a boot with a toe and a sole
+    h = joint('hip.L', (0.093 * k, 0, -0.07), pel)
+    loft(PRE + 'thigh.L', [((0, 0, 0.03), 0.095 * k, 0.1 * k), ((0, -0.008, -0.14), 0.09 * k, 0.096 * k), ((0, 0, -0.3), 0.07 * k, 0.076 * k), ((0, 0.004, -0.42), 0.058 * k, 0.062 * k)], sides=9, m=legs, parent=h)
+    kn = joint('knee.L', (0, 0, -0.42), h)
+    loft(PRE + 'shin.L', [((0, 0, 0.01), 0.058 * k, 0.062 * k), ((0, 0.012, -0.1), 0.062 * k, 0.07 * k), ((0, 0.006, -0.22), 0.053 * k, 0.058 * k), ((0, 0, -0.3), 0.048 * k, 0.052 * k)], sides=9, m=legs, parent=kn)
+    loft(PRE + 'bootup.L', [((0, 0.002, -0.27), 0.053 * k, 0.058 * k), ((0, 0.004, -0.36), 0.056 * k, 0.062 * k), ((0, 0.006, -0.44), 0.058 * k, 0.064 * k)], sides=9, m=plated if van else boots, parent=kn, cap=False)
+    loft(PRE + 'foot.L', [((0, 0.06, -0.455), 0.05 * k, 0.045), ((0, -0.03, -0.462), 0.057 * k, 0.04), ((0, -0.13, -0.474), 0.05 * k, 0.03), ((0, -0.185, -0.482), 0.034 * k, 0.019)], sides=9, m=plated if van else boots, parent=kn)
+    bx(PRE + 'sole.L', (0.114 * k, 0.272, 0.028), (0, -0.063, -0.496), m=tread, parent=kn, bevel=0.008)
+    if van:
+        bx(PRE + 'cuisse.L', (0.15, 0.05, 0.24), (0, -0.088, -0.19), m=plate, parent=h, bevel=0.02, taper=0.86)
+        bx(PRE + 'tasset.L', (0.13, 0.03, 0.13), (0.02, -0.1, 0.0), m=plate, parent=h, bevel=0.012, taper=1.15)
+        bx(PRE + 'kneecop.L', (0.105, 0.06, 0.12), (0, -0.062, 0.0), m=plate, parent=kn, bevel=0.024)
+        bx(PRE + 'greave.L', (0.1, 0.05, 0.22), (0, -0.058, -0.16), m=plate, parent=kn, bevel=0.02, taper=0.9)
+    else:
+        bx(PRE + 'cargo.L', (0.035, 0.11, 0.13), (0.084, 0.0, -0.2), m=legs, parent=h, bevel=0.012)
+        bx(PRE + 'kneepad.L', (0.096, 0.05, 0.115), (0, -0.054, -0.005), m=kit, parent=kn, bevel=0.02)
+    mirror_x(h)
+    if not van:     # a pistol on the right thigh: one side unlike the other, as kit is worn
+        bx(PRE + 'holster', (0.045, 0.1, 0.15), (-0.1, -0.01, -0.16), m=kit, parent=J('hip.R'), bevel=0.012)
+        bx(PRE + 'pistol', (0.03, 0.04, 0.07), (-0.1, 0.01, -0.07), m=gunm, parent=J('hip.R'), bevel=0.006)
+    # the body: chest wider than the waist, the shoulders sloping to the neck
+    tor = joint('torso', (0, 0, 0.1), pel)
+    loft(PRE + 'trunk', [((0, 0, -0.03), 0.148 * k, 0.102 * k), ((0, 0, 0.1), 0.15 * k, 0.1 * k), ((0, -0.004, 0.25), 0.178 * k, 0.112 * k), ((0, -0.004, 0.36), 0.19 * k, 0.112 * k),
+                         ((0, 0.008, 0.425), 0.17 * k, 0.098 * k), ((0, 0.012, 0.465), 0.132 * k, 0.086), ((0, 0.012, 0.5), 0.08, 0.066), ((0, 0.012, 0.53), 0.058, 0.055)], sides=10, m=top, parent=tor)
+    if van:
+        loft(PRE + 'chestplate', [((0, -0.006, 0.19), 0.196 * k, 0.128 * k), ((0, -0.01, 0.33), 0.212 * k, 0.136 * k), ((0, 0.0, 0.43), 0.186 * k, 0.118 * k)], sides=10, m=plate, parent=tor, cap=False)
+        for i, (z0, z1) in enumerate(((0.02, 0.085), (0.095, 0.165))): loft(PRE + 'abplate%d' % i, [((0, -0.004, z0), 0.164 * k, 0.114 * k), ((0, -0.006, z1), 0.17 * k, 0.118 * k)], sides=10, m=plate, parent=tor, cap=False)
+        loft(PRE + 'gorget', [((0, 0.006, 0.415), 0.15, 0.112), ((0, 0.01, 0.48), 0.118, 0.096), ((0, 0.01, 0.535), 0.09, 0.084)], sides=10, m=plated, parent=tor, cap=False)
+        bx(PRE + 'chestflash', (0.045, 0.02, 0.11), (0.075, -0.152, 0.33), m=trim, parent=tor, bevel=0.006)
+        bx(PRE + 'backunit', (0.28, 0.15, 0.33), (0, 0.205, 0.27), m=plated, parent=tor, bevel=0.04)
+        for x in (-0.085, 0.085): bx(PRE + 'vent', (0.07, 0.03, 0.16), (x, 0.285, 0.26), m=plate, parent=tor, bevel=0.01)
+        bx(PRE + 'strobe', (0.045, 0.02, 0.03), (0, 0.285, 0.41), m=lampd, parent=tor)
+        cyl(PRE + 'aerial', (0.11, 0.25, 0.42), (0.125, 0.27, 0.8), 0.006, m=gunm, parent=tor, sides=4)
+    else:
+        loft(PRE + 'cummerbund', [((0, 0, 0.13), 0.168, 0.118), ((0, 0, 0.25), 0.18, 0.122)], sides=10, m=kit, parent=tor, cap=False)
+        bx(PRE + 'frontplate', (0.25, 0.045, 0.27), (0, -0.118, 0.29), m=kit, parent=tor, bevel=0.018, taper=0.92)
+        bx(PRE + 'backplate', (0.26, 0.045, 0.29), (0, 0.11, 0.29), m=kit, parent=tor, bevel=0.018, taper=0.92)
+        for x in (-0.095, 0.095): bx(PRE + 'strap', (0.055, 0.23, 0.025), (x, 0.0, 0.448), m=kit, parent=tor, bevel=0.006)
+        for i in range(3): bx(PRE + 'mag%d' % i, (0.062, 0.045, 0.095), ((i - 1) * 0.07, -0.158, 0.215), m=kit, parent=tor, bevel=0.01)
+        bx(PRE + 'admin', (0.15, 0.03, 0.07), (0, -0.148, 0.37), m=unid, parent=tor, bevel=0.008)
+        bx(PRE + 'radio', (0.05, 0.07, 0.12), (0.18, 0.03, 0.25), m=kit, parent=tor, bevel=0.01)
+        bx(PRE + 'pack', (0.26, 0.13, 0.3), (0, 0.2, 0.25), m=kit, parent=tor, bevel=0.035)
+        bx(PRE + 'packlid', (0.24, 0.12, 0.06), (0, 0.205, 0.415), m=unid, parent=tor, bevel=0.02)
+        for x in (-0.15, 0.15): bx(PRE + 'packside', (0.05, 0.1, 0.18), (x, 0.2, 0.22), m=kit, parent=tor, bevel=0.015)
+    # the head: small, in a close helmet; the face behind a dark visor and a respirator
+    head = joint('head', (0, 0, 0.52), tor)
+    hg = joint('headgear', (0, 0, -0.028), head)     # (the head sits a little lower on the neck than the joint the poses turn)
+    cyl(PRE + 'neck', (0, 0.005, -0.03), (0, 0.005, 0.08), 0.056, m=plated if van else unid, parent=hg, sides=10)
+    if not van: loft(PRE + 'gaiter', [((0, 0.006, -0.05), 0.074, 0.072), ((0, 0.006, 0.02), 0.068, 0.068), ((0, 0.006, 0.07), 0.062, 0.064)], sides=10, m=unid, parent=hg, cap=False)     # a neck gaiter
+    blob(PRE + 'skull', 0.1, (0.9, 1.02, 1.12), (0, 0.006, 0.145), sub=1, m=plated if van else unid, parent=hg)
+    if van:
+        dome(PRE + 'helmet', (0, 0.006, 0.0), (0.124, 0.136), top=0.3, eq=0.17, rim=lambda a: 0.05 + 0.03 * max(0.0, math.sin(a)), rings=3, segs=14, flare=1.02, m=plate, parent=hg)
+        shell(PRE + 'visor', (0, 0.006), (0.127, 0.139), (0.13, 0.142), z=(0.135, 0.185), arc=(-math.pi / 2 - 0.95, -math.pi / 2 + 0.95), segs=8, t=0.01, m=visorv, parent=hg)
+        shell(PRE + 'jaw', (0, 0.006), (0.128, 0.14), (0.128, 0.14), z=(0.05, 0.12), arc=(-math.pi / 2 - 0.8, -math.pi / 2 + 0.8), segs=8, t=0.014, m=plated, parent=hg)
+        for sx in (1, -1): bx(PRE + 'comm', (0.03, 0.07, 0.06), (sx * 0.13, 0.01, 0.14), m=plated, parent=hg, bevel=0.01)
+        loft(PRE + 'crest', [((0, 0.006 + 0.142 * math.sin(t), 0.17 + 0.134 * math.cos(t)), 0.014, 0.006) for t in [math.radians(d) for d in (-62, -40, -15, 10, 35, 60, 78)]], sides=6, m=trim, parent=hg)     # a stripe over the crown in the team's colour
+        bx(PRE + 'helmlamp', (0.022, 0.03, 0.02), (0.125, -0.05, 0.2), m=lampd, parent=hg)
+    else:
+        dome(PRE + 'helmet', (0, 0.008, 0.0), (0.117, 0.131), top=0.282, eq=0.2, rim=lambda a: 0.095 + 0.1 * max(0.0, -math.sin(a)) ** 2 + 0.03 * max(0.0, abs(math.cos(a)) - 0.75) * 4, rings=3, segs=14, flare=1.03, m=helm, parent=hg)
+        shell(PRE + 'visor', (0, 0.006), (0.099, 0.11), (0.104, 0.115), z=(0.128, 0.19), arc=(-math.pi / 2 - 0.95, -math.pi / 2 + 0.95), segs=8, t=0.008, m=visor, parent=hg)
+        shell(PRE + 'mask', (0, 0.006), (0.092, 0.104), (0.097, 0.108), z=(0.058, 0.122), arc=(-math.pi / 2 - 0.75, -math.pi / 2 + 0.75), segs=8, t=0.012, m=maskm, parent=hg)
+        cyl(PRE + 'filter', (0, -0.11, 0.09), (0, -0.14, 0.082), 0.024, m=maskm, parent=hg, sides=8)
+        for sx in (1, -1):
+            blob(PRE + 'earpro', 0.036, (0.6, 1.0, 1.15), (sx * 0.1, 0.012, 0.145), sub=1, m=kit, parent=hg)
+            bx(PRE + 'rail', (0.012, 0.09, 0.016), (sx * 0.114, 0.01, 0.178), m=gunm, parent=hg)
+        bx(PRE + 'nvgmount', (0.042, 0.025, 0.034), (0, -0.125, 0.212), m=gunm, parent=hg, bevel=0.006)
+    # arms: a shoulder, an arm that tapers, a sleeve, a glove
+    sho = joint('sho.L', (0.2 * k, 0, 0.43), tor)
+    blob(PRE + 'deltoid.L', 0.062 * k, (0.92, 1.04, 1.0), (0.002, 0, -0.026), sub=2, m=top, parent=sho)
+    loft(PRE + 'upper.L', [((0, 0, -0.032), 0.059 * k, 0.061 * k), ((0, 0, -0.12), 0.055 * k, 0.058 * k), ((0, 0, -0.26), 0.044 * k, 0.046 * k), ((0, 0, -0.3), 0.042 * k, 0.044 * k)], sides=9, m=top, parent=sho)
+    elb = joint('elbow.L', (0, 0, -L1), sho)
+    loft(PRE + 'fore.L', [((0, 0, 0), 0.045 * k, 0.047 * k), ((0, -0.004, -0.07), 0.048 * k, 0.05 * k), ((0, 0, -0.2), 0.035 * k, 0.036 * k), ((0, 0, -0.235), 0.033 * k, 0.034 * k)], sides=9, m=top, parent=elb)
+    loft(PRE + 'cuff.L', [((0, 0, -0.19), 0.038 * k, 0.039 * k), ((0, 0, -0.245), 0.036 * k, 0.037 * k)], sides=9, m=glove, parent=elb, cap=False)
+    blob(PRE + 'hand.L', 0.04, (0.75, 1.0, 1.25), (0, -0.005, -L2 - 0.005), sub=1, m=plated if van else glove, parent=elb)
+    if van:
+        dome(PRE + 'pauldron.L', (0.02, 0, 0.0), (0.088, 0.104), top=0.07, eq=0.0, rim=lambda a: -0.07 + 0.03 * max(0.0, -math.cos(a)), rings=3, segs=12, flare=1.05, m=plate, parent=sho)
+        bx(PRE + 'pauldmark.L', (0.05, 0.07, 0.012), (0.055, 0, 0.06), m=trim, parent=sho, rot=(0, 0.55, 0))
+        loft(PRE + 'rerebrace.L', [((0, 0, -0.07), 0.066, 0.068), ((0, 0, -0.21), 0.058, 0.06)], sides=9, m=plate, parent=sho, cap=False)
+        loft(PRE + 'vambrace.L', [((0, -0.004, -0.03), 0.056, 0.058), ((0, 0, -0.19), 0.045, 0.047)], sides=9, m=plate, parent=elb, cap=False)
+    else:
+        loft(PRE + 'band.L', [((0, 0, -0.09), 0.058, 0.06), ((0, 0, -0.125), 0.056, 0.058)], sides=9, m=band, parent=sho, cap=False)
+        bx(PRE + 'elbowpad.L', (0.07, 0.05, 0.075), (0, 0.04, 0.0), m=kit, parent=elb, bevel=0.016)
+    mirror_x(sho)
+    # the rifle: a carbine with a rail, an optic and a polymer stock (the Vanguard's is heavier, with a launcher under it)
+    g = joint('gun', (-0.1, -0.2, 0.2), tor); w = 1.15 if van else 1.0
+    bx(PRE + 'receiver', (0.05 * w, 0.24, 0.075 * w), (0, -0.06, 0.0), m=gunm, parent=g, bevel=0.008)
+    bx(PRE + 'toprail', (0.03, 0.3, 0.012), (0, -0.1, 0.045 * w), m=gunm, parent=g)
+    bx(PRE + 'optic', (0.032, 0.07, 0.04), (0, -0.05, 0.075 * w), m=gunm, parent=g, bevel=0.008)
+    bx(PRE + 'handguard', (0.052 * w, 0.22, 0.06 * w), (0, -0.27, 0.005), m=gunm if van else poly, parent=g, bevel=0.012)
+    cyl(PRE + 'barrel', (0, -0.38, 0.01), (0, -0.5, 0.01), 0.011 * w, m=gunm, parent=g, sides=6)
+    cyl(PRE + 'muzzle', (0, -0.5, 0.01), (0, -0.545, 0.01), 0.016 * w, m=gunm, parent=g, sides=8)
+    bx(PRE + 'magazine', (0.032, 0.06, 0.15), (0, -0.1, -0.09), m=gunm if van else poly, parent=g, bevel=0.008, rot=(0.25, 0, 0))
+    bx(PRE + 'gripp', (0.032, 0.042, 0.085), (0, 0.025, -0.065), m=gunm, parent=g, rot=(-0.3, 0, 0))
+    cyl(PRE + 'buffer', (0, 0.06, 0.0), (0, 0.2, -0.005), 0.016, m=gunm, parent=g, sides=8)
+    bx(PRE + 'stock', (0.04, 0.1, 0.075), (0, 0.2, -0.02), m=gunm if van else poly, parent=g, bevel=0.012)
+    bx(PRE + 'foregrip', (0.025, 0.03, 0.06), (0, -0.3, -0.05), m=gunm, parent=g)
+    if van:
+        cyl(PRE + 'launcher', (0, -0.2, -0.055), (0, -0.44, -0.055), 0.026, m=gunm, parent=g, sides=8)
+        bx(PRE + 'gunlamp', (0.02, 0.03, 0.02), (0.035, -0.38, 0.02), m=lampd, parent=g)
+    rest(root); return root
+
+# (GC 0.70) THE REST OF THE CAST, MADE OVER the same way: the same body as the troopers (a grown build, tapered limbs, real shoes),
+# a real face (a chin, a nose, ears and brows; no painted-on box eyes), hair that follows the skull with a hairline, and the
+# lit trims cut back to a light or two. Each keeps what tells them apart: the technician's headset, the dock hand's hi-vis
+# harness and rebreather, the officer's long coat, the engineer's hard hat and tool belt, the inspector's cap and slate, the
+# medic's bag, the pilot's flight helmet, the deck hand's ear defenders.
+glowd = mat('c_glow_d', '#8fd6dc', emit=0.8); brow = mat('c_brow', '#2a2018'); eyed = mat('c_eye_d', '#241c18'); lips = mat('c_lips', '#9a6450')
+def civilian(cz):
+    def bx(n, size, loc, bevel=0.0, **kw): return box(n, size, loc, bevel=0.0 if (max(size) < 0.1 or min(size) < 0.03) else bevel, **kw)
+    top, legs = CLOTH[cz]; skin = SKIN[{'a': 4, 'b': 1, 'c': 2, 'e': 4, 'i': 2, 'm': 3, 'p': 4, 'w': 1}[cz]]
+    hair = HAIR[{'a': 0, 'b': 1, 'c': 2}.get(cz, HAIRX.get(cz, 0))]
+    work = cz in 'bepw'; k = {'c': 0.94, 'b': 0.96, 'm': 0.97}.get(cz, 1.0)     # (the officer, the dock hand and the medic a little slighter)
+    hand_m = boots if work else skin; shoe = boots if work else capm
+    root = joint('root'); pel = joint('pelvis', (0, 0, 1.0), root)
+    loft(PRE + 'hips', [((0, 0, 0.085), 0.15 * k, 0.104 * k), ((0, 0, -0.03), 0.164 * k, 0.114 * k), ((0, 0, -0.11), 0.14 * k, 0.102 * k)], sides=10, m=legs, parent=pel)
+    loft(PRE + 'belt', [((0, 0, 0.07), 0.155 * k, 0.108 * k), ((0, 0, 0.1), 0.153 * k, 0.106 * k)], sides=10, m=strap, parent=pel, cap=False)
+    h = joint('hip.L', (0.09 * k, 0, -0.07), pel)
+    loft(PRE + 'thigh.L', [((0, 0, 0.03), 0.09 * k, 0.096 * k), ((0, -0.008, -0.14), 0.085 * k, 0.09 * k), ((0, 0, -0.3), 0.066 * k, 0.072 * k), ((0, 0.004, -0.42), 0.055 * k, 0.059 * k)], sides=9, m=legs, parent=h)
+    kn = joint('knee.L', (0, 0, -0.42), h)
+    loft(PRE + 'shin.L', [((0, 0, 0.01), 0.055 * k, 0.059 * k), ((0, 0.012, -0.1), 0.059 * k, 0.066 * k), ((0, 0.006, -0.22), 0.05 * k, 0.055 * k), ((0, 0, -0.34), 0.044 * k, 0.048 * k), ((0, 0.004, -0.44), 0.042 * k, 0.046 * k)], sides=9, m=legs, parent=kn)
+    if work: loft(PRE + 'bootup.L', [((0, 0.002, -0.3), 0.051 * k, 0.056 * k), ((0, 0.006, -0.44), 0.056 * k, 0.062 * k)], sides=9, m=boots, parent=kn, cap=False)
+    loft(PRE + 'foot.L', [((0, 0.055, -0.452), 0.047 * k, 0.046), ((0, -0.03, -0.462), 0.053 * k, 0.04), ((0, -0.13, -0.474), 0.047 * k, 0.03), ((0, -0.18, -0.482), 0.033 * k, 0.019)], sides=9, m=shoe, parent=kn)
+    bx(PRE + 'sole.L', (0.104 * k, 0.26, 0.024), (0, -0.06, -0.498), m=tread, parent=kn)
+    if cz == 'a': bx(PRE + 'legpanel.L', (0.03, 0.1, 0.14), (0.08, 0, -0.2), m=shellm, parent=h)
+    if cz == 'p': bx(PRE + 'legpocket.L', (0.04, 0.12, 0.15), (0.085, 0, -0.22), m=legs, parent=h, bevel=0.012)
+    if cz == 'e': bx(PRE + 'kneepad.L', (0.09, 0.045, 0.1), (0, -0.052, -0.005), m=strap, parent=kn)
+    mirror_x(h)
+    tor = joint('torso', (0, 0, 0.1), pel)
+    loft(PRE + 'trunk', [((0, 0, -0.03), 0.146 * k, 0.1 * k), ((0, 0, 0.1), 0.146 * k, 0.098 * k), ((0, -0.004, 0.25), 0.172 * k, 0.108 * k), ((0, -0.004, 0.36), 0.184 * k, 0.108 * k),
+                         ((0, 0.008, 0.425), 0.165 * k, 0.095 * k), ((0, 0.012, 0.465), 0.128 * k, 0.084), ((0, 0.012, 0.5), 0.078, 0.064), ((0, 0.012, 0.53), 0.056, 0.053)], sides=10, m=top, parent=tor)
+    # what each wears
+    if cz == 'a':     # the technician: a coverall with a yoke in the company's colour, a chest panel with one small readout
+        loft(PRE + 'yoke', [((0, -0.002, 0.34), 0.188 * k, 0.112 * k), ((0, 0.006, 0.43), 0.168 * k, 0.098 * k)], sides=10, m=trim, parent=tor, cap=False)
+        bx(PRE + 'panel', (0.1, 0.018, 0.12), (-0.05, -0.112, 0.22), m=shellm, parent=tor); bx(PRE + 'readout', (0.05, 0.008, 0.02), (-0.05, -0.122, 0.25), m=glowd, parent=tor)
+        bx(PRE + 'toolpack', (0.06, 0.12, 0.14), (-0.13, 0.0, -0.13), m=shellm, parent=pel, bevel=0.015)
+    if cz == 'b':     # the dock hand: a hi-vis harness, a rebreather on the back, a mask hanging at the throat
+        for sx in (1, -1):
+            bx(PRE + 'hstrap', (0.045, 0.026, 0.42), (sx * 0.085, -0.112, 0.24), m=hivis, parent=tor); bx(PRE + 'hstrapb', (0.045, 0.026, 0.42), (sx * 0.085, 0.104, 0.24), m=hivis, parent=tor)
+            bx(PRE + 'hstraptop', (0.045, 0.23, 0.02), (sx * 0.085, 0.0, 0.447), m=hivis, parent=tor); bx(PRE + 'reflect', (0.046, 0.028, 0.03), (sx * 0.085, -0.114, 0.3), m=sole, parent=tor)
+        loft(PRE + 'hband', [((0, 0, 0.1), 0.15 * k, 0.102 * k), ((0, 0, 0.145), 0.152 * k, 0.103 * k)], sides=10, m=hivis, parent=tor, cap=False)
+        bx(PRE + 'rebreather', (0.24, 0.11, 0.3), (0, 0.17, 0.27), m=shellm, parent=tor, bevel=0.035)
+        for sx in (1, -1): cyl(PRE + 'tank', (sx * 0.065, 0.24, 0.12), (sx * 0.065, 0.24, 0.42), 0.042, m=legs, parent=tor, sides=9)
+    if cz == 'c':     # the company officer: a long coat with a pale front, a mantle in the company's colour
+        loft(PRE + 'coat', [((0, 0, 0.08), 0.158 * k, 0.11 * k), ((0, 0.008, -0.2), 0.2 * k, 0.16 * k), ((0, 0.016, -0.55), 0.25 * k, 0.215 * k)], sides=12, m=top, parent=pel, cap=False)
+        bx(PRE + 'coatfront', (0.03, 0.014, 0.58), (0.04, -0.2, -0.24), m=legs, parent=pel, rot=(0.16, 0, 0))
+        bx(PRE + 'chestfront', (0.03, 0.014, 0.36), (0.04, -0.113, 0.24), m=legs, parent=tor)
+        loft(PRE + 'mantle', [((0, 0.004, 0.32), 0.2 * k, 0.122 * k), ((0, 0.008, 0.4), 0.188 * k, 0.112 * k), ((0, 0.01, 0.455), 0.14 * k, 0.09)], sides=10, m=trim, parent=tor, cap=False)
+    if cz == 'e':     # the engineer: a hi-vis vest with pale bands, a tool belt with pouches and a hammer
+        loft(PRE + 'vest', [((0, -0.002, 0.08), 0.158 * k, 0.11 * k), ((0, -0.004, 0.3), 0.184 * k, 0.116 * k), ((0, 0.006, 0.42), 0.17 * k, 0.1 * k)], sides=10, m=hivis, parent=tor, cap=False)
+        loft(PRE + 'vestband', [((0, -0.004, 0.2), 0.18 * k, 0.115 * k), ((0, -0.004, 0.235), 0.182 * k, 0.116 * k)], sides=10, m=sole, parent=tor, cap=False)
+        for x in (-0.14, 0.14): bx(PRE + 'toolpouch', (0.07, 0.06, 0.1), (x, -0.095, -0.02), m=strap, parent=pel)
+        cyl(PRE + 'hammer', (0.17, 0.03, 0.05), (0.17, 0.03, -0.19), 0.012, m=wood, parent=pel, sides=6); bx(PRE + 'hammerhead', (0.035, 0.09, 0.035), (0.17, 0.03, 0.06), m=shellm, parent=pel)
+    if cz == 'i':     # the inspector: a long dark coat with a pale front and tabs on the shoulders
+        loft(PRE + 'coat', [((0, 0, 0.08), 0.158 * k, 0.11 * k), ((0, 0.008, -0.2), 0.195 * k, 0.155 * k), ((0, 0.016, -0.53), 0.235 * k, 0.205 * k)], sides=12, m=top, parent=pel, cap=False)
+        bx(PRE + 'coatfront', (0.03, 0.014, 0.55), (0.04, -0.195, -0.23), m=legs, parent=pel, rot=(0.15, 0, 0)); bx(PRE + 'shirt', (0.07, 0.012, 0.1), (0, -0.108, 0.42), m=lining, parent=tor)
+        for sx in (1, -1): bx(PRE + 'tab', (0.08, 0.06, 0.012), (sx * 0.15, 0.004, 0.452), m=trim, parent=tor)
+    if cz == 'm':     # the medic: a yoke in the company's colour, a bag on a strap
+        loft(PRE + 'yoke', [((0, -0.002, 0.34), 0.188 * k, 0.112 * k), ((0, 0.006, 0.43), 0.168 * k, 0.098 * k)], sides=10, m=trim, parent=tor, cap=False)
+        bx(PRE + 'bagstrap', (0.04, 0.24, 0.46), (0.0, 0.0, 0.22), m=strap, parent=tor, rot=(0, 0.6, 0)); bx(PRE + 'bag', (0.09, 0.2, 0.18), (-0.19, 0.0, -0.02), m=shellm, parent=pel, bevel=0.025)
+        bx(PRE + 'bagmark', (0.01, 0.06, 0.06), (-0.237, 0.0, 0.0), m=trim, parent=pel)
+    if cz == 'p':     # the pilot: a harness over a flight suit, a chest box, a neck ring for the helmet
+        for sx in (1, -1): bx(PRE + 'strap', (0.042, 0.024, 0.4), (sx * 0.085, -0.112, 0.25), m=strap, parent=tor); bx(PRE + 'strapb', (0.042, 0.024, 0.4), (sx * 0.085, 0.104, 0.25), m=strap, parent=tor)
+        bx(PRE + 'chestbox', (0.14, 0.05, 0.09), (0, -0.135, 0.27), m=shellm, parent=tor, bevel=0.012); bx(PRE + 'chestlamp', (0.03, 0.008, 0.02), (-0.035, -0.162, 0.28), m=glowd, parent=tor)
+        loft(PRE + 'neckring', [((0, 0.008, 0.47), 0.1, 0.09), ((0, 0.008, 0.5), 0.1, 0.09)], sides=10, m=shellm, parent=tor, cap=False)
+    if cz == 'w':     # the deck hand: a jersey with a broad band in the company's colour, a pouch on the belt
+        loft(PRE + 'jerseyband', [((0, -0.004, 0.24), 0.177 * k, 0.11 * k), ((0, -0.004, 0.32), 0.184 * k, 0.11 * k)], sides=10, m=trim, parent=tor, cap=False)
+        bx(PRE + 'beltpouch', (0.09, 0.06, 0.1), (0.13, -0.1, -0.02), m=strap, parent=pel)
+    # the head: a face with a chin, a nose, ears, brows and eyes set in it
+    head = joint('head', (0, 0, 0.52), tor); hg = joint('headgear', (0, 0, -0.028), head)
+    cyl(PRE + 'neck', (0, 0.008, -0.04), (0, 0.008, 0.08), 0.05, m=skin, parent=hg, sides=10)
+    blob(PRE + 'skull', 0.1, (0.88, 1.0, 1.1), (0, 0.008, 0.15), sub=2, m=skin, parent=hg)
+    blob(PRE + 'jaw', 0.064, (0.92, 0.88, 0.82), (0, -0.022, 0.09), sub=2, m=skin, parent=hg)
+    spike(PRE + 'nose', (0, -0.088, 0.152), (0, -0.112, 0.128), 0.016, sides=4, m=skin, parent=hg, flat=0.7)
+    for sx in (1, -1):
+        blob(PRE + 'ear', 0.022, (0.45, 0.8, 1.25), (sx * 0.089, 0.012, 0.145), sub=1, m=skin, parent=hg)
+        blob(PRE + 'eye', 0.011, (1.0, 0.45, 0.65), (sx * 0.034, -0.088, 0.165), sub=1, m=eyed, parent=hg)
+        bx(PRE + 'brow', (0.032, 0.012, 0.008), (sx * 0.035, -0.091, 0.185), m=hair if cz != 'c' else brow, parent=hg, rot=(0, -sx * 0.12, 0))
+    bx(PRE + 'mouth', (0.032, 0.008, 0.006), (0, -0.094, 0.1), m=lips, parent=hg)
+    # hair: a cap that follows the skull, its edge high on the brow and low at the nape
+    hairline = lambda a: 0.2 + 0.0 * a if False else (0.205 * max(0.0, -math.sin(a)) + (0.15 if abs(math.cos(a)) > 0.6 else 0.13) * (1 - max(0.0, -math.sin(a))) - 0.05 * max(0.0, math.sin(a)))
+    if cz not in 'ep':
+        dome(PRE + 'hair', (0, 0.01, 0.0), (0.094, 0.108), top=0.272, eq=0.2, rim=hairline, rings=3, segs=14, flare=1.02, m=hair, parent=hg)
+    if cz == 'a':     # a headset: a band, cups over the ears, a small lit eyepiece, a boom
+        loft(PRE + 'headband', [((0.104 * math.sin(t), 0.012, 0.15 + 0.128 * math.cos(t)), 0.006, 0.014) for t in [math.radians(d) for d in (-80, -50, -20, 0, 20, 50, 80)]], sides=6, m=shellm, parent=hg)
+        for sx in (1, -1): blob(PRE + 'earcup', 0.038, (0.6, 1, 1.15), (sx * 0.1, 0.012, 0.15), sub=1, m=legs, parent=hg)
+        bx(PRE + 'eyepiece', (0.05, 0.016, 0.03), (0.04, -0.104, 0.168), m=glowd, parent=hg); cyl(PRE + 'boom', (-0.1, 0.0, 0.13), (-0.045, -0.1, 0.1), 0.006, m=shellm, parent=hg, sides=4)
+    if cz == 'b':     # hair tied back, goggles pushed up on the brow
+        bx(PRE + 'tail', (0.05, 0.05, 0.2), (0, 0.11, 0.1), m=hair, parent=hg, bevel=0.015, taper=0.6)
+        loft(PRE + 'gogband', [((0, 0.01, 0.222), 0.1, 0.114), ((0, 0.01, 0.245), 0.098, 0.112)], sides=12, m=strap, parent=hg, cap=False)
+        for sx in (1, -1): bx(PRE + 'lens', (0.058, 0.024, 0.036), (sx * 0.038, -0.1, 0.236), m=shellm, parent=hg)
+    if cz == 'c':     # a high knot held by a pin, a comm piece behind the ear
+        blob(PRE + 'bun', 0.05, (1, 1, 0.9), (0, 0.07, 0.27), sub=2, m=hair, parent=hg); cyl(PRE + 'pin', (-0.06, 0.07, 0.27), (0.07, 0.07, 0.3), 0.005, m=shellm, parent=hg, sides=4)
+        bx(PRE + 'comm', (0.016, 0.04, 0.05), (0.094, 0.02, 0.15), m=shellm, parent=hg)
+    if cz == 'e':     # short hair under a hard hat with a brim and a lamp
+        dome(PRE + 'hair', (0, 0.01, 0.0), (0.094, 0.108), top=0.24, eq=0.18, rim=hairline, rings=2, segs=14, flare=1.02, m=hair, parent=hg)
+        dome(PRE + 'hardhat', (0, 0.006, 0.0), (0.118, 0.13), top=0.3, eq=0.235, rim=lambda a: 0.205, rings=3, segs=14, m=hardhat, parent=hg)
+        loft(PRE + 'hatbrim', [((0, -0.012, 0.21), 0.138, 0.162), ((0, -0.012, 0.198), 0.136, 0.16)], sides=14, m=hardhat, parent=hg); bx(PRE + 'hatlamp', (0.04, 0.025, 0.03), (0, -0.13, 0.235), m=glowd, parent=hg)
+    if cz == 'i':     # a peaked cap with a band in the company's colour
+        loft(PRE + 'capband', [((0, 0.01, 0.215), 0.102, 0.116), ((0, 0.01, 0.252), 0.106, 0.12)], sides=12, m=trim, parent=hg, cap=False)
+        loft(PRE + 'capcrown', [((0, 0.01, 0.252), 0.124, 0.138), ((0, 0.01, 0.278), 0.118, 0.132)], sides=12, m=capm, parent=hg); bx(PRE + 'cappeak', (0.15, 0.085, 0.012), (0, -0.14, 0.218), m=capm, parent=hg, rot=(0.25, 0, 0))
+    if cz == 'm':     # a soft cap
+        dome(PRE + 'softcap', (0, 0.012, 0.0), (0.1, 0.114), top=0.285, eq=0.225, rim=lambda a: 0.2 + 0.015 * max(0.0, -math.sin(a)), rings=3, segs=14, m=top, parent=hg)
+    if cz == 'p':     # a flight helmet, its dark visor pushed up, cups over the ears, a boom
+        dome(PRE + 'helmet', (0, 0.008, 0.0), (0.118, 0.13), top=0.29, eq=0.19, rim=lambda a: 0.11 + 0.08 * max(0.0, -math.sin(a)) ** 2, rings=3, segs=14, flare=1.03, m=shellm, parent=hg)
+        shell(PRE + 'visor', (0, 0.008), (0.122, 0.134), (0.112, 0.124), z=(0.225, 0.272), arc=(-math.pi / 2 - 0.9, -math.pi / 2 + 0.9), segs=8, t=0.008, m=visor, parent=hg)
+        loft(PRE + 'helmstripe', [((0, 0.008 + 0.132 * math.sin(t), 0.19 + 0.1 * math.cos(t)), 0.012, 0.005) for t in [math.radians(d) for d in (-20, 10, 40, 70, 95)]], sides=6, m=trim, parent=hg)
+        for sx in (1, -1): blob(PRE + 'earcup', 0.04, (0.6, 1, 1.15), (sx * 0.11, 0.012, 0.15), sub=1, m=legs, parent=hg)
+        cyl(PRE + 'boom', (-0.11, 0.0, 0.13), (-0.045, -0.105, 0.1), 0.006, m=gunm, parent=hg, sides=4)
+    if cz == 'w':     # ear defenders on a band
+        loft(PRE + 'headband', [((0.11 * math.sin(t), 0.012, 0.15 + 0.13 * math.cos(t)), 0.007, 0.016) for t in [math.radians(d) for d in (-80, -50, -20, 0, 20, 50, 80)]], sides=6, m=hivis, parent=hg)
+        for sx in (1, -1): blob(PRE + 'earcup', 0.044, (0.6, 1, 1.15), (sx * 0.104, 0.012, 0.15), sub=1, m=hivis, parent=hg)
+    # arms
+    sho = joint('sho.L', (0.182 * k, 0, 0.425), tor)
+    blob(PRE + 'deltoid.L', 0.058 * k, (0.92, 1.04, 1.0), (0.002, 0, -0.026), sub=2, m=top, parent=sho)
+    loft(PRE + 'upper.L', [((0, 0, -0.032), 0.056 * k, 0.058 * k), ((0, 0, -0.12), 0.052 * k, 0.055 * k), ((0, 0, -0.26), 0.042 * k, 0.044 * k), ((0, 0, -0.3), 0.04 * k, 0.042 * k)], sides=9, m=top, parent=sho)
+    elb = joint('elbow.L', (0, 0, -L1), sho)
+    loft(PRE + 'fore.L', [((0, 0, 0), 0.043 * k, 0.045 * k), ((0, -0.004, -0.07), 0.046 * k, 0.048 * k), ((0, 0, -0.2), 0.034 * k, 0.035 * k), ((0, 0, -0.235), 0.032 * k, 0.033 * k)], sides=9, m=top if cz not in 'ci' else top, parent=elb)
+    loft(PRE + 'cuff.L', [((0, 0, -0.17), 0.04 * k, 0.041 * k), ((0, 0, -0.215), 0.038 * k, 0.039 * k)], sides=9, m=lining if cz in 'ci' else legs, parent=elb, cap=False)
+    loft(PRE + 'wrist.L', [((0, 0, -0.2), 0.03, 0.031), ((0, 0, -0.245), 0.03, 0.031)], sides=9, m=hand_m, parent=elb, cap=False)
+    blob(PRE + 'hand.L', 0.038, (0.72, 1.0, 1.25), (0, -0.005, -L2 - 0.005), sub=1, m=hand_m, parent=elb)
+    mirror_x(sho)
+    bx(PRE + 'wristband', (0.06, 0.05, 0.04), (0, -0.016, -L2 + 0.09), m=shellm, parent=J('elbow.L'))     # a band on the left wrist with a small face
+    bx(PRE + 'wristface', (0.03, 0.008, 0.022), (0, -0.044, -L2 + 0.09), m=glowd, parent=J('elbow.L'))
+    if cz in 'ci': bx(PRE + 'slate', (0.15, 0.012, 0.2), (0.0, -0.06, -L2 + 0.02), m=legs, parent=J('elbow.R')); bx(PRE + 'slateface', (0.12, 0.006, 0.16), (0.0, -0.068, -L2 + 0.02), m=glowd, parent=J('elbow.R'))
+    rest(root); return root
+
 def person(kind):
     armed = kind in ('soldier', 'vanguard'); van = kind == 'vanguard'; cz = kind[-1] if not armed else '-'
+    if armed: return trooper(van)     # (GC 0.69)
+    return civilian(cz)     # (GC 0.70)
     top, legs = (plate, plated) if van else (uni, unid) if armed else CLOTH[cz]
     skin = SKIN[{'soldier': 0, 'vanguard': 3, 'a': 4, 'b': 1, 'c': 2, 'e': 4, 'i': 2, 'm': 3, 'p': 4, 'w': 1}[kind if armed else cz]]
     k = 1.1 if van else 1.0

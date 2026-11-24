@@ -8,6 +8,7 @@ const VMAKE = { lift: makeForklift, truck: makeTruck, lrv: makeLRV, tank: makeTa
 import { Noise } from './noise.js';
 import { isLine } from './net.js';
 import { Crowd3D } from '../model3d.js';
+import { surfScale } from '../surface.js';
 import { WL } from './site.js';
 
 // ---------------------------------------------------------------- terrain height, in every shader (0.17)
@@ -270,7 +271,7 @@ export class View {
     HG.load(s);
     const lin = c => new THREE.Color().setRGB(c[0] / 255, c[1] / 255, c[2] / 255, THREE.SRGBColorSpace);
     const U = { uGA: { value: this.gndA }, uGB: { value: this.gndB }, uN: { value: N }, uHue: { value: lin(hue) }, uBed: { value: lin((bio?.sea || [70, 110, 150]).map(v => v * 0.7)) }, uElev: this.uElev ||= { value: 0 }, uGrid: this.uGrid ||= { value: 0 } };
-    const gm = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.95 }); gm.defines = { STANDARD: '', NO_HGT: '' };
+    const gm = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.95 }); gm.defines = { STANDARD: '', NO_HGT: '', GC_NOSURF: '' };     // (GC 0.70: the ground has its own texture, no surface detail)
     gm.polygonOffset = true; gm.polygonOffsetFactor = 2; gm.polygonOffsetUnits = 6;   // the ground gives way to whatever lies on it
     gm.onBeforeCompile = sh => {
       Object.assign(sh.uniforms, U);
@@ -912,6 +913,7 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
     const every = [1, 3, 6, 0][this.q];
     this.fr = (this.fr || 0) + 1;
     if (every > 1 && this.fr % every === 0) this.r.shadowMap.needsUpdate = true;
+    if (this.fr % 60 === 1) surfScale(this.scene, 1.8 / 0.575);     // (GC 0.70) the surface detail in metres: a 1.8 m person stands 0.575 units
     this.r.render(this.scene, this.cam);
     this.autoQuality();
     void s;

@@ -1,4 +1,5 @@
 // Entry point: state machine (title -> armory -> briefing -> mission -> debrief -> armory ... -> final), fixed-step loop, wiring.
+import '../surface.js';     // (GC 0.70) surface detail on every 3D model
 import { CONFIG as C } from './config.js';
 import { COMMS } from './data/data.js';
 import { Mission } from './sim/mission.js';

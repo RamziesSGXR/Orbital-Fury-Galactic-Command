@@ -56,7 +56,9 @@ def loft(name, secs, sides=8, m=None, parent=None, seg_mats=None, cap=True, roug
         t = t.normalized() if t.length > 1e-6 else Vector((0, -1, 0))
         side = t.cross(Vector((0, 0, 1)))
         if side.length < 1e-3: side = Vector((1, 0, 0))
-        side.normalize(); up = side.cross(t).normalized(); roll = s[3] if len(s) > 3 else 0.0
+        side.normalize()
+        if i and side.dot(prev) < 0: side = -side     # (GC 0.69) keep each ring turned the way the last one was: a limb that leans a hair forward then back twisted half a turn and pinched
+        prev = side; up = side.cross(t).normalized(); roll = s[3] if len(s) > 3 else 0.0
         ring = []
         for k in range(sides):
             a = 2 * math.pi * k / sides + roll
@@ -95,6 +97,41 @@ def box(name, size=(1, 1, 1), loc=(0, 0, 0), m=None, parent=None, bevel=0.0, rot
     M = Matrix.Translation(loc) @ (Matrix.Rotation(rot[2], 4, 'Z') @ Matrix.Rotation(rot[1], 4, 'Y') @ Matrix.Rotation(rot[0], 4, 'X') if rot else Matrix.Identity(4))
     bmesh.ops.transform(bm, matrix=M, verts=bm.verts)
     return _obj(name, bm, [m], parent)
+
+def shell(name, c=(0, 0), r0=(0.1, 0.1), r1=None, z=(0.0, 0.1), arc=(-2.6, -0.54), segs=10, t=0.01, m=None, parent=None):
+    """(GC 0.69) A curved band round the Z axis, like a visor or a mask: centre c (x, y), radii r0 at z[0] and r1 at z[1] (x, y),
+    from angle arc[0] to arc[1] (radians in the XY plane; -pi/2 is the front, -Y), t thick (outward)."""
+    r1 = r1 or r0; bm = bmesh.new(); V = []
+    for i in range(segs + 1):
+        a = arc[0] + (arc[1] - arc[0]) * i / segs; ca, sa = math.cos(a), math.sin(a); col = []
+        for (zz, (rx, ry)) in ((z[0], r0), (z[1], r1)):
+            for dt in (0.0, t): col.append(bm.verts.new((c[0] + (rx + dt) * ca, c[1] + (ry + dt) * sa, zz)))
+        V.append(col)     # [in-low, out-low, in-high, out-high]
+    for i in range(segs):
+        a, b = V[i], V[i + 1]
+        bm.faces.new((a[1], b[1], b[3], a[3])); bm.faces.new((a[0], a[2], b[2], b[0]))
+        bm.faces.new((a[2], a[3], b[3], b[2])); bm.faces.new((a[0], b[0], b[1], a[1]))
+    for col in (V[0], V[-1]): bm.faces.new((col[0], col[1], col[3], col[2]))
+    return _obj(name, bm, [m], parent)
+
+def dome(name, c=(0, 0, 0), r=(0.1, 0.1), top=0.1, eq=0.0, rim=None, rings=4, segs=14, flare=1.0, m=None, parent=None):
+    """(GC 0.69) A helmet's shell: a dome over an ellipse r (x, y) at height eq round centre c, its crown at c.z + top. Below the
+    equator its sides drop to rim(a) (the height of the edge at angle a: -pi/2 is the front), flaring out to `flare` times as wide."""
+    bm = bmesh.new(); cx, cy, cz = c; R = []
+    ang = [2 * math.pi * k / segs - math.pi / 2 for k in range(segs)]
+    R.append([bm.verts.new((cx + r[0] * flare * math.cos(a), cy + r[1] * flare * math.sin(a), cz + (rim(a) if rim else eq))) for a in ang])
+    for j in range(rings):
+        u = j / rings; s = math.cos(u * math.pi / 2); zz = cz + eq + (top - eq) * math.sin(u * math.pi / 2)
+        R.append([bm.verts.new((cx + r[0] * s * math.cos(a), cy + r[1] * s * math.sin(a), zz)) for a in ang])
+    for j in range(len(R) - 1):
+        for k in range(segs): bm.faces.new((R[j][k], R[j][(k + 1) % segs], R[j + 1][(k + 1) % segs], R[j + 1][k]))
+    tip = bm.verts.new((cx, cy, cz + top))
+    for k in range(segs): bm.faces.new((R[-1][k], R[-1][(k + 1) % segs], tip))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free(); me.materials.append(m)
+    o = bpy.data.objects.new(name, me); CUR.objects.link(o)
+    if parent: o.parent = parent
+    return o
 
 def spike(name, base, tip, r, sides=5, m=None, parent=None, flat=1.0):
     """A horn, claw or blade from base to tip; flat < 1 makes it a blade."""

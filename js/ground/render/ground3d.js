@@ -6,6 +6,7 @@
 //
 // One camera decides everything: where the land is drawn, where a label goes, and what the pointer is over.
 import * as THREE from '../../vendor/three.js';
+import { noSurf } from '../../surface.js';
 import { Units3D, Fx3D } from './units3d.js';
 import { Props3D } from './props3d.js';
 
@@ -62,14 +63,14 @@ export class Ground3D {
         vec4 ov = texture2D(tOver, vO);
         diffuseColor.rgb *= gcLin(clamp(gr * (1.0 - ov.a) + ov.rgb, 0.0, 1.0));`);
     }; return mat; };
-    this.mat = two(new THREE.MeshLambertMaterial({ color: 0xffffff }));
+    this.mat = noSurf(two(new THREE.MeshLambertMaterial({ color: 0xffffff })));     /* (GC 0.70) the land wears its own drawn picture: no surface detail */
     this.mesh = new THREE.Mesh(g, this.mat); this.mesh.frustumCulled = false; this.mesh.receiveShadow = true; this.mesh.castShadow = true; this.scene.add(this.mesh);
     // THE THINGS THAT STAND UP (GC 0.19): rocks, trees, buildings, guns. Each is a block risen out of the sheet: its roof is the
     // very patch of the sheet it stands on (so it wears its own top-down drawing, lit and fogged like everything else) and
     // its walls take the colours at its edge, darker. Built afresh each frame from what is in view.
     { const nv = V3.blocks * V3.sides * 9; this.bp = new Float32Array(nv * 3); this.bu = new Float32Array(nv * 2); this.bn = new Float32Array(nv * 3); this.bc = new Float32Array(nv * 3);
       const bg = this.bgeo = new THREE.BufferGeometry(); bg.setAttribute('position', new THREE.BufferAttribute(this.bp, 3)); bg.setAttribute('uv', new THREE.BufferAttribute(this.bu, 2)); bg.setAttribute('normal', new THREE.BufferAttribute(this.bn, 3)); bg.setAttribute('color', new THREE.BufferAttribute(this.bc, 3));
-      this.bmat = two(new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true }));
+      this.bmat = noSurf(two(new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true })));
       this.bmesh = new THREE.Mesh(bg, this.bmat); this.bmesh.frustumCulled = false; this.bmesh.castShadow = true; this.bmesh.receiveShadow = true; this.scene.add(this.bmesh); }
     this.v = new THREE.Vector3(); this.pv = new THREE.Matrix4(); this.inv = new THREE.Matrix4();
     this.h = () => 0.5; this.W = this.H = 1; this.ok = true; this.amp = V3.amp;

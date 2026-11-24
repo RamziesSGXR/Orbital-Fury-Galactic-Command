@@ -7,6 +7,7 @@
 //   BASE    the base on its key world                      (js/modes/base.js,   rules in js/base)
 // The theatres are loaded when first entered. Each one fills the same frame (#s-theatre) and hands back what the map
 // needs to know: who won, what tier the station is, what rank the base is.
+import './surface.js';     // (GC 0.70) surface detail on every 3D model: extends three.js's shaders before anything is drawn
 import { MSG_TIMES, msgKey, setMsg, timeMessage } from './core/msgtime.js';
 import { VERSION, C as GC } from './galaxy/config.js';
 import * as War from './galaxy/screen.js';
