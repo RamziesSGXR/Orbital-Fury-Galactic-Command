@@ -22,7 +22,7 @@ with sync_playwright() as pw:
     assert [b.get_attribute('data-tab') for b in pg.query_selector_all('#t-tabs [data-tab]')] == ['home', 'play', 'livery', 'collection', 'career', 'store', 'options'], 'the seven tabs'
     assert pg.evaluate("document.querySelector('.tlogo').naturalWidth > 0 && document.querySelector('link[rel=icon]').href.endsWith('assets/icon.svg')"), "the game's icon is not shown"
     assert pg.is_visible('#b-new') and not pg.is_visible('#b-continue'), 'HOME offers a new campaign when there is none'
-    assert pg.evaluate("(() => { const v = document.getElementById('tbg'); return v.tagName === 'VIDEO' && v.getBoundingClientRect().width >= innerWidth - 1; })()"), 'the war room film is not behind the menu'
+    assert pg.evaluate("(() => { const v = document.getElementById('tbg'); return v.tagName === 'CANVAS' && v.getBoundingClientRect().width >= innerWidth - 1; })()"), 'the war room is not behind the menu'   # (0.72) drawn live; test/warroom.py checks it further
     pg.screenshot(path=f'{out}/menu-1-home.png')
     # (0.62) COLLECTION: five kinds, nothing met on a new browser; a ground enemy met opens with its model drawn
     tab('collection'); assert pg.evaluate("[document.querySelectorAll('#t-page .ckinds button').length, document.querySelectorAll('#t-page .chip.lock').length]") == [5, 18], 'the collection: five kinds, all eighteen enemies not yet met'

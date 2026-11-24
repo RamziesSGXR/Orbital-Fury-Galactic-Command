@@ -14,9 +14,9 @@
 
 <!-- ================= TITLE ================= -->
 <!-- (0.60) One main menu for the whole game: a bar of tabs along the top (HOME, PLAY, LIVERY, COLLECTION, CAREER, STORE, OPTIONS)
-     and the tab's page under it, drawn by js/main.js (TABS). Behind it all, the war room (assets/menu/warroom.mp4). -->
+     and the tab's page under it, drawn by js/main.js (TABS). Behind it all, the war room, drawn live (js/core/warroom.js). -->
 <section id="s-title" class="scr on">
-  <video id="tbg" src="assets/menu/warroom.mp4" poster="assets/menu/warroom.jpg" autoplay loop muted playsinline disablepictureinpicture aria-hidden="true" tabindex="-1"></video>
+  <canvas id="tbg" aria-hidden="true" tabindex="-1"></canvas>
   <div id="tscrim"></div>
   <div class="tmain">
     <header id="t-bar">

@@ -7,6 +7,7 @@
 //   BASE    the base on its key world                      (js/modes/base.js,   rules in js/base)
 // The theatres are loaded when first entered. Each one fills the same frame (#s-theatre) and hands back what the map
 // needs to know: who won, what tier the station is, what rank the base is.
+import * as WarRoom from './core/warroom.js';
 import './surface.js';     // (GC 0.70) surface detail on every 3D model: extends three.js's shaders before anything is drawn
 import { MSG_TIMES, msgKey, setMsg, timeMessage } from './core/msgtime.js';
 import { VERSION, C as GC } from './galaxy/config.js';
@@ -82,7 +83,7 @@ export const app = {
 };
 window.gc = { app, War, get state() { return state; }, get mode() { return mode; } };     // for the browser checks
 
-function show(id) { for (const s of document.querySelectorAll('.scr')) s.classList.toggle('on', s.id === id); const v = $('tbg'); if (v && v.play) { if (id === 's-title') { const p = v.play(); if (p && p.catch) p.catch(() => {}); } else v.pause(); } }
+function show(id) { for (const s of document.querySelectorAll('.scr')) s.classList.toggle('on', s.id === id); if (id === 's-title' && !WarRoom.running()) { if (WarRoom.start($('tbg'))) WarRoom.play(true); } else if (id !== 's-title') WarRoom.play(false); }   // (0.72) the live war room draws only while the menu shows
 
 // ---------------------------------------------------------------- title
 // who you are when there is no war on: the identity kept from the last founding, or the saved campaign's
@@ -158,7 +159,7 @@ const ART = {
 // ---- the tabs
 const TABS = [['home', 'HOME'], ['play', 'PLAY'], ['livery', 'LIVERY'], ['collection', 'COLLECTION'], ['career', 'CAREER'], ['store', 'STORE'], ['options', 'OPTIONS']];
 let tab = 'home', optTab = 'common', playGame = null;     // playGame: the game whose saves the PLAY tab is showing
-const NEWS = { title: 'New people, and a menu easier to read', lines: ['The soldiers and Vanguards are rebuilt: true proportions, helmets with visors, plate carriers and packs. The citizens and crew have real faces.', 'Every 3D model has surface texture: fabric, painted metal, hide, stone and wood.', 'The menu is easier to read: a plainer letter for sentences, bigger small print, brighter text, and no words over busy pictures.', 'The game carries its own fonts, so it looks the same offline. The ground fight now shows its proper lettering too.', 'Earlier, 0.69: the STORE and your roster of four Vanguards.'] };
+const NEWS = { title: 'A live war room, new people, and a menu easier to read', lines: ['The war room behind the menu is drawn live by the game: your officers, a Vanguard and the crew round the holo-table, the galaxy turning on it in the enemies\' colours, the fleet going by outside. It wears your livery\'s colours.', 'The soldiers and Vanguards are rebuilt: true proportions, helmets with visors, plate carriers and packs. The citizens and crew have real faces.', 'Every 3D model has surface texture: fabric, painted metal, hide, stone and wood.', 'The menu is easier to read: a plainer letter for sentences, bigger small print, brighter text, and no words over busy pictures.', 'The game carries its own fonts, so it looks the same offline. The ground fight now shows its proper lettering too.'] };
 const KEYS = {
   war: [['Click a system', 'Select it; click another to send a fleet'], ['END ROUND', 'Play out the round'], ['Esc', 'The menu']],
   fury: [['W A S D / arrows', 'Move the view'], ['Mouse wheel', 'Zoom'], ['Tab or M', 'The big map'], ['1 to 8', 'Pick a weapon; hold or click to fire'], ['G', 'Drop Infantry'], ['B', 'Build'], ['U', 'Load a supply pod (then 1, 2, 3)'], ['Click / drag a box', 'Pick troopers'], ['Right-click', 'Order the troopers you picked'], ['Esc', 'Pause']],
@@ -256,7 +257,7 @@ function drawTitle() {
   $('t-page').innerHTML = `<h2>${TABS.find((x) => x[0] === tab)[1]}</h2>` + PAGES[tab]();
   optBind($('t-page'));
   if (tab === 'collection') collectionArt();
-  if (tab === 'livery') bindLivery($('t-page'), { redraw: drawTitle, changed: barCrest, audio, toast: app.toast });
+  if (tab === 'livery') bindLivery($('t-page'), { redraw: drawTitle, changed: () => { barCrest(); WarRoom.restyle(); }, audio, toast: app.toast });
   if (tab === 'store') bindStore($('t-page'), { redraw: drawTitle, audio, toast: app.toast });
 }
 function setTab(k) { tab = k; playGame = null; audio.click(); drawTitle(); }
@@ -319,6 +320,7 @@ function enterFury(training = false) {
   if (fury) return;
   const me = identity();
   window.gcFury = { livery: asFaction(livery(), me || draft), hints: settings.hints, training, direct: !training, onExit: () => setTimeout(leaveFury, 0) };
+  WarRoom.play(false);   // (0.72) the ground game's frame covers the menu: the war room rests under it
   state = 'fury'; fury = document.createElement('iframe'); fury.id = 'g-frame'; fury.title = 'Orbital Fury'; fury.setAttribute('allow', 'autoplay; fullscreen');
   fury.onload = () => { try { fury.contentWindow.focus(); } catch { /* not focusable yet */ } };
   fury.src = 'ground.html' + (qs.has('debug') ? '?debug' : ''); document.body.appendChild(fury);
@@ -596,7 +598,7 @@ function loop(ms) {
   requestAnimationFrame(loop);
   const now = ms / 1000, dt = Math.min(0.1, Math.max(0, (ms - last) / 1000)); last = ms;
   try {
-    // (0.56: the title's backdrop is the war room film, #tbg; it plays by itself and is paused away from the title)
+    // (0.72: the title's backdrop is the live war room, js/core/warroom.js, on its own clock while the menu shows)
     if (state === 'war') War.frame(ms);
     else if (mode) mode.frame(frameUi.paused ? 0 : dt * frameUi.speed, now, dt);
   } catch (err) { if (!loop.said) { loop.said = true; console.error(err); app.toast('Something went wrong on this screen: ' + err.message, 6000); } }

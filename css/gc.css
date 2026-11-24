@@ -243,7 +243,7 @@ button small { display: block; font: 9.5px var(--mono); letter-spacing: 0.5px; o
 /* ---------- title ---------- */
 /* (0.46.1) the menu starts at the top and centres itself with its own margins, so when it is taller than the screen (a phone) the top is not pushed out of reach; it scrolls by touch, clear of the notch and the home bar */
 #s-title { align-items: center; justify-content: flex-start; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
-#tbg { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 62% 50%; background: #050706; pointer-events: none; }
+#tbg { position: fixed; inset: 0; width: 100%; height: 100%; display: block; background: #050706 url(../assets/menu/warroom.jpg) 62% 50% / cover; pointer-events: none; }   /* (0.72) the live war room (js/core/warroom.js); the still shows until it draws, or if it cannot */
 /* the left of the picture is darkened under the menu, and the edges a little all round */
 #tscrim { position: fixed; inset: 0; pointer-events: none; background: linear-gradient(90deg, rgba(5, 7, 6, 0.86) 0, rgba(5, 7, 6, 0.7) 40%, rgba(5, 7, 6, 0.1) 66%, rgba(5, 7, 6, 0) 78%), linear-gradient(180deg, rgba(5, 7, 6, 0.75) 0, rgba(5, 7, 6, 0) 22%), radial-gradient(120% 90% at 60% 50%, rgba(0, 0, 0, 0) 55%, rgba(0, 0, 0, 0.5) 100%); }
 /* (0.60) the main menu: a bar of tabs along the top, the tab's page under it on the left, the war room showing on the

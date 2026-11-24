@@ -1,6 +1,6 @@
 # Orbital Fury: Galactic Command
 
-**Prototype 0.71.0.** One war, run from four posts, in one game.
+**Prototype 0.72.0.** One war, run from four posts, in one game.
 
 You found a command (a name, a livery: emblem and colours) and hold the centre of the galaxy against three enemies. Everything in
 the war is yours to run, and each part changes the others:
@@ -179,9 +179,10 @@ A system that falls takes its station and its base with it.
 ## What's new in 0.56: one campaign, and endless play
 
 - **The main menu** puts the Galactic Campaign first. Below it are the three posts as **endless play**: Orbital Fury (the
-  ground), FOB Commander (the base) and Orbital Commander (the station), each one row. Behind the whole menu is one moving picture of the
-  war room, rendered in Blender with the game's own people (assets/menu/warroom.mp4, a 20 s loop): the galaxy turning on the
-  map table, the staff round it, the fleet crossing the window. The scene is warroom_menu.blend in the assets folder.
+  ground), FOB Commander (the base) and Orbital Commander (the station), each one row. Behind the whole menu is the
+  war room, drawn live by the game with its own people in the player's colours (js/core/warroom.js, 0.72): the galaxy turning
+  on the holo-table in the enemies' colours, officers, a Vanguard and crew round it, consoles with live screens, a fleet ship
+  crossing the window. It draws only while the menu shows. (It was a film rendered in Blender, 0.56 to 0.71.)
 - **One campaign.** The ground game's own campaign and its story tutorial are off its title screen (`ground.html?campaign`
   still shows them); its Quick Play is now Endless Play.
 - **Tutorials with no story.** Each post has a TUTORIAL on the menu: a practice post that is not saved, with a short run of
