@@ -57,7 +57,7 @@ const specOf = (k) => (sim.designable(k) ? { design: 0, parts: [] } : sim.hasStd
 function stats() {
   const T = sim.time || { day: 1, hour: 8 }, mo = Math.round(sim.morale), S = C.STAGES[sim.stage || 0];
   ui.stats([{ k: 'SUPPLIES', v: Math.round(sim.supplies).toLocaleString('en-US'), tone: sim.supplies < 100 ? 'r' : 'a' }, { k: 'CREDITS', v: Math.round(sim.credits).toLocaleString('en-US') }, { k: 'TROOPS', v: sim.troops.length },
-    { k: 'MORALE', v: mo, tone: mo < 35 ? 'r' : '' }, { k: `DAY ${Math.floor(T.day)}`, v: `${String(Math.floor(T.hour)).padStart(2, '0')}:00` },
+    { k: 'MORALE', v: mo, tone: mo < 35 ? 'r' : '' }, { k: `DAY ${T.cday || 1}`, v: `${String(Math.floor(T.hour)).padStart(2, '0')}:00` },
     ...(innerWidth < 640 ? [{ k: `CHARTER · ${ord(sim.ranking() + 1)}`, v: (S.short || S.name).toUpperCase(), act: 'report', title: 'The charter, your standing and your defences' }]   // a phone: one tile for both
       : [{ k: 'STANDING', v: `${ord(sim.ranking() + 1)} OF ${sim.rivals.length + 1}`, act: 'report', title: 'Your standing with the Head Office against the other outfits, and your defences' }, { k: 'CHARTER', v: (S.short || S.name).toUpperCase(), act: 'report', title: 'What the next charter needs' }])]);
   let tip = '';
@@ -79,10 +79,13 @@ function report() {
   h += `<h3>CHARTER · ${esc((S[st].short || S[st].name).toUpperCase())}${nx ? ` → ${esc((nx.short || nx.name).toUpperCase())}` : ''}</h3>`;
   h += nx ? `<p class="dim">The Bureau grants the next charter by itself as soon as every term is met, and takes its fee then. It brings more land, a bigger weekly allocation and new buildings.</p><ul class="ck">${ck.map((c) => `<li>${tick(c.ok)} ${esc(c.text)}</li>`).join('')}</ul>`
     : `<p class="dim">The highest charter there is.</p>`;
-  h += `<h3>STANDING · ${ord(rank + 1)} OF ${rows.length}</h3><p class="dim">The Head Office ranks every outfit by its three standings added up. Your place sets the allocation paid each week: ${alloc(rank)} supplies now${rank > 0 ? `, ${alloc(rank - 1)} one place up` : ''}. Standings drift back toward ${C.STAND.rest} each week, so they have to be kept up.</p>`;
+  h += `<h3>STANDING · ${ord(rank + 1)} OF ${rows.length}</h3><p class="dim">The Head Office ranks every outfit by its three standings added up. Your place sets the allocation paid each day: ${alloc(rank)} supplies now${rank > 0 ? `, ${alloc(rank - 1)} one place up` : ''}. Standings drift back toward ${C.STAND.rest} each day, so they have to be kept up.</p>`;
   for (const m of ['def', 'pro', 'tru']) { const v = Math.round(sim.stand[m]); h += `<div class="sb"><b>${MIN[m].short}</b><i><u style="width:${v}%"></u></i><span>${v}</span></div><p class="sm2 dim" style="margin:0 0 4px">${esc(MIN[m].name)}: ${esc(MIN[m].wants)}</p>`; }
   h += `<table><tr><th>Outfit</th><th>DEF</th><th>EXP</th><th>PUB</th><th>ALL</th></tr>${rows.map((r) => `<tr class="${r.me ? 'me' : ''}"><td>${esc(r.name)}</td>${['def', 'pro', 'tru'].map((m) => `<td>${Math.round(r.stand[m])}</td>`).join('')}<td>${sim.total(r.stand)}</td></tr>`).join('')}</table>`;
-  if (A || I) h += `<p class="sm2">${A ? `Last supply audit (week ${A.week}): <b>${A.score}</b>/100 · supply lines ${A.lines}, food ${A.food}, housing ${A.housing}, growth ${A.growth}. ` : ''}${I ? `Last inspection (week ${I.week}): <b>${I.score}</b>/100 · morale ${I.morale}, propaganda ${I.prop}, upkeep ${I.cond}.` : ''}</p>`;
+  if (A || I) h += `<p class="sm2">${A ? `Last supply audit (day ${A.week}): <b>${A.score}</b>/100 · supply lines ${A.lines}, food ${A.food}, housing ${A.housing}, growth ${A.growth}. ` : ''}${I ? `Last inspection (day ${I.week}): <b>${I.score}</b>/100 · morale ${I.morale}, propaganda ${I.prop}, upkeep ${I.cond}.` : ''}</p>`;
+  const W = sim.walks(), R = C.TIDY, mm = (m) => m == null ? '—' : `${m} m`;   // (0.68) the layout
+  h += `<h3>LAYOUT · ${W.all == null ? 'NOTHING TO WALK TO YET' : W.all < 5 ? 'ALL UNDER ONE ROOF' : `${W.all} M ON AVERAGE`}</h3><p class="dim">How far troopers walk, on the routes they take, from their bunks. The daily efficiency review wants ${R.walk} m or less on average: put bunks near the mess, the latrines and the work.</p>`;
+  h += `<ul class="ck"><li>${tick((W.work ?? 0) <= R.walk)} To work: ${mm(W.work)}${W.far ? ` · longest: ${esc(W.far.name)}, ${W.far.m} m` : ''}</li><li>${tick((W.mess ?? 0) <= R.walk)} To the mess: ${mm(W.mess)}</li><li>${tick((W.latrine ?? 0) <= R.walk)} To a latrine: ${mm(W.latrine)}</li></ul>`;
   h += `<h3>DEFENCE · ${f.closed ? `${f.score}/100` : 'NO CLOSED WALL'}</h3>`;
   h += `<ul class="ck"><li>${tick(f.closed)} A wall all the way round, with a gate${f.closed ? '' : ' (until it closes, the base scores 0 and raiders walk in)'}</li>`;
   if (f.closed) h += `<li>${tick(f.cover >= 0.9)} Wall watched by a lookout or tower: ${pct(f.cover)}</li>
@@ -91,7 +94,7 @@ function report() {
     <li>${tick(f.entr >= 1)} Two gates or fewer: ${f.gates}</li>
     <li>${tick(f.depth >= 0.8)} Command post and fuel kept well back from the wall: ${pct(f.depth)}</li>`;
   h += `</ul>`;
-  h += `<p class="dim sm2">Each week the perimeter review turns this score into Defence standing: above 45 gains it, below loses it. Patrols that come back win it too.</p>`;
+  h += `<p class="dim sm2">Each day the perimeter review turns this score into Defence standing: above 45 gains it, below loses it. Patrols that come back win it too.</p>`;
   modal(h + '</div><button class="plate btn go" data-x="close" style="margin-top:10px;position:sticky;bottom:0">CLOSE</button>');
   $('modal').querySelector('[data-x=close]').onclick = () => { $('modal').hidden = true; audio.click(); };
 }
@@ -119,11 +122,11 @@ function statusOf(b) {
   if (b.cond < 70) out.push([`Condition ${Math.round(b.cond)}%`, b.cond < 40 ? 'r' : '']);
   if (b.type === 'hq' && sim.bill) {   // (0.58) the morning dropship's receipt
     const L = sim.bill, got = Object.keys(GOODS).filter((g) => L.order[g]).map((g) => `${L.order[g]} ${GOODS[g].short}`);
-    out.push([`Day ${Math.floor(L.day)} delivery: ${got.length ? got.join(' · ') + ` · billed ${Math.round(L.cost)} SUP` : 'nothing bought'}${L.capped ? ' (capped)' : ''}`, L.capped ? 'r' : '']);
+    out.push([`Day ${Math.floor((L.day - 1) * C.DAY / C.WEEK) + 1}, ${String(Math.floor(L.hour ?? 0)).padStart(2, '0')}:00 delivery: ${got.length ? got.join(' · ') + ` · billed ${Math.round(L.cost)} SUP` : 'nothing bought'}${L.capped ? ' (capped)' : ''}`, L.capped ? 'r' : '']);
   }
   return out;
 }
-// (0.58) the standing supply order, on the command post's card: what the 07:00 dropship may buy, and the most it may spend
+// (0.58) the standing supply order, on the command post's card: what each watch's dropship may buy, and the most it may spend
 function supplyRow() {
   const P = sim.supplyPlan || { mode: 'needs', cap: 0.5 };
   return `<span class="so"><i class="st">DROPSHIP BUYS</i>${Object.entries(SUPPLY_MODES).map(([k, m]) => `<button class="plate btn sm${P.mode === k ? ' on' : ''}" data-so="${k}" title="${esc(m.desc)}">${m.short}</button>`).join('')}` +
@@ -157,7 +160,7 @@ const TUT = [
   { t: 'ZONE THE ROADSIDE', x: 'Open <b>ZONES</b>, pick <b>Life Support</b> and tap beside your road. Bunks, mess halls and latrines grow there by themselves as the base needs them.', done: () => sim.zone.some((v) => v) },
   { t: 'POWER, WATER, SEWAGE', x: 'Open <b>UTILITIES</b> and place a <b>Biofuel Generator</b> by the road. Each utility covers a circle round it: keep the bunks inside, and keep wells away from a sewage lagoon.', done: () => sim.b.some((b) => B[b.type].group === 'power') },
   { t: 'CHECK ON A BUILDING', x: 'With no tool in hand, tap any building: its card shows its crew, whether it has power, water and sewage, and what is wrong with it.', done: () => !!sel },
-  { t: 'WHAT MATTERS', x: 'Keep morale up and the books in profit: troops need beds, food, water and power, and every charter you earn makes the base worth more. Drag to move, right-drag or Q and E to turn, wheel or pinch to zoom. <b>II</b> pauses and <b>1×</b> speeds time up. Requests land on your desk at the side: answer them or they are filed without you. The supply dropship lands at 07:00 and bills you for what it brings: tap the command post to choose what it buys and how much it may spend.', last: true },
+  { t: 'WHAT MATTERS', x: 'Keep morale up and the books in profit: troops need beds, food, water and power, and every charter you earn makes the base worth more. Drag to move, right-drag or Q and E to turn, wheel or pinch to zoom. <b>II</b> pauses and <b>1×</b> speeds time up. Requests land on your desk at the side: answer them or they are filed without you. A supply dropship lands every watch, six times a day, and bills you for what it brings: tap the command post to choose what it buys and how much it may spend.', last: true },
 ];
 function setTool(t) {
   tool = tool === t ? null : t; sel = 0; view.select(null); selBar();

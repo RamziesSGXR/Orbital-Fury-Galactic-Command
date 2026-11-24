@@ -895,6 +895,14 @@ export class Sim {
     this.say('log', `Supply order: ${SUPPLY_MODES[P.mode].name.toLowerCase()}, ${P.cap >= 1 ? 'no spending cap' : `at most ${Math.round(P.cap * 100)}% of supplies a morning`}.`);
     return true;
   }
+  // (GC 0.68) after a dropship: if what the base has, and what came, will not last to the next one, say so plainly, why, and where
+  // to change it. Said when the order held back (HOLD, the cap, or not enough supplies to pay), not when it bought what was asked
+  shortWarn(order, capped) {
+    const P = this.supplyPlan, u = this.usage(), short = GKEYS.filter((g) => (u[g] || 0) > 0.5 && this.amount(g) < u[g]);
+    const why = P.mode === 'hold' ? 'The supply order is on HOLD.' : capped ? 'The spending cap held the order back.' : this.supplies < 1 ? 'There were no supplies left to pay for it.' : '';
+    const key = `${this.week}:${short.join()}`; if (!short.length || !why || this.shortSaid === key) return; this.shortSaid = key;   // once a day, unless something else runs short
+    this.say('base', `Running short: ${short.map((g) => GOODS[g].name.toLowerCase()).join(', ')} will run out before the next dropship. ${why} Change the order at the command post.`);
+  }
   supplyRun() {
     const pads = this.b.filter(b => b.done && B[b.type].pad), P = this.supplyPlan;
     if (!pads.length) { this.say('log', 'No landing pad: the supply dropship circled and went home.'); return; }
@@ -916,14 +924,15 @@ export class Sim {
     // recruits come on the same flight, as many as there are bunks for
     const free = Math.max(0, this.beds - this.troops.length), r = Math.min(free ? Math.max(1, Math.round(free * C.FILL[this.rank])) : 0, pads.length * this.padSeats()), fresh = [];
     for (let i = 0; i < r; i++) fresh.push(this.addTroop().id);
-    if (!n && !fresh.length) { this.bill = { day: this.time.day, order, cost: 0, mode: P.mode, capped }; return; }
+    if (!n && !fresh.length) { this.bill = { day: this.time.day, hour: this.time.hour, order, cost: 0, mode: P.mode, capped }; this.shortWarn(order, capped); return; }
     this.spend('deliveries', cost);
     for (const g of GKEYS) { let left = order[g]; for (const p of pads) { const put = Math.ceil(left / pads.length); p.stock[g] += Math.min(put, left); left -= Math.min(put, left); } }
-    this.bill = { day: this.time.day, order, cost, mode: P.mode, capped };
+    this.bill = { day: this.time.day, hour: this.time.hour, order, cost, mode: P.mode, capped };
     this.events.push({ t: 'supply', n, fresh, pads: this.byPad(pads, fresh) });
     if (fresh.length) this.events.push({ t: 'recruits', ids: fresh });
     const parts = GKEYS.filter(g => order[g]).map(g => `${order[g]} ${GOODS[g].name.toLowerCase()}`);
     this.say('log', (parts.length ? `Supply dropship down: ${parts.join(', ')}. Billed ${cost} supplies.` : P.mode === 'hold' ? 'Supply dropship down: nothing bought, the supply order is on hold.' : 'Supply dropship down.') + (fresh.length ? ` ${fresh.length} recruit${fresh.length > 1 ? 's' : ''} delivered.` : '') + (capped ? ' Held back by your spending cap (command post).' : ''));
+    this.shortWarn(order, capped);
   }
 
   // every pad gets its own dropship: share the passengers out, eight to a pad
@@ -1263,23 +1272,44 @@ export class Sim {
     return rows.sort((a, b) => this.total(b.stand) - this.total(a.stand));
   }
   ranking() { this.rank = this.table().findIndex(r => r.me); return this.rank; }
+  // (GC 0.68) THE WALKS: how far the base's people walk, on the routes they really take, from their bunks to work, to the
+  // mess and to the latrines. A tight layout is a skill that pays (the efficiency review) and the base report shows it.
+  // Each crewed workplace from the nearest bunks; each home to its nearest mess and latrine, counted by its beds.
+  // Metres (a tile is LAND.TILE_M). Worked out again only when the layout changes.
+  walks() {
+    const v = this.layoutV(); if (this._walks && this._walks.v === v) return this._walks;
+    const done = this.b.filter(b => b.done && !b.off), M = LAND.TILE_M, d2 = (a, b) => (a.x - b.x) ** 2 + (a.z - b.z) ** 2;
+    const homes = done.filter(b => B[b.type].beds), eat = done.filter(b => B[b.type].eat), pots = done.filter(b => B[b.type].potty);
+    const work = done.filter(b => B[b.type].crew && !B[b.type].beds);
+    const route = (a, b) => { const [ax, az] = this.door(a), [bx, bz] = this.door(b); let m = 0, px = ax + 0.5, pz = az + 0.5;
+      for (const [x, z] of this.pathTo(px, pz, bx + 0.5, bz + 0.5)) { m += Math.hypot(x - px, z - pz); px = x; pz = z; } return m * M; };
+    const near = (a, list) => list.reduce((best, o) => !best || d2(a, o) < d2(a, best) ? o : best, null);
+    const avg = (xs) => xs.length ? Math.round(xs.reduce((s, x) => s + x[0] * x[1], 0) / Math.max(1e-6, xs.reduce((s, x) => s + x[1], 0))) : null;
+    let far = null; const toWork = [];
+    if (homes.length) for (const w of work) { const m = route(near(w, homes), w); toWork.push([m, 1]); if (!far || m > far.m) far = { m: Math.round(m), name: B[w.type].name }; }
+    const toEat = eat.length ? homes.map(h => [route(h, near(h, eat)), this.cap(h, 'beds') || 1]) : [];
+    const toPot = pots.length ? homes.map(h => [route(h, near(h, pots)), this.cap(h, 'beds') || 1]) : [];
+    const parts = [avg(toWork), avg(toEat), avg(toPot)].filter(x => x != null);
+    return (this._walks = { v, work: avg(toWork), mess: avg(toEat), latrine: avg(toPot), far, all: parts.length ? Math.round(parts.reduce((a, b) => a + b, 0) / parts.length) : null });
+  }
   // (0.62) the efficiency review: a skill bonus for a base laid out and run well. Enough clean latrines, a seat at the mess and a
   // bunk for everyone, every crewed building fully crewed, and the power to run it all. Pays C.TIDY supplies; returns what it paid.
   review() {
     const R = C.TIDY; if (this.week < R.from) return 0;
     const done = this.b.filter(b => b.done && !b.off), home = this.troops.filter(t => t.state !== 'patrol').length, P = this.potties || { n: 0 };
-    const short = done.filter(b => B[b.type].crew && this.crewFrac(b) < 1);
+    const short = done.filter(b => B[b.type].crew && this.crewFrac(b) < 1), W = this.walks();
     const checks = [
       ['latrines', P.n > 0 && P.perPotty <= R.perPotty && !P.filthy, P.n ? (P.filthy ? 'a filthy latrine' : 'queues at the latrines') : 'no latrines'],
       ['mess', (this.seats || 0) >= home, 'not enough seats at the mess'],
       ['bunks', this.troops.length <= (this.beds || 0), 'troopers sleeping rough'],
       ['crews', !short.length, short.length ? `${B[short[0].type].name} short of crew` : ''],
       ['power', !this.power || this.power.ratio >= 1, 'not enough power'],
+      ['walks', (W.all ?? 0) <= R.walk, `long walks (${W.all} m on average, the review wants ${R.walk})`],   // (GC 0.68) the layout
     ];
     const ok = checks.filter(c => c[1]).length, pay = ok * R.per + (ok === checks.length ? R.all : 0);
     if (pay) this.earn('review', pay);
     const miss = checks.filter(c => !c[1]).map(c => c[2]);
-    this.say('base', ok === checks.length ? `Efficiency review: latrines, mess, bunks, crews and power all in order. +${pay} supplies.`
+    this.say('base', ok === checks.length ? `Efficiency review: latrines, mess, bunks, crews, power and short walks all in order. +${pay} supplies.`
       : `Efficiency review: ${ok} of ${checks.length} in order${pay ? `, +${pay} supplies` : ''}. Marked down for ${miss.join(', ')}.`);
     return pay;
   }

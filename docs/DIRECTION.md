@@ -43,7 +43,7 @@ also why they are so capable and so well equipped: a great deal has been spent o
 
 - Combos, speed and good play earn bonuses.
 - In FOB Commander that means good design: enough latrines, a layout the ground crews can work fast in, day-to-day efficiency.
-  **(built, 0.62: the daily efficiency review; the layout's walking distances to come)**
+  **(built, 0.62: the daily efficiency review; 0.68: the layout's walking distances, bunks to work, mess and latrine, in the review and the base report)**
 - Quick-time events get depth: the order matters, and it is **not random**, so players can learn it and get faster.
   The same events are to be used in the other mini-games. **(built for the demolition charge, 0.62: a set order for each
   objective, a bonus for a clean and a fast one; the other games to come)**

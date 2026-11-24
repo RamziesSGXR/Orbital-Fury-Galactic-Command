@@ -52,7 +52,7 @@ export const C = {
   ALLOC: { base: 650, mult: [1.5, 1.15, 0.85, 0.6] },
   // (0.62) the efficiency review at each day's close: supplies for a base laid out and run well. Each check passed pays `per`,
   // all of them `all` more. From day `from` (the first days are for building).
-  TIDY: { per: 12, all: 30, from: 2, perPotty: 10 },
+  TIDY: { per: 12, all: 30, from: 2, perPotty: 10, walk: 80 },   // walk: (GC 0.68) the most metres a trooper should walk on average, bunks to work, mess and latrine
   FILL: [0.6, 0.5, 0.4, 0.3],   // share of empty bunks filled by each morning's recruits, by rank: housing is what makes a base grow
   STAND: { start: 40, rest: 30, drift: 0.12 },    // standings drift back toward "rest" every week
   PADLOAD: 140,            // most a supply dropship can bring to one landing pad
