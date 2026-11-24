@@ -11,6 +11,7 @@ import { REQUESTS } from '../base/desk.js';
 import { ensureLogo } from '../base/logo.js';
 import { words } from '../core/words.js';
 import { note } from '../core/career.js';
+import { upgrade } from '../core/roster.js';
 // (0.46) what a base puts on air: every parade ground, speaker, billboard, banner, flag and monument standing is footage for the war's ratings
 const SHOWS = new Set(['parade', 'speaker', 'billboard', 'banner', 'hdbanner', 'flag', 'seflag', 'statue', 'monument', 'memorial', 'lecture', 'truth', 'plaque']);
 
@@ -268,6 +269,7 @@ const mode = {
     const sys = a.system, saved = app.siteLoad('base', sys.id), f = baseFaction(sys);
     let loaded = null; try { if (saved) loaded = new Sim({ state: saved }); } catch (err) { console.error(err); }
     sim = loaded || new Sim({ faction: f, diff: 'recruit', seed: 5000 + sys.id * 101 + (((app.camp.war && app.camp.war.seed) || 0) % 997) });
+    if (!loaded && !app.tutorial) { const n = upgrade('seed'); sim.credits += n * 200; sim.supplies += n * 600; }     // (GC 0.69) the STORE's seed money
     sim.faction = { ...sim.faction, ...f };
     await ensureLogo(sim.faction.logo);
     if (!view) { view = new View(canvas); bind(); }

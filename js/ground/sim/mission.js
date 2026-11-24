@@ -34,7 +34,7 @@ import { setupPois, updatePois, damagePoi, damageBreach } from './pois.js';
 import { setupCover } from './cover.js';
 import { setupScenery, placeMarks } from './scenery.js';
 import { updateChatter } from './chatter.js';
-import { initKit, updateVanguards } from './vanguard.js';
+import { initKit, updateVanguards, applyRoster } from './vanguard.js';
 import { buildDanger, updateEvade, inDanger } from './safety.js';
 import { getTerrain } from './terrain.js';
 import { domeBlocks } from './ops.js';
@@ -162,6 +162,8 @@ export class Mission {
     this.kit = opts.kit || newKit();
     this.wallet = opts.wallet || newWallet();
     this.names = { ships: [], hd: [], ...(opts.names || {}) };
+    this.roster = opts.roster || null;     // (GC 0.69) the Vanguards' roles and personalities, by group (core/roster.js squad())
+    this.ins = { pay: 0, sign: 0 };       // (GC 0.69) the insurance owed on the Vanguards lost so far, and their replacements' contracts
 
     this.stats = {
       kills: { L: 0, M: 0, H: 0 }, killsPlayer: 0, killsAlly: 0, bases: 0, lostH: 0, lostS: 0, ff: 0, shots: 0, orbCalls: 0, uavs: 0,
@@ -196,7 +198,8 @@ export class Mission {
     const dBase = C.ramp.base * this.dmgFac;
     this.dmgMul = Math.min(C.ramp.dmgCap * dBase, dBase * (1 + C.ramp.dmg * this.W));
     this.bag = [];
-    this.hd = { lives: maxLives(), max: maxLives() };    // a full set of lives every mission
+    this.ups = { lives: 0, policy: 0, network: 0, ...(opts.ups || {}) };     // (GC 0.69) the STORE's upgrades for the ground (core/roster.js)
+    this.hd = { lives: maxLives() + (this.ups.lives | 0), max: maxLives() + (this.ups.lives | 0) };    // a full set of lives every mission
     this.wiped = false;
     this.infantry = initInfantry();
     this.support = { spawnT: 0, lastSpawn: -99, scanT: 0, near: 0 };
@@ -878,14 +881,14 @@ export class Mission {
       const tm = this.teams[ti];
       tm.n++; tm.hd = a; tm.pod = false;
       a.team = ti; a.code = `${tm.letter}${tm.n}`; a.name = this.names.hd[ti] || '';
-      initKit(this, a);
+      initKit(this, a); applyRoster(this, a, ti);     // (GC 0.69) the group's role and personality from the STORE's roster
     } else {
       const st = infantryStats(this.kit);
       a.hp = a.maxHp = Math.round(base.hp * st.hpMul); a.dmgMul = st.dmgMul;
       a.gren = st.grenades;            // (0.26) G-12 grenades, every role
       a.name = infantryName(this.crng, a.role);
     }
-    a.sight0 = base.sight * this.biome.ping;   // flat-ground sight; a rise adds to it (see _refreshAlive)
+    a.sight0 = base.sight * this.biome.ping * (a.sightMul || 1);   // flat-ground sight; a rise adds to it (see _refreshAlive)
     a.zone0 = (C.sight.zoneBase[type === 'H' ? 'vanguard' : 'infantry'] || base.sight) * this.biome.ping;   // the strike zone does not grow with sight
     const sm = this.terrain.sightMul(a.x, a.y);
     a.sight = a.sight0 * sm; a.vision = a.sight + C.sight.playerBonus + zoneExtra(this.kit);     // (0.47) strike range upgrades widen the view too
@@ -1082,6 +1085,7 @@ export class Mission {
     const isH = a.type === 'H', t = this.t, tm = isH ? this.teams[a.team] : null;
     if (isH) {
       this.stats.lostH++; this.sc.deaths += C.score.hdDeath;
+      this.ins.pay += C.stars.payout * (a.payMul || 1); this.ins.sign += C.stars.contract * (a.signMul || 1);     // (GC 0.69: a famous face costs more)
       if (tm) { if (tm.hd === a) tm.hd = null; tm.deaths++; tm.lastDeath = { x: a.x, y: a.y }; tm.respawnAt = t + C.vanguards.reinforceSec; }
     } else this.stats.lostS++;
     if (a.sw) a.sw = null;
@@ -1238,7 +1242,7 @@ export class Mission {
     // (GC 0.62) every Vanguard who fell is an insurance claim: the policy pays out, and the star signed in their place costs more
     const stars = this.stats.lostH || 0, SC = C.stars;
     if (stars && !this.ls) {
-      const payout = stars * SC.payout, signed = Math.min(stars * SC.contract, Math.max(0, this.wallet.bal + payout));
+      const payout = Math.round((this.ins.pay || stars * SC.payout) * (1 + (this.ups.policy || 0))), signed = Math.min(Math.round(this.ins.sign || stars * SC.contract), Math.max(0, this.wallet.bal + payout));
       this.wallet.bal += payout - signed; this.cr.insurance = payout; this.cr.contracts = signed;
       this.notice(tr('n.insurance', { n: stars, cr: payout, c: signed }), 'warn');
     }

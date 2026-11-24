@@ -9,6 +9,7 @@ import { View } from '../orbit/view.js';
 import { ensureLogo } from '../orbit/logo.js';
 import { words } from '../core/words.js';
 import { note, best } from '../core/career.js';
+import { upgrade } from '../core/roster.js';
 import { C as GC } from '../galaxy/config.js';
 import { makeGuide, guideSeen } from './guide.js';
 
@@ -202,6 +203,7 @@ const mode = {
     const sys = a.system, saved = app.siteLoad('orbit', sys.id);
     let loaded = null; try { loaded = saved ? Station.load(saved) : null; } catch (err) { console.error(err); }
     st = loaded || new Station(1000 + sys.id * 37 + ((app.camp.war && app.camp.war.seed) || 0) % 1000, 'run');
+    if (!loaded && !app.tutorial) st.credits += upgrade('grant');     // (GC 0.69) the STORE's docking grant
     st.faction = stationFaction(sys); st._noAdvice = true; st.foe = foeOf(sys);
     await ensureLogo(st.faction.logo);
     if (!view) { view = new View(canvas, st); bind(); }

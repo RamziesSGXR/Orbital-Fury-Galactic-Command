@@ -9,10 +9,13 @@ if (which === 'all' || which === 'ground') {
   const { makeBot, botStep } = await import('../js/ground/sim/bot.js');
   const { hbFilling, tapDemoCharge } = await import('../js/ground/sim/ops.js');
   const { newKit, newWallet } = await import('../js/ground/data/kit.js');
-  const out = {};
+  const { squad, ROLES, PERSONAS } = await import('../js/core/roster.js');
+  const out = {}, RO = Object.keys(ROLES), PE = Object.keys(PERSONAS); let run = 0;
   for (const faction of ['bugs', 'bots', 'lizards']) for (const obj of ['fortress', 'nuke', 'evac', 'vip']) {
     const kit = newKit(), wallet = newWallet(), b0 = wallet.bal; let faults = 0;
-    const m = new Mission({ seed: 100 + faction.length * 7 + obj.length, faction, biome: 'desert', sessionMinutes: 0, events: true, missionN: 1, opDone: 0, difficulty: 3, objectives: [obj], kit, wallet, countdown: 0, defenders: true });
+    // (GC 0.69) every role and personality in the STORE's roster takes a turn, and the ground's upgrades are on in every other fight
+    const roster = squad({ slots: [0, 1, 2, 3].map((k) => ({ role: RO[(run + k) % RO.length], persona: PE[(run * 2 + k) % PE.length] })) }), ups = run % 2 ? { lives: 2, policy: 0.3, network: 0.05 } : null; run++;
+    const m = new Mission({ seed: 100 + faction.length * 7 + obj.length, faction, biome: 'desert', sessionMinutes: 0, events: true, missionN: 1, opDone: 0, difficulty: 3, objectives: [obj], kit, wallet, countdown: 0, defenders: true, roster, ups });
     m.guard = true; m.onFault = (part, err) => { faults++; if (faults === 1) bad.push(`ground ${faction}/${obj}: fault in ${part}: ${err && err.message}`); };
     const bot = makeBot(); let i = 0;
     try { for (; i < 30 * 2400 && !m.over; i++) { botStep(m, bot); if (hbFilling(m) && i % 8 === 0) tapDemoCharge(m, -1); m.step(1 / 30); m.events.length = 0; } }

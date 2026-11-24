@@ -25,13 +25,43 @@ export function initKit(m, a) {
     retreat: false, retreatT: 0, calmT: 0, fleeAt: -9,
   });
 }
+// (GC 0.69) The roster (core/roster.js): the role and the personality the STORE gave this group's Vanguard, and what they do.
+// The replacement for a group that lost its Vanguard comes with the same ones. m.roster: [{ role, persona, tag, fx }] by group.
+export function applyRoster(m, a, ti) {
+  const s = m.roster && m.roster[ti], fx = (s && s.fx) || {}, g = fx.gun;
+  a.vr = s ? s.role : 'rifle'; a.vp = s ? s.persona : 'none'; a.vtag = s && s.role !== 'rifle' ? s.tag : '';
+  if (fx.hp) a.hp = a.maxHp = Math.round(a.maxHp * fx.hp);
+  if (fx.armor) a.armorMul = (a.armorMul || 1) * fx.armor;
+  a.stimMax = K.stims + (fx.stims || 0); a.grenMax = K.grenades + (fx.gren || 0); a.stims = a.stimMax; a.gren = a.grenMax;
+  a.gun = g ? { dmg: g.dmg ?? 1, every: g.every ?? 1, range: g.range ?? 1, acc: g.acc ?? 1 } : null; a.gunP = null;
+  a.spd = fx.speed || 1; a.sightMul = fx.sight || 1; a.bldMul = fx.bld || 1; a.grenMul = fx.grenDmg || 1; a.nerve = fx.nerve || 1;
+  a.aud = fx.aud || 0; a.payMul = fx.pay || 1; a.signMul = fx.sign || 1;
+  a.medic = fx.heal || 0; a.medicR = fx.healR || 0; a.cheer = fx.cheer || 0; a.cheerR = fx.cheerR || 0;
+}
+// A medic: every PULSE seconds, a shot of health to the worst hurt ally close by (heal a second, on average). Not one who is down:
+// the Infantry's own medics see to them.
+const PULSE = 1.2;
+function medicTick(m, a) {
+  if (m.t < (a.medicAt || 0)) return;
+  const R2 = a.medicR * a.medicR; let best = null, bf = 0.97;
+  for (const o of m.alive) {
+    if (o === a || o.dead || o.down || o.inside || o.hp >= o.maxHp) continue;
+    if ((o.x - a.x) ** 2 + (o.y - a.y) ** 2 > R2) continue;
+    const f = o.hp / o.maxHp; if (f < bf) { bf = f; best = o; }
+  }
+  if (!best) { a.medicAt = m.t + 0.5; return; }
+  a.medicAt = m.t + PULSE;
+  const h = Math.min(best.maxHp - best.hp, a.medic * PULSE); best.hp += h;
+  m.stats.medicHeal = (m.stats.medicHeal || 0) + h;
+  m.emit('heal', { x: a.x, y: a.y, tx: best.x, ty: best.y, id: best.id });
+}
 
 // How fast a Vanguard moves relative to normal: a stim is a burst of speed.
 export const underUav = (m, a) => a.uavAt !== undefined && m.t - a.uavAt < 0.25;
 // (0.26) The UAV's lift helps allies get somewhere, not charge: it is off while they are in a fight (shot in the last few seconds,
 // or an Infantry trooper engaging). Faster allies in a fight drew the enemy in and made it look as if the UAV sped the enemy up.
 export const inFight = (m, a) => a.engaged || m.t - (a.shotAt ?? -99) < C.uav.liftCalm;
-export const speedMul = (m, a) => (m.t < a.stimUntil ? K.stimSpeed : 1) * (m.supply && m.t < m.supply.boostUntil ? C.supply.boostSpeed : 1) * (underUav(m, a) && !inFight(m, a) ? 1 + uavBuff(m.kit).speed : 1);
+export const speedMul = (m, a) => (a.spd || 1) * (m.t < a.stimUntil ? K.stimSpeed : 1) * (m.supply && m.t < m.supply.boostUntil ? C.supply.boostSpeed : 1) * (underUav(m, a) && !inFight(m, a) ? 1 + uavBuff(m.kit).speed : 1);
 
 export function useStim(m, a) {
   if (a.stims <= 0 || m.t < a.stimReady) return false;
@@ -48,8 +78,8 @@ export function useStim(m, a) {
 // Any pod that brings grenades reloads the Hand Cannon too.
 export function restock(m, stimFrac = 1, grenFrac = 1) {
   for (const a of m.hdAlive) {
-    a.stims = Math.min(K.stims, a.stims + Math.round(K.stims * stimFrac));
-    a.gren = Math.min(K.grenades, a.gren + Math.round(K.grenades * grenFrac));
+    a.stims = Math.min(a.stimMax || K.stims, a.stims + Math.round(K.stims * stimFrac));     // (0.69: a role or a personality can carry more)
+    a.gren = Math.min(a.grenMax || K.grenades, a.gren + Math.round(K.grenades * grenFrac));
     if (grenFrac > 0) a.ult = K.ult.uses;
   }
 }
@@ -106,8 +136,8 @@ export function throwGrenade(m, a, e) {
   const G = K.gren, hp = hpNow(m), base = hp.L * G.light;
   // the same grenade hurts each kind in proportion to how tough it is now (a heavy that is the target: its own health)
   const heavy = e.kind === 'H' && !e.boss ? e.maxHp : hp.H;      // (a super heavy is not a heavy: it takes what a heavy would)
-  const mult = { L: 1, M: (hp.M * G.med) / base, H: (heavy * G.heavy) / base, B: G.struct / base, boss: (hp.H * G.heavy * G.boss) / base };
-  fireShot(m, a, e, { dmg: base * (a.dmgMul || 1), acc: G.acc, splash: G.splash, flight: G.flight, mult }, 'squad', 'a', 'grenade');
+  const mult = { L: 1, M: (hp.M * G.med) / base, H: (heavy * G.heavy) / base, B: G.struct * (a.bldMul || 1) / base, boss: (hp.H * G.heavy * G.boss) / base };
+  fireShot(m, a, e, { dmg: base * (a.dmgMul || 1) * (a.grenMul || 1), acc: G.acc, splash: G.splash, flight: G.flight, mult }, 'squad', 'a', 'grenade');
 }
 
 // The Hand Cannon: the toughest thing in range (a super heavy or a heavy first, a medium only when overrun), with a clear lane.
@@ -150,6 +180,9 @@ export function updateVanguards(m, dt) {
     if (a.dv) {
       if (t < a.dv.until) { const nx = aoX(m, a.x + a.dv.vx * dt, 4), ny = aoY(m, a.y + a.dv.vy * dt, 4); if (!m.terrain.blocked(nx, ny)) { a.x = nx; a.y = ny; } } else a.dv = null;
     }
+    // (0.69) the roster: a medic patches up whoever is worst hurt close by; a comedian keeps the Infantry round them going
+    if (a.medic && !a.mounted) medicTick(m, a);
+    if (a.cheer) { const R2 = a.cheerR * a.cheerR; for (const o of m.infantryAlive) if ((o.x - a.x) ** 2 + (o.y - a.y) ** 2 <= R2) { o.cheerUntil = t + 0.5; o.cheerBy = a.cheer; } }
     if (a.mounted || (a.mech && a.mech.hp > 0) || (m.phase === 'extract' && m.extraction.state === 'boarding')) { a.retreat = false; continue; }
 
     // who is close, and which way is away from them
@@ -168,7 +201,7 @@ export function updateVanguards(m, dt) {
 
     // pull back when badly hurt, come back once healed or once it is quiet
     if (!a.retreat) {
-      if (thr && frac < R.at && t >= (a.noRetreatUntil || 0)) {
+      if (thr && frac < R.at * (a.nerve || 1) && t >= (a.noRetreatUntil || 0)) {
         a.retreat = true; a.retreatT = t; a.calmT = 0;
         m.stats.retreats = (m.stats.retreats || 0) + 1;
         bark(m, a, 'retreat', '', true);

@@ -993,6 +993,7 @@ export class Hud {
         f = mech ? mech.hp / mech.maxHp : a.hp / a.maxHp;
         const kit = t('hud.r.kit', { s: a.stims, g: a.gren, u: a.ult ?? 0 });   // stims, grenades and the Hand Cannon left
         st = mech ? t('hud.r.mech') : a.mounted ? t('hud.r.lrv') : a.retreat ? `${t('hud.r.falling')} · ${kit}` : a.sw ? `${t('hud.r.gun')} · ${kit}` : `${Math.max(1, Math.round(f * 100))}% · ${kit}`;
+        if (a.vtag) st = `${a.vtag} · ${st}`;     // (GC 0.69) the role the STORE's roster gave them
         if (f < 0.35) cls = 'hurt';
       } else {
         name = m.slotTag(tm);
@@ -1360,7 +1361,7 @@ export class Hud {
       if (a) {
         name = m.tag(a);
         const mech = a.mech && a.mech.hp > 0 ? a.mech : null, f = mech ? mech.hp / mech.maxHp : a.hp / a.maxHp;
-        sub = mech ? t('hud.r.mech') : a.mounted ? t('hud.r.lrv') : `${Math.max(1, Math.round(f * 100))}%`;
+        sub = mech ? t('hud.r.mech') : a.mounted ? t('hud.r.lrv') : `${a.vtag ? a.vtag + ' · ' : ''}${Math.max(1, Math.round(f * 100))}%`;
         if (f < 0.35) cls = ' hurt';
       } else {
         const pod = m.pods.find((p) => p.type === 'H' && p.team === i);

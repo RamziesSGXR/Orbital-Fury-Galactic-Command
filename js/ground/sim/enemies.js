@@ -53,7 +53,9 @@ const RIFLE = {};
 for (const k of ['H', 'S']) { const d = ALLY[k]; RIFLE[k] = { dmg: d.dps * d.burst, acc: d.acc, splash: 0, mult: { ...d.mult, B: 0.04 }, burst: d.burst, range: d.range }; }
 // (0.26) Infantry by role: the Squad Leader and Riflemen carry the service rifle (RIFLE.S), the Specialist the machine gun, the Medic the submachine gun
 for (const [k, d] of [['spec', C.combat.infantryMg], ['medic', C.combat.infantrySmg]]) RIFLE[k] = { dmg: d.dps * d.burst, acc: d.acc, splash: 0, mult: { ...d.mult, B: 0.04 }, burst: d.burst, range: d.range };
-const gunOf = (a) => (a.type === 'H' ? RIFLE.H : RIFLE[a.role] || RIFLE.S);
+// (GC 0.69) a Vanguard's role (core/roster.js) changes the rifle: a.gun's multipliers, worked into a profile once
+const tune = (p, g) => ({ ...p, dmg: p.dmg * g.dmg, burst: p.burst * g.every, range: p.range * g.range, acc: Math.min(0.97, p.acc * g.acc) });
+const gunOf = (a) => (a.type === 'H' ? (a.gun ? (a.gunP ||= tune(RIFLE.H, a.gun)) : RIFLE.H) : RIFLE[a.role] || RIFLE.S);
 
 // Infantry specialists. A grenadier lobs frags at groups; a rocket trooper hunts mediums and heavies.
 const GRENADE = { dmg: C.combat.grenadier.dmg, acc: C.combat.grenadier.acc, splash: C.combat.grenadier.splash, flight: C.combat.grenadier.flight, range: C.combat.grenadier.range, fuse: C.combat.grenadier.fuse, mult: C.combat.grenadier.mult };
@@ -86,7 +88,8 @@ export function updateAllies(m, dt) {
             a.atk += 0.3;                           // a friendly is in the way: hold, look again in a moment
           } else {
             a.atk += pf.burst * slow / (a.inPost && a.inPost.what === 'foxhole' ? C.build.foxhole.rof : 1) / (cmd ? cmd.rof : 1);   // shooting from a foxhole: faster
-            let prof = a.dmgMul && a.dmgMul !== 1 ? { ...pf, dmg: pf.dmg * a.dmgMul } : pf;
+            const dm = (a.dmgMul || 1) * (m.t < (a.cheerUntil || 0) ? a.cheerBy : 1);     // (0.69: a Comedian close by)
+            let prof = dm !== 1 ? { ...pf, dmg: pf.dmg * dm } : pf;
             if (cmd) prof = { ...prof, acc: Math.min(0.97, prof.acc * cmd.acc) };
             fireShot(m, a, e, prof, 'squad', 'a', H ? 'rifle' : a.role === 'spec' ? 'mg' : 'smg');
             if (a.role === 'spec') a.braceUntil = m.t + 1;     // (0.26) braced behind the machine gun: he barely moves while it fires
@@ -103,7 +106,7 @@ export function updateAllies(m, dt) {
           const bs = breakIt ? tb : !e && !soft ? baseNear(m, a.x, a.y, C.structure.range, H ? m.squad && m.squad.base : null) : null;     // (0.53.4: the base the squad is after first)
           if (soft) {
             a.atk += G.burst;
-            const dmg = G.dmg * (a.dmgMul || 1) * (soft.kind === 'hole' ? C.reinf.bugs.rifle : P.rifleMul) * (m.rng.next() < G.acc ? 1 : 0);   // a bug hole wants explosives
+            const dmg = G.dmg * (a.dmgMul || 1) * (a.bldMul || 1) * (soft.kind === 'hole' ? C.reinf.bugs.rifle : P.rifleMul) * (m.rng.next() < G.acc ? 1 : 0);   // a bug hole wants explosives
             m.emit('tracer', { x: a.x, y: a.y, tx: soft.x, ty: soft.y, s: 'a', hit: true, big: false, fl: 0, snd: H ? 'rifle' : 'smg' });
             if (dmg > 0) (soft.isPoi ? m.damagePoi(soft, dmg, 'squad') : m.damageBreach(soft, dmg, 'squad'));
           } else if (bs) {
@@ -111,7 +114,7 @@ export function updateAllies(m, dt) {
             a.atk += G.burst;
             const hit = m.rng.next() < G.acc, dx = a.x - bs.x, dy = a.y - bs.y, d = Math.hypot(dx, dy) || 1, k = bs.r * 0.7 / d;
             m.emit('tracer', { x: a.x, y: a.y, tx: bs.x + dx * k, ty: bs.y + dy * k, s: 'a', hit, big: false, fl: 0, snd: H ? 'rifle' : 'smg' });
-            if (hit) m.damageBase(bs, G.dmg * (a.dmgMul || 1) * (H ? C.structure.rifleH : C.structure.rifleS), 'squad', a.x, a.y);
+            if (hit) m.damageBase(bs, G.dmg * (a.dmgMul || 1) * (a.bldMul || 1) * (H ? C.structure.rifleH : C.structure.rifleS), 'squad', a.x, a.y);
           } else a.atk = 0;
         }
       }

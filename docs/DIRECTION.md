@@ -15,7 +15,8 @@ Items marked **(built)** exist; everything else is to come.
   opened and read about. **(built, 0.62: enemies, worlds, objectives, buildings and station parts; people to come)**
 - CAREER: progress across the campaign and every mini-game in one place. **(built, 0.62: totals from every game, the saves, the
   collection; milestones to come)**
-- STORE: campaign credits spent on upgrades that carry into the mini-games and the campaign. *Placeholder.*
+- STORE: command credits, earned in every game, spent on upgrades that carry into the mini-games and the campaign, and on
+  the Vanguard roster. **(built, 0.69: the roster, six roles, seven personalities and six upgrades)**
 - OPTIONS: common settings first, then each game's own (controls above all). **(built; controls are listed, not yet rebindable)**
 - Desktop only for now. Controller support may come; upright phones will not.
 
@@ -32,7 +33,8 @@ also why they are so capable and so well equipped: a great deal has been spent o
 
 - They are the elite in **every** mini-game, not only on the ground.
 - A **roster** the player builds: specialist roles (a sniper, say) and public personalities (traits and stereotypes),
-  unlocked in the STORE.
+  unlocked in the STORE. **(built on the ground, 0.69: four Vanguards, one for each group; the other games to come with
+  item 7)**
 - **Their lives matter.** Losing them is how a fight is lost, and difficulty is partly how many lives you are given.
   **(built on the ground, 0.62: 30 lives at level 1 down to 12 at level 10)**
 - **Insurance.** A Vanguard who dies pays out. It costs a lot to train one and more to make one a star; the payout,
@@ -90,7 +92,8 @@ The livery:
     finish and uniform.~~ **(0.66)**
 
 Next, in this order (agreed after 0.65):
-6. The Store: spending campaign credits on upgrades; the Vanguard roster (roles and personality traits to unlock).
+6. ~~The Store: spending campaign credits on upgrades; the Vanguard roster (roles and personality traits to unlock).~~
+   **(0.69: command credits from the career; the roster, roles and personalities on the ground; six upgrades)**
 7. Vanguards in FOB Commander (and the station), with lives and insurance there too; troopers and recruits managed one by
    one at the base.
 8. Quick-time events like the demolition charge in FOB Commander and the station: set orders that can be learned, with

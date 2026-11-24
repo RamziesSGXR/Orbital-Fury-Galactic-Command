@@ -13,6 +13,8 @@ import * as War from './galaxy/screen.js';
 import { drawLogo, ensureLogo } from './core/logo.js';
 import { livery, setLivery, hasLivery, fromCrest, asFaction, PRESETS } from './core/livery.js';
 import { pageLivery, bindLivery, liveryKey, styleCards, drawCards, fromPreset, isOwn } from './core/livery-ui.js';
+import { pageStore, bindStore } from './core/store-ui.js';
+import { upgrade } from './core/roster.js';
 import { SEED } from './galaxy/tutorial.js';
 import { shopItems, buy, equip, unequip, shownAt, TIER_MAX } from './ground/data/kit.js';
 import { Audio } from './ground/audio.js';
@@ -155,7 +157,7 @@ const ART = {
 // ---- the tabs
 const TABS = [['home', 'HOME'], ['play', 'PLAY'], ['livery', 'LIVERY'], ['collection', 'COLLECTION'], ['career', 'CAREER'], ['store', 'STORE'], ['options', 'OPTIONS']];
 let tab = 'home', optTab = 'common', playGame = null;     // playGame: the game whose saves the PLAY tab is showing
-const NEWS = { title: 'The enemy builds its own way', lines: ['Each enemy has its own buildings now: the Molt grow theirs, the Foundry cast and bolt theirs, the Talon raise theirs from hide, bone and crystal.', 'Each enemy has its own turret, and its own relays, caches, batteries and broadcast towers.', 'What you destroy falls down: towers topple, shells sag, lights go out, and the ruin stays.', 'A new great gun for the Foundry, and a new shield node for the Talon.', 'FOB Commander: a new barracks, armoury, mess hall, shelter and PA mast, and concrete barriers in place of sandbags.'] };
+const NEWS = { title: 'The STORE, and a roster of Vanguards', lines: ['The STORE is open: command credits, earned in every game, buy roles, personalities and upgrades. Everything played before counts.', 'Your four Vanguards on the ROSTER: give each a name, a role and an act for the cameras.', 'Six roles: Rifleman, Marksman, Machine gunner, Combat medic, Sapper and Scout, each fighting their own way on the ground.', 'Seven personalities, from the Showboat to the True Believer: the viewers follow the act, and some acts change the fight.', 'Upgrades for every game: a war chest, reserve contracts, a better policy, a network deal, seed money and a docking grant.'] };
 const KEYS = {
   war: [['Click a system', 'Select it; click another to send a fleet'], ['END ROUND', 'Play out the round'], ['Esc', 'The menu']],
   fury: [['W A S D / arrows', 'Move the view'], ['Mouse wheel', 'Zoom'], ['Tab or M', 'The big map'], ['1 to 8', 'Pick a weapon; hold or click to fire'], ['G', 'Drop Infantry'], ['B', 'Build'], ['U', 'Load a supply pod (then 1, 2, 3)'], ['Click / drag a box', 'Pick troopers'], ['Right-click', 'Order the troopers you picked'], ['Esc', 'Pause']],
@@ -225,10 +227,6 @@ function pageCareer() {
     <div class="crow car">${panel('Your games', rows.length ? `<table class="ctab"><tr><th>GAME</th><th>SAVE</th><th>NAME</th><th>WHERE IT STANDS</th></tr>${rows.join('')}</table>` : '<p class="soon">Nothing played yet. Start a game on the PLAY tab and it will show here.</p>')}${panel('Collection', `<div class="cstats three">${col}</div>`)}</div>
     <p class="soon">Your career is kept across every game and every save: deleting a save does not take it away. Tutorials count for what you meet, not for the totals.</p>`;
 }
-function pageStore() {
-  return panel('The store', `<p class="soon">Campaign credits will be spent here on upgrades that carry into the campaign and the mini-games, and on your roster of Vanguards: their roles and their public personalities. <b>For now this is a placeholder.</b></p>
-    <div class="cgrid" style="margin-top:10px">${['VANGUARD ROLES', 'PERSONALITIES', 'SHIP UPGRADES', 'BASE UPGRADES'].map((x) => `<div class="tile lock"><em>COMING</em><b>${x}</b></div>`).join('')}</div>`);
-}
 // the common settings: on the OPTIONS tab here, and on the menu inside a game
 const optCommon = () => `<div class="oset">
       <span>VOLUME</span><input type="range" class="o-vol" min="0" max="100" value="${Math.round(settings.volume * 100)}">
@@ -258,6 +256,7 @@ function drawTitle() {
   optBind($('t-page'));
   if (tab === 'collection') collectionArt();
   if (tab === 'livery') bindLivery($('t-page'), { redraw: drawTitle, changed: barCrest, audio, toast: app.toast });
+  if (tab === 'store') bindStore($('t-page'), { redraw: drawTitle, audio, toast: app.toast });
 }
 function setTab(k) { tab = k; playGame = null; audio.click(); drawTitle(); }
 // the player's own emblem and name, in the bar: their command's; the game's icon stands for the game (the bar, the browser
@@ -400,6 +399,7 @@ $('f-go').onclick = () => {
   if (foundFor !== 'war') return enterSolo(foundFor, JSON.parse(JSON.stringify(me)));
   app.endCampaignQuiet();
   camp = { v: 2, faction: JSON.parse(JSON.stringify(me)), war: null, kit: newKit(), wallet: newWallet(), sites: {}, stats: { ground: 0, groundWon: 0 }, at: Date.now() };
+  camp.wallet.bal += upgrade('chest');     // (0.69) the STORE's war chest
   // (0.39) no asking whether to play a tutorial: the coach's hints are on or off (Settings), and a first war with them on is
   // the opening they were written for
   how(() => { const hints = settings.hints && !settings.hintsDone && !qs.has('seed'); toWar({ seed: qs.has('seed') ? Number(qs.get('seed')) : hints ? SEED : Date.now() % 100000, tutorial: hints }); });

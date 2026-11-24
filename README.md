@@ -1,6 +1,6 @@
 # Orbital Fury: Galactic Command
 
-**Prototype 0.68.0.** One war, run from four posts, in one game.
+**Prototype 0.69.0.** One war, run from four posts, in one game.
 
 You found a command (a name, a livery: emblem and colours) and hold the centre of the galaxy against three enemies. Everything in
 the war is yours to run, and each part changes the others:
@@ -13,6 +13,29 @@ the war is yours to run, and each part changes the others:
 | **The base** | Found a base on the system's key world: roads, zones, and buildings that grow along them. | +35% output from the system for each charter. |
 
 A system that falls takes its station and its base with it.
+
+## What's new in 0.69: the STORE, and a roster of Vanguards
+
+- **Command credits**, earned in every game and spent in the STORE: 100 a fight won on the ground (30 for one lost), 15 an
+  objective, 1 for every twenty kills, 15 a day at the base (50 for one ranked first), 25 a week on the station, 4 a
+  building or a station part, and 500 to start with. They are worked out from the career, so everything played before
+  counts (js/core/roster.js).
+- **The roster**: the four Vanguards who lead your groups on the ground (A to D), each given a name, a **role** and a
+  **personality** on the STORE's ROSTER tab. A replacement takes over the same ones. The names are the ground fight's own:
+  change one in either place.
+- **Six roles**, bought once and given to any of the four: the Rifleman (the standard kit), the Marksman (a long rifle:
+  slower, harder hitting, farther, and sees further), the Machine gunner (a belt-fed gun and heavier plate, a step slower),
+  the Combat medic (patches up whoever is worst hurt close by, Vanguard or Infantry, and carries two more stims), the Sapper
+  (more and heavier grenades, and buildings come down faster) and the Scout (faster and far-sighted, but less tough).
+- **Seven personalities**, the act each puts on for the cameras: none, the Showboat (stays in longer, hits a little
+  harder, draws viewers), the Stoic (shrugs off damage, dull to watch), the Heartthrob (millions tune in; the policy pays
+  more on a death, but the next face costs more to sign), the Prepper (a stim and a grenade more), the Comedian (Infantry
+  close by fight harder) and the True Believer (takes the enemy's buildings personally). The viewers follow the acts, and
+  the ratings the war is given follow the viewers.
+- **Upgrades**, a level at a time, each carrying into one game: a war chest for a new campaign, reserve contracts (a
+  Vanguard life more in every fight), a better insurance policy, a network deal (more viewers from the first minute),
+  seed money for a new base and a docking grant for a new station.
+- On the ground, each Vanguard's row shows their role (MRK, MG, MED, SAP, SCT), and a medic's healing shows as it lands.
 
 ## What's new in 0.67: the enemy builds its own way, and what you destroy falls down
 
@@ -227,6 +250,8 @@ This is one application with one save, one faction and one interface, not four g
   - `orbit.js` runs Super Orbital Simulator's station (`js/orbit/`). It reports the station's tier.
   - `base.js` runs FOB Super Commander's base (`js/base/`). It reports the base's charter.
 - `js/core/logo.js` is the crest maker shared by every post. `css/gc.css` is the one stylesheet.
+- `js/core/roster.js` keeps the STORE's command credits, the Vanguard roster and the upgrades; `js/core/store-ui.js` is the
+  STORE tab. The ground fight reads the roster as each mission starts (`squad()`, then `applyRoster` in `js/ground/sim/vanguard.js`).
 - The theatres are loaded the first time they are entered, so the game opens quickly.
 
 ## What the war runs on
@@ -255,6 +280,7 @@ come back to them.
 - `python3 test/map.py` checks the map's desk controls.
 - `python3 test/fleets.py` checks the opening choices and the Fleet Office.
 - `python3 test/armoury.py` checks the armoury, the chest and that they survive a reload (needs `npm start`).
+- `python3 test/roster.py` checks the STORE: credits from the career, buying roles, personalities and an upgrade, giving them to the Vanguards, and a fight on the ground where they carry them.
 - `python3 test/base_ui.py` checks the base's controls: dragging the ground, roads keeping to the tiles and joining where they cross, a building's status card, requests folding away, and the guide.
 
 ## Not in this version

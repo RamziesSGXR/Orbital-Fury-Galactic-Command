@@ -23,6 +23,7 @@ import { sunAt, todName, todClock } from './render/sky.js';
 import { acceptSupply, declineSupply, fillSupply, launchSupply, supplyFilling } from './sim/supply.js';
 import { hbFilling, tapDemoCharge } from './sim/ops.js';
 import { note } from '../core/career.js';
+import { squad, upgrade } from '../core/roster.js';
 const handsBusy = (m) => !!m && (supplyFilling(m) || hbFilling(m));     // the supply loader or the Demolition Charge is open
 import { t, tEn, setLang, getLang, applyDom, startLang } from './i18n.js';
 import { clampLevel, LEVELS, levelName, levelAt, TOP } from './difficulty.js';
@@ -1125,6 +1126,9 @@ function persist() {
 }
 // (0.24) Milestones: missions done this session (a failed one ends it, so it is every mission that carried on) and the
 // milestone that makes. The tutorial has the whole armory.
+// (GC 0.69) the Vanguards' roles and personalities from the STORE (core/roster.js); the tutorials keep the standard four
+const rosterFor = () => (session && session.tutorial ? null : squad());
+const upsFor = () => (session && session.tutorial ? null : { lives: upgrade('reserve'), policy: upgrade('policy'), network: upgrade('network') });
 const doneN = (s) => (s && s.missions ? s.missions.filter((r) => S.carriesOn(r.outcome)).length : 0);
 // (0.26) the tutorial is one mission: its ranks come with kills
 const killsN = () => (mission && mission.stats ? mission.stats.kills.L + mission.stats.kills.M + mission.stats.kills.H : 0);
@@ -1142,7 +1146,8 @@ function audTick() {
   const k = killsN(), alive = mission.alive ? mission.alive.length : 0; AUD.max = Math.max(AUD.max, alive);
   AUD.rate = AUD.rate * 0.9 + (k - AUD.k0) * 6; AUD.k0 = k;     // (kills a minute, eased over about ten seconds)
   const bases = mission.baseTotal ? (mission.stats.bases || 0) / mission.baseTotal : 0, danger = alive > 0 ? 1 - alive / AUD.max : 0;
-  const want = Math.max(0.05, Math.min(1, 0.2 + Math.min(0.4, AUD.rate / 40) + 0.2 * bases + 0.15 * danger));
+  const fans = (mission.hdAlive || []).reduce((s, a) => s + (a.aud || 0), 0) + ((mission.ups && mission.ups.network) || 0);     // (GC 0.69) the Vanguards' acts (a Heartthrob pulls viewers in) and the network deal
+  const want = Math.max(0.05, Math.min(1, 0.2 + Math.min(0.4, AUD.rate / 40) + 0.2 * bases + 0.15 * danger + fans));
   AUD.was = AUD.v; AUD.v += (want - AUD.v) * 0.08; AUD.sum += AUD.v; AUD.n++; AUD.peak = Math.max(AUD.peak, AUD.v);
   el.classList.remove('hidden'); $('aud-n').textContent = (AUD.v * 12).toFixed(1) + 'M';     // (a full house is twelve million sets)
   const d = AUD.v - AUD.was; el.classList.toggle('up', d > 0.002); el.classList.toggle('dn', d < -0.002); $('aud-d').textContent = d > 0.002 ? '\u25B2' : d < -0.002 ? '\u25BC' : '';
@@ -1224,7 +1229,7 @@ function goBrief(again = false) {
   if (!ovObj.length && info.obj) ovObj.push(info.obj);     // (0.51) the offer's objective
   info.ovObj = ovObj;
   const pre = new Mission({ seed: info.seed, faction: info.faction, biome: info.biome, sessionMinutes: SMIN ?? S.sessionMinutes(session), events: false, missionN: n, opDone: n - 1, difficulty: levelFor(info), bump: (info && info.bump) | 0,
-    loadout: ovLoad.length ? ovLoad : undefined, objectives: ovObj, kit: session.kit, wallet: session.wallet, names: session.names, defenders: !qs.has('skipstart') });
+    loadout: ovLoad.length ? ovLoad : undefined, objectives: ovObj, kit: session.kit, wallet: session.wallet, names: session.names, roster: rosterFor(), ups: upsFor(), defenders: !qs.has('skipstart') });
   info.loadout = pre.loadout.slice();
   if (keep) { info.ovObj = keep.ovObj || []; info.loadout = keep.loadout.slice(); }
   else if (!back) info.tod = qs.has('tod') ? ((Number(qs.get('tod')) % 24) + 24) % 24 : ch && ch.play.tod !== undefined ? ch.play.tod : pre.tod0;   // ?tod=14 forces the hour (testing)
@@ -1290,7 +1295,7 @@ function deploy() {
   if (terrainKey !== `${info.biome}|${info.seed}`) buildFor(info.biome, info.seed);
   shots.length = 0; resetScape();
   mission = new Mission({ seed: info.seed, faction: info.faction, biome: info.biome, sessionMinutes: SMIN ?? S.sessionMinutes(session), events: true, missionN: session.missions.length + 1, opDone: session.missions.length, difficulty: levelFor(info), bump: (info && info.bump) | 0,
-    loadout: info.loadout, keepOrder: true, objectives: info.ovObj, kit: session.kit, wallet: session.wallet, names: session.names, tod: info.tod,
+    loadout: info.loadout, keepOrder: true, objectives: info.ovObj, kit: session.kit, wallet: session.wallet, names: session.names, roster: rosterFor(), ups: upsFor(), tod: info.tod,
     countdown: qs.has('skipstart') || BOT ? 0 : C.vanguards.countdown, defenders: !qs.has('skipstart'), ...chapterOpts() });
   bot = BOT ? makeBot() : null;
   enterPlay();
