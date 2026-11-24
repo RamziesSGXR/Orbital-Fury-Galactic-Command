@@ -192,6 +192,7 @@ function drawTree(ctx, t, now, px) {
 // One of the enemy's marks. high: the parts that stand up (drawn over the units); otherwise what lies on the ground.
 function drawMark(ctx, o, fac, now, px, high) {
   const s = o.s;
+  if (VIEW.p3 && ((o.kind === 'shrooms' && VIEW.m3.has('prop_shroom')) || (o.kind === 'ruin' && VIEW.m3.has(fac === 'lizards' ? 'prop_ruin_lizards' : 'prop_ruin_bugs')))) return;     // (0.72) in 3D: models (render _props)
   if (o.kind === 'shrooms') {
     if (high) return;
     for (const c of o.caps) {

@@ -7,7 +7,8 @@ const STORE = 'ofs.keys';
 // [action, own key, second keys], grouped as the CHANGE KEYS list shows them
 export const GROUPS = [
   ['cam', [['panUp', 'KeyW', ['ArrowUp']], ['panLeft', 'KeyA', ['ArrowLeft']], ['panDown', 'KeyS', ['ArrowDown']], ['panRight', 'KeyD', ['ArrowRight']],
-    ['zoomIn', 'Equal', ['NumpadAdd']], ['zoomOut', 'Minus', ['NumpadSubtract']], ['follow', 'KeyF', []], ['map', 'Tab', ['KeyM', 'KeyL']]]],
+    ['zoomIn', 'Equal', ['NumpadAdd']], ['zoomOut', 'Minus', ['NumpadSubtract']], ['follow', 'KeyF', []], ['map', 'Tab', ['KeyM', 'KeyL']],
+    ['turnLeft', 'BracketLeft', ['Numpad4']], ['turnRight', 'BracketRight', ['Numpad6']], ['tiltUp', 'PageUp', ['Numpad8']], ['tiltDown', 'PageDown', ['Numpad2']], ['viewReset', 'Backslash', ['Home', 'Numpad5']]]],     // (0.72) turning the view
   ['weap', [['w1', 'Digit1', []], ['w2', 'Digit2', []], ['w3', 'Digit3', []], ['w4', 'Digit4', []], ['w5', 'Digit5', []], ['w6', 'Digit6', []],
     ['w7', 'Digit7', []], ['w8', 'Digit8', []], ['w9', 'Digit9', []], ['cyclePrev', 'KeyQ', []], ['cycleNext', 'KeyE', []], ['strikerRearm', 'Digit0', []]]],
   ['infantry', [['infantry', 'KeyG', []], ['auto', 'KeyX', []], ['move', 'KeyV', []], ['protect', 'KeyZ', []], ['attack', 'KeyN', []], ['escort', 'KeyC', []],

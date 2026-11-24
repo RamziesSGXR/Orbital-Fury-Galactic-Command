@@ -59,6 +59,15 @@ function jammerArt(ctx, s, now, px) {
 // (0.40) A spore tower's cloud: a slow, drifting haze of spores out to its reach, thicker toward the stalk, with its edge marked.
 function sporeCloud(ctx, s, now, px) {
   const R = s.R;
+  // (0.72, Ramzies: "objects that are still 2d in a 3d game world, examples are bug smoke") in 3D the cloud is spores in the air:
+  // puffs drifting slowly round the stalk at head height and above, each swelling and thinning away as another rises
+  if (VIEW.fx3) {
+    for (let i = 0; i < 22; i++) {
+      const a = i * 2.39996 + now * (0.04 + (i % 5) * 0.008), d = R * (0.12 + 0.78 * ((i * 0.618) % 1)), p = (now * 0.07 + i * 0.137) % 1;
+      VIEW.fx3.puffs.push({ x: s.x + Math.cos(a) * d, y: s.y + Math.sin(a) * d, r: 3 + (i % 4) * 1.2 + p * 2, up: 1.2 + (i % 3) * 1.6 + p * 2.5, p: 0.15 + p * 0.85, col: i % 3 ? '#9ec65a' : '#c8e88a' });
+    }
+    return;
+  }
   const g = ctx.createRadialGradient(s.x, s.y, s.r, s.x, s.y, R);
   g.addColorStop(0, 'rgba(150,190,80,0.26)'); g.addColorStop(0.7, 'rgba(120,160,70,0.14)'); g.addColorStop(1, 'rgba(110,150,60,0)');
   ctx.fillStyle = g; ctx.beginPath(); ctx.arc(s.x, s.y, R, 0, Math.PI * 2); ctx.fill();
@@ -173,6 +182,8 @@ export function drawCrates(ctx, m, now, px, labels) {
       ctx.strokeStyle = 'rgba(255,210,120,0.7)'; ctx.lineWidth = px(1.2); ctx.setLineDash([px(3), px(3)]);
       ctx.beginPath(); ctx.moveTo(E[0].x, E[0].y); ctx.lineTo(E[1].x, E[1].y); ctx.stroke(); ctx.setLineDash([]);
       if (f > 0) { const k = 0.5 - f / 2, l = 0.5 + f / 2, at = (u) => ({ x: E[0].x + (E[1].x - E[0].x) * u, y: E[0].y + (E[1].y - E[0].y) * u }); wireArt(ctx, at(k), at(l), Math.max(1, px(2)), 1); }
+    } else if (VIEW.p3 && VIEW.m3.has('prop_crate')) {
+      /* (0.72) the crate and the post going up are models (renderer._props); only its bar, light and label are drawn here */
     } else if (stage <= 1) {
       // the crate: shut, or with its lid off beside it and the parts showing
       ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(c.x - s * 1.25, c.y - s * 1.25, s * 2.5, s * 2.5);

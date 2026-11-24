@@ -236,7 +236,7 @@ export class Audio {
       }
       v.g.gain.setTargetAtTime(Math.min(1, vol * 2.4), t, 0.18); if (v.p) v.p.pan.setTargetAtTime(h.pan, t, 0.18);
       if (v.eng) v.eng.frequency.setTargetAtTime((e.moving ? 1.5 : 1) * v.eng0, t, 0.4);
-      if (K.tick && t >= v.next) { K.tick(this, v.out, t + 0.02, e); v.next = t + (K.every ? K.every * (0.85 + Math.random() * 0.3) : 1.2 + Math.random() * 2.4); }
+      if (K.tick && t >= v.next) { K.tick(this, v.out, t + 0.02, e, v); v.next = t + (K.every ? K.every * (0.85 + Math.random() * 0.3) : 1.2 + Math.random() * 2.4); }
     }
   }
   _drop(k, v, t) {
@@ -312,7 +312,25 @@ export class Audio {
 // (0.62.10) What each kind of source on the field sounds like: a held sound (loop), and things that happen now and then
 // (tick, every `every` seconds or at random). A: the Audio, v: the source (v.out is where its sound goes), s: the source's entry.
 const VOWELS = [[730, 1090], [270, 2290], [530, 1840], [570, 840], [440, 1020], [300, 870]];
-const steps = (A, o, t, n, vol) => { for (let i = 0; i < n; i++) A._n1(o, t + i * (0.5 / n) + Math.random() * 0.03, 0.06, vol, 800 + Math.random() * 300, 1.2); };
+// (0.72, Ramzies: "allies' running sound sounds odd") FOOTSTEPS. A step is a soft thud of the heel and the grit of the sole,
+// and what it sounds like is what it lands on: a crunch in snow, a hiss in sand, a dull pad on grass. Each one walking keeps
+// their own pace (a step about every half second walking, a third of a second running), so a squad patters out of step like
+// people do, instead of the old even tick-tick-tick six times a second whatever anyone was doing.
+const GROUND_STEP = { ice: [3400, 0.09, 1.5], desert: [2600, 0.07, 0.9], mars: [2300, 0.06, 0.9], moon: [1800, 0.04, 1], city: [2900, 0.035, 1.6], jungle: [1500, 0.05, 0.8], grass: [1700, 0.05, 0.8] };
+function step(A, o, t, vol, ground) {
+  const G = GROUND_STEP[ground] || GROUND_STEP.grass, j = 0.85 + Math.random() * 0.3;
+  A._n1(o, t, 0.07, vol * j, 160 + Math.random() * 60, 0.7, 'lowpass');                        // the heel: a dull thud
+  A._n1(o, t + 0.012, G[1] * (0.8 + Math.random() * 0.4), vol * 0.32 * G[2] * j, G[0] * (0.8 + Math.random() * 0.4), 0.9);     // the sole on the ground
+}
+const steps = (A, v, o, t, s, n, vol, span) => {
+  const run = (s.sp || 0) > 3.2, per = run ? 0.33 : 0.5, k = Math.min(n, 4);
+  if (!s.moving) { v.feet = null; return; }
+  const F = v.feet || (v.feet = []);
+  for (let i = 0; i < k; i++) {
+    if (F[i] == null || F[i] < t - 0.3) F[i] = t + Math.random() * per;     // (each joins in at their own point in the stride)
+    while (F[i] < t + span) { step(A, o, Math.max(t, F[i]), vol * (run ? 1.15 : 1) / Math.sqrt(k), s.ground); F[i] += per * (0.94 + Math.random() * 0.12); }
+  }
+};
 const KINDS = {
   // a pack of bugs: a bed of skittering, then chitters and now and then a screech
   bugs:   { loop: (A, v) => { const g = A._hiss(v, 3200, 0.03, 1.2); A._lfo(v, g.gain, 9, 0.02); A._hiss(v, 240, 0.03, 0.7, 'lowpass'); },
@@ -324,9 +342,9 @@ const KINDS = {
   lizards: { loop: (A, v) => { A._osc(v, 'sine', 96, 0.05); A._osc(v, 'sine', 97.3, 0.05); A._hiss(v, 5200, 0.012, 0.6, 'highpass'); },
     tick: (A, o, t) => { if (Math.random() < 0.6) A._n1(o, t, 0.7, 0.07, 2400 + Math.random() * 1800, 7); if (Math.random() < 0.35) A._t1(o, t + 0.2, 1300 + Math.random() * 500, 1250, 0.9, 0.03); } },
   // the Vanguards: boots when they move, a handset now and then
-  squad:  { every: 0.5, tick: (A, o, t, s) => { if (s.moving) steps(A, o, t, 3, 0.12); if (Math.random() < 0.05) { A._n1(o, t, 0.05, 0.05, 3000, 2); A.babble(o, t + 0.06, 3 + (Math.random() * 4 | 0), 120 + Math.random() * 60, 0.05); } } },
+  squad:  { every: 0.5, tick: (A, o, t, s, v) => { steps(A, v, o, t, s, s.n || 4, 0.2, 0.62); if (Math.random() < 0.05) { A._n1(o, t, 0.05, 0.05, 3000, 2); A.babble(o, t + 0.06, 3 + (Math.random() * 4 | 0), 120 + Math.random() * 60, 0.05); } } },
   // an Infantry squad: more boots, kit, and talk when they stand about
-  infantry:   { every: 0.5, tick: (A, o, t, s) => { if (s.moving) { steps(A, o, t, Math.min(6, 2 + (s.n >> 1)), 0.1); if (Math.random() < 0.3) A._n1(o, t + 0.2, 0.04, 0.05, 2600, 6); } else if (Math.random() < 0.09) A.babble(o, t, 4 + (Math.random() * 5 | 0), 105 + Math.random() * 110, 0.05); } },
+  infantry:   { every: 0.5, tick: (A, o, t, s, v) => { steps(A, v, o, t, s, s.n || 4, 0.17, 0.62); if (s.moving) { if (Math.random() < 0.3) A._n1(o, t + 0.2, 0.04, 0.05, 2600, 6); } else if (Math.random() < 0.09) A.babble(o, t, 4 + (Math.random() * 5 | 0), 105 + Math.random() * 110, 0.05); } },
   // a fight: the crackle and thump of fire traded, busier with more of it. Heard a long way off
   fight:  { vol: 1.6, every: 0.22, loop: (A, v) => { A._hiss(v, 260, 0.05, 0.6, 'lowpass'); },
     tick: (A, o, t, s) => { const n = 1 + Math.round((s.vol || 0.3) * 4); for (let i = 0; i < n; i++) if (Math.random() < 0.75) A._n1(o, t + Math.random() * 0.2, 0.07, 0.13, 700 + Math.random() * 900, 0.8, 'lowpass'); if (Math.random() < 0.18) A._t1(o, t, 80, 38, 0.35, 0.16); } },

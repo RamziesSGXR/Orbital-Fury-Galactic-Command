@@ -268,6 +268,7 @@ function execute(m, g, tgt, ctx) {
   m.stats.callinCalls++; m.stats.callinBy[g.id] = (m.stats.callinBy[g.id] || 0) + 1;
   m.radio(COMMS.callinCall(d.name), 'callin', 1.2);
   bark(m, caller, 'callin', d.name, true);
+  if (caller) { caller.throwAt = t; caller.throwA = Math.atan2(tgt.y - caller.y, tgt.x - caller.x); }     // (0.72) he throws the beacon at the mark (drawn: render allyFig)
   const cs = C.callin.callSec;      // the beacon is thrown, then the ship lines up: the ground is marked for this long first
   m.emit('callin_call', { id: g.id, x: tgt.x, y: tgt.y, delay: (d.delay || 4) + cs, team: team.i, cx: caller ? caller.x : ctx.cx, cy: caller ? caller.y : ctx.cy, base: tgt.base ? tgt.base.id : undefined });
   switch (d.k) {
@@ -583,7 +584,7 @@ function vehicleStep(m, s, dt) {
   if (s.cool <= 0) {
     let best = dropNear(m, s.x, s.y, F.gunRange), bs = best ? Infinity : -Infinity;
     m.eGrid.near(s.x, s.y, F.gunRange, (e, d2) => { const sc = (e.kind === 'H' ? 60 : e.kind === 'M' ? 20 : 0) - Math.sqrt(d2); if (sc > bs) { bs = sc; best = e; } });
-    if (best) { s.cool = F.gunEvery; fireShot(m, s, best, { dmg: F.gunDmg * mul(), acc: 0.85, splash: 0, mult: LRV_MULT }, 'callin', 't', 'lrvgun'); } else s.cool = 0.2;
+    if (best) { s.cool = F.gunEvery; s.aimA = Math.atan2(best.y - s.y, best.x - s.x); s.aimUntil = t + 1.2; s.shotAt = t; fireShot(m, s, best, { dmg: F.gunDmg * mul(), acc: 0.85, splash: 0, mult: LRV_MULT }, 'callin', 't', 'lrvgun'); } else s.cool = 0.2;     // (0.72: where the gunner looks)
   }
 }
 

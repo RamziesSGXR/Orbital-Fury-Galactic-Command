@@ -54,6 +54,18 @@ function frameSet(d, fit, remap, only) {
   // (GC 0.70) every frame carries where its corners stand at rest, and what each is made of, so the surface detail sits on the body
   const st = out.stand;
   if (st) { const rest = st.getAttribute('position'), sa = surfAttr(d, nt, mi, true); for (const name in out) { out[name].setAttribute('aRest', rest); out[name].setAttribute('aSurf', sa); } }
+  // (0.72, Ramzies: "animations aren't smooth") A CYCLE (a walk, a run) AS ONE GEOMETRY: its first frame, and every frame of it laid
+  // on as a morph target, so a figure can be shown part of the way from one frame to the next (each copy its own blend, with
+  // setMorphAt): a step that flows, not eight poses one after another. Named '~' and the frames' letter ('~w' for w0..w7).
+  const cyc = {};
+  for (const name in out) { const mm = /^([a-z])(\d)$/.exec(name); if (mm) (cyc[mm[1]] ||= []).push([+mm[2], name]); }
+  for (const p in cyc) {
+    const L = cyc[p].sort((a, b) => a[0] - b[0]); if (L.length < 3) continue;
+    const g0 = out[L[0][1]], g = new THREE.BufferGeometry();
+    for (const a of ['position', 'normal', 'color', 'aRest', 'aSurf']) if (g0.getAttribute(a)) g.setAttribute(a, g0.getAttribute(a));
+    g.morphAttributes.position = L.map(([, n]) => out[n].getAttribute('position')); g.morphAttributes.normal = L.map(([, n]) => out[n].getAttribute('normal')); g.morphTargetsRelative = false;
+    g.userData.cycle = L.length; out['~' + p] = g;
+  }
   return out;
 }
 // d.fit: the model's own say on its size, so a long spear or tail does not shrink its carrier. d.lod: the same creature in far fewer

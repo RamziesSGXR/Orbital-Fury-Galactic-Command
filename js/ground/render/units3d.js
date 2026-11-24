@@ -95,6 +95,7 @@ function jet() {
 // seen in: standing with the rifle ready, aiming, and eight steps of a walk both ways. A unit shows the frame its moment calls
 // for, so legs stride, knees bend and the rifle comes up to fire. A citizen has no rifle: they stand, and walk with arms swinging.
 export const STEPS = 8;
+const BLEND = {};     // (0.72) the blend between two frames of a cycle, handed to setMorphAt, one for each length of cycle
 function personFrames(make, armed) {
   const out = {}; let fit = null;
   const shot = (name, pose) => {
@@ -127,7 +128,7 @@ const MODELS = {
   // (GC 0.50) the enemy's own craft (tools/blender/craft.py): the Foundry's dropship and the Talon's war barge, each under way (`stand`) and over its drop (`hover`)
   'edrop:ship': 'drop_foundry', 'edrop:warp': 'drop_talon',
 };
-const PEOPLE = new Set(['van', 'inf', 'civ0', 'civ1', 'civ2']), GROUND_POSES = /^(stand|down|aim|kneel|hit|fire|kfire|duck|peek|[warn]\d)$/;     // (GC 0.42: the people's files also hold the base's and the station's poses; GC 0.50: running, firing, down behind cover and looking about are shown on the ground too)
+const PEOPLE = new Set(['van', 'inf', 'civ0', 'civ1', 'civ2']), GROUND_POSES = /^(stand|down|aim|kneel|hit|fire|kfire|duck|peek|sit|throw\d|[warn]\d)$/;     // (GC 0.42: the people's files also hold the base's and the station's poses; GC 0.50: running, firing, down behind cover and looking about are shown on the ground too)
 export class Units3D {
   constructor(scene, livery) {
     this.scene = scene; this.kinds = new Map(); this.used = new Map(); this.all = [];
@@ -170,7 +171,7 @@ export class Units3D {
   _kind(k) {
     let m = this.kinds.get(k); if (m !== undefined) return m;
     const make = this.def[k]; if (!make) { this.kinds.set(k, null); return null; }
-    const inst = (geo, cap) => { const im = new THREE.InstancedMesh(geo, this.mat, cap); im.count = 0; im.frustumCulled = false; im.castShadow = true; im.receiveShadow = true; im.instanceMatrix.setUsage(THREE.DynamicDrawUsage); this.scene.add(im); this.all.push(im); return im; };
+    const inst = (geo, cap) => { const im = new THREE.InstancedMesh(geo, this.mat, cap); if (geo.userData.cycle) { const z = { morphTargetInfluences: new Array(geo.userData.cycle).fill(0) }; z.morphTargetInfluences[0] = 1; for (let i = 0; i < cap; i++) im.setMorphAt(i, z); } im.count = 0;     /* (0.72: a cycle's table of blends is made the size of the whole mesh, before it is cut to what is drawn) */ im.frustumCulled = false; im.castShadow = true; im.receiveShadow = true; im.instanceMatrix.setUsage(THREE.DynamicDrawUsage); this.scene.add(im); this.all.push(im); return im; };
     const made = make();
     if (made.frames) { m = { frames: {} }; for (const f in made.frames) m.frames[f] = inst(made.frames[f], k.includes(':') ? 320 : 160); if (made.lod) { m.lod = { frames: {} }; for (const f in made.lod.frames) m.lod.frames[f] = inst(made.lod.frames[f], 600); } }     // (one mesh for each frame of a person)
     else m = inst(made, CAP);
@@ -183,11 +184,13 @@ export class Units3D {
     this.mat.emissive.setScalar(hot ? 0.62 : 0);
     this.used.clear();
     for (const u of list) {
-      const K = this._kind(u.k) || (u.alt ? this._kind(u.alt) : null); if (!K) continue; let m = K, posed = false;
+      const K = this._kind(u.k) || (u.alt ? this._kind(u.alt) : null); if (!K) continue; let m = K, posed = false, mph = -1;
       if (K.frames) {
         const F = u.lod && K.lod ? K.lod.frames : K.frames, st = u.walk != null ? Math.floor((((u.walk % 6.2832) + 6.2832) % 6.2832) / 6.2832 * STEPS) % STEPS : -1;
         posed = !!(u.pose && F[u.pose]);
         m = (u.pose && F[u.pose]) || (u.jump && F.jump) || (u.atk && F.atk) || (u.aim && (st < 0 ? F.aim : F['a' + st])) || (st < 0 ? F.stand : F['w' + st] || F['w' + (st & 6)]) || F.stand;
+        // (0.72) on the move: the cycle, shown between the two frames the step is between
+        if (u.walk != null) { const p = u.pose ? (posed && (/^([war])\d$/.exec(u.pose) || [])[1]) : !(u.jump && F.jump) && !(u.atk && F.atk) ? (u.aim ? 'a' : 'w') : null, c = p && F['~' + p]; if (c) { m = c; mph = (((u.walk % 6.2832) + 6.2832) % 6.2832) / 6.2832; } }
       }
       const n = this.used.get(m) || 0; if (n >= m.instanceMatrix.count) continue;
       Q.setFromAxisAngle(UP, Math.PI / 2 - (u.face || 0)); P.set(u.x, ground(u.x, u.y) + (u.up || 0), u.y); S.setScalar(u.r);
@@ -196,11 +199,12 @@ export class Units3D {
       else if (u.tumble != null) { Q.multiply(Q2.setFromAxisAngle(SIDE, -u.tumble)); P.y += Math.abs(Math.sin(u.tumble)) * 0.16 * u.r - (u.sink || 0) * 0.6 * u.r; }     // (GC 0.29) a body: turned over backwards about its feet, lying on the ground, sinking away as it fades
       else if (u.walk != null && K.frames) P.y += Math.abs(Math.sin(u.walk)) * 0.04 * u.r;     // (a person's legs do the walking: only the rise of each step)
       else if (u.walk != null) { const s = Math.sin(u.walk); P.y += Math.abs(s) * 0.1 * u.r; Q.multiply(Q2.setFromAxisAngle(FWD, s * 0.11)); }     // (GC 0.26) on the move: a step's rise and a sway from foot to foot, until the models are given legs that walk
+      if (mph >= 0) { const N = m.geometry.userData.cycle, q = mph * N, i = Math.floor(q) % N, f = q - Math.floor(q), I = BLEND[N] || (BLEND[N] = { morphTargetInfluences: new Array(N).fill(0) }); I.morphTargetInfluences.fill(0); I.morphTargetInfluences[i] = 1 - f; I.morphTargetInfluences[(i + 1) % N] += f; m.setMorphAt(n, I); }
       m.setMatrixAt(n, M4.compose(P, Q, S)); COL.set(u.tint || '#ffffff'); if (u.dim != null && u.dim < 1) COL.multiplyScalar(u.dim); if (u.flash) COL.multiplyScalar(2.6); m.setColorAt(n, COL);     // (flash: just hit, far brighter than it could be lit)
       this.used.set(m, n + 1);
     }
     let total = 0;
-    for (const m of this.all) { m.count = this.used.get(m) || 0; total += m.count; if (m.count) { m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; } }
+    for (const m of this.all) { m.count = this.used.get(m) || 0; total += m.count; if (m.count) { m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; if (m.morphTexture) m.morphTexture.needsUpdate = true; } }
     this.n = total;
   }
 }
@@ -233,8 +237,19 @@ export class Fx3D {
     // a blast: a ball of fire that swells and climbs, white at first, then orange, then gone (it adds its light to the picture, so as it darkens it fades)
     // the troops' own fire: a streak of light from tail to head at gun height; a glowing ball for what is lobbed or spat; a shield as a dome of light
     const add = () => new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
-    this.bolt = inst(new THREE.BoxGeometry(1, 1, 1), add(), 600); this.orb = inst(new THREE.IcosahedronGeometry(1, 1), add(), 160);
-    this.dome = inst(new THREE.SphereGeometry(1, 20, 8, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }), 48);
+    // (0.72, Ramzies: "bullet lines are thick and look 2d") a streak is bright at its head and fades to nothing along its tail, and
+    // narrows to it: a tracer, not a stick of one colour from end to end
+    const boltGeo = new THREE.BoxGeometry(1, 1, 1, 1, 1, 4); { const P2 = boltGeo.attributes.position, cl = new Float32Array(P2.count * 3); for (let i = 0; i < P2.count; i++) { const u = P2.getZ(i) + 0.5, k = u * u; cl[i * 3] = cl[i * 3 + 1] = cl[i * 3 + 2] = 0.04 + 0.96 * k; P2.setX(i, P2.getX(i) * (0.35 + 0.65 * u)); P2.setY(i, P2.getY(i) * (0.35 + 0.65 * u)); } boltGeo.setAttribute('color', new THREE.BufferAttribute(cl, 3)); }
+    const boltMat = add(); boltMat.vertexColors = true;
+    this.bolt = inst(boltGeo, boltMat, 600); this.orb = inst(new THREE.IcosahedronGeometry(1, 1), add(), 160);
+    this.dome = inst(new THREE.SphereGeometry(1, 20, 8, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.FrontSide }), 48);
+    // (0.72) a shield is light at its rim and all but clear across its face (it was a flat white disc that hid the camp under it:
+    // both its sides added up, as bright in the middle as at the edge)
+    this.dome.material.onBeforeCompile = (sh) => {
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying float vRim;').replace('#include <project_vertex>', '#include <project_vertex>\n  { vec3 n = normalize(normalMatrix * mat3(instanceMatrix) * normal); vec3 vd = normalize(-mvPosition.xyz); vRim = 1.0 - abs(dot(n, vd)); }');
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vRim;').replace('#include <opaque_fragment>', '  outgoingLight *= 0.18 + 1.6 * pow(vRim, 2.5);\n#include <opaque_fragment>');
+    };
+    this.dome.material.customProgramCacheKey = () => 'gcrim';
     this.bolt.renderOrder = this.orb.renderOrder = 4; this.dome.renderOrder = 6;
     // smoke: soft grey puffs that face the eye, swell and climb. Four meshes, each fainter than the last: a puff moves down them as it thins.
     { const cv = document.createElement('canvas'); cv.width = cv.height = 64; const c2 = cv.getContext('2d'), gr = c2.createRadialGradient(32, 32, 0, 32, 32, 32);
@@ -269,9 +284,13 @@ export class Fx3D {
     if (n) { this.canopy.instanceMatrix.needsUpdate = this.load.instanceMatrix.needsUpdate = this.cord.instanceMatrix.needsUpdate = true; if (this.canopy.instanceColor) this.canopy.instanceColor.needsUpdate = true; }
     let k = 0;
     if (o.gun) for (const s of o.shells || []) {
-      if (k >= 128) break; this.b.set(s.x, ground(s.x, s.y), s.y); this.dir.subVectors(this.b, o.gun); const len = this.dir.length(); this.dir.normalize();
-      const head = s.q * len, tail = Math.max(0, head - (s.big ? 70 : 45)), w = s.big ? 1.3 : 0.8;
-      Q.setFromUnitVectors(this.z, this.dir); P.copy(o.gun).addScaledVector(this.dir, (head + tail) / 2); S.set(w, w, Math.max(1, head - tail)); this.shell.setMatrixAt(k++, M4.compose(P, Q, S));
+      // (0.72, Ramzies: "allied orbitals seem to shoot in over a 2d plane") a shell falls from the ship high overhead, 700 m up and
+      // off toward the side the gunship hangs (where the camera has it), steeply onto its mark; it was fired from beside the camera
+      if (k >= 128) break; this.b.set(s.x, ground(s.x, s.y), s.y);
+      this.a.set(o.gun.x - s.x, 0, o.gun.z - s.y); const hl = this.a.length() || 1; this.a.multiplyScalar(250 / hl); this.a.y = 700; this.a.add(this.b);
+      this.dir.subVectors(this.b, this.a); const len = this.dir.length(); this.dir.normalize();
+      const head = s.q * len, tail = Math.max(0, head - (s.big ? 60 : 40)), w = s.big ? 0.6 : 0.36;
+      Q.setFromUnitVectors(this.z, this.dir); P.copy(this.a).addScaledVector(this.dir, (head + tail) / 2); S.set(w, w, Math.max(1, head - tail)); this.shell.setMatrixAt(k++, M4.compose(P, Q, S));
     }
     this.shell.count = k; if (k) this.shell.instanceMatrix.needsUpdate = true;
     let j = 0;

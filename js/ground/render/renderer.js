@@ -14,7 +14,7 @@ import { inCover } from '../sim/cover.js';
 import { Ground3D } from './ground3d.js';
 import { liftUnit, dropUnit, unitShadow, shadeHex, raise, raiseUnit, setFlat, isFlat, reliefFrame, reliefClear, setElev, elevK } from './relief.js';
 import { Launch } from './launch.js';
-import { drawAoEdge, drawSides, drawBeacons, drawRevealed, drawRadar, drawArty, drawCrates, drawMarks } from './ops.js';
+import { drawAoEdge, drawSides, drawBeacons, drawRevealed, drawRadar, drawArty, drawCrates, drawMarks, crateStage } from './ops.js';
 import { OPS } from '../data/data.js';
 import { t as tr } from '../i18n.js';
 import { beaconAt } from '../sim/sides.js';
@@ -75,13 +75,38 @@ const RAISE_B = { steps: 22, wall: 0.58, shadow: 0.3 };
 //   nothing doing  standing easy, looking about
 // His stride comes from the ground he has covered, so a foot stays where it was put down; the figure is drawn far larger than
 // life, so the step is as long as that figure's would be.
+const EARTH = { grass: '#6a5440', jungle: '#54442f', ice: '#a4b0ba', desert: '#a8845a', mars: '#86452c', moon: '#76767a', city: '#66615a' };     // (0.72) the earth a crater throws up, by ground
+const HAZE = [150, 164, 182];     // (0.72) the haze over the unseen by day (sRGB)
 const RUN_AT = 4.6;     // metres a second: faster than this and not shooting, he runs
+// (0.72, Ramzies: "enemy animations can flicker or jitter fast ... when things are too close to each other") A crowd pushes
+// itself about: each one's heading and speed swing from frame to frame, so it was drawn turning back and forth and flipping
+// between its walking and standing frames. What is drawn now follows them smoothly: its turn eases toward the way it faces,
+// and it starts walking only once it is clearly moving and stops only once it has clearly stopped.
+function easeFace(o, to) {
+  if (to == null || !Number.isFinite(to)) return to;
+  let f = o._rf; if (f == null || !Number.isFinite(f)) return (o._rf = to);
+  let d = to - f; d -= Math.round(d / 6.283185) * 6.283185;
+  return (o._rf = Math.abs(d) > 2.6 ? to : f + d * 0.22);     // (a turn of more than half round is taken at once: it has turned to face something)
+}
+function walking(o, sp2) { const s = (o._ms = (o._ms ?? sp2) * 0.8 + sp2 * 0.2); return (o._mov = o._mov ? s > 0.05 : s > 0.2); }
+// (0.72, Ramzies: "Vanguard doesn't seem to ride in the car when they call it") Riders sit in the recon vehicle: the gunner
+// stands in the bed at the gun ring, two sit in the seats, the fourth sits on the back of the bed looking out to the side.
+// Places are on the model (tools/blender/vehicles.py lrv: x across, y back, z up), which is drawn 3.04 of its units long.
+const LRV_SEATS = [[0, 0.62, 0.97, 0], [0.3, 0.05, 1.1, 0], [-0.3, 0.05, 1.1, 0], [0.4, 0.95, 0.97, Math.PI / 2]];
+function riderFig(a, v, t, R0, tint, lod, H_) {
+  const i = Math.max(0, v.seats.indexOf(a)), S = LRV_SEATS[i % 4], K = 2 / 3.04 * trueR('lrv', 8.5), f = v.face || 0, c = Math.cos(f), sn = Math.sin(f);
+  const fw = (0.04 - S[1]) * K, sd = S[0] * K, gun = i === 0, aim = gun && v.aimUntil > t;
+  const pose = gun ? (aim ? (t - (v.shotAt ?? -9) < 0.09 ? 'fire' : 'aim') : 'stand') : 'sit';
+  return { k: H_ ? 'van' : 'inf', x: v.x + fw * c + sd * sn, y: v.y + fw * sn - sd * c, r: R0, face: easeFace(a, aim ? v.aimA : f + S[3]), tint, lod, pose, up: S[2] * K - (gun ? 0 : 0.47 * R0) };
+}
 function allyFig(m, a, t, R0, tint, lod) {
+  if (a.mounted && a.mounted.seats && !a.mounted.wreck && !a.mounted.dead) return riderFig(a, a.mounted, t, R0, tint, lod, a.type === 'H');
   const H_ = a.type === 'H', mv = a.mv || 0, moving = !a.down && mv > 0.5, shot = t - (a.shotAt ?? -99), hurt = t - (a.hurtAt ?? -99);
   const aiming = !a.down && a.aimUntil > t, fight = aiming || (!a.down && shot < 2.2), run = moving && !fight && mv > RUN_AT;
   const cyc = R0 * (run ? 2.3 : 1.35), ph = (a.gait || 0) / cyc * TAU + a.id * 1.7, st = Math.floor((((ph % TAU) + TAU) % TAU) / TAU * 8) % 8;
-  let pose = null;
+  let pose = null; const thr = t - (a.throwAt ?? -99);
   if (a.down) pose = 'down';
+  else if (thr < 0.55) pose = thr < 0.26 ? 'throw0' : 'throw1';     // (0.72) throwing a call-in's beacon at its mark
   else if (hurt < 0.18) pose = 'hit';
   else if (moving) pose = (fight ? 'a' : run ? 'r' : 'w') + st;
   else {
@@ -92,7 +117,7 @@ function allyFig(m, a, t, R0, tint, lod) {
     else { const q = (t * 0.11 + a.id * 0.61) % 1; pose = q < 0.3 ? 'n' + Math.floor(q / 0.1) : 'stand'; }
   }
   // he faces what he is shooting at for as long as he is in the fight (he used to turn away between bursts)
-  const face = aiming || (fight && !moving && a.aimA !== undefined) ? a.aimA : a.face;
+  const face = easeFace(a, thr < 0.55 && a.throwA != null ? a.throwA : aiming || (fight && !moving && a.aimA !== undefined) ? a.aimA : a.face);
   return { k: H_ ? 'van' : 'inf', x: a.x, y: a.y, r: R0, face, tint, lod, aim: fight, pose, up: a.high || 0, tumble: a.down ? Math.PI / 2 : undefined, walk: moving ? ph : null };
 }
 
@@ -253,7 +278,11 @@ export class Renderer {
         break;
       }
       case 'flyby': fx.push({ k: 'fly', x: ev.x1, y: ev.y1, x2: ev.x2, y2: ev.y2, t0: now + Math.max(0, ev.at - m.t), life: ev.dur }); break;
-      case 'callin_call': fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 26, t0: now, life: 0.8, a: 1, col: '#ffe600' }); break;
+      case 'callin_call': {     // (0.72) the beacon leaves his hand as he lets go, arcs over, and lands on the mark
+        const tc = ev.team >= 0 && m.teams[ev.team] ? m.teams[ev.team].color : '#ffe600', fly = 0.45 + Math.hypot(ev.x - ev.cx, ev.y - ev.cy) / 90;
+        if (ev.cx != null) fx.push({ k: 'toss', x: ev.x, y: ev.y, x0: ev.cx, y0: ev.cy, t0: now + 0.26, life: fly, col: tc });
+        fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 26, t0: now + (ev.cx != null ? 0.26 + fly : 0), life: 0.8, a: 1, col: '#ffe600' }); break;
+      }
       case 'strike_call':
         // the destroyer paints the target: a targeting laser from the sky, brackets closing in, and a ring
         fx.push({ k: 'paint', x: ev.x, y: ev.y, t0: now, life: 1.1, a: flash });
@@ -359,7 +388,7 @@ export class Renderer {
       if (ev.zap) { kind = 'zap'; flight = 0.001; w = 1.6; col = '#d6ecff'; }
       else if (ev.fl > 0) { kind = 'shell'; flight = ev.fl; }
     }
-    this.fx.push({ k: 'trc', kind, x: ev.x, y: ev.y, x2: ev.tx, y2: ev.ty, t0: now, fl: flight, life: flight + 0.14, col, w, len, hit: ev.hit, big: ev.big, side: ev.s, imp: false, d, fac: m.faction.id });
+    this.fx.push({ k: 'trc', kind, x: ev.x, y: ev.y, x2: ev.tx, y2: ev.ty, t0: now, fl: flight, life: flight + 0.14, col, w, len, hit: ev.hit, big: ev.big, side: ev.s, imp: false, d, fac: m.faction.id, tall: !!ev.tall });
   }
 
   enemyColor(m) { return this.settings.colorblind ? '#ffe600' : m.faction.color; }
@@ -453,7 +482,10 @@ export class Renderer {
       for (const tr2 of sc.trees) if (near(tr2)) { const k = tr2.kind === 'broad' ? 'tree:leaf' : 'tree:' + tr2.kind, v = 0.82 + 0.18 * ((tr2.seed % 7) / 7); out.push({ k, x: tr2.x, y: tr2.y, s: tr2.r, rot: tr2.a, tint: snow && tr2.kind === 'pine' ? '#dfe8ee' : null, dim: v }); }
       for (const o of sc.marks) { if (!near(o)) continue; const dn = !!(o.own && (o.own.destroyed || o.own.done || o.own.dead));
         if (o.kind === 'pillar') out.push({ k: 'pillar', x: o.x, y: o.y, s: 0.6 * o.s, h: (o.broken ? 0.45 : 1) * o.h * o.s, rot: o.a, tint: RC });
-        else if ((o.kind === 'banner' || o.kind === 'flag') && !dn) out.push({ k: o.kind, x: o.x, y: o.y, s: o.s, rot: o.a, tint: pal.enemy }); }
+        else if ((o.kind === 'banner' || o.kind === 'flag') && !dn) out.push({ k: o.kind, x: o.x, y: o.y, s: o.s, rot: o.a, tint: pal.enemy });
+        else if (o.kind === 'shrooms' && VIEW.m3.has('prop_shroom')) for (const c of o.caps) out.push({ k: c.glow ? 'shroom:glow' : 'shroom', x: o.x + c.x * o.s, y: o.y + c.y * o.s, s: c.r * o.s, rot: o.a + c.x, dim: c.glow ? 1 : 0.85 + 0.15 * ((o.seed + c.x * 7) % 1) });     /* (0.72) the bugs' mushrooms stand up */
+        else if (o.kind === 'ruin' && VIEW.m3.has(m.faction.id === 'lizards' ? 'prop_ruin_lizards' : 'prop_ruin_bugs')) {     /* (0.72) and the ruins: each length of wall its own block, end to end */
+          let x = o.x, y = o.y; for (const g of o.segs) { const L = g.l * o.s, x2 = x + Math.cos(g.a) * L, y2 = y + Math.sin(g.a) * L; out.push({ k: m.faction.id === 'lizards' ? 'ruin:lizards' : 'ruin:bugs', x: (x + x2) / 2, y: (y + y2) / 2, s: 1.6 * o.s, l: L / 2, h: g.h * o.s * 1.4, rot: -g.a }); x = x2; y = y2; } } }
     }
     const fk = { bugs: 'hive', bots: 'fab', lizards: 'camp' }[m.faction.id] || 'fab', hit = (o) => WOUND(o), fl = (o) => t - (o.hurtAt ?? -99) < 0.1;
     // (GC 0.67) each enemy its own turret (tools/blender/enemy.py), and what it builds falls in when destroyed and lies there:
@@ -534,6 +566,39 @@ export class Renderer {
     for (const q of m.loot || []) if (!q.done && q.kind !== 'wreck' && near(q)) out.push({ k: 'crate', x: q.x, y: q.y, s: Math.max(1.3, (q.r || 3) * 0.55), rot: ((q.id || 1) * 1.9) % 6.28 });     // what can be picked up
     for (const p of m.posts || []) { const d = P3_POST[p.what]; if (d && !p.dead && !p.ghost && near(p)) { const k = d[0] === 'post:lookout' && !VIEW.m3.has('prop_post_lookout') ? 'post:tower' : d[0], split = p.what === 'mg' && VIEW.m3.has('prop_post_mggun'); out.push({ k, x: p.x, y: p.y, s: d[1], rot: face(split ? p.face0 ?? p.face : p.face), tint: hit(p), flash: fl(p) }); if (split) out.push({ k: 'post:mggun', x: p.x, y: p.y, s: d[1], rot: face(p.face), tint: hit(p), flash: fl(p) }); } }     /* (0.59) the nest's bags stay as they were built; its gun turns */
     for (const a of m.assets || []) if (a.kind === 'turret' && !a.dead && near(a)) out.push({ k: 'aturret', x: a.x, y: a.y, s: 1.5, rot: face(a.face), tint: hit(a), flash: fl(a) });
+    // (0.72) a bug hole heaving up out of the ground and open, and the earth thrown up round every crater: models, not paint
+    if (VIEW.m3.has('prop_bughole')) for (const b of m.breaches) if (!b.dead && b.kind === 'hole' && near(b)) { const w = t < b.warnUntil ? Math.max(0, 1 - (b.warnUntil - t) / C.reinf.bugs.warnSec) : 1; out.push({ k: 'bughole', x: b.x, y: b.y, s: b.r * (0.35 + 0.65 * w), h: b.r * 0.9 * w + 0.05, rot: (b.id || 1) * 1.7, tint: hit(b), flash: fl(b) }); }
+    if (VIEW.m3.has('prop_crater')) { const ct = EARTH[m.biome.id] || EARTH.grass; for (const c of this.craters) if (c.r > 0.8 && near(c)) out.push({ k: 'crater', x: c.x, y: c.y, s: c.r * 1.02, h: c.r * 0.4, rot: c.x * 0.37, tint: ct, dim: 0.8 }); }     // (the earth thrown up, not rock)
+    // (0.72) the enemy capital's curtain walls, keep to each outer base (they were lines painted on the ground): in two lengths
+    // with a gap in the middle to go through, standing while both ends do and thrown down to a low heap once either falls
+    if (VIEW.m3.has('prop_fortwall')) {
+      const wt = { bugs: '#9a6a3c', bots: '#7c838c', lizards: RC }[m.faction.id] || RC;
+      for (const o of m.objectives || []) {
+        if (o.type !== 'fortress' || !o.parts) continue;
+        const k = o.base;
+        for (const b of o.parts) {
+          if (b === k || b.seen === false) continue;
+          const L = Math.hypot(b.x - k.x, b.y - k.y), ux = (b.x - k.x) / L, uy = (b.y - k.y) / L, a0 = (k.r || 24) * 0.8, a1 = L - (b.r || 14) * 0.7, run = a1 - a0;
+          if (run < 8 || Math.abs((k.x + b.x) / 2 - cx) > half + L / 2 || Math.abs((k.y + b.y) / 2 - cy) > half + L / 2) continue;
+          const up = !b.destroyed && !k.destroyed, gap = 4, seg = (run - gap) / 2, rot = -Math.atan2(uy, ux);
+          for (let i = 0; i < 2; i++) { const d = a0 + i * (seg + gap) + seg / 2; out.push({ k: 'fortwall', x: k.x + ux * d, y: k.y + uy * d, l: seg / 2, s: 4.2, h: up ? 3.8 : 1.0, rot, tint: wt, dim: up ? 1 : 0.6 }); }
+        }
+      }
+    }
+    // (0.72) a crate called in for a build is a crate on the ground (the cargo dropship lowered it), opened, then the post going up
+    // beside it: the post's own model, rising as it is put together
+    if (VIEW.m3.has('prop_crate')) for (const c of m.crates || []) {
+      if (!c.landed || c.used || c.dig || c.lay || !near(c)) continue;
+      const { f, stage } = crateStage(m, c), d = P3_POST[c.what], r = ((c.id || 1) * 1.9) % 6.28;
+      if (stage <= 1 || !d) {
+        out.push({ k: 'crate', x: c.x, y: c.y, s: 1.6, rot: r });
+        if (stage >= 1) out.push({ k: 'crate', x: c.x + 2.4, y: c.y + 0.9, s: 1.5, h: 0.12, rot: r + 0.35 });     // its lid, off to one side
+      } else {
+        out.push({ k: 'crate', x: c.x + 3.4, y: c.y + 1.6, s: 1.4, h: 0.7, rot: r });     // the emptied crate, set aside
+        const g = Math.min(1, (f - 0.35) / 0.6), pk = d[0] === 'post:lookout' && !VIEW.m3.has('prop_post_lookout') ? 'post:tower' : d[0];
+        out.push({ k: pk, x: c.x, y: c.y, s: d[1], h: d[1] * (0.25 + 0.75 * g), rot: face(c.face), dim: 0.7 + 0.3 * g });
+      }
+    }
     if (VIEW.ts) for (const u of out) { const fw = TRUE.field[u.k]; if (fw) { u.s = fw[0]; u.h = fw[1] * (u.k === 'wire' ? u.h / 3.2 : 1); continue; } const q = TRUE.prop[u.k]; if (!q) continue; const k = q[0] ? q[0] : q[1] / (u.s || 1); u.s *= k; if (u.h) u.h *= k; if (u.sink) u.sink *= k; }     // (scale test) at their own size
     return out;
   }
@@ -550,7 +615,7 @@ export class Renderer {
   }
   pass(m, cam) {
     const u = cam.orbit ? Math.max(0, Math.min(1, m.t / (m.limitSec || 1800))) * 2 - 1 : 0;
-    cam.yaw = cam.orbit ? (cam.yaw0 || 0) + u * PASS.swing : 0; cam.passTilt = cam.orbit ? PASS.low + (PASS.high - PASS.low) * (1 - u * u) : 0; this.yaw = cam.yaw;
+    cam.yaw = (cam.yaw0 || 0) + (cam.orbit ? u * PASS.swing : 0);     /* (0.72: the player's own turn, whether or not the ship passes over) */ cam.passTilt = cam.orbit ? PASS.low + (PASS.high - PASS.low) * (1 - u * u) : 0; this.yaw = cam.yaw;
   }
   draw(m, cam, ui) {
     if (this._real) { const r = this._real; this.ctx = r.ctx; this.W = r.W; this.H = r.H; this.focusY = r.focusY; this._real = null; }     // (a frame that threw half way: put the screen back)
@@ -631,7 +696,7 @@ export class Renderer {
     // Cover at the sites the squad holds, and the citadel's walls
     { const r3 = this.settings.relief3d; setFlat((cam.g3d && !!this._g3) || r3 === 'off' || this.quality === 'low' || this.perf.low || (r3 !== 'on' && (this.perf.tier >= 2 || (this.phone && this.qset !== 'high')))); } reliefFrame(now); this.flat3d = isFlat();     // (0.61) the slight 3D look (render/relief.js)
     drawCover(ctx, m, px);
-    drawCitadelWalls(ctx, m, pal.enemy, px);
+    if (!(VIEW.p3 && VIEW.m3.has('prop_fortwall'))) drawCitadelWalls(ctx, m, pal.enemy, px);
     // Bases: always known from orbit.
     const sqBase = m.squad.base, tgBs = infantryTargets(m), nm0 = labels.length;
     for (const b of m.bases) {
@@ -735,7 +800,9 @@ export class Renderer {
     const crowd = this.perf.low ? 150 : 300, dotKinds = u3 ? '' : nOn > crowd * 2 ? 'LM' : nOn > crowd ? 'L' : '', lod0 = [], lod1 = [], hot = [];
     // (GC 0.33) in 3D: which sizes are drawn as their lighter models, by how small they are on the screen and how crowded the field is
     const KU = VIEW.ts ? TRUE.foe : 1, pxU = VIEW.ts ? () => 0 : px;     // (pixel test) at true scale nothing is held to a size in pixels
-    const far3 = !u3 ? '' : scale < 4 || nOn > 400 ? 'LMH' : scale < 7.5 || nOn > 160 ? 'LM' : scale < 9.5 || nOn > 90 ? 'L' : '';
+    const farLv = (k) => (scale < 4 * k || nOn > 400 / k ? 3 : scale < 7.5 * k || nOn > 160 / k ? 2 : scale < 9.5 * k || nOn > 90 / k ? 1 : 0);
+    { const L0 = this._farL ?? farLv(1), up = farLv(0.9), down = farLv(1.1); this._farL = up > L0 ? up : down < L0 ? down : L0; }     // (0.72) a margin each way: no swapping models to and fro at the line
+    const far3 = !u3 ? '' : ['', 'L', 'LM', 'LMH'][this._farL];
     for (const e of m.enemies) {
       if (e.dead || e.vis <= 0) continue;
       if (!onScr(e.x, e.y, e.boss ? e.r * 4 : 8)) continue;
@@ -770,7 +837,7 @@ export class Renderer {
         else raiseUnit(ctx, br * 0.34, wallE, (c) => drawBossBody(c, e, fid, br, pal.enemy, now, px, t - e.hurtAt < 0.06, t));
       }
       else if (u3) { if ((e.atk || 0) > (e._pa ?? 0) + 0.15) e._at = t; e._pa = e.atk || 0;     // (GC 0.31) its attack timer has just been wound again: it has just struck
-        u3.push({ k: fid + ':' + (e.sub || e.v || e.kind), alt: fid + ':' + e.kind, lod: far3.includes(e.kind), jump: !!e.air, atk: t - (e._at ?? -9) < 0.3, x: e.x, y: e.y, r: enemyR(e, SUBTYPES[e.kind], pxU) * 1.25 * KU, face: e.face, tint: WOUND(e), flash: t - e.hurtAt < 0.1, dim: e.vis >= 2 ? 1 : 0.6, up: e.air ? e.air * 4 : 0, walk: !e.air && (e.vx || 0) ** 2 + (e.vy || 0) ** 2 > 0.1 ? t * (fid === 'bugs' ? 15 : 10) + e.id : null }); }
+        u3.push({ k: fid + ':' + (e.sub || e.v || e.kind), alt: fid + ':' + e.kind, lod: far3.includes(e.kind), jump: !!e.air, atk: t - (e._at ?? -9) < 0.3, x: e.x, y: e.y, r: enemyR(e, SUBTYPES[e.kind], pxU) * 1.25 * KU, face: easeFace(e, e.face), tint: WOUND(e), flash: t - e.hurtAt < 0.1, dim: e.vis >= 2 ? 1 : 0.6, up: e.air ? e.air * 4 : 0, walk: !e.air && walking(e, (e.vx || 0) ** 2 + (e.vy || 0) ** 2) ? t * (fid === 'bugs' ? 15 : 10) + e.id : null }); }
       else drawEnemyBody(ctx, e, fid, enemyR(e, SUBTYPES[e.kind], px), pal.enemy, now, px, t - e.hurtAt < 0.06);
       if (up) dropUnit(ctx, up);
       ctx.globalAlpha = 1;
@@ -830,7 +897,7 @@ export class Renderer {
       }
       else if (!flat) up = liftUnit(ctx, a.x, a.y, r, r * (H_ ? 0.5 : 0.42), wallA);
       else if (!VIEW.sh) { ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.ellipse(a.x + r * 0.45, a.y + r * 0.35, r * 0.95, r * 0.7, 0, 0, TAU); ctx.fill(); }     // (0.59) its shadow
-      if (!fine && u3 && a.mech && a.mech.hp > 0 && VIEW.m3.has('veh_mech')) u3.push({ k: 'mech', x: a.x, y: a.y, r: trueR('mech', r3 * 1.9), face: a.aimUntil > t ? a.aimA : a.face, flash: t - (a.hurtAt ?? -9) < 0.1, walk: (a.mv || 0) > 0.5 ? t * 7 + a.id : null });     // (GC 0.41) in a mech suit: the suit is what is seen
+      if (!fine && u3 && a.mech && a.mech.hp > 0 && VIEW.m3.has('veh_mech')) { const mr = trueR('mech', r3 * 1.9), mv = (a.mv || 0) > 0.5; u3.push({ k: 'mech', x: a.x, y: a.y, r: mr, face: easeFace(a, a.aimUntil > t ? a.aimA : a.face), flash: t - (a.hurtAt ?? -9) < 0.1, walk: mv ? (a.gait || 0) / (mr * 1.2) * TAU : null, atk: !mv && t - (a.shotAt ?? -9) < 0.07 }); }     /* (0.72) the walker's stride is its own: a foot stays where it is put down (a cycle carries it 1.2 of its size); its guns run back as they fire */     // (GC 0.41) in a mech suit: the suit is what is seen
       else if (!fine) { if (u3) u3.push(allyFig(m, a, t, VIEW.ts ? r3 : r3 * (H_ ? 1.25 : 1.1), tm ? tm.color : null, far3 !== '')); else drawAllyBody(ctx, a, r, pal.ally, tm ? tm.color : null, on, now, px, t); }
       if (up) dropUnit(ctx, up);
       if (t - a.hurtAt < 0.1 && !hideUi) { ctx.strokeStyle = '#ff6a6a'; ctx.lineWidth = px(1.5); ctx.beginPath(); ctx.arc(a.x, a.y, r * 1.3, 0, TAU); ctx.stroke(); }
@@ -928,7 +995,7 @@ export class Renderer {
     if (real) {     // lay the turned world on the screen
       const wc = this._wc, S = this.W; this.ctx = real.ctx; this.W = real.W; this.H = real.H; this.focusY = real.focusY; this._real = null; ctx = this.ctx; W = this.W; H = this.H;
       ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
-      if (g3) { const t0 = performance.now(); g3.frame({ sheet: wc, S, scale, camX: v.camX, camY: v.camY, yaw: cam.yaw, tilt: cam.tilt || cam.passTilt, W, H, fy: this.focusY || 0.5, sun: this._sun, hue: this._hue, height: (x, y) => m.terrain.height(x, y), blocks: this._blocks(m, v.camX, v.camY, S / scale / 2), props: VIEW.p3 ? this._props(m, v.camX, v.camY, S / scale / 2, pal) : null, lit: 1, dark: this._dark > 0.005 ? this.light.mask : this.fog, /* (0.52) the models take the night from the same mask as the ground, light by light: not one dimmer for all of them */ units: U3, drops: D3, shells: S3, strobes: B3, blasts: X3, bolts: T3, orbs: O3, domes: DM3, puffs: SM3, hot: cam.sight === 'whot' || cam.sight === 'bhot', pixel: cam.pixel || 0, gunUp: VIEW.ts ? 1.4 : 3.6, rings: this._rings, sight: cam.sight, topo: !!cam.topo, ground: this.groundCv, groundRev: this.groundRev || 0, size: SIZE, post: !(this.quality === 'low' || this.perf.low), shadows: VIEW.sh, shadowRes: this.quality === 'low' || this.perf.low ? 1024 : (this.perf.tier || 0) >= 1 ? 2048 : 4096 });
+      if (g3) { const t0 = performance.now(); g3.frame({ sheet: wc, S, scale, camX: v.camX, camY: v.camY, yaw: cam.yaw, tilt: cam.tilt || cam.passTilt, W, H, fy: this.focusY || 0.5, sun: this._sun, hue: this._hue, height: (x, y) => m.terrain.height(x, y), blocks: this._blocks(m, v.camX, v.camY, S / scale / 2), props: VIEW.p3 ? this._props(m, v.camX, v.camY, S / scale / 2, pal) : null, lit: 1, dark: this._dark > 0.005 ? this.light.mask : this.fog, haze: this._dark > 0.005 ? null : HAZE.map((c) => (c / 255) ** 2.2), /* (0.52) the models take the night from the same mask as the ground, light by light: not one dimmer for all of them */ units: U3, drops: D3, shells: S3, strobes: B3, blasts: X3, bolts: T3, orbs: O3, domes: DM3, puffs: SM3, hot: cam.sight === 'whot' || cam.sight === 'bhot', pixel: cam.pixel || 0, gunUp: VIEW.ts ? 1.4 : 3.6, rings: this._rings, sight: cam.sight, topo: !!cam.topo, ground: this.groundCv, groundRev: this.groundRev || 0, size: SIZE, post: !(this.quality === 'low' || this.perf.low), shadows: VIEW.sh, shadowRes: this.quality === 'low' || this.perf.low ? 1024 : (this.perf.tier || 0) >= 1 ? 2048 : 4096 });
         if (!g3.sighted) ctx.filter = cam.sight === 'whot' ? 'grayscale(1) brightness(1.3) contrast(1.15)' : cam.sight === 'bhot' ? 'grayscale(1) brightness(1.3) invert(1) contrast(1.12)' : 'none';     // (only where the graphics card could not put the sight on itself)
         ctx.drawImage(g3.cv, 0, 0); ctx.filter = 'none'; this._g3on = true; this.t3 = (this.t3 || 0) + (performance.now() - t0 - (this.t3 || 0)) * 0.08; }     // (the sight: infrared white-hot, black-hot, or plain colour)
       else { ctx.translate(v.px, v.py); ctx.rotate(cam.yaw); ctx.drawImage(wc, -S / 2, -S / 2); }
@@ -1079,7 +1146,9 @@ export class Renderer {
     const fc = this.fog.getContext('2d'), fw = this.fog.width, fh = this.fog.height, h = fw / this.W;
     fc.globalCompositeOperation = 'source-over';
     fc.clearRect(0, 0, fw, fh);
-    fc.fillStyle = 'rgba(0,0,0,0.72)'; fc.fillRect(0, 0, fw, fh);
+    // (0.72, Ramzies: "the fog of war should be shown differently during the day, right now it just looks like shadow") by day
+    // the unseen is a pale haze that dulls the colour out of things; only by night is it dark
+    fc.fillStyle = under ? 'rgba(0,0,0,0.72)' : `rgba(${HAZE.join(',')},0.6)`; fc.fillRect(0, 0, fw, fh);
     fc.globalCompositeOperation = 'destination-out';
     const hole = (wx, wy, wr, soft) => {
       const x = (wx * scale + tx) * h, y = (wy * scale + ty) * h, r = wr * scale * h;
@@ -1439,7 +1508,7 @@ export class Renderer {
         const g = ctx.createRadialGradient(c.x + ux * r * 0.22, c.y + uy * r * 0.22, 0, c.x, c.y, r);
         g.addColorStop(0, `rgba(${dk},${0.8 * d})`); g.addColorStop(0.65, `rgba(${dk},${0.5 * d})`); g.addColorStop(1, `rgba(${dk},0)`);
         ctx.fillStyle = g; ctx.beginPath(); ctx.arc(c.x, c.y, r, 0, TAU); ctx.fill();
-        if (r < px(3)) continue;     // too small on screen for more than the bowl
+        if (r < px(3) || (VIEW.p3 && VIEW.m3.has('prop_crater') && r > 0.8)) continue;     // too small on screen for more than the bowl (0.72: in 3D the rim is a model)
         // the wall: one ring, shaded on the sun's side and lit on the far side; the lip: a thinner ring the other way about
         const wx = ux * r, wy = uy * r;
         let lg = ctx.createLinearGradient(c.x + wx, c.y + wy, c.x - wx, c.y - wy);
@@ -1488,10 +1557,12 @@ export class Renderer {
     const KINDS = ['boot', 'bugs', 'bots', 'lizards', 'claw', 'tread', 'pad', 'drag', 'bigfoot'], NK = KINDS.length;
     const col = ['40,34,26', '58,52,30', '30,30,34', '48,34,58', '52,44,26', '26,26,28', '44,30,56', '70,40,60', '24,24,26'], paths = [], used = [];
     for (let i = 0; i < 4 * NK; i++) { paths.push(new Path2D()); used.push(false); }
+    const p3c = (() => { const d = propCols(m.biome.id).dark; return `${d[0]},${d[1]},${d[2]}`; })();
     for (const f of P) {
       if (!onScr(f.x, f.y, 1)) continue;
       const band = Math.min(3, Math.floor(((now - f.t) / FP_LIFE) * 4)), ki = KINDS.indexOf(f.k), pa = paths[band * NK + ki], s = f.s * Z;
       if (ki < 0 || (tiny && f.s < 2.5)) continue;
+      if (VIEW.p3 && ki >= 1 && ki <= 3) continue;     // (0.72, "bug tracks look weird to the new models") in 3D the small ones leave none: the dots did not fit their feet
       used[band * NK + ki] = true;
       if (ki >= 4) {
         const an = Math.atan2(f.uy, f.ux), c = Math.cos(an), sn = Math.sin(an);
@@ -1506,14 +1577,14 @@ export class Renderer {
       else if (ki === 1) { for (const o of [-0.35, 0, 0.35]) { const x = f.x - f.uy * o * s, y = f.y + f.ux * o * s; pa.moveTo(x + 0.13 * s, y); pa.arc(x, y, 0.13 * s, 0, TAU); } }
       else if (ki === 3) { for (const o of [-0.5, 0, 0.5]) { const x = f.x + (f.ux * 0.35 - f.uy * o * 0.5) * s, y = f.y + (f.uy * 0.35 + f.ux * o * 0.5) * s; pa.moveTo(x + 0.12 * s, y); pa.arc(x, y, 0.12 * s, 0, TAU); } }
       else {     // a boot: the sole, and the heel behind it
-        const an = Math.atan2(f.uy, f.ux), c = Math.cos(an), sn = Math.sin(an);
-        pa.moveTo(f.x + c * 0.36, f.y + sn * 0.36); pa.ellipse(f.x + c * 0.12, f.y + sn * 0.12, 0.24, 0.13, an, 0, TAU);
-        pa.moveTo(f.x - c * 0.14, f.y - sn * 0.14); pa.ellipse(f.x - c * 0.25, f.y - sn * 0.25, 0.11, 0.11, an, 0, TAU);
+        const an = Math.atan2(f.uy, f.ux), c = Math.cos(an), sn = Math.sin(an), b = VIEW.ts ? 0.6 : 1;     // (0.72: at true size a boot is a boot's length, not half a metre)
+        pa.moveTo(f.x + c * 0.36 * b, f.y + sn * 0.36 * b); pa.ellipse(f.x + c * 0.12 * b, f.y + sn * 0.12 * b, 0.24 * b, 0.11 * b, an, 0, TAU);
+        pa.moveTo(f.x - c * 0.14 * b, f.y - sn * 0.14 * b); pa.ellipse(f.x - c * 0.25 * b, f.y - sn * 0.25 * b, 0.1 * b, 0.1 * b, an, 0, TAU);
       }
     }
     for (let band = 0; band < 4; band++) for (let ki = 0; ki < NK; ki++) {
       if (!used[band * NK + ki]) continue;
-      ctx.fillStyle = `rgba(${col[ki]},${0.3 * (1 - band / 4)})`; ctx.fill(paths[band * NK + ki]);
+      ctx.fillStyle = VIEW.p3 ? `rgba(${p3c},${0.16 * (1 - band / 4)})` : `rgba(${col[ki]},${0.3 * (1 - band / 4)})`; ctx.fill(paths[band * NK + ki]);     // (0.72: in 3D, faint and in the ground's own shade)
     }
   }
   _effects(ctx, now, px) {
@@ -1528,6 +1599,11 @@ export class Renderer {
       }
       const a = (1 - p) * (f.a ?? 1);
       if (f.k === 'trc') { this._drawTracer(ctx, f, now, px); continue; }
+      if (f.k === 'toss') {     // (0.72) a thrown beacon: in 3D a small light in the air on its arc, else a dot lifted off the ground
+        const x = f.x0 + (f.x - f.x0) * p, y = f.y0 + (f.y - f.y0) * p, up = 1.7 * (1 - p) + Math.sin(Math.PI * p) * (2.5 + Math.hypot(f.x - f.x0, f.y - f.y0) * 0.12);
+        if (VIEW.fx3) { VIEW.fx3.orbs.push({ x, y, up, r: 0.16, col: f.col }); continue; }
+        ctx.fillStyle = f.col; ctx.beginPath(); ctx.arc(x, y - up, Math.max(px(2.2), 0.25), 0, TAU); ctx.fill(); continue;
+      }
       if (f.k === 'burst') {      // (0.58) droplets and sparks thrown on along the shot, fading
         for (let i = 0; i < f.n; i++) {
           const h1 = Math.sin(f.seed + i * 12.9898) * 43758.5453, rnd = h1 - Math.floor(h1), h2 = Math.sin(f.seed + i * 78.233) * 12543.21, rnd2 = h2 - Math.floor(h2);
@@ -1742,7 +1818,7 @@ export class Renderer {
     if (tt < 0.06 && f.kind !== 'slash' && f.kind !== 'glob' && f.kind !== 'zap') {
       const q = 1 - tt / 0.06, s = Math.max(f.big ? 4.2 : 2.4, px(f.big ? 9 : 5)) * (0.7 + 0.3 * q), ang = Math.atan2(dy, dx);
       const core = f.side === 'e' ? f.col : '#ffe9b0';
-      if (this._o3) this._o3.push({ x: f.x + dx / (d || 1) * 1.6, y: f.y + dy / (d || 1) * 1.6, up: VIEW.ts ? 1.5 : 4.6, r: s * 0.32 * (0.5 + 0.5 * q) * (VIEW.ts ? 0.6 : 1), col: core });     // (GC 0.27) in 3D the flash is at the muzzle, not on the ground
+      if (this._o3) { const fd = f.tall ? 2.8 : VIEW.ts ? 0.75 : 1.6; this._o3.push({ x: f.x + dx / (d || 1) * fd, y: f.y + dy / (d || 1) * fd, up: f.tall ? (VIEW.ts ? 3.2 : 7) : VIEW.ts ? 1.32 : 4.6, r: (f.big || f.tall ? 0.2 : 0.09) * (0.5 + 0.5 * q) * (VIEW.ts ? 1 : 2.4), col: f.side === 'e' ? core : '#ffc070' }); }     /* (0.72: at the muzzle, small and brief and warm; it was a white ball the size of the man's head in front of his face) */     // (GC 0.27) in 3D the flash is at the muzzle, not on the ground. (0.72) A flash, not a glowing ball a metre across
       else {
       ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(ang);
       const g = ctx.createRadialGradient(0, 0, 0, 0, 0, s);
@@ -1792,8 +1868,8 @@ export class Renderer {
     let lift = 0;
     if (f.kind === 'shell' && f.fl >= 1) lift = Math.sin(Math.PI * hp) * Math.min(26, d * 0.3);   // lobbed shells arc up and come down
     if (this._o3 && (f.kind === 'glob' || f.kind === 'shell')) {     // (GC 0.25) in 3D: a ball of light through the air, a lobbed one high over the ground
-      this._o3.push({ x: hx, y: hy, up: (VIEW.ts ? 1.4 : 3.6) + lift * 1.6, r: Math.max(f.kind === 'shell' ? 0.7 : 0.6, px(2.6)), col: f.kind === 'shell' ? '#fff2d0' : f.col });
-      if (f.kind === 'shell' && lift === 0) { const tp = Math.max(0, hp - f.len / d); this._t3.push({ x: f.x + dx * tp, y: f.y + dy * tp, x2: hx, y2: hy, w: Math.max(px(f.w), 0.3), col: f.col }); }
+      this._o3.push({ x: hx, y: hy, up: (VIEW.ts ? 1.4 : 3.6) + lift * 1.6, r: Math.min(0.45, Math.max(f.kind === 'shell' ? 0.2 : 0.25, px(1.6))), col: f.kind === 'shell' ? '#ffe6b0' : f.col });     // (0.72: a round in flight is a spark, not a ball a metre and a half across)
+      if (f.kind === 'shell' && lift === 0) { const tp = Math.max(0, hp - f.len / d); this._t3.push({ x: f.x + dx * tp, y: f.y + dy * tp, x2: hx, y2: hy, w: Math.min(0.22, Math.max(px(f.w * 0.6), 0.1)), col: f.col }); }
       return;
     }
     if (f.kind === 'glob') {
@@ -1809,7 +1885,9 @@ export class Renderer {
     }
     const tp = tt > f.fl ? Math.min(1, Math.max(0, hp - f.len / d) + ((tt - f.fl) / 0.1) * (1 - Math.max(0, hp - f.len / d))) : Math.max(0, hp - f.len / d);
     const tx = f.x + dx * tp, ty = f.y + dy * tp;
-    if (this._t3) { this._t3.push({ x: tx, y: ty, x2: hx, y2: hy, w: Math.max(px(f.w * (f.kind === 'bolt' ? 1.6 : 1)), f.kind === 'bolt' ? 0.45 : 0.28), col: f.col }); return; }     // (GC 0.25) in 3D: a streak of light at gun height, not a line on the ground
+    // (0.72, Ramzies: "bullet lines are thick and look 2d") a tracer is a few centimetres across (a pixel at the least), and runs
+    // from the gun down to where it struck: a body's middle, or the ground when it missed (it was a bar level at gun height)
+    if (this._t3) { const gu = f.tall ? (VIEW.ts ? 3.2 : 7) : VIEW.ts ? 1.4 : 3.6, end = f.hit ? (f.side === 'e' ? gu * 0.75 : gu * 0.5) : 0.05; this._t3.push({ x: tx, y: ty, x2: hx, y2: hy, w: Math.min(f.kind === 'bolt' ? 0.26 : 0.16, Math.max(px(f.kind === 'bolt' ? 1.2 : 0.8), f.kind === 'bolt' ? 0.1 : 0.05)), col: f.col, up: gu + (end - gu) * Math.min(1, Math.max(0, (Math.hypot(tx - f.x, ty - f.y)) / (f.d || 1))), up2: gu + (end - gu) * Math.min(1, Math.hypot(hx - f.x, hy - f.y) / (f.d || 1)) }); return; }     // (GC 0.25) in 3D: a streak of light at gun height, not a line on the ground
     ctx.lineCap = 'round';
     if (f.kind === 'bolt') { ctx.strokeStyle = this._rgba(f.col, 0.28); ctx.lineWidth = px(f.w * 3.2); ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(hx, hy); ctx.stroke(); }
     else { ctx.strokeStyle = this._rgba(f.col, 0.18); ctx.lineWidth = Math.max(px(f.w * 2.6), 1.2); ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(hx, hy); ctx.stroke(); }     // (0.38: a faint glow round every tracer)

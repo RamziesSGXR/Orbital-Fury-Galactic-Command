@@ -84,6 +84,74 @@ def pillar():
     start('prop_pillar'); box('foot', (2.0, 2.0, 0.08), (0, 0, 0.04), m=stone, bevel=0.02); disc('shaft', 0.74, 0.86, 0.08, stone, 10, r2=0.68); disc('cap', 0.82, 0.06, 0.94, stone, 10)
     for i in range(10): a = i / 10 * TAU; cyl('flute%d' % i, (math.cos(a) * 0.74, math.sin(a) * 0.74, 0.1), (math.cos(a) * 0.68, math.sin(a) * 0.68, 0.92), 0.05, m=white_d, sides=4)
 
+# (GC 0.72, Ramzies: "objects that are still 2d in a 3d game world ... mushrooms") the bugs' mushroom patches and the ruins
+# the bugs and the lizards leave across a world they hold, which were painted on the map. A mushroom: its cap a radius of one,
+# standing about one and a third high on a pale stalk; the glowing kind's cap is lit. A ruin: one broken length of wall along
+# X from -1 to 1 (the game stretches it to each segment's length and height), one high at its tallest.
+sh_stalk = mat('w_m_stalk', '#d9cfb0', rough=0.9); sh_cap = mat('w_m_cap', '#a0623a', rough=0.8); sh_gill = mat('w_m_gill', '#5a3a22'); sh_spot = mat('w_m_spot', '#c98a58', rough=0.8)
+sh_glow = mat('w_m_hot_cap', '#ff9a3a', emit=1.6); sh_glow2 = mat('w_m_hot_spot', '#ffe0a0', emit=1.2)
+r_bug = mat('w_m_ruin', '#8a7656', rough=1.0); r_bug_d = mat('w_m_ruin_d', '#4d3f2a', rough=1.0); r_resin = mat('w_m_resin', '#d29628', rough=0.4)
+r_liz = mat('w_t_ruin', '#7d7392', rough=1.0); r_liz_d = mat('w_t_ruin_d', '#463f58', rough=1.0); r_glyph = mat('w_t_glyph', '#78f0ff', emit=1.8)
+def _shroom(name, cap, spot):
+    start(name)
+    loft('stalk', [((0, 0, 0), 0.26, 0.26), ((0.02, 0, 0.5), 0.2, 0.2), ((0.05, 0.02, 1.0), 0.17, 0.17), ((0.05, 0.02, 1.1), 0.19, 0.19)], sides=9, m=sh_stalk, rough=0.05, seed=2)
+    dome('cap', (0.05, 0.02, 1.02), (1.0, 0.94), top=0.42, eq=0.06, rim=lambda a: 0.0, rings=3, segs=14, flare=1.0, m=cap)
+    disc('gills', 0.96, 0.03, 1.0, sh_gill, 14, at=(0.05, 0.02))
+    for i, (a, r) in enumerate(((0.4, 0.5), (2.2, 0.62), (3.9, 0.36), (5.1, 0.7), (1.3, 0.18))):
+        o = blob('spot%d' % i, r=0.12, scale=(1, 1, 0.35), loc=(0.05 + math.cos(a) * r, 0.02 + math.sin(a) * r, 1.05 + 0.4 * (1 - (r / 1.0) ** 2) ** 0.5), sub=1, m=spot)
+def shroom(): _shroom('prop_shroom', sh_cap, sh_spot)
+def shroom_glow(): _shroom('prop_shroom_glow', sh_glow, sh_glow2)
+def _ruin(name, top, side, extra):
+    start(name)
+    # a wall broken along its top: blocks stacked, the courses stepping down toward the ends and one end snapped off
+    import random; rnd = random.Random(7 if 'bugs' in name else 11)
+    x = -1.0
+    while x < 0.98:
+        w = rnd.uniform(0.22, 0.36); w = min(w, 1.0 - x); cx = x + w / 2; h = 1.0 - 0.55 * abs(cx) ** 1.4 - rnd.uniform(0, 0.22)
+        n = max(1, int(h / 0.26 + 0.5))
+        for k in range(n):
+            hh = h / n; box('blk%.2f_%d' % (x, k), (w * 0.97, 0.34 + rnd.uniform(-0.03, 0.03), hh * 0.95), (cx, rnd.uniform(-0.02, 0.02), hh * (k + 0.5)), m=side if (k + int(x * 10)) % 3 else top, bevel=0.015, rot=(0, 0, rnd.uniform(-0.04, 0.04)))
+        x += w
+    for i in range(5):
+        a = rnd.uniform(-1, 1); o = blob('rubble%d' % i, r=rnd.uniform(0.08, 0.16), scale=(1.2, 1, 0.6), loc=(a, rnd.choice((-1, 1)) * rnd.uniform(0.24, 0.42), 0.04), sub=1, m=side, rough=0.3, seed=i)
+    extra(rnd)
+def ruin_bugs(): _ruin('prop_ruin_bugs', r_bug, r_bug_d, lambda rnd: [blob('resin%d' % i, r=0.14, scale=(1, 0.7, 1.3), loc=(rnd.uniform(-0.7, 0.7), -0.19, rnd.uniform(0.2, 0.55)), sub=1, m=r_resin, rough=0.2, seed=i) for i in range(4)])
+def ruin_lizards(): _ruin('prop_ruin_lizards', r_liz, r_liz_d, lambda rnd: [box('glyph%d' % i, (0.1, 0.03, 0.18), (-0.45 + i * 0.45, -0.18, 0.45 - 0.1 * abs(i - 1)), m=r_glyph) for i in range(3)])
+
+# (GC 0.72, Ramzies: "bug breaches look like 2d holes", "some craters after blowing things up look 2d") a bug hole and a
+# crater's rim, a radius of one. The bug hole: a ring of heaved earth round a dark pit, chitin spikes in the rim, clods thrown out.
+# The crater: earth thrown up round a blast; its colour is the ground's (the game tints `white`), its scorched bowl is painted.
+def _rim(name, r, tube, h, m, n=22, seed=1, rough=0.18):
+    # uneven all the way round (each section its own width, height and reach), and closed: the last section is the first
+    import random; rnd = random.Random(seed); v = [(1 + rough * rnd.uniform(-0.9, 0.9), 1 + rough * rnd.uniform(-1.3, 1.3), 1 + rough * rnd.uniform(-0.25, 0.25)) for i in range(n)]; v.append(v[0])
+    pts = [((math.cos(i / n * TAU) * r * v[i % n][2], math.sin(i / n * TAU) * r * v[i % n][2], h * 0.3 * v[i % n][1]), tube * v[i % n][0], h * v[i % n][1]) for i in range(n + 2)]     # (one section past the start: the ends overlap, no crack)
+    return loft(name, pts, sides=7, m=m, cap=False)
+def bughole():
+    start('prop_bughole')
+    _rim('rim', 0.8, 0.26, 0.22, m_mound, seed=3); _rim('rim2', 0.96, 0.18, 0.1, m_light, seed=5, rough=0.25)
+    disc('pit', 0.62, 0.02, 0.0, m_dark, 16); disc('deep', 0.4, 0.02, 0.012, mat('w_m_pit', '#050201'), 14)
+    for i in range(6): a = i / 6 * TAU + 0.4; spike('spk%d' % i, (math.cos(a) * 0.72, math.sin(a) * 0.72, 0.12), (math.cos(a) * 0.98, math.sin(a) * 0.98, 0.55), 0.06, m=m_dark)
+    for i in range(9):
+        a = i * 2.3 + 0.2; d = 1.08 + 0.2 * ((i * 0.37) % 1)
+        blob('clod%d' % i, r=0.1 + 0.05 * (i % 3), scale=(1.2, 1, 0.6), loc=(math.cos(a) * d, math.sin(a) * d, 0.04), sub=1, m=m_mound if i % 2 else m_light, rough=0.3, seed=i)
+def crater():
+    start('prop_crater')
+    _rim('rim', 0.84, 0.28, 0.11, white, seed=8, rough=0.28); _rim('rim2', 1.02, 0.16, 0.05, white_d, seed=9, rough=0.35)
+    for i in range(10):
+        a = i * 2.1 + 0.5; d = 1.05 + 0.25 * ((i * 0.53) % 1)
+        blob('clod%d' % i, r=0.06 + 0.04 * (i % 3), scale=(1.2, 1, 0.55), loc=(math.cos(a) * d, math.sin(a) * d, 0.02), sub=1, m=white_d, rough=0.3, seed=i)
+
+# (GC 0.72, Ramzies: "there are still 2d lines for enemy capital bases") a length of the capital's curtain wall, X from -1 to 1,
+# one high: buttressed both sides, a walk along its top and teeth along the edge. Tinted to the enemy (white, white_d).
+def fortwall():
+    start('prop_fortwall')
+    box('wall', (2.0, 0.42, 0.86), (0, 0, 0.43), m=white, bevel=0.02, taper=0.92); box('walk', (2.0, 0.5, 0.06), (0, 0, 0.88), m=white_d, bevel=0.01)
+    for i in range(9):
+        x = -0.92 + i * 0.23; box('tooth%d' % i, (0.12, 0.08, 0.12), (x, -0.22, 0.97), m=white, bevel=0.01)
+    for i in range(5):
+        x = -0.8 + i * 0.4
+        for sy in (-1, 1): box('butt%d%d' % (i, sy > 0), (0.14, 0.2, 0.6), (x, sy * 0.27, 0.3), m=white_d, bevel=0.02, taper=0.6)
+
 # ---------------------------------------------------------------- the enemy's (a footprint radius of about one)
 def hive():     # the Molt's nest: a mound, its mouths, spikes round it, glowing sacs
     start('prop_hive')
@@ -258,7 +326,7 @@ def ship_talon():   # the Talon: a pale blade between two horns
     blob('crystal', r=0.3, scale=(1.25, 0.8, 0.8), loc=(-0.45, 0, 0.3), sub=1, m=accent_lit); blob('core', r=0.25, scale=(1, 1, 0.72), loc=(-1.4, 0, 0), sub=1, m=accent_lit)
 
 OUT = {}
-PROPS = (tree_leaf, tree_pine, tree_jungle, tree_cactus, tree_dead, rock, rock_b, rock_spire, pillar, spire, totem, turret, banner, flag, crate, aturret)     # (GC 0.64: the heavy turret, its gun, the artillery, the SAM site, the propaganda tower and the lookout are fleet.py's. GC 0.67: the nests, the great gun and the shield node are enemy.py's; turret stays as the old shared one)
+PROPS = (tree_leaf, tree_pine, tree_jungle, tree_cactus, tree_dead, rock, rock_b, rock_spire, pillar, shroom, shroom_glow, ruin_bugs, ruin_lizards, bughole, crater, fortwall, spire, totem, turret, banner, flag, crate, aturret)     # (GC 0.64: the heavy turret, its gun, the artillery, the SAM site, the propaganda tower and the lookout are fleet.py's. GC 0.67: the nests, the great gun and the shield node are enemy.py's; turret stays as the old shared one)
 SHIPS = (ship_fed, ship_molt, ship_foundry, ship_talon)
 for fn in PROPS + SHIPS:
     fn(); bpy.context.view_layer.update()

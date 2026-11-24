@@ -47,6 +47,7 @@ export function drawHoles(ctx, m, now, px, labels, scale, pal) {
   for (const b of m.breaches) {
     if (b.dead || b.kind !== 'hole') continue;
     const R = Math.max(b.r, px(10)), hit = t - b.hurtAt < 0.12;
+    if (t < b.warnUntil && VIEW.p3 && VIEW.m3.has('prop_bughole')) { labels.push({ x: b.x, y: b.y, dy: -R * scale - 8, text: tr('lab.breachIn', { n: Math.ceil(b.warnUntil - t) }), col, pri: 3 }); continue; }     // (0.72: in 3D the mound rises)
     if (t < b.warnUntil) {
       // the ground bulges and cracks before it opens
       const p = 1 - (b.warnUntil - t) / C.reinf.bugs.warnSec;
@@ -59,6 +60,9 @@ export function drawHoles(ctx, m, now, px, labels, scale, pal) {
       labels.push({ x: b.x, y: b.y, dy: -R * scale - 8, text: tr('lab.breachIn', { n: Math.ceil(b.warnUntil - t) }), col, pri: 3 });
       continue;
     }
+    const m3 = VIEW.p3 && VIEW.m3.has('prop_bughole');     // (0.72) in 3D the hole is a model (render _props): only its label and health here
+    if (m3) { hpBar(ctx, b.x, b.y + R * 1.2, R * 2, px(4), b.hp / b.maxHp, col); const hard = b.hardUntil && t < b.hardUntil, packs = b.groups ? Math.max(1, Math.round(b.left / C.reinf.bugs.packs)) : b.left;
+      labels.push({ x: b.x, y: b.y, dy: -R * scale - 8, text: hard ? tr('lab.breachHard', { n: Math.ceil(b.hardUntil - t) }) : b.left > 0 ? tr('lab.breachMore', { n: packs, cr: b.reward }) : tr('lab.breachClosing'), col, pri: 2 }); continue; }
     // the open hole: a dirt rim, a dark pit, and something moving in it
     const gr = ctx.createRadialGradient(b.x, b.y, R * 0.3, b.x, b.y, R * 1.5);
     gr.addColorStop(0, 'rgba(60,30,10,0.9)'); gr.addColorStop(0.55, 'rgba(120,70,30,0.7)'); gr.addColorStop(1, 'rgba(120,70,30,0)');

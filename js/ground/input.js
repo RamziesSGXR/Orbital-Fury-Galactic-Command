@@ -14,7 +14,7 @@ export class Input {
     this.mx = window.innerWidth / 2; this.my = window.innerHeight / 2; // mouse in CSS px
     this.keys = new Set();
     this.ptrs = new Map();
-    this.pinch = null; this.panning = null; this.stroke = null; this.box = null; this.lp = null;   // lp: a left press that becomes a click, a pan or a box
+    this.pinch = null; this.panning = null; this.turning = null; this.stroke = null; this.box = null; this.lp = null;   // lp: a left press that becomes a click, a pan or a box
     this.sens = 1;
     this._bind();
   }
@@ -48,10 +48,20 @@ export class Input {
     this.cam.view = Math.max(C.world.zoomMin, Math.min(C.world.zoomMax, this.cam.view * f));
   }
 
+  // (0.72, Ramzies: "need to be able to rotate perspective to see around the 3d objects") TURNING THE VIEW: round the point
+  // looked at (yaw0, which the ship's slow pass turns on from), and up and down (tilt, degrees above the ground; while the
+  // player has not set it, the pass sets it). The middle button dragged, or the keys; the reset key puts both back.
+  turn(da, dt) {
+    const c = this.cam; c.yaw0 = (c.yaw0 || 0) + da;
+    if (dt) c.tilt = Math.max(32, Math.min(86, (c.tilt || c.passTilt || 56) + dt));
+  }
+  viewReset() { const c = this.cam; c.yaw0 = c.yawStart || 0; c.tilt = undefined; }
+
   update(dt) {
     if (!this.active()) return;
     let dx = 0, dy = 0;
     const k = this.keys, held = (a) => codesOf(a).some((c) => k.has(c));     // (0.50.1) the player's own keys (keys.js)
+    { const r = (held('turnRight') ? 1 : 0) - (held('turnLeft') ? 1 : 0), u = (held('tiltUp') ? 1 : 0) - (held('tiltDown') ? 1 : 0); if (r || u) this.turn(-r * 1.5 * dt, u * 45 * dt); }
     if (held('panLeft')) dx -= 1;
     if (held('panRight')) dx += 1;
     if (held('panUp')) dy -= 1;
@@ -106,6 +116,7 @@ export class Input {
         // draws a box round Infantry troopers.
         if (e.button === 0) { this.lp = { id: e.pointerId, x: e.clientX, y: e.clientY, drag: false, box: this.h.tac() }; return; }
         if (e.button === 2) this.panning = e.pointerId;
+        if (e.button === 1) { e.preventDefault(); this.turning = e.pointerId; }     // (0.72) the middle button turns the view
       } else if (this.h.boxing && this.h.boxing() && this.ptrs.size === 1) {
         this.box = e.pointerId; this.h.boxBegin(e.clientX, e.clientY);   // SELECT armed: one finger draws the box
       } else if (draw && this.ptrs.size === 1) {
@@ -114,7 +125,7 @@ export class Input {
         if (this.stroke !== null) { this.h.drawCancel(); this.stroke = null; }   // a second finger turns it back into pan and zoom
         if (this.lp) { if (this.box !== null) { this.box = null; this.h.boxCancel && this.h.boxCancel(); } this.lp = null; }
         const [a, b] = [...this.ptrs.values()];
-        this.pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), view: this.cam.view };
+        this.pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), view: this.cam.view, ang: Math.atan2(b.y - a.y, b.x - a.x) };
       }
     });
     cv.addEventListener('pointermove', (e) => {
@@ -138,9 +149,11 @@ export class Input {
       }
       if (p.type === 'mouse') {
         if (this.panning === e.pointerId) this._pan(dx, dy);
+        else if (this.turning === e.pointerId) this.turn(-dx * 0.006, dy * 0.2);     // (as in photo mode)
       } else if (this.ptrs.size >= 2 && this.pinch) {
         const [a, b] = [...this.ptrs.values()], d = Math.hypot(a.x - b.x, a.y - b.y);
         if (this.pinch.d > 10) this.cam.view = Math.max(C.world.zoomMin, Math.min(C.world.zoomMax, this.pinch.view * (this.pinch.d / Math.max(10, d))));
+        { const ang = Math.atan2(b.y - a.y, b.x - a.x); let da = ang - (this.pinch.ang ?? ang); da = Math.atan2(Math.sin(da), Math.cos(da)); if (d > 60) this.turn(da); this.pinch.ang = ang; }     // (0.72) two fingers twisted turn the view
         this._pan(dx / 2 * this.sens, dy / 2 * this.sens);
       } else if (this.ptrs.size === 1) this._pan(dx * this.sens, dy * this.sens);
     });
@@ -162,7 +175,7 @@ export class Input {
       // a tap (no drag, short) on the map: select, place, or order (touch)
       if (p.type !== 'mouse' && e.type === 'pointerup' && this.stroke !== e.pointerId && this.h.tap && Math.hypot(e.clientX - p.sx, e.clientY - p.sy) < 8 && performance.now() - p.t0 < 350 && this.ptrs.size === 0) this.h.tap(p.type, e.clientX, e.clientY);
       if (this.stroke === e.pointerId) { this.stroke = null; if (e.type === 'pointercancel') this.h.drawCancel(); else this.h.drawEnd(); if (p.type !== 'mouse') { if (this.ptrs.size < 2) this.pinch = null; return; } }
-      if (p.type === 'mouse') { if (e.button === 0 || e.type === 'pointercancel') this.h.fire(false); if (this.panning === e.pointerId) this.panning = null; }
+      if (p.type === 'mouse') { if (e.button === 0 || e.type === 'pointercancel') this.h.fire(false); if (this.panning === e.pointerId) this.panning = null; if (this.turning === e.pointerId) this.turning = null; }
       if (this.ptrs.size < 2) this.pinch = null;
     };
     cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
@@ -236,10 +249,11 @@ export class Input {
       else if (act === 'supply') this.h.supply();
       else if (act === 'timeYes' && this.h.timeYes) this.h.timeYes();
       else if (act === 'look') this.h.look();
+      else if (act === 'viewReset') this.viewReset();
       else if (act === 'zoomIn') this.zoom(1 / 1.15);
       else if (act === 'zoomOut') this.zoom(1.15);
     });
     window.addEventListener('keyup', (e) => this.keys.delete(e.code));
-    window.addEventListener('blur', () => { this.keys.clear(); this.h.fire(false); if (this.stroke !== null) this.h.drawCancel(); this.stroke = null; this.ptrs.clear(); this.pinch = null; this.panning = null; this.lp = null; if (this.box !== null) { this.box = null; this.h.boxEnd(); } });
+    window.addEventListener('blur', () => { this.keys.clear(); this.h.fire(false); if (this.stroke !== null) this.h.drawCancel(); this.stroke = null; this.ptrs.clear(); this.pinch = null; this.panning = null; this.turning = null; this.lp = null; if (this.box !== null) { this.box = null; this.h.boxEnd(); } });
   }
 }

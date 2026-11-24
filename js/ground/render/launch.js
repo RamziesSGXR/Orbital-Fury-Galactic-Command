@@ -104,7 +104,7 @@ export class Launch {
       const r = b.ally ? Math.max(b.type === 'H' ? 2.6 : 1.9, px(b.type === 'H' ? 7 : 5)) : b.boss ? Math.max((b.r0 || 10) * 1.5, px(20)) * 0.92 : enemyR(proxy, SUBTYPES[b.kind] || SUBTYPES.L, px);
       // the shadow stays on the ground and shrinks and fades as the body climbs
       ctx.globalAlpha = b.fade * Math.max(0.12, 0.38 - b.z * 0.006); ctx.fillStyle = '#000';
-      ctx.beginPath(); ctx.ellipse(b.x + b.z * 0.12, b.y + b.z * 0.12, r * 1.1 * (1 - Math.min(0.4, b.z * 0.01)), r * 0.9 * (1 - Math.min(0.4, b.z * 0.01)), 0, 0, TAU); ctx.fill();
+      if (!VIEW.air) ctx.beginPath(), ctx.ellipse(b.x + b.z * 0.12, b.y + b.z * 0.12, r * 1.1 * (1 - Math.min(0.4, b.z * 0.01)), r * 0.9 * (1 - Math.min(0.4, b.z * 0.01)), 0, 0, TAU), ctx.fill();     // (0.72) in 3D the body throws its own shadow: no drawn one under it
       if (VIEW.air) {     // (GC 0.29) in 3D: the unit's own model, turning over in the air, then lying where it came down and sinking away
         const lie = Math.PI / 2, tumble = b.fell ? lie * Math.min(1, (b.age / 0.35) ** 2) : b.landed ? lie : b.rot * 1.3;
         const r3 = !VIEW.ts ? r : b.ally ? TRUE.man / 1.2 : (b.boss ? (b.r0 || 10) * 1.5 * 0.92 : enemyR(proxy, SUBTYPES[b.kind] || SUBTYPES.L, () => 0)) * TRUE.foe;     // (pixel test) at true scale

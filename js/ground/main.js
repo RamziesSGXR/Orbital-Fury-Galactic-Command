@@ -2320,6 +2320,9 @@ function gameLine() {
   return `state ${state}  t ${m.t.toFixed(1)}  seed ${m.seed}  ${m.faction && m.faction.id}/${m.biome && m.biome.id}  L${m.difficulty} #${m.missionN}` +
     `  obj ${(m.objectives || []).map((o) => o.type + (o.done ? '+' : '-')).join(',')}` + (m.ls ? '  last-stand' : '') + (tut ? `  tutorial ${tut.stage}:${tut.i}` : '');
 }
+// (0.72) how long ago something was logged: the log is kept between visits and the version on it never changes, so an old fault
+// was read as a new one
+function ago(at) { const s = (Date.now() - Date.parse(at || '')) / 1000; if (!(s >= 0)) return 'when unknown'; return s < 90 ? 'just now' : s < 5400 ? `${Math.round(s / 60)} min ago` : s < 129600 ? `${Math.round(s / 3600)} h ago` : `${Math.round(s / 86400)} days ago`; }
 function logError(err, where) {
   const msg = String((err && err.message) || err), stack = String((err && err.stack) || '').split('\n').slice(0, 9).join('\n');
   const last = errLog[errLog.length - 1];
@@ -2374,7 +2377,7 @@ function debugPaint(now) {
     `\nhold: ${paused ? (soft ? 'soft pause' : 'pause') : cinema.on ? 'cinematic' : tut && tut.held ? 'tutorial card' : 'none'}  speed ${speed}  faults ${simFails}` +
     '\n' + perfLine() +
     (m ? `\nenemies ${m.enemies.length}  allies ${m.alive.length}  infantry ${m.infantryAlive.length}  posts ${(m.posts || []).length}  P ${m.pressure.toFixed(2)}  fx ${renderer.fx.length}  cr ${m.wallet.bal}` : '') +
-    (last ? `\nlast error (${errLog.length} kept): ${last.where} x${last.n || 1}: ${last.msg}` : '');
+    (last ? `\nlast error (${errLog.length} kept): ${last.where} x${last.n || 1}, ${ago(last.at)}: ${last.msg}` : '');
 }
 $('debug-copy').onclick = async () => {
   const txt = debugReport(), b = $('debug-copy');

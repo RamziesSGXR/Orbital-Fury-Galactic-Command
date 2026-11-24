@@ -40,7 +40,7 @@ export class Ground3D {
     // (0.37) THE LAND'S TWO PICTURES. The ground itself (the map's own image) is a picture that is sent to the graphics card
     // once and stays there; what is drawn on the ground this frame (zones, tracks, the dark where nobody is looking) is a
     // second, see-through picture laid over it. Before, the two were one picture, drawn and sent whole every frame.
-    this.uDark = { value: null }; this.uDkOn = { value: 0 }; this.uDkO = { value: new THREE.Vector3() };     // (0.52) the dark of the night and of the unseen, for the models (see _night)
+    this.uDark = { value: null }; this.uDkOn = { value: 0 }; this.uDkO = { value: new THREE.Vector3() }; this.uDkHz = { value: new THREE.Vector4(0, 0, 0, 0) };     // (0.72) uDkHz: by day the unseen is a haze of this colour (w 1), not a dark     // (0.52) the dark of the night and of the unseen, for the models (see _night)
     this.uGround = { value: null }; this.uOver = { value: null }; this.uInv = { value: 1 / 1600 }; this.uTopo = { value: 0 }; this.uAmp = { value: V3.amp };
     const two = (mat) => { mat.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, { tGround: this.uGround, tOver: this.uOver, uInv: this.uInv, uTopo: this.uTopo, uAmp: this.uAmp });
@@ -112,6 +112,7 @@ export class Ground3D {
       if (dk && dk.width > 0) {
         if (!this.dtex || this.dtex.image !== dk || this._dw !== dk.width || this._dh !== dk.height) { if (this.dtex) this.dtex.dispose(); this._dw = dk.width; this._dh = dk.height; this.dtex = new THREE.CanvasTexture(dk); this.dtex.generateMipmaps = false; this.dtex.minFilter = THREE.LinearFilter; this.dtex.magFilter = THREE.LinearFilter; this.uDark.value = this.dtex; }
         this.dtex.needsUpdate = true; this.uDkOn.value = 1; this.uDkO.value.set(camX - L0 / 2, camY - L0 / 2, 1 / L0);
+        if (o.haze) this.uDkHz.value.set(o.haze[0], o.haze[1], o.haze[2], 1); else this.uDkHz.value.w = 0;
       } else this.uDkOn.value = 0;
       this._night(); }
     if (!this.tex || this.tex.image !== sheet || this._tw !== sheet.width || this._th !== sheet.height) { if (this.tex) this.tex.dispose(); this._tw = sheet.width; this._th = sheet.height; this.tex = new THREE.CanvasTexture(sheet); this.tex.premultiplyAlpha = true; this.tex.generateMipmaps = false; this.tex.minFilter = THREE.LinearFilter; this.tex.magFilter = THREE.LinearFilter; this.uOver.value = this.tex; }
@@ -171,7 +172,7 @@ export class Ground3D {
         const a = camX * rx + camY * rz, b = camX * ux + ly * uy + camY * uz, da = Math.round(a / tex) * tex - a, db = Math.round(b / tex) * tex - b;
         const tx = camX + rx * da + ux * db, ty = ly + uy * db, tz = camY + rz * da + uz * db;
         this.sun.position.set(tx + dx, ty + dy, tz + dz); this.sun.target.position.set(tx, ty, tz); this.sun.target.updateMatrixWorld();
-        sh.normalBias = Math.min(0.5, tex * 1.6); sh.bias = -0.0004;
+        sh.normalBias = Math.min(0.12, tex * 0.6); sh.bias = -0.00025;     /* (0.72) a smaller offset: with a quarter to half a metre of it a rock's shadow stood off from its foot */
         if (sc.right !== half || !this._shOk) { sc.left = -half; sc.right = half; sc.top = half; sc.bottom = -half; sc.near = 10; sc.far = 1400; sc.updateProjectionMatrix(); this._shOk = true; }
       } }
     this.scene.fog.near = d * 1.35; this.scene.fog.far = d * 6;
@@ -235,13 +236,13 @@ export class Ground3D {
       const prev = m.onBeforeCompile, key = m.customProgramCacheKey ? m.customProgramCacheKey.bind(m) : null;
       m.onBeforeCompile = (sh, r) => {
         if (prev) prev.call(m, sh, r);
-        sh.uniforms.tDark = U.uDark; sh.uniforms.uDkOn = U.uDkOn; sh.uniforms.uDkO = U.uDkO;
+        sh.uniforms.tDark = U.uDark; sh.uniforms.uDkOn = U.uDkOn; sh.uniforms.uDkO = U.uDkO; sh.uniforms.uDkHz = U.uDkHz;
         sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform vec3 uDkO; varying vec2 vDk;')
           .replace('#include <project_vertex>', '#include <project_vertex>\n{ vec4 gw = vec4(transformed, 1.0);\n#ifdef USE_INSTANCING\n gw = instanceMatrix * gw;\n#endif\n gw = modelMatrix * gw; vDk = vec2((gw.x - uDkO.x) * uDkO.z, 1.0 - (gw.z - uDkO.y) * uDkO.z); }');
-        sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D tDark; uniform float uDkOn; varying vec2 vDk;')
-          .replace('#include <color_fragment>', '#include <color_fragment>\nif (uDkOn > 0.0) { diffuseColor.rgb *= 1.0 - texture2D(tDark, vDk).a * uDkOn; }');
+        sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D tDark; uniform float uDkOn; uniform vec4 uDkHz; varying vec2 vDk;')
+          .replace('#include <color_fragment>', '#include <color_fragment>\nif (uDkOn > 0.0) { float dka = texture2D(tDark, vDk).a * uDkOn; if (uDkHz.w > 0.5) { float l = dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11)); diffuseColor.rgb = mix(diffuseColor.rgb, mix(vec3(l), uDkHz.rgb, 0.6), dka); } else diffuseColor.rgb *= 1.0 - dka; }');
       };
-      m.customProgramCacheKey = () => (key ? key() : '') + '|gcnight';
+      m.customProgramCacheKey = () => (key ? key() : '') + '|gcnight2';
       m.needsUpdate = true;
     };
     this.scene.traverse((o) => { const m = o.material; if (!m) return; if (Array.isArray(m)) m.forEach(fix); else fix(m); });

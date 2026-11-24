@@ -198,6 +198,14 @@ function redBeacon(ctx, x, y, now, px, scale, live) {
   ctx.fillStyle = 'rgba(255,230,220,0.9)'; ring(ctx, x, y, r * 0.4); ctx.fill();
   return h * scale;
 }
+// (0.72) a call-in's beacon in 3D: a light on the ground pulsing and a thin beam of its colour standing up into the sky, as
+// thrown; returns how high its call-out sits (in map units: the beam is seen end-on from above, so a short lift)
+function beacon3(x, y, now, col, live) {
+  const F = VIEW.fx3, k = 0.5 + 0.5 * Math.sin(now * 9);
+  F.orbs.push({ x, y, up: 0.2, r: live ? 0.2 + 0.08 * k : 0.16, col });
+  if (live) F.bolts.push({ x, y: y + 0.001, x2: x, y2: y, up: 60, up2: 0.3, w: 0.08 + 0.04 * k, col });     // (its head at the ground: bright there, fading into the sky)
+  return 14;
+}
 function callout(labels, x, y, lift, text) { labels.push({ x, y, dy: -lift - 8, text, col: '#ff5a4a', pri: 2 }); }
 
 // ---------- markers: call-in calls, pods, rail / barrage / laser / nuke warnings ----------
@@ -210,16 +218,19 @@ export function drawMarkers(ctx, m, now, px, labels, scale, outlines = true) {
     if (mk.type === 'callin' && mk.by !== 'player') {
       // (0.26) the beacon stays where it landed (a locked strike's beacon rides on its target)
       const left = Math.max(0, (mk.impact ?? mk.end) - t), name = String(mk.id || '').toUpperCase();
-      const lift = redBeacon(ctx, mx, my, now, px, scale, left > 0);
+      const lift = VIEW.fx3 ? beacon3(mx, my, now, '#ff5a4a', left > 0) : redBeacon(ctx, mx, my, now, px, scale, left > 0);
       callout(labels, mx, my, lift, left > 0 ? `${name} ${left.toFixed(0)}S` : name);
       continue;
     }
     if (mk.type === 'pod' && !mk.util) {
       // (0.26) a Vanguard's drop: the red beacon, the pod coming down on it, and a call-out
       const f = Math.max(0, Math.min(1, (mk.end - t) / (mk.end - mk.start)));
-      const lift = redBeacon(ctx, mx, my, now, px, scale, true);
-      ctx.strokeStyle = `rgba(${RED},0.8)`; ctx.lineWidth = px(2); ctx.beginPath(); ctx.moveTo(mx, my - 120 * f); ctx.lineTo(mx, my - 120 * f + Math.max(6, px(16))); ctx.stroke();
-      ctx.fillStyle = '#ff5a4a'; ctx.fillRect(mx - px(3), my - 120 * f - px(3), px(6), px(6));
+      const lift = VIEW.fx3 ? beacon3(mx, my, now, '#ff5a4a', true) : redBeacon(ctx, mx, my, now, px, scale, true);
+      if (VIEW.drops) VIEW.drops.push({ x: mx, y: my, f, tint: mk.team >= 0 && m.teams[mk.team] ? m.teams[mk.team].color : '#ff8a6a', big: false });     // (0.72) in 3D the pod comes down under its chute
+      if (!VIEW.fx3) {     // (in 3D the pod itself is seen coming down: render drops)
+        ctx.strokeStyle = `rgba(${RED},0.8)`; ctx.lineWidth = px(2); ctx.beginPath(); ctx.moveTo(mx, my - 120 * f); ctx.lineTo(mx, my - 120 * f + Math.max(6, px(16))); ctx.stroke();
+        ctx.fillStyle = '#ff5a4a'; ctx.fillRect(mx - px(3), my - 120 * f - px(3), px(6), px(6));
+      }
       callout(labels, mx, my, lift, `${(CALLINS[mk.id]?.name || tr('lab.supplyDrop')).toUpperCase()} ${Math.max(0, mk.end - t).toFixed(0)}S`);
       continue;
     }
@@ -228,7 +239,7 @@ export function drawMarkers(ctx, m, now, px, labels, scale, outlines = true) {
       // a Vanguard's call is in his group's colour; the player's own strikes in yellow
       const tc = mk.team >= 0 ? TEAM_COLOR[mk.team] : null;
       const col = left > 0 ? (tc ? hexRgb(tc) : '255,230,0') : '255,170,40';
-      if (tc && left > 0) beacon(ctx, mx, my, now, px, col);
+      if (tc && left > 0) { if (VIEW.fx3) beacon3(mx, my, now, tc, true); else beacon(ctx, mx, my, now, px, col); }
       const corridor = (mk.pat === 'line' || mk.pat === 'walk') && mk.ux !== undefined;
       // (0.61.4) the player's own strikes (the ship's and the Strikers') always show where they will land; only these reach here
       const own = outlines || mk.by === 'player' || mk.by === undefined;

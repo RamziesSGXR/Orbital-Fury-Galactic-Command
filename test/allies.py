@@ -31,8 +31,8 @@ with sync_playwright() as pw:
     pg.keyboard.press('Enter'); pg.wait_for_timeout(6000)
     f.wait_for_function("__game.mission.alive.length > 0", timeout=60000); pg.wait_for_timeout(1500)     # (the squad is down)
     # (GC 0.50) WHO IS DOING WHAT. The frames in use for the squad and the Infantry (walking, running, rifle up, kneeling, kicking,
-    # ducked) are counted over a stretch of the fight; a mission where nobody ever walks or shoots fails here.
-    frames = "(() => { const g = __game.renderer._g3, o = {}; for (const k of ['van', 'inf']) { const m = g.units.kinds.get(k); if (!m || !m.frames) continue; for (const set of [m.frames, m.lod ? m.lod.frames : {}]) for (const f in set) if (set[f].count) o[f.replace(/\\d/, '')] = (o[f.replace(/\\d/, '')] || 0) + set[f].count; } return o; })()"
+    # ducked) are counted over a stretch of the fight (0.72: a walk or a run is one blended cycle, '~w', '~r', '~a'); a mission where nobody ever walks or shoots fails here.
+    frames = "(() => { const g = __game.renderer._g3, o = {}; for (const k of ['van', 'inf']) { const m = g.units.kinds.get(k); if (!m || !m.frames) continue; for (const set of [m.frames, m.lod ? m.lod.frames : {}]) for (const f in set) if (set[f].count) { const k2 = f.replace(/\\d/, '').replace(/^~/, ''); o[k2] = (o[k2] || 0) + set[f].count; } } return o; })()"
     look = "(() => { const c = __game.cam, a = __game.mission.alive.find((x) => !x.dead && !x.down) || __game.mission.alive[0]; c.follow = false; c.x = a.x; c.y = a.y; c.view = 60; })()"
     seen = {}; fastest = 0
     pg.keyboard.press('g'); pg.wait_for_timeout(300); pg.mouse.click(640, 330); pg.wait_for_timeout(300)     # an Infantry drop, so troopers are on the ground too

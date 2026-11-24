@@ -34,9 +34,9 @@ export function soundSources(m, shots = []) {
     for (const a of list) { if (a.dead || a.down || a.inside) continue; n++; x += a.x; y += a.y; }
     if (n < min) { prev.delete(key); return; }
     x /= n; y /= n;
-    const p = prev.get(key), moving = !!p && Math.hypot(x - p.x, y - p.y) > S.stride;
+    const p = prev.get(key), d = p ? Math.hypot(x - p.x, y - p.y) : 0, moving = !!p && d > S.stride;
     prev.set(key, { x, y });
-    out.push({ key, kind, x, y, vol: Math.min(1, 0.5 + n * 0.05), moving, n });
+    out.push({ key, kind, x, y, vol: Math.min(1, 0.5 + n * 0.05), moving, n, sp: d / (S.everySec || 0.25), ground: m.biome && m.biome.id });     // (0.72: how fast, and on what, for the footsteps)
   };
   group('hd', 'squad', m.hdAlive || [], 1);
   const bySq = new Map();

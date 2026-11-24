@@ -445,6 +445,18 @@ def p_duck(up=0.0):
     if (PRE + 'gun') in bpy.data.objects:
         at('gun', (-0.08, -0.17, 0.2), (1.2, 0, 0.25))
         reach(J('sho.R'), J('elbow.R'), wpt('gun', GRIP), L1, L2, pole=(-0.7, 0.5, -0.6)); reach(J('sho.L'), J('elbow.L'), wpt('gun', GUARD), L1, L2, pole=(0.5, 0.2, -1))
+# (GC 0.72) riding the recon vehicle: sat down, thighs level, shins down, the rifle held at the ready across the lap
+def p_sit(): zero(J('root')); shift('pelvis', z=-0.49); turn('hip.L', x=-1.5, y=0.08); turn('knee.L', x=1.5); turn('hip.R', x=-1.5, y=-0.08); turn('knee.R', x=1.5); turn('torso', x=0.06); hold('ready')
+# (GC 0.72, Ramzies: "allies don't throw stratagems where they're going to land") throwing a call-in's beacon: the rifle
+# dropped to the left hand, the right arm drawn back behind the head (throw0), then over and out toward the mark (throw1)
+def p_throw(k):
+    zero(J('root')); turn('hip.L', x=-0.3); turn('knee.L', x=0.25); turn('hip.R', x=0.18); turn('knee.R', x=0.1)
+    turn('torso', z=(0.38 if k == 0 else -0.32), x=(-0.08 if k == 0 else 0.14)); turn('head', z=(-0.3 if k == 0 else 0.25))
+    if (PRE + 'gun') in bpy.data.objects:
+        at('gun', (0.2, -0.14, 0.08), (1.25, 0.15, 0.25)); reach(J('sho.L'), J('elbow.L'), wpt('gun', GRIP), L1, L2, pole=(0.7, 0.3, -0.6))
+    else: turn('elbow.L', x=-0.4)
+    if k == 0: hand('R', 'torso', (-0.24, 0.2, 0.66), (-0.8, 0.5, -0.2))
+    else: hand('R', 'torso', (-0.14, -0.5, 0.6), (-1.0, 0.1, -0.4))
 def p_hit(): zero(J('root')); turn('torso', x=-0.3, z=0.25); turn('head', x=-0.25); turn('hip.L', x=0.2); turn('knee.L', x=0.3); shift('pelvis', y=0.06); hold('ready')
 
 # WHAT THE BASE AND THE STATION ASK OF A PERSON (GC 0.42). A soldier's rifle goes on the back for anything done with the hands.
@@ -471,6 +483,8 @@ def frames(armed):
     if armed:
         F['aim'] = lambda: p_stand('aim'); F['kneel'] = p_kneel; F['hit'] = p_hit
         F['fire'] = p_fire; F['kfire'] = p_kfire; F['duck'] = p_duck; F['peek'] = lambda: p_duck(1.0)     # (GC 0.50)
+        F['sit'] = p_sit     # (GC 0.72)
+        F['throw0'] = lambda: p_throw(0); F['throw1'] = lambda: p_throw(1)
         for i in range(8): F['a%d' % i] = (lambda i=i: p_walk(i / 8 * 2 * math.pi, 'aim', True))
         for i in range(8): F['m%d' % i] = (lambda i=i: p_drill(i / 8 * 2 * math.pi))
     for i in range(8): F['r%d' % i] = (lambda i=i: p_run(i / 8 * 2 * math.pi, armed))

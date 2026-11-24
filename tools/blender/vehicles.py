@@ -63,19 +63,94 @@ def lrv():          # the squad's light vehicle: four wheels, a roll cage, a gun
         box('seat%d' % s, (0.4, 0.4, 0.4), (s * 0.3, 0.05, 0.9), m=kit, bevel=0.04); ball('lamp%d' % s, (s * 0.46, -1.32, 0.76), lit_w, 0.07); box('fender%d' % s, (0.2, 0.7, 0.08), (s * 0.72, -0.92, 0.9), m=uni_d)
     cyl('bar', (-0.56, 0.5, 1.62), (0.56, 0.5, 1.62), 0.035, m=steel_d, sides=5); disc('ring', 0.26, 0.08, 1.62, steel_d, 8, at=(0, 0.3)); box('mgun', (0.12, 0.5, 0.12), (0, 0.1, 1.8), m=black, bevel=0.01); cyl('mbar', (0, -0.1, 1.8), (0, -0.9, 1.82), 0.03, m=black, sides=6)
     o = disc('spare', 0.36, 0.2, 0.0, black, 10); o.rotation_euler = (R(90), 0, 0); o.location = (0, 1.56, 0.86)
-def mech():         # the mech suit: two legs, a cab, a rotary gun on one arm and a rocket pod on the other
-    start('veh_mech')
-    for s in (-1, 1):
-        box('foot%d' % s, (0.5, 0.9, 0.2), (s * 0.5, -0.1, 0.1), m=kit, bevel=0.04); box('shin%d' % s, (0.34, 0.4, 0.9), (s * 0.5, 0.05, 0.62), m=uni_d, bevel=0.05, rot=(R(-12), 0, 0)); box('thigh%d' % s, (0.4, 0.5, 0.8), (s * 0.5, -0.02, 1.34), m=uni, bevel=0.06, rot=(R(14), 0, 0))
-        box('pad%d' % s, (0.5, 0.6, 0.18), (s * 0.96, 0, 2.6), m=trim, bevel=0.04, rot=(0, s * R(-14), 0)); cyl('sho%d' % s, (s * 0.62, 0, 2.3), (s * 0.98, 0, 2.3), 0.16, m=steel_d, sides=8)
-    box('hip', (1.2, 0.6, 0.36), (0, 0, 1.76), m=kit, bevel=0.06); box('torso', (1.3, 1.0, 0.9), (0, -0.02, 2.36), m=uni, bevel=0.1, taper=0.9); box('visor', (0.8, 0.08, 0.26), (0, -0.5, 2.5), m=lit_b); box('pack', (0.9, 0.36, 0.7), (0, 0.6, 2.4), m=uni_d, bevel=0.05)
-    for s in (-1, 1): cyl('ex%d' % s, (s * 0.3, 0.7, 2.7), (s * 0.3, 0.74, 3.05), 0.06, m=black, sides=6)
-    box('armR', (0.3, 0.7, 0.3), (1.02, -0.2, 2.1), m=uni_d, bevel=0.04)
-    for i in range(6): a = i / 6 * TAU; cyl('gat%d' % i, (1.02 + math.cos(a) * 0.09, -0.5, 2.1 + math.sin(a) * 0.09), (1.02 + math.cos(a) * 0.09, -1.5, 2.1 + math.sin(a) * 0.09), 0.035, m=black, sides=5)
-    cyl('gatband', (1.02, -1.2, 2.1), (1.02, -1.28, 2.1), 0.15, m=steel_d, sides=8)
-    box('pod', (0.5, 0.8, 0.5), (-1.04, -0.3, 2.14), m=uni_d, bevel=0.04)
-    for i in range(6): x = -1.2 + (i % 3) * 0.16; z = 2.04 + (i // 3) * 0.2; cyl('rk%d' % i, (x, -0.7, z), (x, -0.76, z), 0.06, m=tip, sides=6)
-    box('band', (1.32, 0.04, 0.12), (0, -0.5, 2.1), m=band)
+# (GC 0.72, Ramzies: "animations for the mech aren't in and it looks too much like the helldivers one") THE WALKER, made
+# over: not a suit with a gun for each arm but a two-legged gun carriage. An angular armoured hull with a sloped glacis and a
+# vision slit, a turret on top with a pair of long autocannon, a missile box on the left flank, a sensor mast on the right,
+# and legs that fold in a Z (the thigh forward to the knee, the shin back to a raised heel, a long foot forward to three toes
+# and a spur). It walks: its feet are placed by hand for each frame (MECH_FRAMES) and each leg reaches them, so a foot stays
+# where it is put down while the hull bobs over it. It faces -Y; about 3.3 m to the top of the mast, 2 m across the hips.
+MK = {}
+MK_L = (1.0, 1.1, 0.2, 0.5)     # thigh, shin, and the long foot's rise (back, up) from the toes to the heel
+MK_HIP = (0.84, 0.1, 2.32)      # a hip at rest, from the ground under the middle of the hull
+def mech():
+    start('veh_mech'); MK.clear()
+    root = joint('mk_root'); hull = joint('mk_hull', (0, 0, 2.47), root); MK['root'] = root; MK['hull'] = hull
+    # the hull: a belly, an upper deck narrowing to its top, a sloped glacis with a lit slit, skirts and their markings
+    box('mk_belly', (1.3, 1.7, 0.5), (0, 0.05, -0.2), m=uni_d, bevel=0.06, parent=hull)
+    box('mk_upper', (1.42, 1.6, 0.55), (0, 0.12, 0.28), m=uni, bevel=0.06, taper=0.82, parent=hull)
+    box('mk_glacis', (1.16, 0.66, 0.62), (0, -0.82, 0.04), m=uni, bevel=0.05, rot=(R(-38), 0, 0), parent=hull)
+    box('mk_chin', (0.9, 0.4, 0.3), (0, -0.92, -0.32), m=kit, bevel=0.04, rot=(R(20), 0, 0), parent=hull)
+    box('mk_slit', (0.72, 0.05, 0.075), (0, -1.06, 0.19), m=lit_b, rot=(R(-38), 0, 0), parent=hull)
+    for sx in (-1, 1):
+        box('mk_skirt%d' % sx, (0.08, 1.5, 0.52), (sx * 0.71, 0.05, -0.06), m=kit, bevel=0.02, parent=hull)
+        box('mk_mark%d' % sx, (0.02, 0.32, 0.12), (sx * 0.755, -0.38, 0.06), m=band, parent=hull)
+        box('mk_stripe%d' % sx, (0.02, 0.5, 0.05), (sx * 0.755, 0.3, 0.12), m=trim, parent=hull)
+        cyl('mk_hipcase%d' % sx, (sx * 0.62, 0.1, -0.15), (sx * 1.0, 0.1, -0.15), 0.27, m=steel_d, sides=10, parent=hull)
+        cyl('mk_hipcap%d' % sx, (sx * 1.0, 0.1, -0.15), (sx * 1.04, 0.1, -0.15), 0.18, m=kit, sides=10, parent=hull)
+        cyl('mk_stack%d' % sx, (sx * 0.34, 0.8, 0.45), (sx * 0.34, 0.86, 0.82), 0.07, m=black, sides=9, parent=hull)
+    box('mk_rear', (1.1, 0.3, 0.5), (0, 0.98, 0.05), m=uni_d, bevel=0.04, parent=hull)
+    # the missile box on the left flank (six tubes, their caps showing), the sensor mast on the right
+    box('mk_pod', (0.38, 0.82, 0.52), (-0.9, -0.12, 0.3), m=kit, bevel=0.03, parent=hull); box('mk_podarm', (0.2, 0.3, 0.16), (-0.72, -0.05, 0.22), m=steel_d, parent=hull)
+    for i in range(6): x = -0.98 + (i % 3) * 0.08 * 1.6; z = 0.2 + (i // 3) * 0.19; cyl('mk_tube%d' % i, (x, -0.52, z), (x, -0.56, z), 0.055, m=tip, sides=9, parent=hull)
+    cyl('mk_mast', (0.5, 0.45, 0.5), (0.5, 0.45, 1.0), 0.03, m=steel_d, sides=6, parent=hull); box('mk_sensor', (0.18, 0.14, 0.12), (0.5, 0.42, 1.04), m=kit, bevel=0.02, parent=hull)
+    box('mk_eye', (0.1, 0.02, 0.05), (0.5, 0.34, 1.05), m=lit_r, parent=hull); cyl('mk_whip', (0.56, 0.5, 1.0), (0.6, 0.6, 1.5), 0.012, m=black, sides=3, parent=hull)
+    o = disc('mk_hatch', 0.22, 0.05, 0.55, steel_d, 10, at=(-0.28, 0.42)); o.parent = hull
+    # the turret: a ring, a mantlet, two long barrels on their own joint (they run back when it fires)
+    tur = joint('mk_turret', (0, -0.05, 0.56), hull); MK['turret'] = tur
+    cyl('mk_ring', (0, 0, -0.02), (0, 0, 0.1), 0.46, m=steel_d, sides=12, parent=tur)
+    box('mk_mantlet', (0.66, 0.62, 0.34), (0, -0.12, 0.26), m=uni, bevel=0.05, taper=0.86, parent=tur)
+    box('mk_tband', (0.67, 0.06, 0.08), (0, -0.44, 0.3), m=band, parent=tur)
+    guns = joint('mk_guns', (0, -0.4, 0.24), tur); MK['guns'] = guns
+    for sx in (-1, 1):
+        cyl('mk_shroud%d' % sx, (sx * 0.13, 0, 0), (sx * 0.13, -0.45, 0), 0.085, m=kit, sides=9, parent=guns)
+        cyl('mk_barrel%d' % sx, (sx * 0.13, -0.45, 0), (sx * 0.13, -1.45, 0), 0.05, m=black, sides=9, parent=guns)
+        box('mk_brake%d' % sx, (0.13, 0.2, 0.13), (sx * 0.13, -1.5, 0), m=steel_d, bevel=0.015, parent=guns)
+    # the legs: each a hip, a knee, a heel and a foot, every bone hanging straight down at rest (the pose folds them)
+    for sx, sd in ((1, 'L'), (-1, 'R')):
+        hip = joint('mk_hip.' + sd, (sx * MK_HIP[0], MK_HIP[1], MK_HIP[2] - 2.47), hull)
+        box('mk_thigh' + sd, (0.28, 0.36, MK_L[0] + 0.12), (0, 0, -MK_L[0] / 2), m=uni, bevel=0.05, taper=0.85, parent=hip)
+        box('mk_thighplate' + sd, (0.3, 0.06, 0.6), (0, -0.2, -0.42), m=uni_d, bevel=0.02, parent=hip)
+        cyl('mk_piston' + sd, (sx * -0.17, 0.12, -0.1), (sx * -0.17, 0.12, -0.78), 0.045, m=steel, sides=9, parent=hip)
+        kn = joint('mk_knee.' + sd, (0, 0, -MK_L[0]), hip)
+        cyl('mk_kneecase' + sd, (-0.17, 0, 0), (0.17, 0, 0), 0.17, m=steel_d, sides=10, parent=kn)
+        box('mk_shin' + sd, (0.22, 0.28, MK_L[1]), (0, 0, -MK_L[1] / 2), m=uni_d, bevel=0.04, taper=0.9, parent=kn)
+        box('mk_shinplate' + sd, (0.26, 0.06, 0.7), (0, 0.16, -0.45), m=uni, bevel=0.02, parent=kn)
+        an = joint('mk_heel.' + sd, (0, 0, -MK_L[1]), kn)
+        cyl('mk_heelcase' + sd, (-0.13, 0, 0), (0.13, 0, 0), 0.13, m=steel_d, sides=10, parent=an)
+        L3 = math.hypot(MK_L[2], MK_L[3])
+        box('mk_meta' + sd, (0.16, 0.2, L3), (0, 0, -L3 / 2), m=steel_d, bevel=0.03, parent=an)
+        ft = joint('mk_foot.' + sd, (0, 0, -L3), an)
+        for k, dx in enumerate((-0.15, 0.0, 0.15)):
+            box('mk_toe%s%d' % (sd, k), (0.11, 0.52, 0.09), (dx, -0.24, -0.06), m=kit, bevel=0.02, rot=(0, 0, dx * 0.9), parent=ft)
+            spike('mk_claw%s%d' % (sd, k), (dx * 1.25, -0.48, -0.07), (dx * 1.4, -0.62, -0.1), 0.04, sides=4, m=black, parent=ft)
+        box('mk_spur' + sd, (0.1, 0.3, 0.08), (0, 0.16, -0.06), m=kit, bevel=0.02, parent=ft)
+        MK['hip' + sd] = hip; MK['knee' + sd] = kn; MK['heel' + sd] = an; MK['foot' + sd] = ft
+    rest(root)
+def mk_leg(sd, fy, fz, toe=0.0):
+    """Fold one leg so its foot stands at (fy, fz): fore and aft, and up, from its hip (metres). The knee goes forward, the
+    heel back, the long foot down to the toes, and the toes lie flat (toe: tipped up by that much, as a foot is lifted)."""
+    ay, az = fy + MK_L[2], fz + MK_L[3]; L1, L2 = MK_L[0], MK_L[1]
+    d = min(L1 + L2 - 1e-3, max(abs(L1 - L2) + 1e-3, math.hypot(ay, az)))
+    tA = math.atan2(ay, -az); al = math.acos(max(-1.0, min(1.0, (L1 * L1 + d * d - L2 * L2) / (2 * L1 * d))))
+    t1 = tA - al; ky, kz = L1 * math.sin(t1), -L1 * math.cos(t1)
+    t2 = math.atan2(ay - ky, -(az - kz)); t3 = math.atan2(fy - ay, -(fz - az))
+    MK['hip' + sd].rotation_euler = (t1, 0, 0); MK['knee' + sd].rotation_euler = (t2 - t1, 0, 0)
+    MK['heel' + sd].rotation_euler = (t3 - t2, 0, 0); MK['foot' + sd].rotation_euler = (-t3 - toe, 0, 0)
+MK_S, MK_H, MK_Y0 = 0.6, 0.42, -0.15     # half a stride, how high a foot lifts, where a foot stands (from under its hip)
+def mk_pose(ph=None, fire=False):
+    zero(MK['root'])
+    bob = 0.0 if ph is None else -0.05 + 0.05 * math.cos(2 * ph)
+    MK['hull'].location = (0, 0, 2.47 + bob)
+    if fire: MK['guns'].location = (0, -0.4 + 0.14, 0.24); MK['hull'].rotation_euler = (R(-1.5), 0, 0)
+    hz = MK_HIP[2] + bob
+    for sd, off in (('L', 0.0), ('R', math.pi)):
+        if ph is None: mk_leg(sd, MK_Y0, 0.1 - hz); continue
+        u = ((ph + off) / TAU) % 1.0
+        if u < 0.5: fy = MK_Y0 + MK_S * (-1 + 4 * u); lift = 0.0; toe = 0.0
+        else: q = (u - 0.5) / 0.5; fy = MK_Y0 + MK_S * (1 - 2 * q); lift = MK_H * math.sin(math.pi * q); toe = 0.35 * math.sin(math.pi * q)
+        mk_leg(sd, fy, 0.1 + lift - hz, toe)
+MECH_FRAMES = {'stand': (lambda: mk_pose()), 'atk': (lambda: mk_pose(fire=True))}
+for i in range(8): MECH_FRAMES['w%d' % i] = (lambda i=i: mk_pose(i / 8 * TAU))
 def shuttle():      # the evacuation shuttle: a white lifting body with a row of windows
     start('veh_shuttle')
     yl('body', [(-2.4, 0.1, 0.1, 0.7), (-1.7, 0.56, 0.4, 0.72), (-0.2, 0.74, 0.5, 0.74), (1.4, 0.7, 0.46, 0.76), (2.2, 0.5, 0.3, 0.82)], 8, white)
@@ -180,7 +255,7 @@ OUT = {}
 ALL = (dropship, striker, lrv, mech, shuttle, dog, uav, mine, shieldgen, trench, cover0, cover1, cover2, lz, bridge, worksite)     # (GC 0.64: the wire is fleet.py's)
 for fn in ALL:
     fn(); bpy.context.view_layer.update()
-    OUT[MADE[-1]] = export(MADE[-1], CUR, {'stand': (lambda: None)}, lod=0)
+    OUT[MADE[-1]] = export(MADE[-1], CUR, MECH_FRAMES if MADE[-1] == 'veh_mech' else {'stand': (lambda: None)}, lod=0)     # (GC 0.72: the walker walks)
 for i, name in enumerate(MADE):
     for o in bpy.data.collections[name].objects:
         if o.parent is None: o.location = Vector(o.location) + Vector(((i % 5) * 5.4, -(i // 5) * 5.6, 0))

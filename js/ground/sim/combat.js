@@ -353,7 +353,7 @@ export function fireShot(m, src, e, prof, by, side = 'a', snd = '') {
   let tx = e.x, ty = e.y;
   if (!hit) { const [ox, oy] = rng.inDisc(4.5); tx += ox; ty += oy; }
   const big = (prof.splash || 0) > 0 || prof.dmg >= 60;
-  m.emit('tracer', { x: src.x, y: src.y, tx, ty, s: side, hit, big, fl: prof.flight || 0, snd });
+  m.emit('tracer', { x: src.x, y: src.y, tx, ty, s: side, hit, big, fl: prof.flight || 0, snd, tall: snd === 'mechgat' || snd === 'mechrkt' });     // (0.72: tall: from the walker's guns, high over the ground)
   alertGroup(m, e.g);
   const mult = prof.mult || { L: 1, M: 1, H: 1, B: 0.1 };
   if (prof.flight > 0) {

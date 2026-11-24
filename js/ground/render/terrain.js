@@ -9,7 +9,7 @@ const SHADERS = {
   // (0.53) the capital's outskirts: worn concrete in large slabs
   city(n, x, y) { return 0.46 + 0.12 * n.fbm(x / 300, y / 300, 3) + 0.05 * (n.fbm(x / 9, y / 9, 2) - 0.5) + (((Math.floor(x / 12) + Math.floor(y / 12)) & 1) ? 0.015 : 0); },
   ice(n, x, y) {
-    return 0.60 + 0.28 * n.fbm(x / 320, y / 320, 4) + 0.06 * (n.fbm(x / 14, y / 14, 2) - 0.5);
+    return 0.54 + 0.26 * n.fbm(x / 320, y / 320, 4) + 0.07 * (n.fbm(x / 14, y / 14, 2) - 0.5);     // (0.72, "hard to see things on the bright white snow": a shade down)
   },
   grass(n, x, y) {
     let g = 0.27 + 0.26 * n.fbm(x / 260, y / 260, 4) + 0.13 * (n.fbm(x / 7, y / 7, 2) - 0.5);
@@ -46,7 +46,7 @@ const SHADERS = {
 // Each biome gets its own colour ramp (shadow, mid, highlight) so the map reads as ice, grass, sand, jungle or rock.
 // light and dark are the colours used for props (sparkle, boulders, craters). Polarity 'black' flips the ramp's brightness.
 const RAMPS = {
-  ice:    { ramp: [[14, 28, 46], [96, 134, 170], [208, 230, 246]], light: [236, 247, 255], dark: [6, 16, 30] },
+  ice:    { ramp: [[14, 28, 46], [92, 126, 160], [190, 210, 228]], light: [226, 238, 248], dark: [6, 16, 30] },
   grass:  { ramp: [[5, 18, 8], [40, 92, 34], [142, 186, 96]],      light: [196, 232, 150], dark: [3, 12, 5] },
   desert: { ramp: [[34, 22, 12], [128, 88, 50], [206, 164, 100]],  light: [240, 205, 150], dark: [24, 12, 4] },
   jungle: { ramp: [[2, 10, 6], [18, 64, 36], [84, 150, 86]],       light: [140, 210, 150], dark: [2, 8, 4] },
@@ -187,7 +187,7 @@ export function buildTerrain(biomeId, seed, { polarity = 'white', quality = 1, r
       }
       if (soft > 0) {
         const fine = n.v(x / 1.7, y / 1.7) - 0.5;
-        if (biomeId === 'ice') g = lerp(g, 0.9, 0.5 * soft) + 0.05 * soft * Math.sin((x * 0.9 + y * 0.45) / 4.2 + n.fbm(x / 40, y / 40, 2) * 6);
+        if (biomeId === 'ice') g = lerp(g, 0.8, 0.5 * soft) + 0.05 * soft * Math.sin((x * 0.9 + y * 0.45) / 4.2 + n.fbm(x / 40, y / 40, 2) * 6);
         else if (biomeId === 'desert' || biomeId === 'mars') g = lerp(g, 0.86, 0.35 * soft) + 0.07 * soft * Math.sin((x * 0.85 + y * 0.35) / 5.5 + n.fbm(x / 60, y / 60, 2) * 4);
         else g = lerp(g, 0.74, 0.4 * soft) + 0.1 * soft * fine;
       }
