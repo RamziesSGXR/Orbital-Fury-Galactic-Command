@@ -710,3 +710,15 @@ button small { display: block; font: 9.5px var(--mono); letter-spacing: 0.5px; o
 /* sentences in the pop-up boxes (news, credits, the base report) in the reading letter too */
 :root { --read: 'Barlow', 'Segoe UI', system-ui, sans-serif; }
 #modal p, #modal li { font-family: var(--read); font-weight: 500; font-size: 14px; line-height: 1.45; letter-spacing: 0.1px; }
+/* (GC 0.73) changing the keys from the menu (js/core/keys-ui.js): what it does, its key as a button, any fixed second keys */
+.kbind { margin-top: 10px; max-height: max(160px, 44vh); overflow-y: auto; padding-right: 4px; }
+.kb-h { margin: 10px 0 4px; font: 600 12px var(--head); letter-spacing: 0.14em; color: var(--amber); }
+.kb-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 2px 18px; }
+.kb-row { display: grid; grid-template-columns: 1fr auto 78px; align-items: center; gap: 8px; padding: 3px 0; border-bottom: 1px solid rgba(230, 234, 220, 0.08); }
+.kb-row > span { font: 500 13px var(--read); color: var(--text); }
+.kb-row > small { font: 11px var(--mono); color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kb-row.changed > span { color: var(--cyan); }
+.kb-key { min-width: 64px; padding: 4px 10px; font: 600 12px var(--mono); letter-spacing: 0.06em; }
+.kb-key.wait { color: var(--ground); background: var(--amber); }
+.kb-note { margin: 8px 0; }
+.kb-row .plate.btn.kb-key { min-height: 0; height: 28px; line-height: 1; }

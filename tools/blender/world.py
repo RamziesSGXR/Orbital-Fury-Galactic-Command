@@ -152,6 +152,35 @@ def fortwall():
         x = -0.8 + i * 0.4
         for sy in (-1, 1): box('butt%d%d' % (i, sy > 0), (0.14, 0.2, 0.6), (x, sy * 0.27, 0.3), m=white_d, bevel=0.02, taper=0.6)
 
+# (GC 0.72, Ramzies: "upgrading items should show a difference") WHAT A POST GAINS AS IT IS UPGRADED, laid round it by the game at
+# the post's own footprint (a radius of about one, its front to -Y). Level 2: a low wall of sandbags across the front. Level 3:
+# steel plates standing before them. Level 4: an ammunition stack, a floodlight and an aerial at the back. Level 5: concrete
+# barriers along the sides and a pennant on a mast. Nothing goes over the top: the post is still seen from above.
+up_lamp = mat('w_up_lamp', '#fff0c0', emit=2.4); up_pen = mat('w_up_flag', '#2f8f9c', rough=0.9); up_conc = mat('w_up_conc', '#a9aea6', rough=0.95); up_stripe = mat('w_up_stripe', '#e8b72a')
+def up_bags():
+    start('prop_up_bags')
+    bags('a', 1.2, 10, 0.08, bag, a0=R(200), arc=R(140), size=0.15); bags('b', 1.2, 9, 0.22, bag_d, a0=R(207), arc=R(126), size=0.15)
+def up_plates():
+    start('prop_up_plates')
+    for i, a in enumerate((R(236), R(270), R(304))):
+        x, y = math.cos(a) * 1.46, math.sin(a) * 1.46
+        box('plate%d' % i, (0.52, 0.05, 0.5), (x, y, 0.27), m=gun_d, bevel=0.01, rot=(R(-10), 0, a + math.pi / 2))
+        box('stripe%d' % i, (0.52, 0.06, 0.07), (x, y, 0.45), m=up_stripe, rot=(R(-10), 0, a + math.pi / 2))
+        for k in (-1, 1): cyl('stay%d%d' % (i, k), (x + math.cos(a + math.pi / 2) * 0.2 * k, y + math.sin(a + math.pi / 2) * 0.2 * k, 0.4), (x * 0.86 + math.cos(a + math.pi / 2) * 0.2 * k, y * 0.86 + math.sin(a + math.pi / 2) * 0.2 * k, 0), 0.018, m=black, sides=4)
+def up_kit():
+    start('prop_up_kit')
+    for i, (x, y, z, r) in enumerate(((-0.95, 0.92, 0.09, 12), (-0.7, 1.05, 0.09, -8), (-0.84, 0.97, 0.27, 4))):
+        box('ammo%d' % i, (0.3, 0.2, 0.18), (x, y, z), m=olive if i % 2 == 0 else olive_d, bevel=0.012, rot=(0, 0, R(r))); box('ammol%d' % i, (0.31, 0.04, 0.05), (x, y - 0.1, z + 0.03), m=up_stripe, rot=(0, 0, R(r)))
+    cyl('mast', (0.95, 0.95, 0), (0.95, 0.95, 1.7), 0.03, m=black, sides=6); box('lamp', (0.22, 0.14, 0.14), (0.95, 0.88, 1.74), m=gun_d, bevel=0.015, rot=(R(-20), 0, R(20)))
+    box('lens', (0.17, 0.02, 0.1), (0.93, 0.8, 1.72), m=up_lamp, rot=(R(-20), 0, R(20))); cyl('foot', (0.95, 0.95, 0), (0.95, 0.95, 0.06), 0.14, m=gun_d, sides=9)
+    cyl('aerial', (1.08, 0.82, 0.06), (1.12, 0.84, 2.3), 0.01, m=black, sides=3); box('radio', (0.18, 0.12, 0.22), (1.08, 0.82, 0.11), m=olive_d, bevel=0.01)
+def up_flag():
+    start('prop_up_flag')
+    for i, (x, y, a) in enumerate(((-1.35, 0.1, 90), (1.35, 0.1, 90), (-1.05, -0.85, 50), (1.05, -0.85, -50))):
+        box('jersey%d' % i, (0.62, 0.22, 0.4), (x, y, 0.2), m=up_conc, bevel=0.02, taper=0.55, rot=(0, 0, R(a))); box('jfoot%d' % i, (0.62, 0.3, 0.08), (x, y, 0.04), m=up_conc, rot=(0, 0, R(a)))
+    cyl('pole', (-0.3, 1.25, 0), (-0.3, 1.25, 2.6), 0.025, m=gun, sides=6); ball('knob', (-0.3, 1.25, 2.62), gun, 0.04)
+    loft('pennant', [((-0.3, 1.25, 2.5), 0.01, 0.2), ((0.15, 1.27, 2.47), 0.01, 0.12), ((0.6, 1.3, 2.44), 0.008, 0.02)], sides=4, m=up_pen)
+
 # ---------------------------------------------------------------- the enemy's (a footprint radius of about one)
 def hive():     # the Molt's nest: a mound, its mouths, spikes round it, glowing sacs
     start('prop_hive')
@@ -326,7 +355,7 @@ def ship_talon():   # the Talon: a pale blade between two horns
     blob('crystal', r=0.3, scale=(1.25, 0.8, 0.8), loc=(-0.45, 0, 0.3), sub=1, m=accent_lit); blob('core', r=0.25, scale=(1, 1, 0.72), loc=(-1.4, 0, 0), sub=1, m=accent_lit)
 
 OUT = {}
-PROPS = (tree_leaf, tree_pine, tree_jungle, tree_cactus, tree_dead, rock, rock_b, rock_spire, pillar, shroom, shroom_glow, ruin_bugs, ruin_lizards, bughole, crater, fortwall, spire, totem, turret, banner, flag, crate, aturret)     # (GC 0.64: the heavy turret, its gun, the artillery, the SAM site, the propaganda tower and the lookout are fleet.py's. GC 0.67: the nests, the great gun and the shield node are enemy.py's; turret stays as the old shared one)
+PROPS = (tree_leaf, tree_pine, tree_jungle, tree_cactus, tree_dead, rock, rock_b, rock_spire, pillar, shroom, shroom_glow, ruin_bugs, ruin_lizards, bughole, crater, fortwall, up_bags, up_plates, up_kit, up_flag, spire, totem, turret, banner, flag, crate, aturret)     # (GC 0.64: the heavy turret, its gun, the artillery, the SAM site, the propaganda tower and the lookout are fleet.py's. GC 0.67: the nests, the great gun and the shield node are enemy.py's; turret stays as the old shared one)
 SHIPS = (ship_fed, ship_molt, ship_foundry, ship_talon)
 for fn in PROPS + SHIPS:
     fn(); bpy.context.view_layer.update()

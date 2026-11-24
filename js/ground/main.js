@@ -1,5 +1,7 @@
 // Entry point: state machine (title -> armory -> briefing -> mission -> debrief -> armory ... -> final), fixed-step loop, wiring.
 import '../surface.js';     // (GC 0.70) surface detail on every 3D model
+import { preloadModels } from '../model3d.js';
+preloadModels();     // (0.72) every model fetched as the fight's page opens: in by the time the squad drops (model3d.js)
 import { CONFIG as C } from './config.js';
 import { COMMS } from './data/data.js';
 import { Mission } from './sim/mission.js';

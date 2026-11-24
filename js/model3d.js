@@ -4,6 +4,15 @@
 import * as THREE from './vendor/three.js';
 import { kindOf } from './surface.js';
 
+// (0.72, Ramzies: "work on models loading in") EVERY MODEL FILE FETCHED ONCE, AND EARLY. A file asked for twice is one fetch;
+// preloadModels() asks for the whole list as soon as a fight's page opens, so by the time the squad drops (after the armoury
+// and the briefing) the models are in, not popping in over their stand-in shapes in the first seconds of the fight.
+const JSONS = new Map();
+export function modelJSON(url) { let p = JSONS.get(url); if (!p) { p = fetch(url).then((r) => (r.ok ? r.json() : null)).catch(() => null); JSONS.set(url, p); } return p; }
+export function preloadModels(path = 'assets/models/') {
+  if (typeof fetch !== 'function') return Promise.resolve(0);
+  return modelJSON(path + 'index.json').then((ix) => Promise.all([...new Set([...((ix && ix.models) || []), ...((ix && ix.props) || [])])].map((n) => modelJSON(`${path}${n}.json`))).then((l) => l.filter(Boolean).length));
+}
 const b64 = (s) => { const b = atob(s), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; };
 // (GC 0.38) SMOOTH WHERE IT CURVES, SHARP WHERE IT FOLDS. A model's corners are lit by the faces round them: a corner takes
 // the lie of every face that shares its vertex and is turned less than `deg` from its own. So a limb, a shell or a bevelled
@@ -122,7 +131,7 @@ export class Crowd3D {
   load(kinds) {
     this.kinds = { ...this.kinds, ...kinds };
     const files = {}; for (const [k, o] of Object.entries(kinds)) (files[o.file] ||= []).push(k);
-    return Promise.all(Object.entries(files).map(([file, keys]) => fetch(`${this.path}${file}.json`).then((r) => (r.ok ? r.json() : null)).then((d) => {
+    return Promise.all(Object.entries(files).map(([file, keys]) => modelJSON(`${this.path}${file}.json`).then((d) => {
       if (!d || !d.frames) return; for (const k of keys) { this.kinds[k].data = d; this._make(k); }
     }).catch(() => {})));
   }

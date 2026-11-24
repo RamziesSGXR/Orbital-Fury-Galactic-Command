@@ -75,6 +75,7 @@ const RAISE_B = { steps: 22, wall: 0.58, shadow: 0.3 };
 //   nothing doing  standing easy, looking about
 // His stride comes from the ground he has covered, so a foot stays where it was put down; the figure is drawn far larger than
 // life, so the step is as long as that figure's would be.
+const UPKIT = ['bags', 'plates', 'kit', 'flag'];     // (0.72) a post's dressing from level 2 to level 5 (tools/blender/world.py up_*)
 const EARTH = { grass: '#6a5440', jungle: '#54442f', ice: '#a4b0ba', desert: '#a8845a', mars: '#86452c', moon: '#76767a', city: '#66615a' };     // (0.72) the earth a crater throws up, by ground
 const HAZE = [150, 164, 182];     // (0.72) the haze over the unseen by day (sRGB)
 const RUN_AT = 4.6;     // metres a second: faster than this and not shooting, he runs
@@ -280,8 +281,8 @@ export class Renderer {
       case 'flyby': fx.push({ k: 'fly', x: ev.x1, y: ev.y1, x2: ev.x2, y2: ev.y2, t0: now + Math.max(0, ev.at - m.t), life: ev.dur }); break;
       case 'callin_call': {     // (0.72) the beacon leaves his hand as he lets go, arcs over, and lands on the mark
         const tc = ev.team >= 0 && m.teams[ev.team] ? m.teams[ev.team].color : '#ffe600', fly = 0.45 + Math.hypot(ev.x - ev.cx, ev.y - ev.cy) / 90;
-        if (ev.cx != null) fx.push({ k: 'toss', x: ev.x, y: ev.y, x0: ev.cx, y0: ev.cy, t0: now + 0.26, life: fly, col: tc });
-        fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 26, t0: now + (ev.cx != null ? 0.26 + fly : 0), life: 0.8, a: 1, col: '#ffe600' }); break;
+        if (ev.cx != null && !ev.mark) fx.push({ k: 'toss', x: ev.x, y: ev.y, x0: ev.cx, y0: ev.cy, t0: now + 0.26, life: fly, col: tc });     /* (0.72: a strike too big to throw is marked with a laser instead: drawn with the Vanguard) */
+        fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 26, t0: now + (ev.cx != null && !ev.mark ? 0.26 + fly : 0.3), life: 0.8, a: 1, col: '#ffe600' }); break;
       }
       case 'strike_call':
         // the destroyer paints the target: a targeting laser from the sky, brackets closing in, and a ring
@@ -564,7 +565,8 @@ export class Renderer {
       }
     }
     for (const q of m.loot || []) if (!q.done && q.kind !== 'wreck' && near(q)) out.push({ k: 'crate', x: q.x, y: q.y, s: Math.max(1.3, (q.r || 3) * 0.55), rot: ((q.id || 1) * 1.9) % 6.28 });     // what can be picked up
-    for (const p of m.posts || []) { const d = P3_POST[p.what]; if (d && !p.dead && !p.ghost && near(p)) { const k = d[0] === 'post:lookout' && !VIEW.m3.has('prop_post_lookout') ? 'post:tower' : d[0], split = p.what === 'mg' && VIEW.m3.has('prop_post_mggun'); out.push({ k, x: p.x, y: p.y, s: d[1], rot: face(split ? p.face0 ?? p.face : p.face), tint: hit(p), flash: fl(p) }); if (split) out.push({ k: 'post:mggun', x: p.x, y: p.y, s: d[1], rot: face(p.face), tint: hit(p), flash: fl(p) }); } }     /* (0.59) the nest's bags stay as they were built; its gun turns */
+    for (const p of m.posts || []) { const d = P3_POST[p.what]; if (d && !p.dead && !p.ghost && near(p)) { const k = d[0] === 'post:lookout' && !VIEW.m3.has('prop_post_lookout') ? 'post:tower' : d[0], split = p.what === 'mg' && VIEW.m3.has('prop_post_mggun'); out.push({ k, x: p.x, y: p.y, s: d[1], rot: face(split ? p.face0 ?? p.face : p.face), tint: hit(p), flash: fl(p) }); if (split) out.push({ k: 'post:mggun', x: p.x, y: p.y, s: d[1], rot: face(p.face), tint: hit(p), flash: fl(p) });
+      for (let i = 0; i < Math.min(4, (p.lvl || 1) - 1); i++) { const uk = UPKIT[i]; if (VIEW.m3.has('prop_up_' + uk)) out.push({ k: 'up:' + uk, as: k, x: p.x, y: p.y, s: d[1], rot: face(p.face0 ?? p.face), tint: hit(p) }); } } }     /* (0.59) the nest's bags stay as they were built; its gun turns. (0.72) What it was upgraded with lies round it, more at each level */
     for (const a of m.assets || []) if (a.kind === 'turret' && !a.dead && near(a)) out.push({ k: 'aturret', x: a.x, y: a.y, s: 1.5, rot: face(a.face), tint: hit(a), flash: fl(a) });
     // (0.72) a bug hole heaving up out of the ground and open, and the earth thrown up round every crater: models, not paint
     if (VIEW.m3.has('prop_bughole')) for (const b of m.breaches) if (!b.dead && b.kind === 'hole' && near(b)) { const w = t < b.warnUntil ? Math.max(0, 1 - (b.warnUntil - t) / C.reinf.bugs.warnSec) : 1; out.push({ k: 'bughole', x: b.x, y: b.y, s: b.r * (0.35 + 0.65 * w), h: b.r * 0.9 * w + 0.05, rot: (b.id || 1) * 1.7, tint: hit(b), flash: fl(b) }); }
@@ -599,7 +601,7 @@ export class Renderer {
         out.push({ k: pk, x: c.x, y: c.y, s: d[1], h: d[1] * (0.25 + 0.75 * g), rot: face(c.face), dim: 0.7 + 0.3 * g });
       }
     }
-    if (VIEW.ts) for (const u of out) { const fw = TRUE.field[u.k]; if (fw) { u.s = fw[0]; u.h = fw[1] * (u.k === 'wire' ? u.h / 3.2 : 1); continue; } const q = TRUE.prop[u.k]; if (!q) continue; const k = q[0] ? q[0] : q[1] / (u.s || 1); u.s *= k; if (u.h) u.h *= k; if (u.sink) u.sink *= k; }     // (scale test) at their own size
+    if (VIEW.ts) for (const u of out) { const fw = TRUE.field[u.k]; if (fw) { u.s = fw[0]; u.h = fw[1] * (u.k === 'wire' ? u.h / 3.2 : 1); continue; } const q = TRUE.prop[u.as || u.k]; if (!q) continue; const k = q[0] ? q[0] : q[1] / (u.s || 1); u.s *= k; if (u.h) u.h *= k; if (u.sink) u.sink *= k; }     // (scale test) at their own size
     return out;
   }
   // A circle being stroked on the sheet, taken for the 3D picture instead: true if it was (so the stroke is left out).
@@ -899,6 +901,12 @@ export class Renderer {
       else if (!VIEW.sh) { ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.ellipse(a.x + r * 0.45, a.y + r * 0.35, r * 0.95, r * 0.7, 0, 0, TAU); ctx.fill(); }     // (0.59) its shadow
       if (!fine && u3 && a.mech && a.mech.hp > 0 && VIEW.m3.has('veh_mech')) { const mr = trueR('mech', r3 * 1.9), mv = (a.mv || 0) > 0.5; u3.push({ k: 'mech', x: a.x, y: a.y, r: mr, face: easeFace(a, a.aimUntil > t ? a.aimA : a.face), flash: t - (a.hurtAt ?? -9) < 0.1, walk: mv ? (a.gait || 0) / (mr * 1.2) * TAU : null, atk: !mv && t - (a.shotAt ?? -9) < 0.07 }); }     /* (0.72) the walker's stride is its own: a foot stays where it is put down (a cycle carries it 1.2 of its size); its guns run back as they fire */     // (GC 0.41) in a mech suit: the suit is what is seen
       else if (!fine) { if (u3) u3.push(allyFig(m, a, t, VIEW.ts ? r3 : r3 * (H_ ? 1.25 : 1.1), tm ? tm.color : null, far3 !== '')); else drawAllyBody(ctx, a, r, pal.ally, tm ? tm.color : null, on, now, px, t); }
+      if (t - (a.markAt ?? -9) < 2.2 && a.markX != null) {     // (0.72) marking a strike too big to throw: his laser on the ground, flickering, held while the ship lines up (callSec)
+        const fk = 0.6 + 0.4 * Math.sin(now * 40 + a.id);
+        if (this._t3) this._t3.push({ x: a.x, y: a.y, x2: a.markX, y2: a.markY, w: Math.max(px(1.8), 0.07) * (0.8 + 0.3 * fk), col: '#ff3a2a', up: VIEW.ts ? 1.35 : 3.4, up2: 0.15 });
+        else { ctx.strokeStyle = `rgba(255,58,42,${0.5 + 0.4 * fk})`; ctx.lineWidth = px(1.2); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(a.markX, a.markY); ctx.stroke(); }
+        if (this._o3) this._o3.push({ x: a.markX, y: a.markY, up: 0.15, r: Math.max(px(3), 0.2) * (0.8 + 0.3 * fk), col: '#ff3a2a' });
+      }
       if (up) dropUnit(ctx, up);
       if (t - a.hurtAt < 0.1 && !hideUi) { ctx.strokeStyle = '#ff6a6a'; ctx.lineWidth = px(1.5); ctx.beginPath(); ctx.arc(a.x, a.y, r * 1.3, 0, TAU); ctx.stroke(); }
       if (H_ && !hideUi && u3) { /* in 3D he wears his team's colour himself: no ring */ }
@@ -995,7 +1003,7 @@ export class Renderer {
     if (real) {     // lay the turned world on the screen
       const wc = this._wc, S = this.W; this.ctx = real.ctx; this.W = real.W; this.H = real.H; this.focusY = real.focusY; this._real = null; ctx = this.ctx; W = this.W; H = this.H;
       ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
-      if (g3) { const t0 = performance.now(); g3.frame({ sheet: wc, S, scale, camX: v.camX, camY: v.camY, yaw: cam.yaw, tilt: cam.tilt || cam.passTilt, W, H, fy: this.focusY || 0.5, sun: this._sun, hue: this._hue, height: (x, y) => m.terrain.height(x, y), blocks: this._blocks(m, v.camX, v.camY, S / scale / 2), props: VIEW.p3 ? this._props(m, v.camX, v.camY, S / scale / 2, pal) : null, lit: 1, dark: this._dark > 0.005 ? this.light.mask : this.fog, haze: this._dark > 0.005 ? null : HAZE.map((c) => (c / 255) ** 2.2), /* (0.52) the models take the night from the same mask as the ground, light by light: not one dimmer for all of them */ units: U3, drops: D3, shells: S3, strobes: B3, blasts: X3, bolts: T3, orbs: O3, domes: DM3, puffs: SM3, hot: cam.sight === 'whot' || cam.sight === 'bhot', pixel: cam.pixel || 0, gunUp: VIEW.ts ? 1.4 : 3.6, rings: this._rings, sight: cam.sight, topo: !!cam.topo, ground: this.groundCv, groundRev: this.groundRev || 0, size: SIZE, post: !(this.quality === 'low' || this.perf.low), shadows: VIEW.sh, shadowRes: this.quality === 'low' || this.perf.low ? 1024 : (this.perf.tier || 0) >= 1 ? 2048 : 4096 });
+      if (g3) { const t0 = performance.now(); g3.frame({ sheet: wc, S, scale, camX: v.camX, camY: v.camY, yaw: cam.yaw, tilt: cam.tilt || cam.passTilt, W, H, fy: this.focusY || 0.5, sun: this._sun, hue: this._hue, height: (x, y) => m.terrain.height(x, y), blocks: this._blocks(m, v.camX, v.camY, S / scale / 2), props: VIEW.p3 ? this._props(m, v.camX, v.camY, S / scale / 2, pal) : null, lit: 1, dark: this._dark > 0.005 ? this.light.mask : this.fog, haze: this._dark > 0.005 ? null : HAZE.map((c) => (c / 255) ** 2.2), /* (0.52) the models take the night from the same mask as the ground, light by light: not one dimmer for all of them */ units: U3, drops: D3, shells: S3, strobes: B3, blasts: X3, bolts: T3, orbs: O3, domes: DM3, puffs: SM3, hot: cam.sight === 'whot' || cam.sight === 'bhot', pixel: cam.pixel || 0, gunUp: VIEW.ts ? 1.4 : 3.6, rings: this._rings, sight: cam.sight, topo: !!cam.topo, det: ({ ice: 0.45, city: 0.6, desert: 0.8, moon: 0.85 })[m.biome.id] ?? 1, ground: this.groundCv, groundRev: this.groundRev || 0, size: SIZE, post: !(this.quality === 'low' || this.perf.low), shadows: VIEW.sh, shadowRes: this.quality === 'low' || this.perf.low ? 1024 : (this.perf.tier || 0) >= 1 ? 2048 : 4096 });
         if (!g3.sighted) ctx.filter = cam.sight === 'whot' ? 'grayscale(1) brightness(1.3) contrast(1.15)' : cam.sight === 'bhot' ? 'grayscale(1) brightness(1.3) invert(1) contrast(1.12)' : 'none';     // (only where the graphics card could not put the sight on itself)
         ctx.drawImage(g3.cv, 0, 0); ctx.filter = 'none'; this._g3on = true; this.t3 = (this.t3 || 0) + (performance.now() - t0 - (this.t3 || 0)) * 0.08; }     // (the sight: infrared white-hot, black-hot, or plain colour)
       else { ctx.translate(v.px, v.py); ctx.rotate(cam.yaw); ctx.drawImage(wc, -S / 2, -S / 2); }

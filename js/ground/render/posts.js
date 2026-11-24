@@ -445,7 +445,7 @@ export function drawPosts(ctx, m, now, px, labels, scale, sel) {
       ring(ctx, p.x, p.y, demoRadius(p)); ctx.stroke(); ctx.restore();
       if (blink) { ctx.fillStyle = '#ff3a1e'; for (let k = 0; k < 4; k++) { const a = (k / 4) * TAU + 0.6; ring(ctx, p.x + Math.cos(a) * Math.max(2, R * 0.6), p.y + Math.sin(a) * Math.max(2, R * 0.6), Math.max(0.5, px(2.2))); ctx.fill(); } }
       labels.push({ x: p.x, y: p.y, dy: -R * scale - 8, text: tr('lab.demo', { n: Math.ceil(left) }), col: '#ff6a4a', pri: 3 });
-    } else if (sel === p) labels.push({ x: p.x, y: p.y, dy: -R * scale - 8, text: `${p.name.toUpperCase()}${crew}${gar}`, col: p.cap ? '#3de0ff' : '#6fc0ff', pri: 1 });   // (0.31: the name only over the one selected; the map stays clear)
+    } else if (sel === p) labels.push({ x: p.x, y: p.y, dy: -R * scale - 8, text: `${p.name.toUpperCase()}${(p.lvl || 1) > 1 && P3_POST[p.what] ? ' · L' + p.lvl : ''}${crew}${gar}`, col: p.cap ? '#3de0ff' : '#6fc0ff', pri: 1 });   // (0.31: the name only over the one selected; the map stays clear)
   }
   if (!sel || sel.dead) return;
   // the selection: brackets and the reach of whatever it is

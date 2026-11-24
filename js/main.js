@@ -24,6 +24,7 @@ import { newKit, newWallet } from './ground/data/kit.js';
 import { words } from './core/words.js';
 import { career } from './core/career.js';
 import { catalogue, KINDS, FACTION_ABOUT } from './core/collection.js';
+import { keysPanel, bindKeysPanel } from './core/keys-ui.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
@@ -159,11 +160,12 @@ const ART = {
 // ---- the tabs
 const TABS = [['home', 'HOME'], ['play', 'PLAY'], ['livery', 'LIVERY'], ['collection', 'COLLECTION'], ['career', 'CAREER'], ['store', 'STORE'], ['options', 'OPTIONS']];
 let tab = 'home', optTab = 'common', playGame = null;     // playGame: the game whose saves the PLAY tab is showing
-const NEWS = { title: 'The ground fight: 3D all through, a new walker, and a view you can turn', lines: ['Mushrooms, ruins, bug holes, craters, the enemy capital\'s walls and the crates for what you build are models now, not paint on the map. Tracers are thin streaks that fade.', 'People walk and run smoothly (each step blended between frames); troopers throw a call-in\'s beacon where it is to land; riders sit in the recon vehicle.', 'The mech is a new two-legged walker with twin autocannon, and it walks.', 'Turn the view in a fight: drag with the middle mouse button, or [ ] and Page Up / Page Down; \\ puts it back.', 'Footsteps sound like boots on snow, sand or grass. By day the fog of war is a haze, not a shadow, and snow is easier to see units on.', 'Earlier, 0.72: the war room behind the menu, drawn live.'] };
+const NEWS = { title: 'Smarter Vanguards, upgrades you can see, and your own keys', lines: ['Vanguards pick the right call-in for the moment: the big barrages for big packs, armour-breakers for armour. A strike too big to throw is marked with a laser, and they stop saving call-ins for a moment that never comes.', 'Posts show their upgrades: sandbags, then steel plates, then ammunition and a floodlight, then barriers and a pennant.', 'Change any key, for every game, on OPTIONS (and CONTROLS in a game\'s menu). A key another action has swaps with it.', 'Models are loaded before you drop, and up close the ground has a grain of its own.', 'Earlier, 0.73: 3D in place of 2D all through the ground fight, smoother people, a new walker, and a view you can turn.'] };
+// (GC 0.73) what is done with the mouse and Esc (fixed); every key below them can be changed (js/core/keys-ui.js)
 const KEYS = {
-  war: [['Click a system', 'Select it; click another to send a fleet'], ['END ROUND', 'Play out the round'], ['Esc', 'The menu']],
-  fury: [['W A S D / arrows', 'Move the view'], ['Mouse wheel', 'Zoom'], ['Tab or M', 'The big map'], ['1 to 8', 'Pick a weapon; hold or click to fire'], ['G', 'Drop Infantry'], ['B', 'Build'], ['U', 'Load a supply pod (then 1, 2, 3)'], ['Click / drag a box', 'Pick troopers'], ['Right-click', 'Order the troopers you picked'], ['Esc', 'Pause']],
-  base: [['Drag', 'Move the view'], ['Right-drag, Q and E', 'Turn the view'], ['Mouse wheel', 'Zoom'], ['Drag with a road tool', 'Draw a road on the tiles (hold Shift to draw free)'], ['Click a building', 'Its status card'], ['Esc', 'The menu']],
+  war: [['Click a system', 'Select it; click another to send a fleet'], ['Drag, mouse wheel', 'Move and zoom the map'], ['END ROUND', 'Play out the round'], ['Esc', 'The menu']],
+  fury: [['Mouse wheel', 'Zoom'], ['Click / drag a box', 'Pick troopers'], ['Right-click', 'Order the troopers you picked'], ['Middle-drag', 'Turn and tilt the view'], ['Shift+1-9', 'Pick a squad'], ['Esc', 'Pause']],
+  base: [['Drag', 'Move the view'], ['Right-drag', 'Turn the view'], ['Mouse wheel', 'Zoom'], ['Drag with a road tool', 'Draw a road on the tiles (hold Shift to draw free)'], ['Click a building', 'Its status card'], ['Esc', 'The menu']],
   orbit: [['Drag', 'Turn the view'], ['Mouse wheel', 'Zoom'], ['Click a part, then a green ring', 'Build it there'], ['Click a part', 'What it is and does'], ['Esc', 'The menu']],
 };
 const panel = (title, body, cls = '') => `<section class="tpan ${cls}"><h3>${title}</h3>${body}</section>`;
@@ -236,7 +238,7 @@ const optCommon = () => `<div class="oset">
       <span>HINTS</span><div class="seg"><button class="plate btn${settings.hints ? ' on' : ''}" id="o-hints" data-act="o-hints">${settings.hints ? 'HINTS ARE ON' : 'HINTS ARE OFF'}</button></div><small>The coach's cards and tips, in every game.</small>
       <span>MESSAGE TIME</span><div class="seg">${MSG_TIMES.map(([k, n]) => `<button class="plate btn${msgKey() === k ? ' on' : ''}" data-act="o-msg" data-k="${k}">${n}</button>`).join('')}</div><small>How long the messages in the corner of the base, the station and the ground battle stay up.</small>
     </div>`;
-const optKeys = (k) => `<dl class="keys">${KEYS[k].map(([a, d]) => `<dt>${a}</dt><dd>${d}</dd>`).join('')}</dl><p class="soon" style="margin-top:10px">These are the controls as they stand. Changing them, and controller support, are to come.</p>`;
+const optKeys = (k) => keysPanel(k, KEYS[k] || []);     // (GC 0.73: the keys can be changed here; controller support is still to come)
 // a click on one of the common settings; true if it was one
 function optAct(d) {
   if (d.act === 'o-mute') { settings.muted = !settings.muted; audio.set(settings.volume, settings.muted); write(SET_KEY, settings); }
@@ -255,7 +257,7 @@ function drawTitle() {
   $('t-tabs').innerHTML = TABS.map(([k, n], i) => `<button role="tab" aria-selected="${tab === k}" class="${tab === k ? 'on' : ''}" data-tab="${k}">${i === 0 ? '<kbd class="l">Q</kbd>' : ''}${n}${i === TABS.length - 1 ? '<kbd class="r">E</kbd>' : ''}</button>`).join('');
   $('t-page').className = 'tp-' + tab + (tab === 'play' && !playGame ? ' wide' : '');
   $('t-page').innerHTML = `<h2>${TABS.find((x) => x[0] === tab)[1]}</h2>` + PAGES[tab]();
-  optBind($('t-page'));
+  optBind($('t-page')); bindKeysPanel($('t-page'), drawTitle);
   if (tab === 'collection') collectionArt();
   if (tab === 'livery') bindLivery($('t-page'), { redraw: drawTitle, changed: () => { barCrest(); WarRoom.restyle(); }, audio, toast: app.toast });
   if (tab === 'store') bindStore($('t-page'), { redraw: drawTitle, audio, toast: app.toast });
@@ -571,7 +573,7 @@ function openMenu(page = 'game') {
   m.innerHTML = `<div class="gmenu"><header id="m-bar"><img class="tlogo" src="assets/icon.svg" alt=""><div class="tname"><span>${esc(where.toUpperCase())}</span><b>PAUSED</b></div>
     <nav class="ttabs" id="m-tabs">${[['game', 'GAME'], ['options', 'OPTIONS'], ['controls', 'CONTROLS']].map(([k, n]) => `<button class="${page === k ? 'on' : ''}" data-mtab="${k}">${n}</button>`).join('')}</nav></header>
     <main class="gpage">${body}</main></div>`;
-  optBind(m);
+  optBind(m); bindKeysPanel(m, () => openMenu('controls'));
   m.onclick = (e) => {
     const t = e.target.closest('[data-mtab]'); if (t) { audio.click(); return openMenu(t.dataset.mtab); }
     const b = e.target.closest('[data-act]'); if (!b) return; const d = b.dataset;

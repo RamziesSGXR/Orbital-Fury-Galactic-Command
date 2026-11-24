@@ -7,7 +7,7 @@
 // in its corners, standing on the ground at the origin, facing +z, sized so its widest or tallest measure is two units.
 import * as THREE from '../../vendor/three.js';
 import { VIEW } from './view.js';
-import { staticGeo, modelFrames } from '../../model3d.js';
+import { staticGeo, modelFrames, modelJSON } from '../../model3d.js';
 export { staticGeo, modelFrames };
 import { makeMats, makePerson, poseKit, makeLRV, makeTank, makeDropship, makeCrate } from '../../base/models.js';
 
@@ -149,9 +149,9 @@ export class Units3D {
     this.hot = new THREE.Color(0, 0, 0);
     // the Blender models come in a moment after the fight opens; until one has, its kind is drawn as the simple shape above
     this.loaded = {};
-    if (typeof fetch === 'function') fetch('assets/models/index.json').then((r) => (r.ok ? r.json() : null)).then((ix) => {     // (the list says which are made, so nothing missing is asked for)
+    if (typeof fetch === 'function') modelJSON('assets/models/index.json').then((ix) => {     // (the list says which are made, so nothing missing is asked for)
       for (const [k, file] of Object.entries(MODELS)) if (ix && ix.models && ix.models.includes(file))
-        fetch(`assets/models/${file}.json`).then((r) => (r.ok ? r.json() : null)).then((d) => { if (!d || !d.frames) return; const made = modelFrames(d, this.dress(k), PEOPLE.has(k) ? GROUND_POSES : null); this.def[k] = () => made; this._drop(k); this.loaded[k] = d.nt; VIEW.m3.add(file); }).catch(() => {});
+        modelJSON(`assets/models/${file}.json`).then((d) => { if (!d || !d.frames) return; const made = modelFrames(d, this.dress(k), PEOPLE.has(k) ? GROUND_POSES : null); this.def[k] = () => made; this._drop(k); this.loaded[k] = d.nt; VIEW.m3.add(file); }).catch(() => {});
     }).catch(() => {});
   }
   // The fleet's own colours for the parts of a character model that are named for them (the enemy wears its own).

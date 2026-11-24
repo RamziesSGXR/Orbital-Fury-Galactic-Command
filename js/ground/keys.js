@@ -74,6 +74,8 @@ export function resetKeys() { own = { ...DEF }; build(); save(); notify(); }
 const subs = new Set();
 export function onKeysChange(f) { subs.add(f); return () => subs.delete(f); }
 function notify() { for (const f of subs) { try { f(); } catch { /* ignore */ } } }
+// (GC 0.73) changed from the main menu while a fight is open (the menu is another page of the game): taken up at once
+if (typeof window !== 'undefined') window.addEventListener('storage', (e) => { if (e.key === STORE || e.key === null) { own = { ...DEF }; load(); build(); notify(); } });
 
 // How a key is written on a button: W, 1, SPACE, ↑, NUM +
 const NAMES = {

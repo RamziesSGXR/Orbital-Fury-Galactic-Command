@@ -85,7 +85,9 @@ function buildCtx(m, owner) {
   // and never past the caller's own strike zone.
   // (0.47) and never past a throw (plus the lead a pack on the move is given)
   const reach = Math.min(190, zone, (owner ? owner.vision : C.sight.vanguard + C.sight.playerBonus) + 55, C.sight.throw + 12);
-  const c = { owner, cx, cy, dir: sq.dir || 0, vis: [], heavies: [], hunt: 0, near: 0, centroid: null, reach, zone,
+  // (0.72) a strike too big to throw is marked with the laser instead: anywhere he can see inside his own zone, to 95 m
+  const markReach = Math.min(95, zone, owner ? owner.vision * 0.85 : C.sight.vanguard * 0.85);
+  const c = { owner, cx, cy, dir: sq.dir || 0, vis: [], heavies: [], hunt: 0, near: 0, centroid: null, reach, zone, markReach,
     engaged: owner ? !!m.eGrid.nearest(cx, cy, C.squad.engageRange) : !!sq.engaged, goalDist: sq.goalDist ?? 0, cl: null,
     panic: !!(owner && owner.retreat) };   // a Vanguard who is running for it calls whatever might save him
   let sx = 0, sy = 0;
@@ -102,9 +104,9 @@ function buildCtx(m, owner) {
   return c;
 }
 
-function clusters(m, ctx) {
-  if (ctx.cl) return ctx.cl;
-  const out = [], cand = ctx.vis.filter((e) => Math.hypot(e.x - ctx.cx, e.y - ctx.cy) <= ctx.reach);
+function clusters(m, ctx, far = false) {
+  if (far ? ctx.clFar : ctx.cl) return far ? ctx.clFar : ctx.cl;
+  const R_ = far ? ctx.markReach : ctx.reach, out = [], cand = ctx.vis.filter((e) => Math.hypot(e.x - ctx.cx, e.y - ctx.cy) <= R_);
   const stride = Math.max(1, Math.floor(cand.length / 60));
   for (let i = 0; i < cand.length; i += stride) {
     const e = cand[i]; let n = 0, sx = 0, sy = 0, vx = 0, vy = 0;
@@ -114,7 +116,7 @@ function clusters(m, ctx) {
     out.push({ x, y, n, vx: vx / n, vy: vy / n, dist, rate: n + Math.min(4, dist / 35) });
   }
   out.sort((a, b) => b.rate - a.rate);
-  return (ctx.cl = out);
+  return far ? (ctx.clFar = out) : (ctx.cl = out);
 }
 
 // Call-ins never hurt the squad, but a bomb dropped right on top of them looks wrong, so keep space. (0.46) It was 9 m for
@@ -135,9 +137,15 @@ const spreadR = (d) => Math.max(14, Math.min(40, blastOf(d)));
 
 // Where something moving at (vx, vy) will be after `lead` seconds: the call itself takes C.callin.callSec, then the callin's own
 // delay. Capped, so a strike is never thrown at a guess far from anything.
-function ahead(x, y, vx, vy, lead) {
-  let dx = (vx || 0) * lead, dy = (vy || 0) * lead;
-  const L = Math.hypot(dx, dy), cap = C.callin.leadMax;
+// (0.72, Ramzies: "vanguard doesn't seem to know how to use their stratagems") The whole lead was taken: a heavy walking at 6 m/s
+// was aimed 30 m ahead of itself, and it stopped to fire long before it got there, so the precision strikes and the rail
+// landed on empty ground. A thing already in a fight (it has a target) and close is aimed at nearly where it stands; anything
+// else is given half its lead, never more than a third of the old cap, and never closer to the caller than it can come.
+function ahead(x, y, vx, vy, lead, ctx = null, busy = false) {
+  let k = busy ? 0.2 : 0.5;
+  if (ctx && Math.hypot(x - ctx.cx, y - ctx.cy) < 50) k *= 0.6;
+  let dx = (vx || 0) * lead * k, dy = (vy || 0) * lead * k;
+  const L = Math.hypot(dx, dy), cap = C.callin.leadMax / 3;
   if (L > cap) { dx *= cap / L; dy *= cap / L; }
   return { x: x + dx, y: y + dy };
 }
@@ -152,24 +160,33 @@ const blastOf = (d) => (d.zone ? d.zone.r : d.splash || 8) + (d.len || 0) / 2;
 // While the squad is staging on a base, only what is already hunting it gets a call-in.
 const quiet = (m, ctx) => m.squad.staging && !ctx.hunt;
 
-function pickCluster(m, d, ctx) {
-  const need = ctx.panic ? 2 : d.min || 5, lead = leadOf(d);
+// (0.72) A strike whose footprint is too wide to throw (its clearance is more than the 20-40 m of a throw leaves room for) is
+// MARKED: the Vanguard puts his laser on the far ground, and the ship takes it from there. Before, those (the 380, the walking
+// barrage, the air strike) were hardly ever called: no pack ever stood 34-40 m from the thrower with every ally 34 m from it.
+const marked = (d) => (clearance(d) > 24 && (d.k === 'strike' || d.k === 'zone')) || (d.k === 'strike' && d.pat === 'point' && d.use === 'heavy');     // (and a precision strike on armour is laid on with the laser, whatever its size: the ship follows the laser on the target)
+const inMark = (ctx, d, x, y) => { const d2 = (x - ctx.cx) ** 2 + (y - ctx.cy) ** 2, lo = Math.max(C.sight.throwMin, clearance(d) * 0.9); return d2 <= ctx.markReach * ctx.markReach && d2 >= lo * lo; };
+// (0.72) a call-in kept waiting while its caller fights is not saved for a better moment for ever: every 12 s ready in a fight
+// takes one off the pack it waits for (never below 2)
+const needOf = (d, g, ctx) => (ctx.panic ? 2 : Math.max(2, (d.min || 5) - Math.floor(((g && g.waited) || 0) / 12)));
+function pickCluster(m, d, ctx, g) {
+  const need = needOf(d, g, ctx), lead = leadOf(d), far = marked(d);
   if (quiet(m, ctx)) return null;
-  for (const c of clusters(m, ctx)) {
+  for (const c of clusters(m, ctx, far)) {
     if (c.n < need) continue;
-    // aim where the pack will be when the strike lands
-    const p = ahead(c.x, c.y, c.vx, c.vy, lead);
-    if (safeSpot(m, p.x, p.y, clearance(d)) && inThrow(ctx, p.x, p.y) && m.terrain.isLand(p.x, p.y) && !wakesBase(m, p.x, p.y, blastOf(d)) && !crowded(m, p.x, p.y, spreadR(d))) return p;
+    // aim where the pack will be when the strike lands (0.72: a pack that has reached its fight is not led far)
+    const p = ahead(c.x, c.y, c.vx, c.vy, lead, ctx, c.dist < 45);
+    if (far && c.dist > ctx.reach) { const ux = (c.x - ctx.cx) / (c.dist || 1), uy = (c.y - ctx.cy) / (c.dist || 1); p.x += ux * 4; p.y += uy * 4; }     // (the far side of it a little: the near edge is still clear of the squad)
+    if (safeSpot(m, p.x, p.y, clearance(d)) && (far ? inMark(ctx, d, p.x, p.y) : inThrow(ctx, p.x, p.y)) && m.terrain.isLand(p.x, p.y) && !wakesBase(m, p.x, p.y, blastOf(d)) && !crowded(m, p.x, p.y, spreadR(d))) return { x: p.x, y: p.y, n: c.n, mark: far };
   }
   return null;
 }
 function pickHeavy(m, d, ctx) {
-  const lead = leadOf(d);
+  const lead = leadOf(d), far = marked(d);
   if (quiet(m, ctx)) return null;
   for (const e of ctx.heavies) {
-    // Aim where it will be when the strike lands.
-    const p = ahead(e.x, e.y, e.vx, e.vy, lead);
-    if (safeSpot(m, p.x, p.y, clearance(d)) && inThrow(ctx, p.x, p.y) && !wakesBase(m, p.x, p.y, blastOf(d)) && !crowded(m, p.x, p.y, 10)) return { x: p.x, y: p.y, e };
+    // Aim where it will be when the strike lands (0.72: one that has stopped to fire, where it stands)
+    const p = ahead(e.x, e.y, e.vx, e.vy, lead, ctx, !!e.tgt);
+    if (safeSpot(m, p.x, p.y, clearance(d)) && (far ? inMark(ctx, d, p.x, p.y) : inThrow(ctx, p.x, p.y)) && !wakesBase(m, p.x, p.y, blastOf(d)) && !crowded(m, p.x, p.y, 10)) return { x: p.x, y: p.y, e, mark: far };
   }
   return null;
 }
@@ -220,7 +237,7 @@ function choose(m, g, ctx) {
   switch (d.use) {
     case 'cluster':
       if (d.heavyOnly) return pickHeavy(m, d, ctx);
-      return pickCluster(m, d, ctx) || (d.heavy ? pickHeavy(m, d, ctx) : null) || (d.base ? pickBase(m, d, ctx) : null);
+      return pickCluster(m, d, ctx, g) || (d.heavy ? pickHeavy(m, d, ctx) : null) || (d.base ? pickBase(m, d, ctx) : null);
     case 'heavy':
       if (d.k === 'weapon') {
         // Heavy weapons come out for armor, and also to crack a base the squad is sieging.
@@ -268,9 +285,11 @@ function execute(m, g, tgt, ctx) {
   m.stats.callinCalls++; m.stats.callinBy[g.id] = (m.stats.callinBy[g.id] || 0) + 1;
   m.radio(COMMS.callinCall(d.name), 'callin', 1.2);
   bark(m, caller, 'callin', d.name, true);
-  if (caller) { caller.throwAt = t; caller.throwA = Math.atan2(tgt.y - caller.y, tgt.x - caller.x); }     // (0.72) he throws the beacon at the mark (drawn: render allyFig)
+  const cs0 = C.callin.callSec;
+  if (caller && tgt.mark) { caller.markAt = t; caller.markX = tgt.x; caller.markY = tgt.y; caller.aimA = Math.atan2(tgt.y - caller.y, tgt.x - caller.x); caller.aimUntil = Math.max(caller.aimUntil || 0, t + cs0); }     // (0.72) too big to throw: he puts his laser on it
+  else if (caller) { caller.throwAt = t; caller.throwA = Math.atan2(tgt.y - caller.y, tgt.x - caller.x); }     // (0.72) he throws the beacon at the mark (drawn: render allyFig)
   const cs = C.callin.callSec;      // the beacon is thrown, then the ship lines up: the ground is marked for this long first
-  m.emit('callin_call', { id: g.id, x: tgt.x, y: tgt.y, delay: (d.delay || 4) + cs, team: team.i, cx: caller ? caller.x : ctx.cx, cy: caller ? caller.y : ctx.cy, base: tgt.base ? tgt.base.id : undefined });
+  m.emit('callin_call', { id: g.id, x: tgt.x, y: tgt.y, delay: (d.delay || 4) + cs, team: team.i, cx: caller ? caller.x : ctx.cx, cy: caller ? caller.y : ctx.cy, base: tgt.base ? tgt.base.id : undefined, mark: !!tgt.mark });
   switch (d.k) {
     case 'strike': strikeAt(m, { ...d, id: g.id, delay: d.delay + cs }, tgt, { ox: ctx.cx, oy: ctx.cy, by: 'callin', friendly: false, dmgMul: mul(), team: team.i }); break;
     case 'zone': queueZone(m, d.zone, tgt.x, tgt.y, t + d.delay + cs, d.delay + cs, d, 'callin', team.i); break;
@@ -312,12 +331,12 @@ export function strikeAt(m, d, tgt, o) {
     if (d.pat === 'scatter') { const [dx, dy] = rng.inDisc(d.len); x += dx; y += dy; }
     else if (d.pat === 'line' || d.pat === 'walk') { const s = (f - 0.5) * d.len, [jx, jy] = rng.inDisc(d.pat === 'walk' ? 3 : 1.6); x += ux * s + jx; y += uy * s + jy; }
     const at = at0 + f * d.span;
-    m.shells.push({ x, y, at, dmg, splash, mult: d.mult, by: o.by, friendly: o.friendly, lock: d.lock && tgt.e ? tgt.e : null, big: d.dmg >= 500, sid: d.id || '', cat: d.cat || '', n: i, of: n });     // (0.23: what it is, for its explosion)
+    m.shells.push({ x, y, at, dmg, splash, mult: d.mult, by: o.by, friendly: o.friendly, lock: (d.lock || (d.pat === 'point' && tgt.mark)) && tgt.e ? tgt.e : null, big: d.dmg >= 500, sid: d.id || '', cat: d.cat || '', n: i, of: n });     // (0.23: what it is, for its explosion)
     if (d.zone) m.queue.push({ at, type: 'zone', kind: d.zone.kind, x, y, r: d.zone.r, sec: d.zone.sec, dps: d.zone.dps || 0, sid: d.name, by: o.by });
   }
   const rr = d.pat === 'point' ? Math.max(d.splash, 6) : d.len || d.splash;
   // The marker also says which way the strike runs, so the ground shows where a Striker comes from and which strip it will hit.
-  m.markers.push({ type: 'callin', x: tgt.x, y: tgt.y, r: rr, start: t, end: at0 + d.span, impact: at0, id: d.name, cat: d.cat, lock: d.lock && tgt.e ? tgt.e : null, by: o.by,
+  m.markers.push({ type: 'callin', x: tgt.x, y: tgt.y, r: rr, start: t, end: at0 + d.span, impact: at0, id: d.name, cat: d.cat, lock: (d.lock || (d.pat === 'point' && tgt.mark)) && tgt.e ? tgt.e : null, by: o.by,
     pat: d.pat, len: d.len || 0, rad: splash, ux, uy, fly: !!d.fly, span: d.span || 0, team: o.team ?? -1 });
   if (d.fly) {
     const L = 520;
@@ -732,28 +751,52 @@ export function updateCallin(m, dt) {
   // (0.26) every Vanguard keeps his own clock: each can call one of his own call-ins in the same moment as the others (no
   // squad-wide turn to wait for); the squad-wide items still go one at a time. (S.callAt holds every call: scripted moments, tests)
   if (t < S.callAt) return;
-  const ctxs = {}, n = S.order.length, called = new Set();
+  // (0.72, Ramzies: "vanguard doesn't seem to know how to use their stratagems") Each Vanguard weighs everything he has ready
+  // and calls the one that does the most good now (scoreCall), not the first in his list that would do: the big guns for the
+  // big packs, the armour-breakers for armour, the light ones for the small fights. A call-in that sits ready while he fights
+  // counts its wait (needOf lowers the pack it waits for).
+  const ctxs = {}, n = S.order.length, best = new Map();
   for (let i = 0; i < n; i++) {
     const g = S.groups[S.order[(S.rot + i) % n]], d = g.def, team = m.teams[g.team];
-    if (t < g.readyAt) continue;
-    if (called.has(g.team) || (d.shared && (called.has('s') || t < (S.sharedAt || 0)))) continue;
-    if (!d.shared && t < team.callAt) continue;
+    if (t < g.readyAt) { g.waited = 0; continue; }
+    if (d.shared ? t < (S.sharedAt || 0) : t < team.callAt) continue;
     if (!canCall(m, g)) continue;
     const key = d.shared ? 's' : g.team;
     const ctx = ctxs[key] || (ctxs[key] = buildCtx(m, d.shared ? null : team.hd));
+    if (ctx.engaged || ctx.hunt) g.waited = (g.waited || 0) + 0.4;
     const tgt = choose(m, g, ctx);
     if (!tgt) continue;
     // a commander's jammer: nothing can be called down inside it, and nobody standing in it can call at all
     const caller = callinOwner(m, g);
     if (jammedAt(m, tgt.x, tgt.y, 4) || (caller && jammedAt(m, caller.x, caller.y))) { m.stats.jammed = (m.stats.jammed || 0) + 1; continue; }
+    const sc = scoreCall(m, g, tgt, ctx), b = best.get(key);
+    if (!b || sc > b.sc) best.set(key, { g, tgt, ctx, sc });
+  }
+  for (const [key, { g, tgt, ctx }] of best) {
     if (!ctx.panic && m.rng.next() > 0.7) continue;   // not every opportunity gets taken the instant it appears (but a runner calls at once)
+    const d = g.def, team = m.teams[g.team];
     execute(m, g, tgt, ctx);
-    g.readyAt = t + d.cd * (C.callin.cdMul ?? 1); g.uses++;
-    team.callAt = t + C.callin.callGapSec;
-    called.add(g.team);
-    if (d.shared) { called.add('s'); S.sharedAt = t + 0.5; }
+    g.readyAt = t + d.cd * (C.callin.cdMul ?? 1); g.uses++; g.waited = 0;
+    if (key === 's') S.sharedAt = t + 0.5; else team.callAt = t + C.callin.callGapSec;
   }
   S.rot = (S.rot + 1) % n;
+}
+// (0.72) How much good a call does now, to choose between those ready: the enemies it would catch (a pack counts up to what the
+// strike can take in), armour for what breaks armour, and the defensive things by the threat. A short cooldown is the cheaper
+// call: the long ones wait for the moments that need them.
+function scoreCall(m, g, tgt, ctx) {
+  const d = g.def, cdK = Math.sqrt(60 / Math.max(30, d.cd || 60));
+  if (tgt.e) return (6 + (d.anti ? 4 : 0)) * cdK + (ctx.panic ? 3 : 0);     // a heavy
+  if (tgt.base) return 7 * cdK;
+  if (tgt.n) return Math.min(tgt.n, 4 + blastOf(d) / 3) * cdK + (tgt.n >= 10 && blastOf(d) > 20 ? 4 : 0);     // a pack (a big pack is what the big ones are for)
+  switch (d.use) {
+    case 'smoke': return ctx.panic ? 9 : 4;
+    case 'defense': case 'fight': return Math.min(ctx.hunt, 10) * 0.6 * cdK + (ctx.panic ? 3 : 0) + (d.anti && ctx.heavies.length ? 3 : 0);
+    case 'heavy': return ctx.heavies.length ? 7 : 3;
+    case 'resupply': return 6;
+    case 'travel': return ctx.panic ? 8 : 2;
+    default: return 1;
+  }
 }
 
 export { compass };

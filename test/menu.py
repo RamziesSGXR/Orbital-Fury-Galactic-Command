@@ -97,7 +97,8 @@ with sync_playwright() as pw:
     title(); assert not [x for x in pg.frames if 'ground.html' in x.url], 'leaving the ground game should come back to the main menu'
     # OPTIONS: the common settings, and each game's controls
     tab('options'); a = pg.inner_text('#o-hints'); pg.click('#o-hints'); pg.wait_for_timeout(200); b = pg.inner_text('#o-hints'); assert a != b, 'the hints switch did not change'; pg.click('#o-hints')
-    pg.click('[data-act=o-tab][data-k=fury]'); assert 'Drop Infantry' in pg.inner_text('#t-page'), "the ground game's controls are not listed"
+    pg.click('[data-act=o-tab][data-k=fury]'); assert 'Infantry drop' in pg.inner_text('#t-page'), "the ground game's controls are not listed"
+    assert pg.evaluate("document.querySelectorAll('#t-page [data-kb][data-kg=fury]').length") > 20, "the ground game's keys can't be changed here"     # (GC 0.73: every key is a button to change it)
     pg.screenshot(path=f'{out}/menu-5-options.png')
     # the tutorials: a practice post with no story, not saved, and back to the menu
     tab('play'); pg.click('[data-act=tut][data-g=fury]'); f = pg.frame_locator('#g-frame'); f.locator('#tut:not(.hidden)').wait_for(timeout=90000); pg.wait_for_timeout(1500)
@@ -128,7 +129,8 @@ with sync_playwright() as pw:
             if ':' in t: pg.click(f"[data-lv=sub][data-k={t.split(':')[1]}]"); pg.wait_for_timeout(200)
             else: tab(t)
             if t == 'livery': pg.click("[data-lv=sub][data-k=styles]"); pg.wait_for_timeout(200)
-            sh, bottom, right = pg.evaluate("[document.getElementById('s-title').scrollHeight, Math.max(...[...document.querySelectorAll('#t-page .tpan, #t-page .btn, #t-ver')].map(e => e.getBoundingClientRect().bottom)), Math.max(...[...document.querySelectorAll('#t-bar > *, #t-page .tpan')].map(e => e.getBoundingClientRect().right))]")
+            # (GC 0.73: the key buttons scroll inside their own list, .kbind: only the list itself has to fit)
+            sh, bottom, right = pg.evaluate("[document.getElementById('s-title').scrollHeight, Math.max(...[...document.querySelectorAll('#t-page .tpan, #t-page .btn:not(.kb-key), #t-ver')].map(e => e.getBoundingClientRect().bottom)), Math.max(...[...document.querySelectorAll('#t-bar > *, #t-page .tpan')].map(e => e.getBoundingClientRect().right))]")
             assert sh <= vh + 1 and bottom <= vh and right <= vw, f'the {t} tab does not fit a {vw}x{vh} screen (bottom {bottom}, right {right})'
             if name == 'laptop': pg.screenshot(path=f'{out}/menu-8-{t.replace(":", "-")}.png')
     br.close()

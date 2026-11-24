@@ -12,6 +12,8 @@ import { ensureLogo } from '../base/logo.js';
 import { words } from '../core/words.js';
 import { note } from '../core/career.js';
 import { upgrade } from '../core/roster.js';
+import { binds } from '../core/binds.js';
+const KB = binds('base');     // (GC 0.73) the player's own keys
 // (0.46) what a base puts on air: every parade ground, speaker, billboard, banner, flag and monument standing is footage for the war's ratings
 const SHOWS = new Set(['parade', 'speaker', 'billboard', 'banner', 'hdbanner', 'flag', 'seflag', 'statue', 'monument', 'memorial', 'lecture', 'truth', 'plaque']);
 
@@ -251,11 +253,11 @@ function bind() {
   $('th-bar').addEventListener('pointerleave', () => { if (hover) { hover = null; if (!mode.off) selBar(); } });
   window.addEventListener('keydown', (e) => {
     if (mode.off || e.target.tagName === 'INPUT') return;
-    const k = e.key.toLowerCase(); held.add(k);
-    if (k === 'r') rot = (rot + 1) % 4; else if (k === 'q') view.spin(-0.3); else if (k === 'e') view.spin(0.3);
-    else if (k === 'escape' && tool) { e.stopImmediatePropagation(); setTool(tool); } else if (k === ' ') { e.preventDefault(); $('th-pause').click(); }
+    held.add(e.code); const a = KB.actionOf(e.code);     // (GC 0.73) the player's own keys (js/core/binds.js)
+    if (a === 'rotate') rot = (rot + 1) % 4; else if (a === 'turnLeft') view.spin(-0.3); else if (a === 'turnRight') view.spin(0.3);
+    else if (e.code === 'Escape' && tool) { e.stopImmediatePropagation(); setTool(tool); } else if (a === 'pause') { e.preventDefault(); $('th-pause').click(); }
   }, true);
-  window.addEventListener('keyup', (e) => held.delete(e.key.toLowerCase()));
+  window.addEventListener('keyup', (e) => held.delete(e.code));
   window.addEventListener('blur', () => held.clear());
   new ResizeObserver(() => { if (!mode.off && view) view.resize(); }).observe($('th-stage'));
 }
@@ -291,7 +293,7 @@ const mode = {
   leave() { mode.store(); mode.off = true; held.clear(); if (tut) tut.hide(); tut = null; if (view) { view.setGhost(null); view.showLine(null); view.showPlots(null); } },
   frame(dt, now, real) {
     if (!sim) return;
-    const fx = (held.has('d') || held.has('arrowright') ? 1 : 0) - (held.has('a') || held.has('arrowleft') ? 1 : 0), fz = (held.has('w') || held.has('arrowup') ? 1 : 0) - (held.has('s') || held.has('arrowdown') ? 1 : 0);
+    const fx = (KB.held('panRight', held) ? 1 : 0) - (KB.held('panLeft', held) ? 1 : 0), fz = (KB.held('panUp', held) ? 1 : 0) - (KB.held('panDown', held) ? 1 : 0);
     if (fx || fz) view.move(fx, fz, real);
     if (dt > 0) {
       acc += dt * Sim.rate(); let n = 0;

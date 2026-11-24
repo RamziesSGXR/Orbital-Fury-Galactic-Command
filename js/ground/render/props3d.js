@@ -7,6 +7,7 @@
 import * as THREE from '../../vendor/three.js';
 import { bake, staticGeo } from './units3d.js';
 import { VIEW } from './view.js';
+import { modelJSON } from '../../model3d.js';
 
 const CAP = 900;
 const M4 = new THREE.Matrix4(), Q = new THREE.Quaternion(), UP = new THREE.Vector3(0, 1, 0), P = new THREE.Vector3(), S = new THREE.Vector3(), COL = new THREE.Color();
@@ -139,8 +140,8 @@ export class Props3D {
     // (GC 0.38) the objectives and side sites are models made in Blender (tools/blender/sites.py), listed in the index and
     // fetched as the game starts. Until one has come, the old flat drawing of it is used (VIEW.m3 says which have come).
     this.files = new Map(); this.accent = '#ff5a3a';
-    fetch('assets/models/index.json').then((r) => (r.ok ? r.json() : null)).then((ix) => {
-      for (const name of (ix && ix.props) || []) fetch(`assets/models/${name}.json`).then((r) => (r.ok ? r.json() : null)).then((d) => { if (d && d.frames && d.frames.stand) { this.files.set(name, d); for (const k of [...this.kinds.keys()]) { const b = k.replace(/~fall$/, ''); if (b === name || FILE(b) === name) this._drop(k); } VIEW.m3.add(name); } }).catch(() => {});
+    modelJSON('assets/models/index.json').then((ix) => {     // (0.72: from the store the fight's page filled as it opened)
+      for (const name of (ix && ix.props) || []) modelJSON(`assets/models/${name}.json`).then((d) => { if (d && d.frames && d.frames.stand) { this.files.set(name, d); for (const k of [...this.kinds.keys()]) { const b = k.replace(/~fall$/, ''); if (b === name || FILE(b) === name) this._drop(k); } VIEW.m3.add(name); } }).catch(() => {});
     }).catch(() => {});
   }
   has(k) { return !!MODELS[k] || this.files.has(k) || this.files.has(FILE(k)); }

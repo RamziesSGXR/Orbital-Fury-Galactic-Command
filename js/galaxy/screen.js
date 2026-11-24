@@ -6,6 +6,7 @@ import { Game } from './sim.js';
 import { View, drawPlanet, drawBattle } from './view.js';
 import { STEPS, SEED } from './tutorial.js';
 import { LAYER } from './view_gl.js';
+import { binds } from '../core/binds.js';
 
 const $ = id => document.getElementById(id), N = C.names, HP = C.ship.hp;
 const RES = { fuel: N.fuel, ammo: N.ammo, tech: N.tech, army: N.army }, RS = { fuel: ' FUEL', ammo: ' AMMO', tech: ' TECH', army: ' TROOPS' };
@@ -516,14 +517,16 @@ map.addEventListener('pointerup', up); map.addEventListener('pointercancel', up)
 map.addEventListener('contextmenu', e => e.preventDefault());
 // The keyboard, for a desk: W A S D or the arrows slide the map, Q and E turn it, + and - zoom, F looks down the front in play.
 const held = new Set();
-addEventListener('keydown', e => { if (!active || e.target.closest('input, textarea') || !$('modal').hidden) return; const k = e.key.toLowerCase(); held.add(k);
-  if (k === '+' || k === '=') view.zoomAt(1.2); else if (k === '-') view.zoomAt(1 / 1.2); else if (k === 'f' && g) view.focus(g.fi >= 0 ? g.fi : null); });
-addEventListener('keyup', e => held.delete(e.key.toLowerCase())); addEventListener('blur', () => held.clear());
+// (GC 0.73) the player's own keys (js/core/binds.js; OPTIONS → WAR ROOM on the main menu), by the key's place on the board
+const KB = binds('war');
+addEventListener('keydown', e => { if (!active || e.target.closest('input, textarea') || !$('modal').hidden) return; held.add(e.code); const a = KB.actionOf(e.code);
+  if (a === 'zoomIn') view.zoomAt(1.2); else if (a === 'zoomOut') view.zoomAt(1 / 1.2); else if (a === 'front' && g) view.focus(g.fi >= 0 ? g.fi : null); });
+addEventListener('keyup', e => held.delete(e.code)); addEventListener('blur', () => held.clear());
 function keys(dt) {
-  if (!held.size || fighting()) return; const v = 520 * dt, on = (...k) => k.some(x => held.has(x));
-  const dx = (on('a', 'arrowleft') ? 1 : 0) - (on('d', 'arrowright') ? 1 : 0), dy = (on('w', 'arrowup') ? 1 : 0) - (on('s', 'arrowdown') ? 1 : 0);
+  if (!held.size || fighting()) return; const v = 520 * dt, on = (a) => KB.held(a, held);
+  const dx = (on('panLeft') ? 1 : 0) - (on('panRight') ? 1 : 0), dy = (on('panUp') ? 1 : 0) - (on('panDown') ? 1 : 0);
   if (dx || dy) view.pan(dx * v, dy * v);
-  const r = (on('q') ? 1 : 0) - (on('e') ? 1 : 0); if (r) view.turn(r * 1.4 * dt);
+  const r = (on('turnLeft') ? 1 : 0) - (on('turnRight') ? 1 : 0); if (r) view.turn(r * 1.4 * dt);
 }
 map.addEventListener('wheel', e => { e.preventDefault(); const [x, y] = at(e); view.zoomAt(e.deltaY < 0 ? 1.15 : 1 / 1.15, x, y); }, { passive: false });
 new ResizeObserver(() => { view.resize(); if (view.front != null) view.focus(view.front); }).observe($('stage'));

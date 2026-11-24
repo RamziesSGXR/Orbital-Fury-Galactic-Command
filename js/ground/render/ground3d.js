@@ -41,18 +41,25 @@ export class Ground3D {
     // once and stays there; what is drawn on the ground this frame (zones, tracks, the dark where nobody is looking) is a
     // second, see-through picture laid over it. Before, the two were one picture, drawn and sent whole every frame.
     this.uDark = { value: null }; this.uDkOn = { value: 0 }; this.uDkO = { value: new THREE.Vector3() }; this.uDkHz = { value: new THREE.Vector4(0, 0, 0, 0) };     // (0.72) uDkHz: by day the unseen is a haze of this colour (w 1), not a dark     // (0.52) the dark of the night and of the unseen, for the models (see _night)
-    this.uGround = { value: null }; this.uOver = { value: null }; this.uInv = { value: 1 / 1600 }; this.uTopo = { value: 0 }; this.uAmp = { value: V3.amp };
+    this.uGround = { value: null }; this.uOver = { value: null }; this.uInv = { value: 1 / 1600 }; this.uTopo = { value: 0 }; this.uAmp = { value: V3.amp }; this.uDet = { value: 1 };
     const two = (mat) => { mat.onBeforeCompile = (sh) => {
-      Object.assign(sh.uniforms, { tGround: this.uGround, tOver: this.uOver, uInv: this.uInv, uTopo: this.uTopo, uAmp: this.uAmp });
-      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform float uInv; varying vec2 vG; varying vec2 vO; varying float vHt;')
-        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvG = vec2(position.x * uInv, 1.0 - position.z * uInv); vO = uv; vHt = position.y;');
+      Object.assign(sh.uniforms, { tGround: this.uGround, tOver: this.uOver, uInv: this.uInv, uTopo: this.uTopo, uAmp: this.uAmp, uDet: this.uDet });
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform float uInv; varying vec2 vG; varying vec2 vO; varying float vHt; varying vec2 vWp; varying float vDd;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvG = vec2(position.x * uInv, 1.0 - position.z * uInv); vO = uv; vHt = position.y; vWp = position.xz; vDd = -(modelViewMatrix * vec4(position, 1.0)).z;');
       sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
-        uniform sampler2D tGround; uniform sampler2D tOver; uniform float uTopo; uniform float uAmp; varying vec2 vG; varying vec2 vO; varying float vHt;
-        vec3 gcLin(vec3 c) { return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c)); }`)
+        uniform sampler2D tGround; uniform sampler2D tOver; uniform float uTopo; uniform float uAmp; uniform float uDet; varying vec2 vG; varying vec2 vO; varying float vHt; varying vec2 vWp; varying float vDd;
+        vec3 gcLin(vec3 c) { return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c)); }
+        float gcH(vec2 p) { p = mod(p, 289.0); return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+        float gcN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(gcH(i), gcH(i + vec2(1.0, 0.0)), f.x), mix(gcH(i + vec2(0.0, 1.0)), gcH(i + vec2(1.0, 1.0)), f.x), f.y); }`)
         .replace('#include <map_fragment>', `
         vec3 gr = (vG.x < 0.0 || vG.x > 1.0 || vG.y < 0.0 || vG.y > 1.0) ? vec3(0.0) : texture2D(tGround, vG).rgb;
         float hk = clamp(vHt / uAmp * 0.5 + 0.5, 0.0, 1.0);
         gr *= 0.84 + 0.3 * hk;                                   // high ground a little lighter, hollows a little darker
+        // (0.72, Ramzies: "make things look nicer when zoomed in") close up, the land has a grain of its own under its drawn
+        // picture (which is a pixel or two a metre, a blur up close): speckle a hand across, patches a stride across, faded in
+        // as the eye comes down to it, none at the usual height
+        { float dk = uDet * (1.0 - smoothstep(40.0, 150.0, vDd));
+          if (dk > 0.002) gr *= 1.0 + dk * (0.24 * (gcN(vWp * 3.3) - 0.5) + 0.26 * (gcN(vWp * 0.62 + 17.0) - 0.5) + 0.12 * (gcN(vWp * 11.0 + 5.0) - 0.5)); }
         if (uTopo > 0.5) {                                       // the height view: colour by height, and a line every four metres
           vec3 tint = hk < 0.35 ? mix(vec3(0.25, 0.42, 0.75), vec3(0.3, 0.62, 0.42), hk / 0.35) : hk < 0.7 ? mix(vec3(0.3, 0.62, 0.42), vec3(0.85, 0.78, 0.45), (hk - 0.35) / 0.35) : mix(vec3(0.85, 0.78, 0.45), vec3(0.95, 0.5, 0.25), (hk - 0.7) / 0.3);
           gr = mix(vec3(dot(gr, vec3(0.3, 0.6, 0.1))) * 0.8, tint * 0.85, 0.62);
@@ -122,7 +129,7 @@ export class Ground3D {
       if (!this.gtex || this.gtex.image !== o.ground) { if (this.gtex) this.gtex.dispose(); this.gtex = new THREE.CanvasTexture(o.ground); this.gtex.anisotropy = Math.min(8, this.r.capabilities.getMaxAnisotropy()); this.uGround.value = this.gtex; this.gRev = -1; this.gAt = -1e9; }
       const nowMs = performance.now(); if (this.gRev !== o.groundRev && nowMs - this.gAt > 250) { this.gRev = o.groundRev; this.gAt = nowMs; this.gtex.needsUpdate = true; }
     }
-    this.uInv.value = 1 / (o.size || 1600); this.uTopo.value = o.topo ? 1 : 0;
+    this.uInv.value = 1 / (o.size || 1600); this.uTopo.value = o.topo ? 1 : 0; this.uDet.value = o.det ?? 1;
     // the land under the sheet: a grid whose corners stay at fixed places on the map (so the hills do not shimmer as the
     // camera slides), covering the sheet and a cell more
     const n = V3.grid, L = S / scale, c = L / (n - 1), x0 = Math.floor((camX - L / 2) / c) * c, z0 = Math.floor((camY - L / 2) / c) * c, P = this.pos, U = this.uv;

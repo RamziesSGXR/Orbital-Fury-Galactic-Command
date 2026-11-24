@@ -12,6 +12,8 @@ import { note, best } from '../core/career.js';
 import { upgrade } from '../core/roster.js';
 import { C as GC } from '../galaxy/config.js';
 import { makeGuide, guideSeen } from './guide.js';
+import { binds } from '../core/binds.js';
+const KB = binds('orbit');     // (GC 0.73) the player's own keys
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
@@ -190,7 +192,8 @@ function bind() {
       audio.click(); tabs();
     }
   });
-  window.addEventListener('keydown', (e) => { if (mode.off || e.target.tagName === 'INPUT') return; if (e.key === 'r' || e.key === 'R') turn(); else if (e.key === 'Enter' && tool && hot) { e.preventDefault(); buildHot(); } else if (e.key === 'Escape' && tool) { e.stopImmediatePropagation(); setTool(tool); } else if (e.key === ' ') { e.preventDefault(); $('th-pause').click(); } }, true);
+  window.addEventListener('keydown', (e) => { if (mode.off || e.target.tagName === 'INPUT') return; const a = KB.actionOf(e.code);     /* (GC 0.73) the player's own keys (js/core/binds.js) */
+    if (a === 'rotate') turn(); else if (a === 'build' && tool && hot) { e.preventDefault(); buildHot(); } else if (e.code === 'Escape' && tool) { e.stopImmediatePropagation(); setTool(tool); } else if (a === 'pause') { e.preventDefault(); $('th-pause').click(); } }, true);
   new ResizeObserver(() => { if (!mode.off && view) view.resize(); }).observe($('th-stage'));
 }
 
