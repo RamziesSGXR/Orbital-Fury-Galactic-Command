@@ -1,5 +1,4 @@
-// (0.53) The planetary defence gun (Sweet Victory): the campaign's finale, and an operation lizards can be offered on their own
-// ground. The gun stands in a plaza; a Talon mothership is overhead. Once the squad reaches the gun and has set up, it charges
+// (0.53) The planetary defence gun (Skybreaker): an operation lizards can be offered on their own ground. The gun stands in a plaza; a Talon mothership is overhead. Once the squad reaches the gun and has set up, it charges
 // and fires on its own, shot after shot, while the enemy comes down on it harder and harder (the siege of a held site, and drops
 // straight at it). Each shot takes a part of the mothership; the last brings it down and the objective is done. The gun is an
 // ally the enemy shoots at (in m.assets): it can be patched up (Infantry at it, nothing shooting, as any post), and if it falls the
@@ -9,7 +8,7 @@ import { t as tr } from '../i18n.js';
 import { spawnGroup, unseenSpot } from './director.js';
 
 const K = () => C.objective.gun;
-const squadAt = (m, x, y, r) => m.hdAlive.some((a) => !a.mounted && (a.x - x) ** 2 + (a.y - y) ** 2 <= r * r);
+const squadAt = (m, x, y, r) => m.vgAlive.some((a) => !a.mounted && (a.x - x) ** 2 + (a.y - y) ** 2 <= r * r);
 
 export function setupGun(m, p) {
   const G = K();

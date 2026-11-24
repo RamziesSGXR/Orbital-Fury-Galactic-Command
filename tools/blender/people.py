@@ -462,7 +462,7 @@ def p_duck(up=0.0):
         reach(J('sho.R'), J('elbow.R'), wpt('gun', GRIP), L1, L2, pole=(-0.7, 0.5, -0.6)); reach(J('sho.L'), J('elbow.L'), wpt('gun', GUARD), L1, L2, pole=(0.5, 0.2, -1))
 # (GC 0.72) riding the recon vehicle: sat down, thighs level, shins down, the rifle held at the ready across the lap
 def p_sit(): zero(J('root')); shift('pelvis', z=-0.49); turn('hip.L', x=-1.5, y=0.08); turn('knee.L', x=1.5); turn('hip.R', x=-1.5, y=-0.08); turn('knee.R', x=1.5); turn('torso', x=0.06); hold('ready')
-# (GC 0.72, Ramzies: "allies don't throw stratagems where they're going to land") throwing a call-in's beacon: the rifle
+# (GC 0.72, Ramzies: "allies don't throw call-ins where they're going to land") throwing a call-in's beacon: the rifle
 # dropped to the left hand, the right arm drawn back behind the head (throw0), then over and out toward the mark (throw1)
 def p_throw(k):
     zero(J('root')); turn('hip.L', x=-0.3); turn('knee.L', x=0.25); turn('hip.R', x=0.18); turn('knee.R', x=0.1)

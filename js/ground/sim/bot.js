@@ -1,4 +1,4 @@
-// A simple bot that plays the destroyer through the same input API as a human: UAV scans, orbital strikes, Infantry drops,
+// A simple bot that plays the ship through the same input API as a human: UAV scans, orbital strikes, Infantry drops,
 // the nuke, and shopping between missions. Used by the headless balance test and the ?bot=1 demo.
 import { CONFIG as C } from '../config.js';
 import { buy, shopItems, infantryStats } from '../data/kit.js';
@@ -28,11 +28,11 @@ const PLAN = [
   'up:orb_120', 'up:orb_precision', 'up:orb_airburst', 'up:orb_120',
   'slot:4', 'own:util_med', 'uav', 'gun.ammo', 'up:orb_precision', 'infantry.medic', 'gun.dmg', 'up:orb_120', 'infantry.hp',
   'gun.ammo', 'gun.pen', 'uav', 'up:orb_airburst', 'infantry.drop', 'gun.regen',
-  'own:orb_rail', 'up:orb_precision', 'infantry.spot', 'gun.dmg', 'gun.pen', 'up:util_med', 'up:orb_120', 'infantry.hp', 'gun.ammo', 'uav', 'sup.zone',
-  'slot:5', 'own:orb_380', 'up:orb_rail', 'infantry.rocket', 'gun.spread', 'up:orb_380', 'infantry.medic', 'gun.regen', 'up:orb_precision',
-  'infantry.gren', 'infantry.cap', 'up:orb_rail', 'up:orb_380', 'gun.dmg', 'uav', 'infantry.hp', 'up:util_med', 'infantry.drop', 'sup.zone', 'gun.ammo',
-  'own:orb_laser', 'up:orb_laser', 'up:orb_rail', 'infantry.spot', 'infantry.medic', 'gun.spread', 'up:orb_380', 'up:orb_laser', 'infantry.rocket',
-  'gun.regen', 'infantry.cap', 'up:orb_laser', 'up:util_med', 'infantry.gren', 'sup.zone', 'gun.dmg', 'gun.spread', 'infantry.hp', 'infantry.drop',
+  'own:orb_seeker', 'up:orb_precision', 'infantry.spot', 'gun.dmg', 'gun.pen', 'up:util_med', 'up:orb_120', 'infantry.hp', 'gun.ammo', 'uav', 'sup.zone',
+  'slot:5', 'own:orb_main', 'up:orb_seeker', 'infantry.rocket', 'gun.spread', 'up:orb_main', 'infantry.medic', 'gun.regen', 'up:orb_precision',
+  'infantry.gren', 'infantry.cap', 'up:orb_seeker', 'up:orb_main', 'gun.dmg', 'uav', 'infantry.hp', 'up:util_med', 'infantry.drop', 'sup.zone', 'gun.ammo',
+  'own:orb_beam', 'up:orb_beam', 'up:orb_seeker', 'infantry.spot', 'infantry.medic', 'gun.spread', 'up:orb_main', 'up:orb_beam', 'infantry.rocket',
+  'gun.regen', 'infantry.cap', 'up:orb_beam', 'up:util_med', 'infantry.gren', 'sup.zone', 'gun.dmg', 'gun.spread', 'infantry.hp', 'infantry.drop',
 ];
 // What a new orbital pushes out of a full loadout, first found first.
 const BENCH = ['orb_airburst', 'orb_120', 'orb_walk', 'orb_gas', 'orb_ems', 'orb_napalm'];
@@ -75,7 +75,7 @@ export function botShop(kit, wallet) {
 }
 
 // Put what the bot owns to use: empty slots first take the best unequipped orbital, then a newer orbital pushes out a bench one.
-const RANK = ['orb_rail', 'orb_laser', 'orb_380', 'util_med', 'orb_precision', 'orb_120', 'orb_napalm', 'orb_walk', 'orb_airburst', 'orb_gas', 'orb_ems',
+const RANK = ['orb_seeker', 'orb_beam', 'orb_main', 'util_med', 'orb_precision', 'orb_120', 'orb_napalm', 'orb_walk', 'orb_airburst', 'orb_gas', 'orb_ems',
   'util_shield', 'util_smoke', 'util_autoturret'];
 function equip(kit) {
   const ld = kit.loadout, on = () => ld.slice(0, kit.slots);
@@ -126,8 +126,8 @@ function orders(m, bot) {
   // keep a pair of squads when there are enough troopers
   if (bot.split && !bot.splitDone && m.infantryAlive.length >= 6) { bot.splitDone = true; splitHalf(m); }
   const u = p.slots[0];
-  if (u.type === 'uav' && t >= u.readyAt && m.hdAlive.length) {
-    const reach = Math.min(120, m.hdAlive[0].zone + UAV_REACH - 20);
+  if (u.type === 'uav' && t >= u.readyAt && m.vgAlive.length) {
+    const reach = Math.min(120, m.vgAlive[0].zone + UAV_REACH - 20);
     const x = m.hx + Math.cos(dir) * reach, y = m.hy + Math.sin(dir) * reach;
     if (m.inAllyZone(x, y, UAV_REACH) && !bot.commit) bot.commit = { idx: 0, x, y, until: t + 1.2 };
   }
@@ -208,7 +208,7 @@ function bestCluster(m, danger, minN) {
 
 // Where (if anywhere) a ship utility would help the squad right now.
 function utilTarget(m, st) {
-  const hds = m.hdAlive;
+  const hds = m.vgAlive;
   if (!hds.length) return null;
   const near = (x, y, r) => { let n = 0; m.eGrid.near(x, y, r, () => { n++; }); return n; };
   if (st.util === 'med') {

@@ -12,11 +12,11 @@ export const VIEW = { quiet: false, squad: false, loud: false, p3: false, air: n
 // (GC 0.51) TRUE SIZES. With VIEW.ts on, each thing is the size it would be beside a two-metre soldier, not a mark big enough
 // to pick out from orbit. `r` is half its longest side in metres (half its height, for a person).
 //   people: the Vanguard and the trooper are the same height; a citizen a little less
-//   craft and vehicles: by kind (a scout car 4.8 m long, a dropship 13 m, the dog 1.2 m ...)
+//   craft and vehicles: by kind (a scout car 4.8 m long, a dropship 13 m, the drone 1.2 m ...)
 //   what stands on the ground: a share of its old size by kind; trees, rocks, buildings and sites are left as they are
 export const TRUE = {
   man: 1.0, civ: 0.92, foe: 0.36,
-  air: { dship: 6.5, crate: 0.9, jet: 8, shuttle: 8, dog: 0.6, lrv: 2.4, uav: 1.6, mech: 2.0, 'edrop:ship': 8.5, 'edrop:warp': 11 },
+  air: { dship: 6.5, crate: 0.9, jet: 8, shuttle: 8, drone: 0.6, lrv: 2.4, uav: 1.6, mech: 2.0, 'edrop:ship': 8.5, 'edrop:warp': 11 },
   // (0.52) field works: [how deep, how tall] as shares of the model, so that cover is chest high beside a two-metre soldier and
   // he is seen over it. Sandbags 1.2 m, a barricade and a concrete barrier 1.3 m, wire 1 m, a foxhole's parapet 1.1 m. (They were
   // sized for troopers drawn three times life: a wall 3.8 m tall hid everyone behind it.) Their length is still the game's own.

@@ -285,7 +285,7 @@ export class Renderer {
         fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 26, t0: now + (ev.cx != null && !ev.mark ? 0.26 + fly : 0.3), life: 0.8, a: 1, col: '#ffe600' }); break;
       }
       case 'strike_call':
-        // the destroyer paints the target: a targeting laser from the sky, brackets closing in, and a ring
+        // the ship paints the target: a targeting laser from the sky, brackets closing in, and a ring
         fx.push({ k: 'paint', x: ev.x, y: ev.y, t0: now, life: 1.1, a: flash });
         fx.push({ k: 'lock', x: ev.x, y: ev.y, r: 14, t0: now, life: 0.9 });
         fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 26, t0: now, life: 0.8, a: 1, col: '#ffe600' });
@@ -349,7 +349,7 @@ export class Renderer {
         this.shake = Math.min(14, this.shake + 9); this._scorch(ev.x, ev.y, 18, this.settings.polarity === 'black'); break;
       case 'credit': fx.push({ k: 'text', x: ev.x, y: ev.y, text: `+${ev.amt}`, col: '#ffe27a', t0: now, life: 1.3 }); break;
       case 'crit':
-        // the destroyer's critical hits, and any hit on a heavy's back; a few at a time, so a barrage does not bury the map in text
+        // the ship's critical hits, and any hit on a heavy's back; a few at a time, so a barrage does not bury the map in text
         if (now - (this._critAt || 0) > 0.12 && (ev.by === 'player' || (ev.f & 1))) { this._critAt = now; fx.push({ k: 'text', x: ev.x + (Math.random() - 0.5) * 3, y: ev.y - 2, text: critText(ev.f), col: ev.f & 1 ? '#ff9a4a' : ev.f & 2 ? '#fff3a0' : '#a8b4ae', t0: now, life: 0.8, small: true }); }
         break;
       case 'flare': fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 22, t0: now, life: 0.7, a: 1, col: '#ff5a3a' }); break;
@@ -538,7 +538,7 @@ export class Renderer {
       }
     }
     { const pk = { bugs: ['spire', 'hive'], bots: ['node', 'fab'], lizards: ['totem', 'camp'] }[m.faction.id] || ['node', 'fab'];     // the enemy's side sites
-      const PK = { spore: 'poi_spewer', propaganda: 'poi_broadcast', relay: 'poi_relay', cache: 'poi_cache', battery: 'poi_battery' }, fac = m.faction.id;
+      const PK = { spore: 'poi_spore', propaganda: 'poi_broadcast', relay: 'poi_relay', cache: 'poi_cache', battery: 'poi_battery' }, fac = m.faction.id;
       // (GC 0.67) each enemy's own: poi_relay_bugs, poi_broadcast_lizards and so on, where it has one
       const kOf = (p) => { const b = PK[p.kind]; return b && VIEW.m3.has(b + '_' + fac) ? b + '_' + fac : b && VIEW.m3.has(b) ? b : pk[(p.id || 0) % 2]; };
       for (const p of m.pois || []) { if (!near(p)) continue; const k = kOf(p), f = fall(p, p.done, k); if (f === undefined) continue; out.push({ k, x: p.x, y: p.y, s: Math.max(2.4, (p.r || 12) * 0.42), rot: ((p.id || 1) * 2.3) % 6.28, tint: f != null ? RUIN : hit(p), flash: f == null && fl(p), dim: m.visLevel(p.x, p.y) > 0 ? 1 : 0.7, fall: f }); } }
@@ -568,7 +568,7 @@ export class Renderer {
     for (const p of m.posts || []) { const d = P3_POST[p.what]; if (d && !p.dead && !p.ghost && near(p)) { const k = d[0] === 'post:lookout' && !VIEW.m3.has('prop_post_lookout') ? 'post:tower' : d[0], split = p.what === 'mg' && VIEW.m3.has('prop_post_mggun'); out.push({ k, x: p.x, y: p.y, s: d[1], rot: face(split ? p.face0 ?? p.face : p.face), tint: hit(p), flash: fl(p) }); if (split) out.push({ k: 'post:mggun', x: p.x, y: p.y, s: d[1], rot: face(p.face), tint: hit(p), flash: fl(p) });
       for (let i = 0; i < Math.min(4, (p.lvl || 1) - 1); i++) { const uk = UPKIT[i]; if (VIEW.m3.has('prop_up_' + uk)) out.push({ k: 'up:' + uk, as: k, x: p.x, y: p.y, s: d[1], rot: face(p.face0 ?? p.face), tint: hit(p) }); } } }     /* (0.59) the nest's bags stay as they were built; its gun turns. (0.72) What it was upgraded with lies round it, more at each level */
     for (const a of m.assets || []) if (a.kind === 'turret' && !a.dead && near(a)) out.push({ k: 'aturret', x: a.x, y: a.y, s: 1.5, rot: face(a.face), tint: hit(a), flash: fl(a) });
-    // (0.72) a bug hole heaving up out of the ground and open, and the earth thrown up round every crater: models, not paint
+    // (0.72) a burrow heaving up out of the ground and open, and the earth thrown up round every crater: models, not paint
     if (VIEW.m3.has('prop_bughole')) for (const b of m.breaches) if (!b.dead && b.kind === 'hole' && near(b)) { const w = t < b.warnUntil ? Math.max(0, 1 - (b.warnUntil - t) / C.reinf.bugs.warnSec) : 1; out.push({ k: 'bughole', x: b.x, y: b.y, s: b.r * (0.35 + 0.65 * w), h: b.r * 0.9 * w + 0.05, rot: (b.id || 1) * 1.7, tint: hit(b), flash: fl(b) }); }
     if (VIEW.m3.has('prop_crater')) { const ct = EARTH[m.biome.id] || EARTH.grass; for (const c of this.craters) if (c.r > 0.8 && near(c)) out.push({ k: 'crater', x: c.x, y: c.y, s: c.r * 1.02, h: c.r * 0.4, rot: c.x * 0.37, tint: ct, dim: 0.8 }); }     // (the earth thrown up, not rock)
     // (0.72) the enemy capital's curtain walls, keep to each outer base (they were lines painted on the ground): in two lengths
@@ -1300,7 +1300,7 @@ export class Renderer {
       return { x, y };
     };
     // ---- tags ----
-    for (const a of m.hdAlive) {
+    for (const a of m.vgAlive) {
       const { x, y } = spot(a);
       if (x < -40 || y < -40 || x > W + 40 || y > H + 40) continue;
       const tm = m.teams[a.team], text = m.tag(a), ty = y + Math.max(15 * d, (VIEW.ts ? 0.9 : 4.5) * scale + 11 * d);     // (0.55) at true scale the tag sits just under his feet, however close the view (it hung 4.5 m below him)
@@ -1351,7 +1351,7 @@ export class Renderer {
         let r = { l: x - bw / 2, r: x + bw / 2, t: baseY - bh, b: baseY };
         for (let k = 0; k < 6 && hit(r); k++) { const dy = bh + 3 * d; r = { l: r.l, r: r.r, t: r.t - dy, b: r.b - dy }; }
         placed.push(r);
-        const fade = Math.max(0, Math.min(1, (a.say.until - t) / 0.45, (t - (a.say.until - (H_ ? C.chatter.hdSec : C.chatter.infantrySec)) + 0.15) / 0.15));
+        const fade = Math.max(0, Math.min(1, (a.say.until - t) / 0.45, (t - (a.say.until - (H_ ? C.chatter.vgSec : C.chatter.infantrySec)) + 0.15) / 0.15));
         const tm = H_ ? m.teams[a.team] : null, edge = H_ ? (tm ? tm.color : '#ffe600') : 'rgba(100,185,255,0.8)';
         ctx.globalAlpha = fade * (H_ ? 1 : 0.88);
         ctx.fillStyle = 'rgba(2,12,6,0.82)'; ctx.strokeStyle = edge; ctx.lineWidth = Math.max(1, (H_ ? 1.4 : 1) * d);
@@ -1467,8 +1467,8 @@ export class Renderer {
       default: return false;
     }
   }
-  // (0.23) An explosion drawn after the call-in that made it: incendiary burns, gas billows green, Stun crackles blue, the 500 kg and
-  // the 380 mm throw up a fireball and a column of smoke, the lance and the aimed shot come down as a streak from the sky,
+  // (0.23) An explosion drawn after the call-in that made it: incendiary burns, gas billows green, Stun crackles blue, the heavy bomb and
+  // the main battery throw up a fireball and a column of smoke, the lance and the aimed shot come down as a streak from the sky,
   // the airburst bursts above the ground, strafing kicks up dirt.
   _strikeFx(ev, now, flash) {
     if (this.fx.length > 300) return;
@@ -1931,7 +1931,7 @@ export class Renderer {
     // every team: each Vanguard in its group colour, and each Infantry squad in its squad colour
     // (Vanguards standing together share one arrow, with a dot in each one's colour, so the edge does not fill up)
     const hg = [];
-    for (const a of m.hdAlive) {
+    for (const a of m.vgAlive) {
       const tm = m.teams[a.team], col = tm ? tm.color : this.allyColor();
       const g = hg.find((q) => Math.hypot(q.x - a.x, q.y - a.y) < 40);
       if (g) { g.tags.push(m.tag(a)); g.cols.push(col); } else hg.push({ x: a.x, y: a.y, tags: [m.tag(a)], cols: [col] });
@@ -2191,7 +2191,7 @@ export class Renderer {
     if (m.workSite && !m.workSite.dead) lab(m.workSite.x, m.workSite.y, m.workSite.name.toUpperCase(), m.workSite.fallen ? '#ff6a4a' : '#ffd24a');     // (0.52)
     for (const bc of m.beacons || []) if (bc.relit || t < C.beacons.darkSec) lab(bc.x, bc.y, OPS.beacon, '#6fc0ff', 2.2);
     if (m.supply && m.supply.drop) lab(m.supply.drop.x, m.supply.drop.y, tr('lab.supply'), '#9dffb8');
-    if (m.hdAlive.length) lab(m.hx, m.hy, tr('lab.squad'), '#e8f6ff', 2.4);
+    if (m.vgAlive.length) lab(m.hx, m.hy, tr('lab.squad'), '#e8f6ff', 2.4);
     // camera view and the rose
     const vw = cam.view, vh = cam.view * (this.H / this.W);
     c.strokeStyle = 'rgba(255,255,255,0.85)'; c.lineWidth = 2;
@@ -2304,7 +2304,7 @@ export class Renderer {
       c.fillStyle = ec; c.globalAlpha = 0.35 + 0.45 * f;
       for (const b of RD.blips) { const r = b.k === 'H' || b.boss ? 1.6 : 1.1; c.fillRect(b.x * k - r, b.y * k - r, r * 2, r * 2); }
       c.globalAlpha = 1;
-      if (t - RD.at < 1.2 && m.hdAlive.length) { c.strokeStyle = `rgba(157,255,184,${0.6 * (1 - (t - RD.at) / 1.2)})`; c.lineWidth = 1.5; c.beginPath(); c.arc(m.hx * k, m.hy * k, (40 + (t - RD.at) * 500) * k, 0, TAU); c.stroke(); }
+      if (t - RD.at < 1.2 && m.vgAlive.length) { c.strokeStyle = `rgba(157,255,184,${0.6 * (1 - (t - RD.at) / 1.2)})`; c.lineWidth = 1.5; c.beginPath(); c.arc(m.hx * k, m.hy * k, (40 + (t - RD.at) * 500) * k, 0, TAU); c.stroke(); }
     }
     c.fillStyle = ec;
     for (const e of m.enemies) if (!e.dead && (e.vis > 0 || e.revealUntil > t)) c.fillRect(e.x * k - 1, e.y * k - 1, 2, 2);
@@ -2323,7 +2323,7 @@ export class Renderer {
     // Vanguards, with each one's ping in its group color
     c.fillStyle = ac;
     // (big and outlined so they stand out on the minimap; the tactical map adds each one's letter)
-    for (const a of m.hdAlive) {
+    for (const a of m.vgAlive) {
       const tm = m.teams[a.team], col = tm ? tm.color : '#ffe600', x = a.x * k, y = a.y * k, r = big ? 5 : 6;
       if (a.ping) { c.strokeStyle = col; c.lineWidth = 1.5; c.beginPath(); c.arc(a.ping.x * k, a.ping.y * k, 3.5, 0, TAU); c.stroke(); }
       c.fillStyle = 'rgba(0,0,0,0.85)'; c.beginPath(); c.arc(x, y, r + 2.6, 0, TAU); c.fill();

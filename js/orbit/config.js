@@ -241,13 +241,13 @@ export const C = {
     },
     order: ['gun', 'orbital', 'uav', 'striker', 'infantry', 'fab', 'classified'],
     callSec: [24, 44], firstSec: 50, missSayGap: 90, shortReady: 0.35, bedsNear: 7,
-    squads: ['Tibit Tigers', 'Victory Hounds', 'Box Office Boxers', 'Midnight Knights', 'Phantom Nine', 'Sweet Victory Four', 'Iron Viewers', 'Quiet Resolve'],
+    squads: ['Tibit Tigers', 'Victory Hounds', 'Box Office Boxers', 'Midnight Knights', 'Phantom Nine', 'Night Shift Four', 'Iron Viewers', 'Quiet Resolve'],
   },
   // Capability is what the station adds to the war effort. It is the score, and it opens the upgrade path.
   capability: { crate: 0.5, ship: 1.5, resident: 2, defence: 3, repair: 12, staff: 1, research: 1, raid: 15, call: 2, platform: 12 },
   researchPerMin: 1.5,
 
-  // Ship sizes against the standard (a Dropship is about 25 m, a Striker 15 m, a freighter 45 m, a destroyer 115 m), and how far off the berth each sits.
+  // Ship sizes against the standard (a Dropship is about 25 m, a Striker 15 m, a freighter 45 m, a frigate 115 m), and how far off the berth each sits.
   shipScale: { shuttle: 1.1, freighter: 1.2, warship: 1.6, striker: 0.68 }, shipOff: { shuttle: 1.7, freighter: 3.1, warship: 3 },
   // THE SCALE. One station unit is `m` metres and a person is `person` metres tall. Rooms are furnished in metres (rooms.js), so
   // changing these two numbers rescales the people and every fitting against the station; the hull itself does not change.
@@ -257,7 +257,7 @@ export const C = {
     programs: [['slogans', 'SLOGANS'], ['news', 'WAR NEWS'], ['recruit', 'RECRUITMENT'], ['station', 'THIS STATION'], ['own', 'YOUR OWN']],
     slogans: ['VICTORY', 'HEAD OFFICE', 'REPORT FOR GRATITUDE', 'A HAPPY STATION IS A COMPLIANT STATION', 'BRAND NEVER SLEEPS', 'HAVE YOU PAID YOUR VICTORY CONTRIBUTION?', 'FREEDOM IS EARNED IN ORBIT', 'EVERY CRATE A BULLET FOR VICTORY'],
     recruit: ['THE VANGUARDS NEED YOU', 'ENLIST TODAY', 'SERVE WITH THE INFANTRY', 'BE A HERO OF HEAD OFFICE', 'YOUR BRAND NEEDS DEFENDING', 'ASK A BRAND OFFICER HOW TO ENLIST'],
-    news: ['ENEMY OFFENSIVE REPELLED ON THE SOUTHERN FRONT', 'NEW ORBITAL BATTERIES COME ONLINE', 'VANGUARDS LIBERATE ANOTHER COLONY', 'GROUND FORCES REPORT RECORD MORALE', 'HEAD OFFICE: VICTORY IS IMMINENT', 'SUPPLY LINES SECURE ACROSS THE SECTOR'],
+    news: ['ENEMY OFFENSIVE REPELLED ON THE SOUTHERN FRONT', 'NEW ORBITAL BATTERIES COME ONLINE', 'VANGUARDS SECURE ANOTHER COLONY', 'GROUND FORCES REPORT RECORD MORALE', 'HEAD OFFICE: VICTORY IS IMMINENT', 'SUPPLY LINES SECURE ACROSS THE SECTOR'],
     own: ['WELCOME ABOARD', 'KEEP THE STATION CLEAN', 'GLORY TO HEAD OFFICE'],
     maxLines: 8, maxChars: 110,
   },
@@ -265,18 +265,18 @@ export const C = {
   // Station livery: the colours, hull plating, interior fit-out and emblem the commander picks.
   livery: {
     schemes: {
-      ministry: { name: 'Head Office Grey', hull: '#8c9690', trim: '#f5d547', accent: '#22262a' },
-      sesf:     { name: 'Fleet Black', hull: '#2b2e33', trim: '#f5d547', accent: '#8a8f96' },
+      office: { name: 'Head Office Grey', hull: '#8c9690', trim: '#f5d547', accent: '#22262a' },
+      black:    { name: 'Fleet Black', hull: '#2b2e33', trim: '#f5d547', accent: '#8a8f96' },
       arctic:   { name: 'Arctic White', hull: '#dfe5e6', trim: '#3d7fc4', accent: '#8a959c' },
       fleet:    { name: 'Fleet Blue', hull: '#3a4f6a', trim: '#7fe9e0', accent: '#1c2636' },
       rust:     { name: 'Frontier Rust', hull: '#8a5a44', trim: '#e8d9b0', accent: '#3a2a24' },
       olive:    { name: 'Infantry Olive', hull: '#5d6a4a', trim: '#e0a83a', accent: '#2a3024' },
     },
     plating: { panels: 'Panelled', plates: 'Armour plate', smooth: 'Smooth', worn: 'Weathered', hazard: 'Hazard stripes' },
-    interior: { ministry: { name: 'Head Office', wall: '#b9ab8e', floor: '#8a7a62', lane: '#ffe9a0' }, naval: { name: 'Naval', wall: '#8f9aa6', floor: '#5c6670', lane: '#9fe8ff' }, civic: { name: 'Civic', wall: '#e6e8e2', floor: '#9aa79a', lane: '#b8ffd0' }, brass: { name: 'Brass', wall: '#6a4a3a', floor: '#3c2e28', lane: '#ffc66a' } },
+    interior: { office: { name: 'Head Office', wall: '#b9ab8e', floor: '#8a7a62', lane: '#ffe9a0' }, naval: { name: 'Naval', wall: '#8f9aa6', floor: '#5c6670', lane: '#9fe8ff' }, civic: { name: 'Civic', wall: '#e6e8e2', floor: '#9aa79a', lane: '#b8ffd0' }, brass: { name: 'Brass', wall: '#6a4a3a', floor: '#3c2e28', lane: '#ffc66a' } },
     lights: { warm: '#fff1b0', cool: '#cfeaff', amber: '#ffb648', green: '#b8ffca' },
     emblems: { crest: 'Your crest', wings: 'Wings', star: 'Star', shield: 'Shield', laurel: 'Laurel', none: 'None' },
-    def: { name: '', scheme: 'ministry', hull: '#8c9690', trim: '#f5d547', accent: '#22262a', plating: 'panels', interior: 'ministry', lights: 'warm', emblem: 'crest' },
+    def: { name: '', scheme: 'office', hull: '#8c9690', trim: '#f5d547', accent: '#22262a', plating: 'panels', interior: 'office', lights: 'warm', emblem: 'crest' },
   },
 
   // YOUR FACTION, founded with the station as in FOB Super Commander: its name, the station's name, a motto, two colours, a crest

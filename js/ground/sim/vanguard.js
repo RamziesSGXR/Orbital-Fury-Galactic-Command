@@ -2,7 +2,7 @@
 // the Hand Cannon (a one-round launcher that kills almost anything it hits square; a supply pod reloads it), a dodge that comes
 // round every so often (see combat.js), and the sense to pull back when badly hurt. A target worth a grenade or the Hand Cannon is
 // marked on the map first, so the gunner sees it too. A Vanguard who is running calls call-ins as he goes (see callin.js).
-// Every number is in CONFIG.hd.
+// Every number is in CONFIG.vg.
 import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
 import { uavBuff } from '../data/kit.js';
@@ -11,7 +11,7 @@ import { fireShot, blocker } from './combat.js';
 import { bark } from './chatter.js';
 import { wakesBase } from './callin.js';
 
-const K = C.hd, R = K.retreat;
+const K = C.vg, R = K.retreat;
 const EH = C.enemies.hp;
 // What a light, a medium and a heavy have now (the war toughens them as the session goes on).
 const hpNow = (m) => ({ L: EH.light * m.hpMul, M: EH.medium * m.hpMul, H: EH.heavy * m.hpMul });
@@ -77,7 +77,7 @@ export function useStim(m, a) {
 // A supply pod restocks every Vanguard. stimFrac and grenFrac are how full those compartments were (1 = a full refill).
 // Any pod that brings grenades reloads the Hand Cannon too.
 export function restock(m, stimFrac = 1, grenFrac = 1) {
-  for (const a of m.hdAlive) {
+  for (const a of m.vgAlive) {
     a.stims = Math.min(a.stimMax || K.stims, a.stims + Math.round(K.stims * stimFrac));     // (0.69: a role or a personality can carry more)
     a.gren = Math.min(a.grenMax || K.grenades, a.gren + Math.round(K.grenades * grenFrac));
     if (grenFrac > 0) a.ult = K.ult.uses;
@@ -98,10 +98,10 @@ const aware = (m, e) => m.squad.free || e.g.state === 'hunt' || m.squad.state ==
 // (0.40) Who has what on which target. A claim: another Vanguard's grenade (for a moment after the throw) or Hand Cannon (aimed, or
 // in flight) on a target; the rest of the squad leaves anything within its blast to him, so they do not all spend theirs on one.
 export function claim(m, a, e, kind, r, sec) {
-  (m.hdClaims || (m.hdClaims = [])).push({ by: a, e, x: e.x, y: e.y, kind, r, until: m.t + sec });
+  (m.vgClaims || (m.vgClaims = [])).push({ by: a, e, x: e.x, y: e.y, kind, r, until: m.t + sec });
 }
 export function claimedBy(m, a, x, y, pad = 0) {
-  const L = m.hdClaims;
+  const L = m.vgClaims;
   if (!L || !L.length) return null;
   for (const c of L) {
     if (c.by === a || c.until <= m.t) continue;
@@ -168,8 +168,8 @@ export function fireHandCannon(m, a, e) {
 
 export function updateVanguards(m, dt) {
   const t = m.t, bm = m.biome.speed;
-  if (m.hdClaims && m.hdClaims.length) m.hdClaims = m.hdClaims.filter((c) => c.until > t && !c.by.dead);     // (Infantry's claims are in the same list: enemies.js)
-  for (const a of m.hdAlive) {
+  if (m.vgClaims && m.vgClaims.length) m.vgClaims = m.vgClaims.filter((c) => c.until > t && !c.by.dead);     // (Infantry's claims are in the same list: enemies.js)
+  for (const a of m.vgAlive) {
     // heal over time, from a stim
     if (a.heal > 0) {
       const h = Math.min(a.heal, (a.maxHp * K.stimHeal / K.stimSec) * dt);
@@ -264,7 +264,7 @@ export function updateVanguards(m, dt) {
       let e = pickGrenade(m, a, burst ? a.grenLast : null);
       if (!e && burst) e = pickGrenade(m, a);
       if (e) {
-        const dumping = m.hdAlive.some((o) => o !== a && o.grenBurst > 0);      // (0.40: one empties his pouch at a time)
+        const dumping = m.vgAlive.some((o) => o !== a && o.grenBurst > 0);      // (0.40: one empties his pouch at a time)
         if (!burst && !dumping && (a.grenW >= G.dump || a.grenHeavy || (a.retreat && a.grenW >= G.group + 1)) && a.gren > 1) {
           a.grenBurst = a.gren; m.stats.grenBursts = (m.stats.grenBursts || 0) + 1;
           bark(m, a, 'grenAll', '');

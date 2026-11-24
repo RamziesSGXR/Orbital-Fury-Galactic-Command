@@ -412,9 +412,9 @@ export function drawAssets(ctx, m, now, px, labels, scale, pal) {
       ctx.strokeStyle = `rgba(170,225,255,${0.35 + 0.5 * f})`; ctx.lineWidth = px(1.6); ring(ctx, s.x, s.y, s.r); ctx.stroke();
       if (!(VIEW.p3 && VIEW.m3.has('prop_shieldgen'))) { const r = Math.max(2.4, px(4)); ctx.fillStyle = '#bfe4ff'; ring(ctx, s.x, s.y, r); ctx.fill(); }
       hpBar(ctx, s.x, s.y + s.r + px(3), s.r * 1.2, px(3), f, '#8fd0ff');
-    } else if (s.kind === 'dog' && VIEW.air && VIEW.m3.has('veh_dog')) {
-      VIEW.air.push({ k: 'dog', x: s.x, y: s.y, r: trueR('dog', 2.6), face: s.face || 0, flash: hit, walk: (s.vx || 0) ** 2 + (s.vy || 0) ** 2 > 0.1 ? t * 12 : null });
-    } else if (s.kind === 'dog') {
+    } else if (s.kind === 'drone' && VIEW.air && VIEW.m3.has('veh_drone')) {
+      VIEW.air.push({ k: 'drone', x: s.x, y: s.y, r: trueR('drone', 2.6), face: s.face || 0, flash: hit, walk: (s.vx || 0) ** 2 + (s.vy || 0) ** 2 > 0.1 ? t * 12 : null });
+    } else if (s.kind === 'drone') {
       const r = Math.max(2.2, px(4));
       ctx.fillStyle = hit ? '#fff' : ac; ctx.beginPath(); ctx.moveTo(s.x, s.y - r); ctx.lineTo(s.x + r, s.y + r); ctx.lineTo(s.x - r, s.y + r); ctx.closePath(); ctx.fill();
     } else if (s.kind === 'vehicle' && VIEW.air && VIEW.m3.has('veh_lrv')) {     // (GC 0.41) the squad's vehicle as a model, big enough to carry them
@@ -432,7 +432,7 @@ export function drawAssets(ctx, m, now, px, labels, scale, pal) {
     }
   }
   // Support weapons and mech suits on the Vanguards
-  for (const a of m.hdAlive) {
+  for (const a of m.vgAlive) {
     if (a.mounted) continue;
     const r = Math.max(4, px(4.5));
     if (a.mech && a.mech.hp > 0) {
@@ -458,7 +458,7 @@ export function drawAssets(ctx, m, now, px, labels, scale, pal) {
     if (a.hp < a.maxHp) hpBar(ctx, a.x, a.y - r * 2.4, r * 2.6, px(2.4), a.hp / a.maxHp, a.hp > a.maxHp * 0.35 ? '#7dff9b' : '#ff4a4a');
     // a stim: a green pulse while the speed boost lasts, and a rising plus while it heals
     if (t < a.stimUntil) {
-      const f = (a.stimUntil - t) / C.hd.stimBoostSec;
+      const f = (a.stimUntil - t) / C.vg.stimBoostSec;
       ctx.strokeStyle = `rgba(125,255,155,${0.3 + 0.5 * f})`; ctx.lineWidth = px(1.4);
       if (!VIEW.p3) { ring(ctx, a.x, a.y, r * (2.5 + 0.35 * Math.sin(now * 8))); ctx.stroke(); }
       if (a.heal > 0.5) {
@@ -499,7 +499,7 @@ export function drawEnemyExtras(ctx, m, now, px, labels, scale, pal, vb = null) 
       ctx.beginPath(); ctx.moveTo(e.x - px(4), y0 - px(5)); ctx.lineTo(e.x, y0); ctx.lineTo(e.x + px(4), y0 - px(5)); ctx.stroke();
     }
     if (e.stunUntil > t) { ctx.strokeStyle = 'rgba(190,225,255,0.9)'; ctx.lineWidth = px(1); ring(ctx, e.x, e.y, Math.max(e.r, px(5)) + px(3)); ctx.stroke(); }
-    // a lock-on (Spear, Expendable Anti-Tank): brackets that close in as the missile acquires, a hard white square once locked
+    // a lock-on (guided missile, one-shot rocket): brackets that close in as the missile acquires, a hard white square once locked
     if (e.lockedUntil > t) {
       const f = e.lockFrac || 0, lr = Math.max(e.r, px(e.kind === 'H' ? 9 : 5.5)) * (2.4 - 1.3 * f), locked = f >= 1;
       ctx.strokeStyle = locked ? '#ffffff' : '#ffb020'; ctx.lineWidth = px(locked ? 2 : 1.4);
@@ -703,7 +703,7 @@ export function drawUavs(ctx, m, now, px, labels, scale) {
 
 // ---------- Vanguard pings: where each one is going, or what it is fighting. One each. ----------
 export function drawPings(ctx, m, now, px, labels, scale) {
-  for (const a of m.hdAlive) {
+  for (const a of m.vgAlive) {
     const pg = a.ping; if (!pg) continue;
     if (pg.e && !pg.e.dead) { pg.x = pg.e.x; pg.y = pg.e.y; }      // a marked target: the mark rides on it
     const tm = m.teams[a.team], col = tm ? tm.color : '#ffe600', tag = m.tag(a);

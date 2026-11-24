@@ -82,7 +82,7 @@ export const REQUESTS = [
     opts: [{ label: 'NEW TYRES (30 CR)', fx: { cr: -30, pro: 2 }, say: 'New tyres fitted. The trucks look almost proud.' },
            { label: 'RETREADS (10 CR)', fx: { cr: -10, pro: 1 }, say: 'Retreads fitted. One squeals on corners; it has been named Victory.' }] },
   { from: 'Infantry', title: 'A pen pal programme', text: 'The Publicity Office asks the base to join its pen pal scheme: troopers write to schoolchildren on Head Office. NAME has volunteered to censor the letters.',
-    opts: [{ label: 'JOIN THE SCHEME', fx: { tru: 2, mood: 2 }, say: 'Letters are going out. One child has asked whether bugs have feelings. The censor said no.' },
+    opts: [{ label: 'JOIN THE SCHEME', fx: { tru: 2, mood: 2 }, say: 'Letters are going out. One child has asked whether the Molt have feelings. The censor said no.' },
            { label: 'NO TIME', fx: { pro: 1 }, say: 'The base is too busy for letters. The Publicity Office has noted the missed opportunity.' }] },
   { from: 'Colonist', title: 'A talent night', text: 'NAME of the canteen staff wants to hold a talent night in the mess. Acts so far: a juggler, a poet, and a trooper who can recite the Federation Constitution backwards.',
     opts: [{ label: 'ALLOW IT', fx: { mood: 4, sup: -8 }, say: 'Talent night was a success. The backwards Constitution was declared both on brand and unsettling.' },
@@ -127,7 +127,7 @@ export function trueGrade(t) { const m = merit(t); return m >= 80 ? 'A' : m >= 6
 export const CALLS = [
   { m: 'def', g: 'ammo', title: 'Ammunition for the Anvil front', text: 'The front at Anvil is short of rounds. The Operations Office asks your base to set aside ammunition for the next transport.', n: s => 30 + s.week * 6, days: 4 },
   { m: 'def', g: 'rations', title: 'Rations for a relief column', text: 'A relief column passes your sector and has eaten its boots. Set aside rations and they will collect.', n: s => 40 + s.week * 8, days: 4 },
-  { m: 'pro', g: 'fuel', title: 'Biofuel for the fleet', text: 'A destroyer in orbit is running on fumes and optimism. The Growth Office requests Biofuel from your stores.', n: s => 30 + s.week * 6, days: 5 },
+  { m: 'pro', g: 'fuel', title: 'Biofuel for the fleet', text: 'A frigate in orbit is running on fumes and optimism. The Growth Office requests Biofuel from your stores.', n: s => 30 + s.week * 6, days: 5 },
   { m: 'pro', g: 'supplies', title: 'A neighbouring outpost', text: 'An outpost two valleys over was built by a committee. It needs supplies to finish its own wall. Solidarity is mandatory.', n: s => 200 + s.week * 40, days: 5 },
   { m: 'tru', g: 'credits', title: 'War bonds', text: 'The Publicity Office is selling Victory Bonds. Bases are expected to show leadership by buying the first ones. Loudly.', n: s => 60 + s.week * 15, days: 5 },
   { m: 'tru', g: 'supplies', title: 'A parade float', text: 'Head Office\'s Victory Day parade needs a float from every sector. Yours will be a large papier-mâché striker. Supplies, please.', n: s => 150 + s.week * 30, days: 6 },

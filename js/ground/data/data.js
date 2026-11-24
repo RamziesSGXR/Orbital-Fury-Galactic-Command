@@ -41,12 +41,12 @@ export const BIOMES = {
   moon:   { id: 'moon',   speed: 1.15, ping: 1.0, splash: 1.2 },
   // (0.19) Mars: rust, dust and old craters. Only the last stand (sim/laststand.js) is fought there: not in the session's pool.
   mars:   { id: 'mars',   speed: 1.0,  ping: 1.1, splash: 1.1, pool: false },
-  // (0.53) the capital's outskirts: city blocks. The defence gun's ground (the campaign's finale, and some offers against lizards)
+  // (0.53) the capital's outskirts: city blocks. The defence gun's ground (some offers against lizards)
   city:   { id: 'city',   speed: 1.0,  ping: 0.9, splash: 1.0, pool: false },
 };
 for (const b of Object.values(BIOMES)) Object.defineProperty(b, 'name', { get: () => t(`biome.${b.id}`), enumerable: true });
 
-// The nuclear strike is the only destroyer weapon that is not bought: it appears once the launch site is armed.
+// The nuclear strike is the only ship weapon that is not bought: it appears once the launch site is armed.
 export const NUKE = { id: 'nuke', get name() { return t('card.nuke.h'); }, delay: C.objective.nuke.delaySec, splash: C.objective.nuke.blastR };
 
 export const ADJECTIVES = ['Crimson', 'Steel', 'Righteous', 'Eternal', 'Mighty', 'Swift', 'Iron', 'Radiant', 'Unyielding', 'Vigilant', 'Glorious', 'Resolute'];
@@ -59,7 +59,7 @@ export const COMMS = {
   spotted: (f, dir) => t('c.spotted', { f, dir }),
   get infantryDrop() { return t('c.infantryDrop'); },
   get infantryLanded() { return t('c.infantryLanded'); },
-  // (0.39) pickups, and the destroyer leaving orbit
+  // (0.39) pickups, and the ship leaving orbit
   get lzDown() { return t('c.lzDown'); },
   get infantryToLz() { return t('c.infantryToLz'); },
   get pickupIn() { return t('c.pickupIn'); },
@@ -75,7 +75,7 @@ export const COMMS = {
   get infantryPath() { return t('c.infantryPath'); },
   get infantryLine() { return t('c.infantryLine'); },
   get infantryRing() { return t('c.infantryRing'); },
-  get hdDown() { return t('c.hdDown'); },
+  get vgDown() { return t('c.vgDown'); },
   get noLives() { return t('c.noLives'); },
   get infantryDown() { return t('c.infantryDown'); },
   get friendly() { return t('c.friendly'); },
@@ -94,7 +94,7 @@ export const COMMS = {
   get baseGo() { return t('c.baseGo'); },
   get baseSpotted() { return t('c.baseSpotted'); },
   get timeout() { return t('c.timeout'); },
-  get hdWipe() { return t('c.hdWipe'); },
+  get vgWipe() { return t('c.vgWipe'); },
   get uavUp() { return t('c.uavUp'); },
   get breachDown() { return t('c.breachDown'); },
   poiDown: (name) => t('c.poiDown', { name }),

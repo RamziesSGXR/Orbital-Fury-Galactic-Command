@@ -166,7 +166,7 @@ def howitzer(): # an abandoned field gun in its pit: take it and it fires for yo
     cyl('barrel', (0, 0.3, 0.6), (0, -1.2, 1.36), 0.065, m=steel_d, sides=8); cyl('brake', (0, -1.14, 1.33), (0, -1.32, 1.42), 0.095, m=black, sides=8); cyl('recup', (0, 0.1, 0.56), (0, -0.5, 0.86), 0.045, m=steel, sides=6)
     for i in range(4): cyl('shell%d' % i, (0.52 + (i % 2) * 0.1, 0.3 + (i // 2) * 0.1, 0.03), (0.52 + (i % 2) * 0.1, 0.3 + (i // 2) * 0.1, 0.25), 0.04, m=hazard, sides=6, r2=0.02)
     box('box', (0.3, 0.2, 0.14), (-0.52, 0.36, 0.1), m=wood, bevel=0.015, rot=(0, 0, R(15)))
-def jam_bugs(): # the Molt's jammer: a shrieker, a living horn that screams over your radio
+def jam_bugs(): # the Molt's jammer: a howler, a living horn that screams over your radio
     start('side_jam_bugs')
     blob('mound', r=0.92, scale=(1, 1, 0.34), loc=(0, 0, 0.02), sub=2, m=m_mound, rough=0.22, seed=3)
     loft('stalk', [((0, 0, 0.1), 0.34, 0.34), ((0.06, 0, 0.9), 0.22, 0.22), ((-0.05, 0.03, 1.6), 0.19, 0.19), ((0, 0, 2.1), 0.3, 0.3), ((0, 0, 2.46), 0.47, 0.47)], sides=8, m=m_light, rough=0.1, seed=2)
@@ -228,8 +228,8 @@ def cache():    # a supply dump under a net: crates, drums, a canopy on poles
         box('crate%d' % i, s, (x, y, z), m=m_, bevel=0.015, rot=(0, 0, R(a)))
     box('mark', (0.2, 0.2, 0.012), (-0.3, 0.2, 0.256), m=accent, rot=(0, 0, R(12)))
     for i, (x, y) in enumerate(((0.44, 0.24), (0.56, 0.06), (0.4, 0.04))): disc('drum%d' % i, 0.09, 0.26, 0.03, rust, 8, at=(x, y)); disc('db%d' % i, 0.093, 0.04, 0.16, accent, 8, at=(x, y))
-def spewer():   # the Molt's spore towers: three chimneys of chitin breathing spores
-    start('poi_spewer')
+def sporeTower():   # the Molt's spore towers: three chimneys of chitin breathing spores
+    start('poi_spore')
     blob('mound', r=0.95, scale=(1, 1, 0.3), loc=(0, 0, 0.02), sub=2, m=m_mound, rough=0.22, seed=5)
     for i, (x, y, h, r) in enumerate([(0, 0.05, 2.5, 0.3), (0.5, -0.3, 1.6, 0.22), (-0.48, -0.26, 1.25, 0.2)]):
         loft('ch%d' % i, [((x, y, 0.08), r * 1.25, r * 1.25), ((x + 0.04, y, h * 0.45), r * 0.8, r * 0.8), ((x - 0.03, y + 0.02, h * 0.82), r * 0.62, r * 0.62), ((x, y, h), r * 0.95, r * 0.95)], sides=7, m=m_light if i else m_mound, rough=0.1, seed=i)
@@ -242,7 +242,7 @@ def spewer():   # the Molt's spore towers: three chimneys of chitin breathing sp
 OUT = {}
 # (GC 0.64) the landing pad is made by fleet.py now, shared with FOB Commander; the field gun is gone (the ground fight draws the
 # Artillery Cannon's model, prop_post_arty, for it). pad() and howitzer() are kept here only as they were.
-for fn in (silo, crash, derrick, wreck, charge, radio, redoubt, jam_bugs, jam_bots, jam_lizards, broadcast, relay, cache, spewer):
+for fn in (silo, crash, derrick, wreck, charge, radio, redoubt, jam_bugs, jam_bots, jam_lizards, broadcast, relay, cache, sporeTower):
     fn(); bpy.context.view_layer.update()
     OUT[MADE[-1]] = export(MADE[-1], CUR, {'stand': (lambda: None)}, lod=0)
 # the picture: all of them set out in rows (after the export, which wants each at the origin)

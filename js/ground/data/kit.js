@@ -1,4 +1,4 @@
-// The player's kit: what the destroyer can do, what it costs, and how upgrades scale. Pure data and rules, no DOM.
+// The player's kit: what the ship can do, what it costs, and how upgrades scale. Pure data and rules, no DOM.
 // The player controls three things: the UAV scan, orbital call-ins, and Infantry. Credits buy more and better of each.
 import { livesAt, appliedLevel } from '../difficulty.js';
 import { CONFIG as C } from '../config.js';
@@ -15,10 +15,10 @@ export const price = (x) => Math.max(0, Math.round((x * C.econ.priceMul) / 25) *
 // Unlock price per orbital. The first three are free and in the starting loadout.
 const ORB_BASE = {
   orb_airburst: 0, orb_120: 0, orb_precision: 0,
-  orb_ems: 600, orb_gas: 650, orb_walk: 800, orb_napalm: 900, orb_380: 1300, orb_rail: 1600, orb_laser: 2100,
+  orb_ems: 600, orb_gas: 650, orb_walk: 800, orb_napalm: 900, orb_main: 1300, orb_seeker: 1600, orb_beam: 2100,
   util_smoke: 550, util_med: 700, util_shield: 1000, util_autoturret: 1200,
   // (0.23) Strikers (the Hangar has to be bought first) and the gunner's minefields
-  striker_smoke: 450, striker_strafe: 550, striker_air: 700, striker_cluster: 750, striker_napalm: 900, striker_rockets: 950, striker_500: 1250,
+  striker_smoke: 450, striker_strafe: 550, striker_air: 700, striker_cluster: 750, striker_napalm: 900, striker_rockets: 950, striker_heavy: 1250,
   mine_ap: 600, mine_inc: 800, mine_at: 1000,
   // (0.25) classified: one level each, for the last ranks
   orb_storm: 2800, striker_squad: 3000, orb_lance: 3400, orb_final: 4200,
@@ -35,10 +35,16 @@ export function newKit() {
     build: { bastion: 1, mg: 1, lookout: 1, bridge: 1, tower: 1, sam: 0, arty: 0 },
     paid: {}, mix: 'standard', slotRef: 1, perks: {} };     // (0.51) perks: the operation's commendations (data/perks.js)     // (0.50) credits paid toward items, by armory id; the Infantry troop mix
 }
+// (GC 0.77) call-ins renamed: a save that holds an old name gets the new one
+const RENAMED = { mg43: 'lmg', eat: 'oneshot', spear: 'guided', recoilless: 'atl', railgun: 'coil', dog: 'drone', shield_relay: 'shield_proj',
+  striker_500: 'striker_heavy', orb_380: 'orb_main', orb_rail: 'orb_seeker', orb_laser: 'orb_beam' };
+const renamed = (id) => (typeof id === 'string' ? id.replace(/^((?:own|up):)?(.+)$/, (_, p, x) => (p || '') + (RENAMED[x] || x)) : id);
+const rekey = (o) => (o && typeof o === 'object' ? Object.fromEntries(Object.entries(o).map(([key, v]) => [renamed(key), v])) : o);
 // Old or partial saves are filled in rather than thrown away.
 export function fixKit(k) {
   const base = newKit();
   if (!k || typeof k !== 'object') return base;
+  k = { ...k, owned: rekey(k.owned), paid: rekey(k.paid), loadout: Array.isArray(k.loadout) ? k.loadout.map(renamed) : k.loadout };
   // (0.16: the walls became the Defilade Bastions and the drop beacon the Propaganda Tower; their levels carry over)
   const kb = { ...(k.build || {}) };
   if (kb.wall !== undefined && kb.bastion === undefined) kb.bastion = kb.wall;
@@ -51,7 +57,7 @@ export function fixKit(k) {
   for (const [id, v] of Object.entries(out.paid)) if (!(v > 0)) delete out.paid[id]; else out.paid[id] = Math.round(v);
   if (!MIXES.includes(out.mix) || !mixOpen(out, out.mix)) out.mix = 'standard';
   out.perks = Object.fromEntries(PERKS.map((q) => [q, Math.max(0, ((k.perks || {})[q]) | 0)]).filter(([, n]) => n > 0));     // (0.51)
-  // Anything the catalog no longer has (the old Orbital Gatling Barrage) is dropped from a save rather than carried around.
+  // Anything the catalog no longer has (an old barrage that is gone) is dropped from a save rather than carried around.
   for (const id of Object.keys(out.owned)) if (!CALLINS[id]) delete out.owned[id];
   out.loadout = Array.from({ length: C.kit.slotsMax }, (_, i) => (k.loadout && out.owned[k.loadout[i]] ? k.loadout[i] : ''));
   out.slots = Math.max(C.kit.slotsStart, Math.min(C.kit.slotsMax, out.slots | 0));
@@ -152,7 +158,7 @@ function mixChances(kit) {
   if (mix === 'medical') return { medicChance: 1, medic2: Math.min(X.secondMax, K.infantryMedic * 2 * s.medic), specChance: C.infantry.specChance * X.other, spec2: 0, grenMix: 0 };
   return { specChance: C.infantry.specChance, medicChance: C.infantry.medicChance, spec2: 0, medic2: 0, grenMix: 0 };
 }
-// The Ship Gun (the one gatling the destroyer has): damage, magazine, ammo regeneration and how tight the rounds group.
+// The Ship Gun (the one gatling the ship has): damage, magazine, ammo regeneration and how tight the rounds group.
 export function gunStats(kit) {
   const g = kit.gun || {}, G = C.gun;
   return {
@@ -211,9 +217,9 @@ const ITEM_TIER = {
   'slot:4': 0, util_smoke: 0, orb_ems: 0, 'gun.dmg': 0, 'gun.ammo': 0, uav: 0, 'infantry.cap': 0, 'infantry.drop': 0, 'infantry.hp': 0, 'bld:bastion': 0, 'bld:mg': 0,
   util_med: 1, orb_gas: 1, orb_walk: 1, 'gun.regen': 1, 'gun.pen': 1, 'uavb.speed': 1, 'infantry.build': 1, 'infantry.gren': 1, 'bld:lookout': 1, 'bld:bridge': 1, 'sup.zone': 1,
   pel: 2, striker_smoke: 2, striker_strafe: 2, striker_air: 2, mine_ap: 2, orb_napalm: 2, util_shield: 2, 'gun.spread': 2, 'uavb.dodge': 2, 'infantry.rocket': 2, 'infantry.medic': 2, 'bld:tower': 2,
-  'slot:5': 3, striker_cluster: 3, striker_napalm: 3, mine_inc: 3, orb_380: 3, util_autoturret: 3, 'infantry.spot': 3, 'bld:sam': 3,
-  striker_rockets: 4, mine_at: 4, orb_rail: 4,
-  orb_laser: 5, striker_500: 5, 'bld:arty': 5,
+  'slot:5': 3, striker_cluster: 3, striker_napalm: 3, mine_inc: 3, orb_main: 3, util_autoturret: 3, 'infantry.spot': 3, 'bld:sam': 3,
+  striker_rockets: 4, mine_at: 4, orb_seeker: 4,
+  orb_beam: 5, striker_heavy: 5, 'bld:arty': 5,
 };
 export const itemTier = (id) => { const k = String(id).replace(/^(own|up):/, ''); return ITEM_TIER[k] ?? (CALLINS[k] && CALLINS[k].secret) ?? 0; };
 // The milestone reached after this many missions done (0 before the first).
@@ -335,7 +341,7 @@ export function buy(kit, wallet, id, inMission = false, tier = TIER_MAX, free = 
 }
 
 // (0.50) Pay toward an item without buying it: the credits stay on it (they can't be taken back) and it is bought once the rest is
-// paid. amount: what to put in (never more than is left to pay; a payment that covers the rest buys it). coin: (0.50) an SESF
+// paid. amount: what to put in (never more than is left to pay; a payment that covers the rest buys it). coin: (0.50) a challenge
 // coin's credits, paid in with no credits from the wallet; what is over the price carries on to the item's next level, if it has one.
 export function payToward(kit, wallet, id, amount, inMission = false, tier = TIER_MAX, coin = false) {
   const it = shopItems(kit).find((x) => x.id === id);

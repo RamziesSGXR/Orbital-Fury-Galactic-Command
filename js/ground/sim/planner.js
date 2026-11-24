@@ -147,7 +147,7 @@ function choose(m) {
     const o = activeObjective(m), mp = mainPoint(m);
     const main = { kind: 'main', ref: o, x: mp ? mp.x : here.x, y: mp ? mp.y : here.y };
     if (!mp || mainBusy(m)) return main;
-    { const must = tasks.find((k) => k.ref && k.ref.must); if (must) return must; }     // (0.37) a side the tutorial (or a story) sends them to first
+    { const must = tasks.find((k) => k.ref && k.ref.must); if (must) return must; }     // (0.37) a side the tutorial sends them to first
     const toMain = walkDist(m, here, main), detour = aoScale(m, P.detour), out = extractTime(m, main);
     let best = null, bd = Infinity, curOk = null, cd = Infinity;
     for (const { k, s } of byLine(here, tasks)) {
@@ -167,7 +167,7 @@ function choose(m) {
     if (!tasks.length) return null;
     // a full clear only with lives to spare and the time to finish it and still get out
     const tour = tourTime(m, here, tasks), need = tour.sec + extractTime(m, tour.end);
-    const lives = m.hd.lives > P.clearLives, pl = m.plan;
+    const lives = m.vg.lives > P.clearLives, pl = m.plan;
     let nearest = null, nd = Infinity;
     let cd = Infinity, curOk = null;
     for (const { k, s } of byLine(here, tasks)) {
@@ -230,7 +230,7 @@ function recentDeaths(m) {
 // Can the squad pull out of what it is doing now? Not while it holds a site, carries the VIP, runs an evacuation or works a
 // Demolition Charge, nor in the tutorial's last stand, nor on its way out.
 function canBreak(m) {
-  if (m.ls || m.over || m.phase === 'extract' || !m.hdAlive.length) return false;
+  if (m.ls || m.over || m.phase === 'extract' || !m.vgAlive.length) return false;
   if (m.phase === 'objective' && mainBusy(m)) return false;
   const hb = m.democharge;
   if (hb && ['fill', 'inbound', 'landed', 'armed'].includes(hb.state)) return false;
@@ -307,7 +307,7 @@ function checkBreak(m, dt) {
   if (!canBreak(m)) return;
   const dd = recentDeaths(m);
   if (dd.n >= B.deaths) { breakOff(m, 'deaths', dd); return; }
-  const th = threatNow(m), need = B.wave * Math.max(0.5, m.hdAlive.length / 4);
+  const th = threatNow(m), need = B.wave * Math.max(0.5, m.vgAlive.length / 4);
   if (th.w > need) breakOff(m, 'wave', th);
 }
 // (0.40) the whole squad wiped out at a side task: that task is left alone for a while too
@@ -322,7 +322,7 @@ export function noteWipe(m) {
 // (0.39) holding orbit costs fuel: each minute dearer the longer the mission has run
 export const timeCost = (m, min) => Math.round((min * PL().ask.perMin * (1 + PL().ask.perMinIn * Math.max(0, m.t) / 60)) / 5) * 5;
 function askTime(m, min) {
-  const A = PL().ask, a = m.hdAlive[0], pl = m.plan;
+  const A = PL().ask, a = m.vgAlive[0], pl = m.plan;
   pl.ask = { min, cost: timeCost(m, min), until: m.t + A.askSec, tag: a ? m.tag(a) : '' };
   pl.asks = (pl.asks || 0) + 1;
   m.radio(COMMS.timeAsk(min, pl.ask.cost), 'timeask', 0);
@@ -355,7 +355,7 @@ export function updatePlan(m, dt) {
   if (pl && pl.ask && (m.over || m.phase === 'extract')) pl.ask = null;
   if (!pl || m.over || m.phase === 'extract') return;
   updateAsk(m);
-  if (!m.hdAlive.length) return;
+  if (!m.vgAlive.length) return;
   pl.t = (pl.t || 0) - dt;
   checkBreak(m, dt);
   // (0.40) falling back: nothing else until it is over (then the plan is made again from where they are)
@@ -376,7 +376,7 @@ export function updatePlan(m, dt) {
   const cur = pl.task;
   const stale = !cur || (cur.kind === 'main' ? (cur.ref.done || activeObjective(m) !== cur.ref) : !taskOpen(cur) || (m.phase === 'objective' && mainBusy(m)));
   // a full clear is called off as soon as the lives run down to clearLives: the squad breaks off and goes for extraction
-  const abort = m.phase === 'clear' && !!cur && m.hd.lives <= PL().clearLives;
+  const abort = m.phase === 'clear' && !!cur && m.vg.lives <= PL().clearLives;
   // (0.37) a Demolition Charge under way for a side objective: that is the task (even if they were passing it on the way somewhere else),
   // and nobody leaves it until it has gone off (or been called off)
   const hb = m.democharge;

@@ -534,7 +534,7 @@ export class Station {
     this.tier++; this.radius = C.tiers[this.tier].radius;
     const u = this.unlocksOf(this.tier);
     this.events.push({ type: 'tier', tier: this.tier });
-    this.say('ministry', `${C.tiers[this.tier].name} STATUS GRANTED. The build zone grows to ${this.radius} units. Unlocked: ${[...u.parts, ...u.rooms].join(', ') || 'the Head Office\'s gratitude'}.`, { gold: true });
+    this.say('office', `${C.tiers[this.tier].name} STATUS GRANTED. The build zone grows to ${this.radius} units. Unlocked: ${[...u.parts, ...u.rooms].join(', ') || 'the Head Office\'s gratitude'}.`, { gold: true });
     this._refresh();
   }
 

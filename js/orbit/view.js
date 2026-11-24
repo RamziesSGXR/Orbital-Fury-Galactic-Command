@@ -307,7 +307,7 @@ export class View {
     const tex = this._plating(D.plating[L.plating] ? L.plating : 'panels');
     for (const m of [M.hull, M.thHull, M.craft]) { m.color.set(L.hull); m.map = tex; m.needsUpdate = true; }
     M.trim.color.set(L.trim); M.craftTrim.color.set(L.trim); M.dark.color.set(L.accent).multiplyScalar(0.6); M.wire.color.set(L.accent).lerp(new THREE.Color(0xaab6b0), 0.5);
-    const I = D.interior[L.interior] || D.interior.ministry;
+    const I = D.interior[L.interior === 'ministry' ? 'office' : L.interior] || D.interior.office;     // (0.77: 'ministry' is the old name of 'office')
     M.inner.color.set(I.floor); M.wall.color.set(I.wall); M.lane.color.set(I.lane); M.hall.color.set(I.floor).lerp(new THREE.Color(I.lane), 0.38);
     M.glow.color.set(D.lights[L.lights] || (/^#[0-9a-f]{6}$/i.test(L.lights || '') ? L.lights : D.lights.warm));     // (0.66) or a colour of the livery's own
     this._drawDecal();

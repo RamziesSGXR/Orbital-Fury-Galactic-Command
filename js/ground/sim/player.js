@@ -1,4 +1,4 @@
-// The player's destroyer kit: a UAV scan, up to five orbital call-ins from the armory, and the nuclear strike once the
+// The player's ship kit: a UAV scan, up to five orbital call-ins from the armory, and the nuclear strike once the
 // launch site is armed. Strikes land inside the strike zone: the ring around the Vanguards and Infantry, plus any UAV circle.
 // The player never steers the Vanguards. Friendly fire from the player's own strikes is real.
 import { t as tr } from '../i18n.js';
@@ -46,7 +46,7 @@ export function syncSlots(m, start = false) {
     if (!id) { p.slots[i] = { type: 'empty' }; continue; }
     const level = kit.owned[id] || 1;
     if (cur.type === 'orb' && cur.id === id) { cur.level = level; continue; }
-    p.slots[i] = { type: 'orb', id, level, readyAt: m.t + (start ? startCd(orbStats(id, level).cd) : C.weapons.warmupSec), uses: id === 'orb_laser' ? C.orbital.laserUses : Infinity };
+    p.slots[i] = { type: 'orb', id, level, readyAt: m.t + (start ? startCd(orbStats(id, level).cd) : C.weapons.warmupSec), uses: id === 'orb_beam' ? C.orbital.laserUses : Infinity };
     if (orbStats(id, level).cat === 'STRIKER') p.slots[i].eu = hangarStats(kit).uses;     // (0.53.2) its own runs, full
   }
   // gun upgrades bought mid-mission: a bigger magazine arrives full of the extra rounds
@@ -141,7 +141,7 @@ function explode(m, sh) {
   if (sh.ultAoe) {
     if (sh.miss) { const [ox, oy] = m.rng.inDisc(sh.ultAoe * 0.8); sh.x += ox; sh.y += oy; }
     else if (sh.lock && !sh.lock.dead) { sh.x = sh.lock.x; sh.y = sh.lock.y; }     // (it was locked on: it follows its target in)
-    const U = C.hd.ult;
+    const U = C.vg.ult;
     m.eGrid.near(sh.x, sh.y, sh.ultAoe + 8, (e, d2) => {
       if (e.dead || d2 > (sh.ultAoe + (e.r || 0) * 0.6) ** 2) return;
       alertGroup(m, e.g);
@@ -190,7 +190,7 @@ function fireOrbital(m, idx) {
   if (!m.inZone(p.aimX, p.aimY) && !(st.k !== 'util' && m.nearLock(p.aimX, p.aimY))) return deny(m, 'nocoverage', COMMS.noCoverage);   // a locked enemy can be hit anywhere
   if (st.k === 'util') return callUtil(m, s, st);
   if (st.k === 'mines') return callMines(m, s, st);
-  // into a free-fire zone the Vanguards asked for: the destroyer recharges faster, so the gunner can saturate it
+  // into a free-fire zone the Vanguards asked for: the ship recharges faster, so the gunner can saturate it
   s.readyAt = t + st.cd * orbCdMul(m.kit) * orbSiteMul(m);     // (0.51: the Orbital Efficiency commendation; 0.52: a worked refinery)
   if (st.cat === 'STRIKER') strikerUse(m, s);
   if (s.uses !== Infinity) s.uses--;

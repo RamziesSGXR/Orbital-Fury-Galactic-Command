@@ -128,7 +128,7 @@ export function spawnNear(m, x, y, rmin, rmax, state = 'patrol', opts = {}) {
 
 // A point just outside what the squad (and the player) can see, mostly in the direction the Vanguards are heading.
 export function pickSpawn(m, extra = 0) {
-  const rng = m.rng, al = m.alive, hds = m.hdAlive, sp = Math.max(m.faction.spread, extra);
+  const rng = m.rng, al = m.alive, hds = m.vgAlive, sp = Math.max(m.faction.spread, extra);
   if (!al.length) return null;
   for (let tries = 0; tries < 18; tries++) {
     const a = hds.length && rng.next() < 0.75 ? hds[rng.int(hds.length)] : al[rng.int(al.length)];
@@ -210,7 +210,7 @@ export function updateDirector(m, dt) {
     for (const b of m.bases) {
       b.near = false;
       if (b.destroyed) continue;
-      for (const a of m.hdAlive) if ((a.x - b.x) ** 2 + (a.y - b.y) ** 2 <= R2) { b.near = true; break; }
+      for (const a of m.vgAlive) if ((a.x - b.x) ** 2 + (a.y - b.y) ** 2 <= R2) { b.near = true; break; }
       checkSeen(m, b);     // (0.49) its layout shows once anyone sees it
       stepDefences(m, b, dt);     // (0.55) shields and turrets
       if (!b.alert) {

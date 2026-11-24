@@ -27,7 +27,7 @@ export function infantryName(rng, role) {
   return `${rank} ${surname(rng)}`;
 }
 
-// The mottos and the lines Vanguards and Infantry call out live in the language tables (motto.hd, motto.infantry, hd.<kind>, infantry.<kind>).
+// The mottos and the lines Vanguards and Infantry call out live in the language tables (motto.vg, motto.infantry, vg.<kind>, infantry.<kind>).
 
 // Short, readable name for a call-in call in a bark.
 export const pickLine = (rng, list) => list[rng.int(list.length)];

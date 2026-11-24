@@ -1,5 +1,5 @@
 // Session state, mission naming, local storage and the copy-paste score block.
-// A session runs mission after mission until one fails. The kit (what the destroyer can do) and the wallet (credits) live here,
+// A session runs mission after mission until one fails. The kit (what the ship can do) and the wallet (credits) live here,
 // so what you buy and earn carries from mission to mission.
 import { ADJECTIVES, NOUNS, FACTIONS, BIOMES } from './data/data.js';
 import { tEn } from './i18n.js';
@@ -9,7 +9,7 @@ import { OP_OF } from './sim/ops.js';
 import { clampLevel, levelAt, levelName, LEVELS } from './difficulty.js';
 
 const K = { settings: 'ofs.settings', session: 'ofs.session', history: 'ofs.history', callsign: 'ofs.callsign', notice: 'ofs.notice', names: 'ofs.names',
-  campaign: 'ofs.campaign', campRun: 'ofs.campRun',     // (0.37) the campaign's progress on this browser, and its run under way
+  campaign: 'ofs.campaign', campRun: 'ofs.campRun',     // (GC 0.77) the old story campaign's keys, kept only to clear them
   slots: 'ofs.slots',      // (0.41) the three save slots
   coins: 'ofs.coins',     // (0.44) challenge coins
   tutSeen: 'ofs.tutSeen', tutDone: 'ofs.tutDone', saveVer: 'ofs.saveVer' };     // (0.53: these two were saved under no name of their own)
@@ -34,6 +34,17 @@ export function resetOldSaves() {
   save('saveVer', SAVE_VER);
   return had;
 }
+// (GC 0.77) The story campaign is gone. Its progress is dropped once; a run of it (under way, or in a save slot) carries on as an
+// ordinary operation, its next missions rolled like any other.
+export function dropStory() {
+  try { if (localStorage.getItem(K.campaign) === null && localStorage.getItem(K.campRun) === null && !getSlots().some((s) => s && (s.key === 'campRun' || s.run.story))) return; } catch { return; }
+  const run = load('campRun', null);
+  if (run && !resumable0(load('session', null))) save('session', fixSession(run));
+  drop('campRun'); drop('campaign');
+  const a = getSlots().map((s) => (s ? { ...s, key: 'session', run: fixSession(JSON.parse(JSON.stringify(s.run))) } : null));
+  save('slots', a);
+}
+const resumable0 = (s) => !!(s && Array.isArray(s.missions));
 
 // (0.44) challenge coins, kept on this browser: one for every operation ended by choice (END OPERATION after a mission that carried
 // on), at most COIN_MAX held. Each is one free unlock or upgrade in a later operation's armory (anything open at your rank but the
@@ -70,8 +81,7 @@ export function earnCoin(run) {
 // spends the first coin held; returns what it was worth (0: none held)
 export function spendCoin() { const c = coinBox(); if (c.n <= 0) return 0; c.n--; const v = c.vals.shift() || price(C.coin.old); save('coins', c); return v; }
 
-// (0.41) Three save slots on this browser, each a run (QUICK PLAY's or the campaign's) as it stood between missions: { at (when
-// saved), key ('session' | 'campRun'), run }. A run saved to a slot remembers it (run.slot, 1-3) and saves itself there again
+// (0.41) Three save slots on this browser, each a run as it stood between missions: { at (when saved), key ('session'), run }. A run saved to a slot remembers it (run.slot, 1-3) and saves itself there again
 // after every mission (main.js persist).
 export const SLOTS = 3;
 export function getSlots() {
@@ -80,12 +90,12 @@ export function getSlots() {
 }
 export function putSlot(n, key, run, at = Date.now()) {
   if (!(n >= 1 && n <= SLOTS) || !run) return false;
-  const a = getSlots(); a[n - 1] = { at, key: key === 'campRun' ? 'campRun' : 'session', run: { ...JSON.parse(JSON.stringify(run)), slot: n } };
+  const a = getSlots(); a[n - 1] = { at, key: 'session', run: { ...JSON.parse(JSON.stringify(run)), slot: n } };
   return save('slots', a);
 }
 // (0.53.12) A save code: a run written out as text, to keep anywhere and load on any browser (LOAD GAME > LOAD CODE).
-// "OFS<z>-<data>-<check>": z 1 when the data is deflated (CompressionStream), 0 when not; data the JSON { v (SAVE_VER), k ('s'
-// QUICK PLAY | 'c' campaign), r (the run, with no slot of its own) } in base64url; check four characters of a hash of the data,
+// "OFS<z>-<data>-<check>": z 1 when the data is deflated (CompressionStream), 0 when not; data the JSON { v (SAVE_VER), k ('s'),
+// r (the run, with no slot of its own) } in base64url; check four characters of a hash of the data,
 // so a code cut short or mistyped is caught. It is not a lock: a code can be edited, as the browser's storage can.
 const b64u = (u8) => { let s = ''; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode(...u8.subarray(i, i + 0x8000)); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
 const unb64u = (s) => { const b = atob(s.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((s.length + 3) % 4)); const u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; };
@@ -93,12 +103,12 @@ export const codeSum = (s) => { let h = 0x811c9dc5; for (let i = 0; i < s.length
 const pipe = async (u8, T) => new Uint8Array(await new Response(new Blob([u8]).stream().pipeThrough(new T('deflate-raw'))).arrayBuffer());
 export async function runToCode(key, run) {
   const r = JSON.parse(JSON.stringify(run)); delete r.slot; delete r.noSave;
-  let u8 = new TextEncoder().encode(JSON.stringify({ v: SAVE_VER, k: key === 'campRun' ? 'c' : 's', r })), z = 0;
+  let u8 = new TextEncoder().encode(JSON.stringify({ v: SAVE_VER, k: 's', r })), z = 0;
   if (typeof CompressionStream === 'function') { try { u8 = await pipe(u8, CompressionStream); z = 1; } catch { /* sent as it is */ } }
   const d = b64u(u8);
   return `OFS${z}-${d}-${codeSum(d)}`;
 }
-// { key ('session' | 'campRun'), run } from a code, or { err: 'empty' | 'bad' | 'old' | 'new' | 'zip' }
+// { key ('session'), run } from a code, or { err: 'empty' | 'bad' | 'old' | 'new' | 'zip' }
 export async function codeToRun(code) {
   const c = String(code || '').replace(/\s+/g, '');
   if (!c) return { err: 'empty' };
@@ -115,8 +125,8 @@ export async function codeToRun(code) {
   if (!o || typeof o !== 'object' || !o.r || typeof o.r !== 'object' || !Array.isArray(o.r.missions) || o.r.tutorial) return { err: 'bad' };
   if ((o.v | 0) < SAVE_VER) return { err: 'old' };
   if ((o.v | 0) > SAVE_VER) return { err: 'new' };
-  delete o.r.slot; delete o.r.noSave;
-  return { key: o.k === 'c' ? 'campRun' : 'session', run: o.r };
+  delete o.r.slot; delete o.r.noSave;     // (GC 0.77: a code from the old story campaign loads as an operation: fixSession)
+  return { key: 'session', run: o.r };
 }
 export function clearSlot(n) { const a = getSlots(); if (n >= 1 && n <= SLOTS) { a[n - 1] = null; save('slots', a); } }
 
@@ -144,7 +154,7 @@ export const MAX_NAME = 18;
 export function getNames() {
   const n = load('names', null) || {};
   const fix = (a) => Array.from({ length: 4 }, (_, i) => String((a && a[i]) || '').slice(0, MAX_NAME));
-  return { ships: fix(n.ships), hd: fix(n.hd) };
+  return { ships: fix(n.ships), vg: fix(n.vg || n.hd) };     // (GC 0.77: names saved before were kept under hd)
 }
 export const saveNames = (names) => save('names', names);
 export const cleanName = (s) => String(s || '').replace(/[^\w \-.'#]/g, '').replace(/\s+/g, ' ').trim().slice(0, MAX_NAME).toUpperCase();
@@ -174,13 +184,11 @@ export function rollMission(prev, rng = Math.random, enemy = 'random') {
 }
 
 // (0.51) The next mission's offers: n of them, each its own enemy, ground and objective, and a bump of bump[0] up to bump[1] levels
-// for that mission only (more pay, as any higher level). A campaign's next mission is set by its story: its offers are that
-// mission at each bump (story: true).
-export function rollOffers(s, rng = Math.random, enemy = 'random', story = false) {
+// for that mission only (more pay, as any higher level).
+export function rollOffers(s, rng = Math.random, enemy = 'random') {
   const prev = s.missions[s.missions.length - 1], O = C.offers, out = [];
   for (let i = 0; i < O.n; i++) {
     const bump = Math.min(O.bump[1], O.bump[0] + i);
-    if (story) { out.push({ story: true, bump }); continue; }
     let m = rollMission(prev, rng, enemy);
     // (no two on the same ground, and each against a different enemy where the enemy is left random)
     for (let k = 0; k < 10 && (out.some((o) => o.biome === m.biome) || (k < 6 && out.some((o) => o.faction === m.faction))); k++) m = rollMission(prev, rng, enemy);
@@ -199,27 +207,13 @@ const OBJ_TYPES = ['nuke', 'vip', 'fortress', 'evac'];
 
 // ---- session ----
 // difficulty: the level the session started at, 1 to 10 (difficulty.js). Each mission is a little harder: levelNow.
-// (0.37) op: the operation's name. One a session: every mission in it flies under it (QUICK PLAY rolls one; the campaign's is its own).
+// (0.37) op: the operation's name. One a session: every mission in it flies under it.
 export function newSession(callsign, difficulty = C.difficulty.start, op = null) {
   return { startedAt: Date.now(), callsign: callsign || '', difficulty: clampLevel(difficulty), op: op || makeNames().op, missions: [], score: 0, seconds: 0, next: null, kit: newKit(), wallet: newWallet(), names: getNames() };
 }
 // The operation's name (a session saved before 0.37 takes its first mission's)
 export const opOf = (s) => (s && (s.op || (s.missions && s.missions[0] && s.missions[0].op))) || 'Operation';
 
-// ---- (0.37) the campaign's progress on this browser ----
-// done: the chapters cleared; ck: for each, the run as it stood when it was cleared (to carry on from, or to replay the next one)
-export function getCampaign() {
-  const c = load('campaign', null) || {};
-  return { done: Array.isArray(c.done) ? c.done.filter((n) => Number.isInteger(n)) : [], ck: c.ck && typeof c.ck === 'object' ? c.ck : {} };
-}
-export function chapterCleared(s, n) {
-  const c = getCampaign();
-  if (!c.done.includes(n)) c.done.push(n);
-  c.done.sort((a, b) => a - b);
-  c.ck[n] = JSON.parse(JSON.stringify({ ...s, held: null, fresh: null }));
-  save('campaign', c);
-  return c;
-}
 // Old saves are repaired rather than thrown away.
 export function fixSession(s) {
   if (!s || typeof s !== 'object') return null;
@@ -232,6 +226,9 @@ export function fixSession(s) {
   s.missions = Array.isArray(s.missions) ? s.missions : [];
   s.difficulty = clampLevel(s.difficulty ?? LEVELS);      // sessions saved before there were levels were played at the top one
   if (!s.op) s.op = opOf(s) === 'Operation' ? makeNames().op : opOf(s);
+  if (s.story) { delete s.story; s.op = makeNames().op; }     // (GC 0.77) the story campaign is gone: its runs go on as operations, under a name of their own
+  if (s.pend && s.pend.story) s.pend = null;
+  if (s.next && s.next.story) s.next = null;
   return s;
 }
 export function sessionMinutes(s) { return s.seconds / 60; }

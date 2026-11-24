@@ -68,7 +68,7 @@ export function updateSquad(m, dt) {
   if (m.vip && m.vip.carrier) mod *= C.squad.carrySlow;
   sq.mod = mod; sq.mounted = mounted;
   const speed = C.squad.speed * bm * mod;
-  const hds = m.hdAlive;
+  const hds = m.vgAlive;
   const eg = m.eGrid;
 
   // ---------------- Vanguards ----------------

@@ -1,7 +1,7 @@
 // The faction operations (0.18) and the citadel's Demolition Charge. objectives.js places them and runs them through the same steps as the
 // others (travel, a quiet set-up, then the work while the enemy calls in backup).
 //   oil (bugs):     hold an oil pump while it fills a tank; a dropship comes for each full tank. Three loads and it is done.
-//   cannon (bots):  an orbital defence cannon shooting at the destroyer. While it stands the ship has to keep dodging, so the
+//   cannon (bots):  an orbital defence cannon shooting at the ship. While it stands the ship has to keep dodging, so the
 //                   player's strikes land wide and the ship gun spreads. It is a structure: knock it down.
 //   dome (lizards):  a shield dome over two warp-ship bases. Nothing from outside gets through it (strikes, the ship gun, fire from
 //                   outside), but anyone can walk in. The nodes round the generator tower in the middle hold it up; with them
@@ -22,8 +22,8 @@ const ALL = { L: 1, M: 1, H: 1, B: 1 };
 
 // Which operation of its own each faction has.
 export const OP_OF = { bugs: 'oil', bots: 'cannon', lizards: 'dome' };
-export const OP_TYPES = ['oil', 'cannon', 'dome', 'gun'];     // (0.53: the defence gun is only ever asked for: the campaign, or an offer)
-const squadAt = (m, x, y, r) => m.hdAlive.some((a) => !a.mounted && (a.x - x) ** 2 + (a.y - y) ** 2 <= r * r);
+export const OP_TYPES = ['oil', 'cannon', 'dome', 'gun'];     // (0.53: the defence gun is only ever offered, never rolled)
+const squadAt = (m, x, y, r) => m.vgAlive.some((a) => !a.mounted && (a.x - x) ** 2 + (a.y - y) ** 2 <= r * r);
 const land = (m, x, y) => m.terrain.isLand(x, y) && !m.terrain.blocked(x, y);
 
 // A structure the enemy holds as part of an operation: a base in m.bases (everything that hits a base hits it), marked op so the
@@ -190,7 +190,7 @@ export function domeBlocks(m, b, fx, fy) {
 
 // ---------------------------------------------------------------- the Demolition Charge
 // (0.37) One Demolition Charge job at a time, for whatever needs one: the citadel's keep (the objective), or a side objective only a
-// Demolition Charge brings down (sides.js: the spore spewer, the call-in jammer, the cognitive disruptor; the enemy broadcast tower takes
+// Demolition Charge brings down (sides.js: the spore tower, the call-in jammer, the cognitive disruptor; the enemy broadcast tower takes
 // one too). owner: the objective or side it is for; tg: what it lands beside ({ x, y, r }). The job: fill (the gunner assembles it,
 // in slow motion) -> inbound -> landed (the nearest Vanguard arms it) -> armed (everyone runs) -> done (it goes off).
 const HB = () => O().democharge;
@@ -239,7 +239,7 @@ export function hbDives(m, hb) {
     const f = Math.min(1, Math.hypot(a.x - hb.x, a.y - hb.y) / K.blastR), p = (D.mid + (D.edge - D.mid) * f) * (a.type === 'H' ? 1 : D.infantry);
     if (m.rng.next() >= p) return;
     dived.add(a);
-    const ang = Math.atan2(a.y - hb.y, a.x - hb.x), dv = C.hd.dodge;
+    const ang = Math.atan2(a.y - hb.y, a.x - hb.x), dv = C.vg.dodge;
     if (a.type === 'H') a.dv = { vx: Math.cos(ang) * dv.dist * 1.6 / dv.sec, vy: Math.sin(ang) * dv.dist * 1.6 / dv.sec, until: t + dv.sec };
     a.diveAt = t;
     m.stats.hbDives = (m.stats.hbDives || 0) + 1;
@@ -261,9 +261,9 @@ export function hbStep(m, owner, dt, siege) {
   }
   if (hb.state === 'landed') {
     // the nearest Vanguard goes to it and arms it
-    if (!hb.armer || hb.armer.dead || !m.hdAlive.includes(hb.armer)) {
+    if (!hb.armer || hb.armer.dead || !m.vgAlive.includes(hb.armer)) {
       let bd = Infinity; hb.armer = null;
-      for (const a of m.hdAlive) { if (a.mounted) continue; const d = (a.x - hb.x) ** 2 + (a.y - hb.y) ** 2; if (d < bd) { bd = d; hb.armer = a; } }
+      for (const a of m.vgAlive) { if (a.mounted) continue; const d = (a.x - hb.x) ** 2 + (a.y - hb.y) ** 2; if (d < bd) { bd = d; hb.armer = a; } }
     }
     if (squadAt(m, hb.x, hb.y, K.armR)) hb.armT += dt;
     if (hb.armT >= K.armSec) {

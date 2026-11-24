@@ -1,6 +1,6 @@
 # Orbital Fury: Galactic Command
 
-**Prototype 0.76.0.** One war, run from four posts, in one game.
+**Prototype 0.77.0.** One war, run from four posts, in one game.
 
 You found a command (a name, a livery: emblem and colours) and hold the centre of the galaxy against three enemies. Everything in
 the war is yours to run, and each part changes the others:
@@ -13,6 +13,20 @@ the war is yours to run, and each part changes the others:
 | **The base** | Found a base on the system's key world: roads, zones, and buildings that grow along them. | +35% output from the system for each charter. |
 
 A system that falls takes its station and its base with it.
+
+## What's new in 0.77: our own names, everywhere
+
+- **The enemies' own names** on the ground: the Molt, the Foundry and the Talon (they were BUGS, BOTS and LIZARDS there).
+  Molt breaches dig out of burrows, Foundry dropships bring fresh troops; the jammers are a howler nest, a call-in jammer
+  and a cognitive disruptor, and the Molt's side objective is an acid nest.
+- **The ship** is called the ship everywhere. Call-ins renamed: Scout Rover, Sprint Boosters, Scatter
+  Mines, Fire Mines, Tank Traps; the support weapons and orbitals have new ids in the code (`lmg`, `oneshot`, `guided`,
+  `atl`, `coil`, `drone`, `orb_main`, `orb_seeker`, `orb_beam`, `striker_heavy`, `shield_proj`). js/ground/data/kit.js
+  `fixKit` maps the old ids, so a save keeps what it owned.
+- **The old story campaign is gone** from the ground game (its chapters, cast, screen and cinematic). The Galactic
+  Campaign is the one campaign; a run of the old one carries on as an ordinary operation (session.js `dropStory`).
+- **In the code**: the Vanguards are `vg` (they were `hd`), the station's Head Office channel is `office`, FOB Commander's
+  patrols are Burrow closures and Foundry outpost raids, and its Vehicle Bay keeps a rover. Old saves are mapped.
 
 ## What's new in 0.75: your crest opens your livery, and OPTIONS in four parts
 
@@ -196,8 +210,7 @@ A system that falls takes its station and its base with it.
   war room, drawn live by the game with its own people in the player's colours (js/core/warroom.js, 0.72): the galaxy turning
   on the holo-table in the enemies' colours, officers, a Vanguard and crew round it, consoles with live screens, a fleet ship
   crossing the window. It draws only while the menu shows. (It was a film rendered in Blender, 0.56 to 0.71.)
-- **One campaign.** The ground game's own campaign and its story tutorial are off its title screen (`ground.html?campaign`
-  still shows them); its Quick Play is now Endless Play.
+- **One campaign.** The ground game's own story campaign is gone (0.77); its Quick Play is now Endless Play.
 - **Tutorials with no story.** Each post has a TUTORIAL on the menu: a practice post that is not saved, with a short run of
   cards that are done by doing them, and it ends back at the menu. The base and the station use js/modes/guide.js (the same
   cards show once, by themselves, the first time a post is played). The ground game's is its training ground: the practice

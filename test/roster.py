@@ -49,7 +49,7 @@ with sync_playwright() as pw:
     pg.click('[data-st=give][data-kind=persona][data-id=prepper]'); pg.wait_for_timeout(150)
     r = pg.evaluate("JSON.parse(localStorage.getItem('ofgc.roster'))")
     assert [s['role'] for s in r['slots']] == ['marksman', 'medic', 'rifle', 'rifle'] and [s['persona'] for s in r['slots']] == ['heartthrob', 'prepper', 'none', 'none'], r
-    assert pg.evaluate("JSON.parse(localStorage.getItem('ofs.names')).hd[0]") == 'HAWK', 'the name is the ground fight\'s own'
+    assert pg.evaluate("JSON.parse(localStorage.getItem('ofs.names')).vg[0]") == 'HAWK', 'the name is the ground fight\'s own'
     assert pg.inner_text('.vcard[data-i="1"] em') == 'Combat medic' and pg.is_visible('.stdet .sfx li') and fits(), 'the card and the details show it'
     pg.wait_for_timeout(800); pg.screenshot(path=f'{out}/roster-2-roster.png')
     # the fight: a new campaign, the first battle taken to the ground
@@ -73,24 +73,24 @@ with sync_playwright() as pw:
         pg.wait_for_timeout(500); f.evaluate(go)
     assert f.evaluate("__game.state") == 'play', 'the mission did not start'
     pg.keyboard.press('Enter'); pg.wait_for_timeout(4000)
-    f.wait_for_function("__game.mission.hdAlive.length >= 2", timeout=60000); pg.wait_for_timeout(800)
-    v = f.evaluate("""(() => { const m = __game.mission, by = (i) => m.hdAlive.find((a) => a.team === i);
+    f.wait_for_function("__game.mission.vgAlive.length >= 2", timeout=60000); pg.wait_for_timeout(800)
+    v = f.evaluate("""(() => { const m = __game.mission, by = (i) => m.vgAlive.find((a) => a.team === i);
       const o = (a) => a && ({ name: a.name, vr: a.vr, vp: a.vp, tag: a.vtag, max: a.maxHp, stims: a.stims, stimMax: a.stimMax, gren: a.gren, gun: a.gun, aud: a.aud, pay: a.payMul, medic: a.medic, sight: a.sight0 });
       return { a: o(by(0)), b: o(by(1)), c: o(by(2)), roster: m.roster && m.roster.map((s) => s.role + '/' + s.persona) }; })()""")
     print(v)
     a, b, c = v['a'], v['b'], v['c']
     assert v['roster'] == ['marksman/heartthrob', 'medic/prepper', 'rifle/none', 'rifle/none'], v['roster']
-    assert f.evaluate("[__game.mission.ups.lives, __game.mission.hd.max >= 2]") == [1, True], 'Reserve contracts: a life more'
+    assert f.evaluate("[__game.mission.ups.lives, __game.mission.vg.max >= 2]") == [1, True], 'Reserve contracts: a life more'
     assert a['name'] == 'HAWK' and a['vr'] == 'marksman' and a['tag'] == 'MRK' and a['gun']['range'] == 1.4 and abs(a['aud'] - 0.1) < 1e-9 and a['pay'] == 1.6, a
     assert b['vr'] == 'medic' and b['stimMax'] == 7 and b['stims'] == 7 and b['gren'] == 7 and b['medic'] > 0, b
     assert c is None or (c['vr'] == 'rifle' and c['stimMax'] == 4 and not c['gun'] and c['sight'] < a['sight']), c
     # the HUD names the role; a medic heals; a Heartthrob who falls is a dearer claim
     f.wait_for_function("/MRK · /.test(document.getElementById('hdrows').textContent) && /MED · /.test(document.getElementById('hdrows').textContent)", timeout=10000)
-    healed = f.evaluate("""(() => { const m = __game.mission, med = m.hdAlive.find((a) => a.vr === 'medic'), o = m.hdAlive.find((a) => a !== med);
+    healed = f.evaluate("""(() => { const m = __game.mission, med = m.vgAlive.find((a) => a.vr === 'medic'), o = m.vgAlive.find((a) => a !== med);
       o.x = med.x + 4; o.y = med.y; o.hp = o.maxHp * 0.5; return o.id; })()""")
     pg.wait_for_timeout(2500)
     assert f.evaluate(f"(() => {{ const o = __game.mission.allies.find((a) => a.id === {healed}); return o.dead || o.hp > o.maxHp * 0.5; }})()"), 'the medic heals'
-    ins = f.evaluate("(() => { const m = __game.mission, a = m.hdAlive.find((x) => x.vr === 'marksman'); m.killAlly(a, 'enemy', 'L'); return m.ins; })()")
+    ins = f.evaluate("(() => { const m = __game.mission, a = m.vgAlive.find((x) => x.vr === 'marksman'); m.killAlly(a, 'enemy', 'L'); return m.ins; })()")
     assert abs(ins['pay'] - 120 * 1.6) < 1e-6 and abs(ins['sign'] - 180 * 1.35) < 1e-6, ins
     pg.screenshot(path=f'{out}/roster-3-ground.png')
     # the upgrades that carry into the other games: the war chest (a new campaign), seed money (a new base), a docking grant (a new station)

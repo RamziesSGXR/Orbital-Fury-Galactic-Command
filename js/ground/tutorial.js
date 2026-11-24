@@ -4,7 +4,7 @@
 // The texts are in the language tables: tut.<step>.h (the heading) and tut.<step>.d / tut.<step>.t (desktop / touch), or
 // tut.<step>.b for both.
 import { t } from './i18n.js';
-import { CAST } from './data/story.js';
+import { VOICE } from './campaign.js';
 import { infantryStats } from './data/kit.js';
 
 const $ = (id) => document.getElementById(id);
@@ -16,7 +16,7 @@ const gone = (g) => !g || g.members.every((e) => e.dead);
 // drop, picking troopers and ordering them (0.20: in the command panel, always up), then dropping the Vanguards (their lives are
 // the mission). (0.37) Then building, cover, resupply and the Demolition Charge, and how an operation carries over from mission to mission.
 // tick(g, s): every frame while the step is up (the resupply and Demolition Charge lessons keep their moment going).
-const hdDown = (g) => g.mission.hdAlive.length > 0;
+const vgDown = (g) => g.mission.vgAlive.length > 0;
 export const STEPS = [
   { id: 'intro', next: true },
   { id: 'look', done: (g, s) => Math.hypot(g.cam.x - s.cx, g.cam.y - s.cy) > 20 || Math.abs(g.cam.view - s.view) > 25 },
@@ -39,7 +39,7 @@ export const STEPS = [
   { id: 'deploy', hl: '#dropcd-go, #lives', done: (g, s) => g.mission.dropAt < s.drop0 - 1 || g.mission.t >= g.mission.dropAt },
   // (0.37) resupply: once they are down, one of them asks; it is done when a pod goes out
   { id: 'supply', hl: (g) => (g.mission.supply && g.mission.supply.state === 'fill' ? '#supgame' : '#co-sup'),
-    tick: (g, s) => { const S = g.mission.supply; if (S && S.state === 'idle' && !(g.mission.stats.supplies > 0) && hdDown(g) && g.mission.t - (s.askAt ?? -99) > 4) { s.askAt = g.mission.t; g.mission.lsSupply(); } },
+    tick: (g, s) => { const S = g.mission.supply; if (S && S.state === 'idle' && !(g.mission.stats.supplies > 0) && vgDown(g) && g.mission.t - (s.askAt ?? -99) > 4) { s.askAt = g.mission.t; g.mission.lsSupply(); } },
     done: (g) => g.mission.stats.supplies > 0 },
   // (0.37) the Demolition Charge: a cognitive disruptor comes down by the base; the squad clears round it and asks for one
   { id: 'democharge', hl: (g) => (g.mission.democharge && g.mission.democharge.state === 'fill' ? '#hbgame' : null),
@@ -110,7 +110,7 @@ export class Tutorial {
   // (0.40) o.who: someone on the radio says it (their name in the corner, in their colour)
   card(h, b, o) {
     this.o = o; this.held = true;
-    const k = $('tut-k'), c = o.who && CAST[o.who];
+    const k = $('tut-k'), c = o.who && VOICE[o.who];
     k.textContent = c ? c.name : o.n ? t('tut.step', { n: o.n, of: this.steps.length }) : t('tut.tag');
     k.style.color = c ? c.col : '';
     this.el.classList.toggle('say', !!c); if (c) this.el.style.setProperty('--cc', c.col);

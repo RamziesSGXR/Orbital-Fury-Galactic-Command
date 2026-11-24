@@ -388,7 +388,7 @@ tr.sum td { color: #fff; border-top: 1px solid var(--line); font-weight: 700; }
 .dr .cs { flex: 1; min-width: 0; color: #e6fff0; }
 .dr .sh { flex: none; color: var(--g-dim); font-size: 10px; max-width: 42%; text-align: right; overflow-wrap: anywhere; }   /* the ship in full (it wraps, it is not cut off) */
 
-.dr.hd { background: rgba(255, 74, 74, 0.05); }
+.dr.vg { background: rgba(255, 74, 74, 0.05); }
 .d-none { padding: 8px 2px; color: var(--g-dim); font-size: 12px; }
 #d-extra { text-align: left; margin: 8px 0 4px; line-height: 1.7; }
 #d-why { text-align: center; }
@@ -681,7 +681,7 @@ body.touch #info-body { max-height: 56vh; }
 #bigmap { width: min(88vw, 64vh, 640px); height: auto; aspect-ratio: 1; border: 1px solid var(--line); border-radius: 4px; cursor: crosshair; touch-action: none; background: #020a05; }
 .map-key { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 14px; font-size: 11px; color: var(--g-dim); letter-spacing: 0.06em; }
 .map-key .k-rad { color: #ff9a7a; opacity: 0.8; } .map-key .k-side { color: #7fd8ff; } .map-key .k-bcn { color: #6fc0ff; }
-.map-key .k-hd { color: #3da9ff; } .map-key .k-en { color: #ff7a5a; } .map-key .k-obj { color: var(--yellow); } .map-key .k-base { color: #c8d2cc; } .map-key .k-poi { color: #ffb020; } .map-key .k-boss { color: #ff8a6a; }
+.map-key .k-vg { color: #3da9ff; } .map-key .k-en { color: #ff7a5a; } .map-key .k-obj { color: var(--yellow); } .map-key .k-base { color: #c8d2cc; } .map-key .k-poi { color: #ffb020; } .map-key .k-boss { color: #ff8a6a; }
 #minimap { cursor: pointer; }
 @media (max-height: 520px) { #bigmap { width: min(70vh, 88vw); } .mapcard { padding: 8px 12px; } .mapcard .fine, .map-key { display: none; } }
 
@@ -1085,12 +1085,12 @@ body.touch #objective { right: calc(max(8px, env(safe-area-inset-right)) + var(-
 #tac-drops { display: none; gap: 6px; order: 20; }
 .tdb { min-height: 30px; padding: 3px 12px; font-size: 11px; letter-spacing: 0.12em; background: rgba(3, 16, 9, 0.95); }
 .tdb i { font-style: normal; display: inline-block; margin-left: 4px; transition: transform 0.15s; }
-body.tac-hd #td-hd, body.tac-sf #td-sf { color: var(--yellow); border-color: var(--yellow); }
-body.tac-hd #td-hd i, body.tac-sf #td-sf i { transform: rotate(180deg); }
+body.tac-vg #td-vg, body.tac-sf #td-sf { color: var(--yellow); border-color: var(--yellow); }
+body.tac-vg #td-vg i, body.tac-sf #td-sf i { transform: rotate(180deg); }
 body.tac-open #tac-drops { display: flex; }
 body.tac-open #tray { bottom: calc(var(--tch) + 18px); }
 body.tac-open #tray .tray-x, body.tac-open #tray #sqpanel, body.tac-open #tray #squads, body.tac-open #tray #orders { display: none !important; }
-body.tac-open.tac-hd #tray #sqpanel { display: block !important; }
+body.tac-open.tac-vg #tray #sqpanel { display: block !important; }
 body.tac-open.tac-sf #tray #squads, body.tac-open.tac-sf #tray #orders { display: grid !important; }
 body.tac-open #dock, body.tac-open #touch-ctl { display: none !important; }
 body.tac-open #toast { bottom: calc(var(--tch) + 22px); }
@@ -1393,7 +1393,7 @@ body.ls-warn #view { filter: sepia(0.35) saturate(1.4) hue-rotate(-12deg); trans
 #cine-text p.last { color: var(--yellow); font-size: clamp(16px, 2.6vw, 24px); letter-spacing: 0.16em; }
 #cine.outro #cine-text p.last { color: #ffb070; }
 @keyframes cineIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-/* (0.27) a campaign chapter's briefing and debrief: the chapter at the top, and each line with who says it */
+/* (0.27) the cinematic's heading, and each line with who says it */
 #cine .cine-head { position: absolute; left: max(18px, env(safe-area-inset-left)); top: max(16px, env(safe-area-inset-top)); display: flex; flex-direction: column; gap: 2px; pointer-events: none; max-width: calc(100vw - 150px); }
 #cine .cine-head.hidden { display: none; }
 #cine .cine-head small { color: var(--yellow); font-size: 11px; letter-spacing: 0.3em; }
@@ -1403,14 +1403,6 @@ body.ls-warn #view { filter: sepia(0.35) saturate(1.4) hue-rotate(-12deg); trans
 #cine-text p.say .unit { font-size: 10.5px; letter-spacing: 0.14em; color: #9aa6b2; text-transform: uppercase; }
 #cine-text p.say .line { margin-top: 6px; }
 @media (max-height: 520px) { #cine-text p.say .unit { display: none; } #cine-text p.say .line { margin-top: 2px; } }
-/* (0.27) the campaign's cast on the radio */
-#notices .nt.cast { --nc: var(--cc, var(--yellow)); }
-#notices .nt.cast b { color: var(--cc, var(--yellow)); letter-spacing: 0.12em; margin-right: 6px; font-weight: 700; }
-/* (0.27) the campaign screen's roster */
-.cp-cast { list-style: none; margin: 10px 0 4px; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 6px 14px; }
-.cp-cast li { display: flex; flex-direction: column; border-left: 2px solid var(--cc, var(--yellow)); padding: 2px 0 2px 8px; }
-.cp-cast b { color: var(--cc, var(--yellow)); letter-spacing: 0.12em; font-size: 12px; }
-.cp-cast small { color: var(--g-dim, #9aa6b2); font-size: 11px; }
 #cine-skip { position: absolute; right: max(14px, env(safe-area-inset-right)); top: max(14px, env(safe-area-inset-top)); min-height: 34px; padding: 4px 14px; font-size: 11px; opacity: 0.75; }
 @media (prefers-reduced-motion: reduce) { #cine-text p { animation: none; } }
 @media (max-height: 520px) { #cine-text { bottom: 14px; } #cine-text p { font-size: 13px; line-height: 1.4; } #cine-text p.last { font-size: 16px; } }
@@ -1458,13 +1450,13 @@ body.touch.lefty { --rowL: calc(var(--L) + var(--callw) + var(--g)); --rowR: var
 #hud #dock > #dk-tac .n { font-size: 11px; color: #7fd8ff; letter-spacing: 0.16em; }
 body:not(.touch) #hud #dock > #dk-tac .n::after { content: ' TAB'; font-size: 9px; color: var(--g-dim); letter-spacing: 0.04em; }
 /* the Vanguards' chips: a letter and a bar each */
-#hud #dock > #dk-hd { flex: 0 1 auto; max-width: 230px; padding: 3px 6px; }
-#dk-hd .hdc { display: flex; gap: 6px; height: 100%; align-items: center; }
-#dk-hd .hc { --tc: var(--g); display: flex; flex-direction: column; justify-content: center; gap: 3px; width: 36px; }
-#dk-hd .hc b { font-size: 11px; line-height: 1; color: var(--tc); }
-#dk-hd .hc i { display: block; height: 5px; background: rgba(var(--g-rgb), 0.14); border-radius: 2px; overflow: hidden; }
-#dk-hd .hc u { display: block; height: 100%; width: 0; background: var(--tc); text-decoration: none; }
-#dk-hd .hc.hurt u { background: var(--red); } #dk-hd .hc.drop b, #dk-hd .hc.wait b { opacity: 0.6; } #dk-hd .hc.lost { opacity: 0.35; }
+#hud #dock > #dk-vg { flex: 0 1 auto; max-width: 230px; padding: 3px 6px; }
+#dk-vg .vgc { display: flex; gap: 6px; height: 100%; align-items: center; }
+#dk-vg .hc { --tc: var(--g); display: flex; flex-direction: column; justify-content: center; gap: 3px; width: 36px; }
+#dk-vg .hc b { font-size: 11px; line-height: 1; color: var(--tc); }
+#dk-vg .hc i { display: block; height: 5px; background: rgba(var(--g-rgb), 0.14); border-radius: 2px; overflow: hidden; }
+#dk-vg .hc u { display: block; height: 100%; width: 0; background: var(--tc); text-decoration: none; }
+#dk-vg .hc.hurt u { background: var(--red); } #dk-vg .hc.drop b, #dk-vg .hc.wait b { opacity: 0.6; } #dk-vg .hc.lost { opacity: 0.35; }
 body.touch #hud #fire-btn { position: absolute; zoom: 1; right: var(--R); left: auto; bottom: var(--B); top: auto; width: var(--callw); height: var(--callw); font-size: 14px; }
 body.touch.lefty #hud #fire-btn { right: auto; left: var(--L); }
 
@@ -1520,7 +1512,7 @@ body.tac-open.touch #hud #fire-btn { display: none; }
   body.touch.lefty #hud #dock { left: calc((var(--L) + var(--callw) + var(--g)) / var(--u)); right: calc(var(--R) / var(--u)); }
   body.touch.lefty { --rowL: var(--L); }
   body.touch #hud #fire-btn { bottom: calc(var(--B) + var(--wbh) * var(--u) + var(--g)); }
-  body.touch #hud #dock > #dk-hd { display: none; }
+  body.touch #hud #dock > #dk-vg { display: none; }
   #tactical .tc-body { grid-template-columns: minmax(0, 1fr) !important; gap: 6px; scroll-padding-top: 48px; }
   #tactical .tc-tabs { grid-column: 1; grid-row: 1; flex-direction: row; z-index: 2; background: rgba(3, 16, 9, 0.96); padding-bottom: 3px; }
   #tactical .tct { flex: 1 1 0; min-width: 0; height: 38px; }
@@ -1607,7 +1599,7 @@ body:not(.touch) #hud #weapons .wbtn { max-width: 118px; padding: 3px 6px 3px; }
 body:not(.touch) #hud .wbtn .sub { margin-top: 1px; font-size: 11px; }
 body:not(.touch) #hud .wbtn .bar { height: 3px; }
 body:not(.touch) #hud #dock > .dkb { max-width: 170px; padding: 1px 8px; }
-body:not(.touch) #hud #dock > #dk-hd { padding: 2px 6px; }
+body:not(.touch) #hud #dock > #dk-vg { padding: 2px 6px; }
 body:not(.touch) #hud .dkb .n { font-size: 7.5px; } body:not(.touch) #hud .dkb .s { margin-top: 0; font-size: 10.5px; }
 body:not(.touch) #hud .tl-btns .btn { min-height: 30px; padding: 2px 9px; font-size: 10.5px; }
 body:not(.touch) #hud .bigcr { padding: 0 8px 2px; } body:not(.touch) #hud .bigcr b { font-size: 22px; } body:not(.touch) #hud .bigcr span { font-size: 11px; }
@@ -2081,8 +2073,8 @@ body.rts.lay-phone.lay-port #hud #tactical #squads .sqb { min-width: 34px; }
 
 /* ---------- (0.24) title screen: the view from the Fire-Support Ship ---------- */
 #title-bg { position: fixed; inset: 0; width: 100%; height: 100%; display: none; pointer-events: none; }
-body:has(#s-title.on) #title-bg, body:has(#s-campaign.on) #title-bg { display: block; }
-#s-title, #s-campaign { background: radial-gradient(ellipse 70% 80% at 28% 40%, rgba(1, 4, 6, 0.55), transparent 70%); padding: 0; }
+body:has(#s-title.on) #title-bg { display: block; }
+#s-title { background: radial-gradient(ellipse 70% 80% at 28% 40%, rgba(1, 4, 6, 0.55), transparent 70%); padding: 0; }
 .ttl {
   position: relative; width: min(1180px, 100%); margin: auto; padding: clamp(18px, 4vh, 44px) clamp(16px, 4vw, 48px) 18px;
   display: grid; gap: 18px clamp(24px, 5vw, 72px); text-align: left;
@@ -2130,7 +2122,6 @@ body:has(#s-title.on) #title-bg, body:has(#s-campaign.on) #title-bg { display: b
 .tt-item:focus-visible { outline: 1px solid var(--yellow); outline-offset: 2px; }
 .tt-item.hidden { display: none; }
 .tt-menu .tt-resume { border-left-color: var(--yellow); color: var(--yellow); font-weight: 700; display: block; }
-.tt-dev { color: #ffb020; border: 1px solid rgba(255, 176, 32, 0.7); }
 .tt-item.fb { color: var(--g); }
 .tt-item.fb:hover, .tt-item.fb:focus-visible { color: var(--yellow); }
 .tt-foot { grid-area: foot; max-width: 760px; }
@@ -2189,32 +2180,13 @@ body:has(#s-title.on) #title-bg, body:has(#s-campaign.on) #title-bg { display: b
   .tt-play { min-height: 46px; margin-top: 4px; font-size: 18px; }
   .tt-menu { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
   .tt-menu .tt-item, .tt-deploy .tt-item { min-height: 40px; padding: 7px 10px; font-size: 11.5px; align-items: center; }
-  .tt-menu .tt-resume, .tt-menu #btn-campaign, .tt-menu .tut-b { grid-column: 1 / -1; }
+  .tt-menu .tt-resume, .tt-menu .tut-b { grid-column: 1 / -1; }
   .tt-item small { display: none; }
   .tt-item i { font-size: 8.5px; padding: 0 4px; }
   .tt-foot .fb-note { display: none; }
   .tt-foot .fine, .tt-foot .ver { margin: 2px 0; font-size: 10px; }
 }
 
-/* ---------- (0.24) the campaign ---------- */
-.cp { width: min(820px, 100%); margin: auto; padding: clamp(18px, 4vh, 40px) clamp(16px, 4vw, 40px); text-align: left; position: relative; }
-.cp-back { margin-bottom: 18px; }
-.cp-title { margin: 0 0 14px; font-size: clamp(30px, 6vw, 54px); letter-spacing: 0.06em; color: var(--yellow); line-height: 1; }
-.cp-dev { margin: 0 0 18px; padding: 12px 14px 12px 16px; border-left: 3px solid #ffb020; background: rgba(40, 26, 0, 0.7); color: #ffd58a; font-size: 13px; line-height: 1.5; }
-.cp-dev b { color: #ffb020; letter-spacing: 0.12em; margin-right: 6px; }
-.cp-story { background: rgba(2, 12, 7, 0.78); border: 1px solid var(--line); padding: 16px 18px; margin-bottom: 18px; }
-.cp-story p { margin: 0 0 10px; color: var(--g); line-height: 1.65; font-size: 14px; max-width: 68ch; }
-.cp-story p:last-child { margin-bottom: 0; }
-.cp-chs { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; counter-reset: ch; }
-.cp-ch { counter-increment: ch; display: grid; grid-template-columns: 54px 1fr auto; align-items: center; gap: 4px 14px; padding: 12px 14px; background: rgba(2, 12, 7, 0.78); border: 1px solid var(--line); }
-.cp-ch::before { content: counter(ch); grid-row: 1 / span 2; font: 800 34px/1 var(--mono); color: var(--yellow); text-align: center; }
-.cp-ch.cp-end { counter-increment: none; } .cp-ch.cp-end::before { content: '\221E'; }     /* (0.41) the war goes on: endless */
-.cp-ch.locked::before { color: var(--g-dim); }
-.cp-ch h3 { margin: 0; font-size: 15px; letter-spacing: 0.14em; color: #fff; }
-.cp-ch p { margin: 0; grid-column: 2; font-size: 12px; color: var(--g-dim); line-height: 1.5; }
-.cp-ch .btn, .cp-ch .cp-lock { grid-column: 3; grid-row: 1 / span 2; }
-.cp-lock { font-size: 11px; letter-spacing: 0.14em; color: var(--g-dim); border: 1px dashed var(--line); padding: 8px 10px; }
-@media (max-width: 560px) { .cp-ch { grid-template-columns: 40px 1fr; } .cp-ch .btn, .cp-ch .cp-lock { grid-column: 1 / -1; grid-row: auto; justify-self: start; } .cp-ch::before { font-size: 26px; } }
 
 /* ---------- (0.24) milestone splash ---------- */
 .ms-splash { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; background: rgba(0, 3, 2, 0.72); }
@@ -2275,26 +2247,11 @@ body.rts #hud #topmid #ask.anchored::after { content: ''; position: absolute; le
 body.rts #hud #topmid #ask.anchored.below::after { bottom: auto; top: -7px; border: 7px solid transparent; border-top: 0; border-bottom-color: rgba(125, 255, 155, 0.6); }
 
 /* ---------- (0.27.1) desktop: use the whole screen ----------
-   On a computer screen (no touch, 1000 px and wider) the menus spread out instead of making you scroll: the campaign in two
-   columns (the story and the command on the left, the chapters on the right), settings and controls in two columns, the
+   On a computer screen (no touch, 1000 px and wider) the menus spread out instead of making you scroll: settings and
+   controls in two columns, the
    debrief and the end of the tutorial with the after action report beside the results, the armory's list in two columns, and
    the field manual, mission info and credits in columns across a wider panel. Phones and tablets keep their own layout. */
 @media (min-width: 1000px) {
-  body:not(.touch) #s-campaign { justify-content: center; }
-  body:not(.touch) .cp {
-    width: min(1400px, 100%); margin: auto; padding: clamp(14px, 3vh, 34px) clamp(18px, 3vw, 44px);
-    display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(0, 1fr); column-gap: clamp(20px, 2.6vw, 40px); align-content: center;
-    grid-template-areas: "back back" "eye eye" "title title" "story dev" "story chs";
-    grid-template-rows: auto auto auto auto 1fr;
-  }
-  body:not(.touch) .cp-back { grid-area: back; justify-self: start; margin-bottom: clamp(8px, 1.6vh, 18px); }
-  body:not(.touch) .cp > .tt-eyebrow { grid-area: eye; }
-  body:not(.touch) .cp-title { grid-area: title; font-size: clamp(30px, min(4.4vw, 7vh), 60px); margin-bottom: clamp(10px, 2vh, 18px); }
-  body:not(.touch) .cp-dev { grid-area: dev; margin-bottom: 12px; font-size: 12.5px; }
-  body:not(.touch) .cp-story { grid-area: story; margin-bottom: 0; align-self: start; }
-  body:not(.touch) .cp-story p { max-width: none; }
-  body:not(.touch) .cp-chs { grid-area: chs; align-content: start; }
-  body:not(.touch) .cp-cast { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
 
   body:not(.touch) #s-settings .card { width: min(96vw, 1180px); }
   body:not(.touch) #settings-body { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 36px; }
@@ -2332,13 +2289,8 @@ body.rts #hud #topmid #ask.anchored.below::after { bottom: auto; top: -7px; bord
   body:not(.touch) .cols li, body:not(.touch) .cols p, body:not(.touch) .cols .man-sec ul { break-inside: avoid; }
 }
 @media (min-width: 1000px) and (max-height: 820px) {
-  body:not(.touch) .cp-story { padding: 12px 16px; }
-  body:not(.touch) .cp-story p { font-size: 13px; line-height: 1.55; margin-bottom: 8px; }
-  body:not(.touch) .cp-ch { padding: 9px 12px; }
   body:not(.touch) .set-row { padding: 7px 2px; }
   body:not(.touch) .tt-mark { font-size: clamp(52px, min(9.4vw, 15vh), 132px); }
-  body:not(.touch) .cp { padding-top: 10px; padding-bottom: 10px; }
-  body:not(.touch) .cp-back { margin-bottom: 8px; }
   body:not(.touch) #s-brief .r-line { padding: 5px 4px; min-height: 28px; }
   body:not(.touch) #s-brief .progress { margin: 8px 0 6px; }
   body:not(.touch) #s-brief #b-callins { margin-top: 6px; }
@@ -2429,7 +2381,7 @@ body.lay-phone.lay-land.radio-open #hud #minimap, body.lay-phone.lay-land.radio-
 #s-radio .card { width: min(94vw, 620px); }
 #s-radio #radio-body { text-align: left; max-height: min(60dvh, 560px); overflow-y: auto; margin: 8px 0 12px; padding: 4px 12px 8px; background: rgba(2, 12, 6, 0.55); border: 1px solid rgba(var(--g-rgb), 0.18); border-radius: 6px; }
 #s-radio .rl-body .rl-l { font-size: 13px; }
-/* the pause menu's RADIO LOG: only in the tutorial and the campaign */
+/* the pause menu's RADIO LOG: only in the tutorial */
 #s-pause .radio-only { display: none; }
 body.radio-on #s-pause .radio-only { display: block; grid-column: 1 / -1; }
 
@@ -2445,7 +2397,7 @@ body.rts.lay-phone #hud #selpanel .tc-sel:has(.ts-doors) .ts-h i, body.rts.lay-p
 body.rts.lay-phone #hud #selpanel .tc-sel:has(.ts-doors) .ts-hp { width: 32px; }
 body.rts.lay-phone #hud #selpanel .tsd { padding: 0 6px; letter-spacing: 0.02em; }
 
-/* ---------- (0.37) the title: the tutorial in the big window, QUICK PLAY under CAMPAIGN; NEW OPERATION; the campaign's progress ---------- */
+/* ---------- (0.37) the title: the tutorial in the big window, NEW OPERATION ---------- */
 .tt-tut .tt-h { display: flex; align-items: center; gap: 10px; }
 .tt-new { font-style: normal; font-size: 10px; letter-spacing: 0.12em; padding: 2px 7px; border-radius: 2px; background: var(--yellow); color: #111; }
 .tt-tut-n { margin: 0 0 8px; text-align: left; font: 800 clamp(22px, 2.6vw, 30px)/1.05 var(--mono); letter-spacing: 0.02em; color: var(--yellow); }
@@ -2460,20 +2412,12 @@ body.rts.lay-phone #hud #selpanel .tsd { padding: 0 6px; letter-spacing: 0.02em;
 .lockcard .diff-h { text-align: left; }
 .lockcard .diff-note { max-width: none; text-align: left; min-height: 0; }
 .lockcard .diff.hidden, #lock-run.hidden { display: none; }
-.cp-prog { margin: -6px 0 14px; font-size: 12px; letter-spacing: 0.14em; color: #7dff9b; }
-.cp-ch .cp-btns { grid-column: 3; grid-row: 1 / span 3; display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
-.cp-ch .cp-btns .btn, .cp-ch .cp-btns .cp-lock { grid-column: auto; grid-row: auto; }
-.cp-ch.done::before { color: #7dff9b; }
-.cp-ch.run { border-color: rgba(255, 230, 0, 0.6); }
-.cp-ok { font-style: normal; font-size: 9.5px; letter-spacing: 0.12em; padding: 1px 6px; margin-left: 6px; color: #7dff9b; border: 1px solid rgba(125, 255, 155, 0.6); vertical-align: 2px; }
-.cp-ch p.cp-teach { color: #9fd3ff; font-size: 11.5px; }
-@media (max-width: 560px) { .cp-ch .cp-btns { grid-column: 1 / -1; grid-row: auto; flex-direction: row; flex-wrap: wrap; } }
 @media (max-width: 600px) and (min-height: 521px) {
   .tt-tut-n { font-size: 22px; margin-bottom: 4px; }
   .tt-tut-p { font-size: 12px; margin-bottom: 8px; line-height: 1.45; }
   .tt-menu { grid-template-columns: repeat(6, minmax(0, 1fr)); }
   .tt-menu .tt-item { grid-column: span 2; }
-  .tt-menu .tt-resume, .tt-menu #btn-campaign, .tt-menu #btn-play { grid-column: 1 / -1; }
+  .tt-menu .tt-resume, .tt-menu #btn-play { grid-column: 1 / -1; }
   .lockcard { padding: 14px 12px 12px; }
   .lockcard h2 { margin-bottom: 4px; }
   .lock-sub { margin-bottom: 8px; font-size: 12px; }
@@ -2482,7 +2426,7 @@ body.rts.lay-phone #hud #selpanel .tsd { padding: 0 6px; letter-spacing: 0.02em;
 @media (max-height: 520px) and (min-width: 600px) {
   .tt-tut-p { font-size: 11.5px; margin-bottom: 8px; }
   .tt-tut-n { font-size: 20px; margin-bottom: 4px; }
-  .tt-menu .tt-resume, .tt-menu #btn-campaign, .tt-menu #btn-play { grid-column: 1 / -1; }
+  .tt-menu .tt-resume, .tt-menu #btn-play { grid-column: 1 / -1; }
 }
 /* NEW OPERATION on a computer: the choices on the left, how an operation works and START on the right, all on one screen */
 @media (min-width: 900px) {
@@ -2509,17 +2453,6 @@ body.rts.lay-phone #hud #selpanel .tsd { padding: 0 6px; letter-spacing: 0.02em;
 .cr-sp h4 { color: #ff9fd0; }
 .btn.sp:not(.tt-item) { border-color: rgba(255, 159, 208, 0.7); color: #ffb8dc; }
 @media (max-width: 600px) and (min-height: 521px) { .tt-menu .tt-item { grid-column: span 3; } }
-/* (0.37) the campaign on a computer: the progress line under the notice, five chapters that start at the top (the screen scrolls
-   when they do not all fit, so BACK is always in reach), each a little tighter */
-@media (min-width: 1000px) {
-  body:not(.touch) .cp { align-content: start; grid-template-areas: "back back" "eye eye" "title title" "story dev" "story prog" "story chs"; grid-template-rows: auto auto auto auto auto 1fr; }
-  body:not(.touch) .cp-prog { grid-area: prog; margin: 0 0 10px; }
-  body:not(.touch) .cp-ch { padding: 9px 12px; gap: 2px 12px; }
-  body:not(.touch) .cp-ch p { font-size: 11.5px; line-height: 1.45; }
-  body:not(.touch) .cp-ch p.cp-teach { font-size: 11px; }
-}
-#s-campaign { overflow-y: auto; }
-@media (min-width: 1000px) { body:not(.touch) #s-campaign { justify-content: safe center; } }
 
 /* (0.39) placing a build: the turn button, and ring / line for the bastions. On a computer the bar shows them with the keys (the
    click on the map still puts the build down), so PLACE and CANCEL are left to the touch screen. */

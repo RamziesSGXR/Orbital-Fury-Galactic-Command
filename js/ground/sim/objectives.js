@@ -163,7 +163,7 @@ export function objectiveGoal(m) {
   return { o, x: going ? o.dx : o.vip.x, y: going ? o.dy : o.vip.y, stop: going ? 12 : 8 };
 }
 
-// A wave at an objective site: the enemy reinforces it the faction's own way (a bug hole, a dropship, a war barge). These come in
+// A wave at an objective site: the enemy reinforces it the faction's own way (a burrow, a dropship, a war barge). These come in
 // where everyone can see them. extra adds groups when the pressure is high.
 function wave(m, cx, cy, rmin, rmax, extra = 0, D = null, held = 0) {
   const count = D ? (held >= D.sides3At ? D.sides3 : D.sides) : reinfCount(m, 'site');
@@ -195,7 +195,7 @@ export function siege(m, o, x, y, dt, mul = 1) {
 function siteNoise(m, o, x, y, dt) { o.noiseT = (o.noiseT || 0) - dt; if (o.noiseT <= 0) { o.noiseT = C.noise.siteEvery; m.siteNoise(x, y); } }
 
 function squadAt(m, x, y, r) {
-  for (const a of m.hdAlive) if (!a.mounted && (a.x - x) ** 2 + (a.y - y) ** 2 <= r * r) return true;
+  for (const a of m.vgAlive) if (!a.mounted && (a.x - x) ** 2 + (a.y - y) ** 2 <= r * r) return true;
   return false;
 }
 
@@ -290,7 +290,7 @@ function updateVip(m, o, dt) {
     siege(m, o, v.x, v.y, dt);
     if (o.pickT >= (o.picked ? V.regrabSec : V.pickSec)) {     // getting the VIP out takes time; picking them up again does not
       let best = null, bd = Infinity;
-      for (const a of m.hdAlive) { if (a.mounted) continue; const d2 = (a.x - v.x) ** 2 + (a.y - v.y) ** 2; if (d2 < bd) { bd = d2; best = a; } }
+      for (const a of m.vgAlive) { if (a.mounted) continue; const d2 = (a.x - v.x) ** 2 + (a.y - v.y) ** 2; if (d2 < bd) { bd = d2; best = a; } }
       if (best) { v.carrier = best; v.state = 'carried'; o.state = 'carry'; o.picked = true; m.radio(COMMS.vipHeld, 'vipheld', 0); m.emit('obj_state', { type: 'vip', state: 'carried' }); }
     }
     return;

@@ -22,11 +22,11 @@ const RK_MULT = M(1, 1, 0.85, 0.2);
 const MINE_MULT = M(1, 1, 0.7, 0.1), AT_MULT = M(1, 1, 1.25, 0.5);     // (0.23: anti-tank mines are made for heavies)
 const MECH_GAT = M(1, 0.7, 0.25, 0.05);
 const MECH_RKT = M(1, 1, 0.7, 0.2);
-const DOG_MULT = M(1, 0.7, 0.2, 0.02);
+const DRONE_MULT = M(1, 0.7, 0.2, 0.02);
 const LRV_MULT = M(1, 1, 0.95, 0.1);   // the manned gun is heavy-penetration
 // Which sound each call-in weapon makes (see audio.js).
 const SND = { mg_autoturret: 'mg', gat_autoturret: 'gat', ac_autoturret: 'ac', rk_autoturret: 'rocket', mortar: 'mortar', arcpylon: 'zap',
-  recoilless: 'rocket', autocannon: 'ac', flamethrower: 'flame', railgun: 'rail', mg43: 'mg', spear: 'missile', eat: 'rocket' };
+  atl: 'rocket', autocannon: 'ac', flamethrower: 'flame', coil: 'rail', lmg: 'mg', guided: 'missile', oneshot: 'rocket' };
 const FOCUS_R = 30;
 const mul = () => C.callin.dmgMul;
 
@@ -35,7 +35,7 @@ export function initCallin(m, loadout, keepOrder = false) {
   const rng = m.rng, groups = {}, order = [];
   const ships = shipNames(m.crng, C.callin.groups);
   const ids = dealGroups(loadout, m.seed, keepOrder);
-  m.teams = ids.map((list, i) => ({ i, letter: LETTERS[i], color: TEAM_COLOR[i], ship: ships[i], ids: list, hd: null, n: 0,
+  m.teams = ids.map((list, i) => ({ i, letter: LETTERS[i], color: TEAM_COLOR[i], ship: ships[i], ids: list, vg: null, n: 0,
     respawnAt: 0, pod: false, lastDeath: null, callAt: 0, deaths: 0 }));
   ids.forEach((list, ti) => list.forEach((id) => {
     groups[id] = { id, def: CALLINS[id], count: 1, slots: [], readyAt: rng.range(C.callin.startDelaySec[0], C.callin.startDelaySec[1]), assets: [], uses: 0, team: ti };
@@ -49,11 +49,11 @@ export function initCallin(m, loadout, keepOrder = false) {
 }
 
 // Who calls this call-in: the Vanguard who owns its group, or nobody if that Vanguard is down.
-export function callinOwner(m, g) { const t = m.teams[g.team]; return t && t.hd && !t.hd.dead ? t.hd : null; }
+export function callinOwner(m, g) { const t = m.teams[g.team]; return t && t.vg && !t.vg.dead ? t.vg : null; }
 export function callinOnline(m, id) {
   const g = m.callin.groups[id];
   if (!g) return false;
-  return g.def.shared ? m.hdAlive.length > 0 : !!callinOwner(m, g);
+  return g.def.shared ? m.vgAlive.length > 0 : !!callinOwner(m, g);
 }
 
 // Fraction of the way back to ready for HUD cells (1 = ready).
@@ -80,7 +80,7 @@ const inThrow = (ctx, x, y) => { const d2 = (x - ctx.cx) ** 2 + (y - ctx.cy) ** 
 // What one caller can see and needs. owner is a Vanguard; null means the whole squad (for squad-wide items).
 function buildCtx(m, owner) {
   const cx = owner ? owner.x : m.hx, cy = owner ? owner.y : m.hy, sq = m.squad;
-  const zone = owner ? owner.zone - 5 : (m.hdAlive.length ? Math.min(...m.hdAlive.map((a) => a.zone)) - 5 : 120);
+  const zone = owner ? owner.zone - 5 : (m.vgAlive.length ? Math.min(...m.vgAlive.map((a) => a.zone)) - 5 : 120);
   // How far out a call can reach: a bit past what the caller can see, so a pack is hit on the way in and not on top of the squad,
   // and never past the caller's own strike zone.
   // (0.47) and never past a throw (plus the lead a pack on the move is given)
@@ -137,7 +137,7 @@ const spreadR = (d) => Math.max(14, Math.min(40, blastOf(d)));
 
 // Where something moving at (vx, vy) will be after `lead` seconds: the call itself takes C.callin.callSec, then the callin's own
 // delay. Capped, so a strike is never thrown at a guess far from anything.
-// (0.72, Ramzies: "vanguard doesn't seem to know how to use their stratagems") The whole lead was taken: a heavy walking at 6 m/s
+// (0.72, Ramzies: "vanguard doesn't seem to know how to use their call-ins") The whole lead was taken: a heavy walking at 6 m/s
 // was aimed 30 m ahead of itself, and it stopped to fire long before it got there, so the precision strikes and the rail
 // landed on empty ground. A thing already in a fight (it has a target) and close is aimed at nearly where it stands; anything
 // else is given half its lead, never more than a third of the old cap, and never closer to the caller than it can come.
@@ -218,14 +218,14 @@ function canCall(m, g) {
   if (!d.shared && !owner) return false;
   switch (d.k) {
     case 'weapon': return !owner.sw && !owner.mounted && !(owner.mech && owner.mech.hp > 0);
-    case 'turret': case 'mines': case 'shield': case 'dog': {
+    case 'turret': case 'mines': case 'shield': case 'drone': {
       if (g.assets.length >= g.count) {      // a new one replaces the oldest, so only call when that is worth it
         const old = g.assets[0], f = old.maxAmmo ? old.ammo / old.maxAmmo : old.maxShield ? old.shield / old.maxShield : old.life ? (old.until - t) / old.life : 1;
         if (f > 0.4 && t - old.born < 50) return false;
       }
       return true;
     }
-    case 'lrv': return !m.lrv && m.hdAlive.some((a) => !a.mounted);
+    case 'lrv': return !m.lrv && m.vgAlive.some((a) => !a.mounted);
     case 'mech': return !owner.mech && !owner.mounted;
     case 'jump': return t >= m.buff.jumpUntil;
     default: return true;
@@ -266,7 +266,7 @@ function choose(m, g, ctx) {
       if (ctx.near > 0 || ctx.goalDist < 260) return null;
       return placeSpot(m, ctx, 12);
     case 'resupply': {
-      for (const a of m.hdAlive) {
+      for (const a of m.vgAlive) {
         if (a.stims <= 1 || a.gren <= 0) return { x: ctx.cx, y: ctx.cy };
         if (a.sw && a.sw.left < a.sw.ammo * 0.3) return { x: ctx.cx, y: ctx.cy };
         if (a.mech && a.mech.hp > 0 && (a.mech.gat < C.callin.mech.gatAmmo * 0.3 || a.mech.rkt <= 3)) return { x: ctx.cx, y: ctx.cy };
@@ -281,7 +281,7 @@ function choose(m, g, ctx) {
 // ---------------------------------------------------------------- calling
 function execute(m, g, tgt, ctx) {
   const d = g.def, t = m.t, team = m.teams[g.team];
-  const caller = callinOwner(m, g) || m.hdAlive[0];
+  const caller = callinOwner(m, g) || m.vgAlive[0];
   m.stats.callinCalls++; m.stats.callinBy[g.id] = (m.stats.callinBy[g.id] || 0) + 1;
   m.radio(COMMS.callinCall(d.name), 'callin', 1.2);
   bark(m, caller, 'callin', d.name, true);
@@ -293,7 +293,7 @@ function execute(m, g, tgt, ctx) {
   switch (d.k) {
     case 'strike': strikeAt(m, { ...d, id: g.id, delay: d.delay + cs }, tgt, { ox: ctx.cx, oy: ctx.cy, by: 'callin', friendly: false, dmgMul: mul(), team: team.i }); break;
     case 'zone': queueZone(m, d.zone, tgt.x, tgt.y, t + d.delay + cs, d.delay + cs, d, 'callin', team.i); break;
-    case 'turret': case 'mines': case 'shield': case 'dog': case 'weapon': case 'mech': case 'lrv': {
+    case 'turret': case 'mines': case 'shield': case 'drone': case 'weapon': case 'mech': case 'lrv': {
       const drop = (d.k === 'lrv' ? C.callin.lrv.dropSec : d.k === 'mech' ? C.callin.mech.dropSec : 3.5) + cs;
       m.queue.push({ at: t + drop, type: d.k, sid: g.id, team: g.team, x: tgt.x, y: tgt.y });
       m.markers.push({ type: 'pod', x: tgt.x, y: tgt.y, r: 6, start: t, end: t + drop, id: g.id, team: g.team });
@@ -386,14 +386,14 @@ function land(m, it) {
     placeAsset(m, it.sid, newAsset(m, 'mines', it.sid, it.x, it.y, { mines, left: d.n, until: t + d.life, life: d.life, d, name: d.name, scan: 0 }));
   } else if (it.type === 'shield') {
     placeAsset(m, it.sid, newAsset(m, 'shield', it.sid, it.x, it.y, { hp: 60, maxHp: 60, shield: d.shield, maxShield: d.shield, r: d.r, until: t + d.life, life: d.life, name: d.name }));
-  } else if (it.type === 'dog') {
-    const D = C.callin.dog;
-    placeAsset(m, it.sid, newAsset(m, 'dog', it.sid, it.x, it.y, { hp: D.hp, maxHp: D.hp, until: t + D.life, life: D.life, cool: 0.5, name: d.name, r: 2.2 }));
+  } else if (it.type === 'drone') {
+    const D = C.callin.drone;
+    placeAsset(m, it.sid, newAsset(m, 'drone', it.sid, it.x, it.y, { hp: D.hp, maxHp: D.hp, until: t + D.life, life: D.life, cool: 0.5, name: d.name, r: 2.2 }));
   } else if (it.type === 'weapon') {
-    const owner = m.teams[it.team] && m.teams[it.team].hd;
+    const owner = m.teams[it.team] && m.teams[it.team].vg;
     let best = owner && !owner.dead && !owner.sw && !owner.mounted && !(owner.mech && owner.mech.hp > 0) ? owner : null, bd = Infinity;
     if (!best) {
-      for (const a of m.hdAlive) {
+      for (const a of m.vgAlive) {
         if (a.sw || a.mounted || (a.mech && a.mech.hp > 0)) continue;
         const dd = (a.x - it.x) ** 2 + (a.y - it.y) ** 2;
         if (dd < bd) { bd = dd; best = a; }
@@ -405,10 +405,10 @@ function land(m, it) {
       m.notice(tr('n.pickedUp', { who: m.tag(best), name: d.name.toUpperCase() }), 'info');
     }
   } else if (it.type === 'mech') {
-    const owner = m.teams[it.team] && m.teams[it.team].hd;
+    const owner = m.teams[it.team] && m.teams[it.team].vg;
     let best = owner && !owner.dead && !owner.mech && !owner.mounted ? owner : null, bd = Infinity;
     if (!best) {
-      for (const a of m.hdAlive) {
+      for (const a of m.vgAlive) {
         if (a.mech || a.mounted) continue;
         const dd = (a.x - it.x) ** 2 + (a.y - it.y) ** 2 + (a.sw ? 900 : 0);
         if (dd < bd) { bd = dd; best = a; }
@@ -427,7 +427,7 @@ function land(m, it) {
     const v = newAsset(m, 'vehicle', it.sid, it.x, it.y, { hp: F.hp, maxHp: F.hp, until: t + F.life, life: F.life, seats: [], cool: 0.5, name: d.name, r: 5, face: m.squad.dir || 0, wreck: false, gunner: null });
     placeAsset(m, it.sid, v);
     // Nobody rides the vehicle and a mech suit at once: a pilot climbs out of the suit to board.
-    const near = m.hdAlive.filter((a) => !a.mounted && Math.hypot(a.x - it.x, a.y - it.y) <= 70).sort((p, q) => Math.hypot(p.x - it.x, p.y - it.y) - Math.hypot(q.x - it.x, q.y - it.y));
+    const near = m.vgAlive.filter((a) => !a.mounted && Math.hypot(a.x - it.x, a.y - it.y) <= 70).sort((p, q) => Math.hypot(p.x - it.x, p.y - it.y) - Math.hypot(q.x - it.x, q.y - it.y));
     for (const a of near) {
       if (v.seats.length >= F.seats) break;
       if (a.mech) {
@@ -444,14 +444,14 @@ function land(m, it) {
     bark(m, v.seats[0], 'lrv', '', true);
   } else if (it.type === 'resupply') {
     restock(m);
-    for (const a of m.hdAlive) {
+    for (const a of m.vgAlive) {
       if (a.sw) a.sw.left = a.sw.ammo;
       if (a.mech) { a.mech.gat = C.callin.mech.gatAmmo; a.mech.rkt = C.callin.mech.rktAmmo; a.mech.hp = Math.min(a.mech.maxHp, a.mech.hp + 250); }
     }
     for (const s of m.assets) {
       if (s.dead) continue;
       if (s.kind === 'turret') s.ammo = Math.min(s.maxAmmo, s.ammo + s.maxAmmo * 0.6);
-      if (s.kind === 'dog') s.hp = s.maxHp;
+      if (s.kind === 'drone') s.hp = s.maxHp;
     }
     m.emit('asset_new', { kind: 'supply', sid: it.sid, x: it.x, y: it.y });
   }
@@ -556,12 +556,12 @@ function minesStep(m, s, dt) {
   if (s.left <= 0 || t >= s.until) destroyAsset(m, s, 'spent');
 }
 
-function dogStep(m, s, dt) {
-  const D = C.callin.dog, t = m.t;
+function droneStep(m, s, dt) {
+  const D = C.callin.drone, t = m.t;
   if (t >= s.until) { destroyAsset(m, s, 'spent'); return; }
   // Follow the nearest Vanguard at a short distance.
   let best = null, bd = Infinity;
-  for (const a of m.hdAlive) { const dd = (a.x - s.x) ** 2 + (a.y - s.y) ** 2; if (dd < bd) { bd = dd; best = a; } }
+  for (const a of m.vgAlive) { const dd = (a.x - s.x) ** 2 + (a.y - s.y) ** 2; if (dd < bd) { bd = dd; best = a; } }
   if (best) {
     const tx = best.x - 5, ty = best.y + 5, dx = tx - s.x, dy = ty - s.y, d = Math.hypot(dx, dy);
     if (d > 3) { const st = Math.min(9 * dt, d); s.x += (dx / d) * st; s.y += (dy / d) * st; }
@@ -571,7 +571,7 @@ function dogStep(m, s, dt) {
   const e = m.eGrid.nearest(s.x, s.y, D.range);
   if (!e) { s.cool = 0.2; return; }
   s.cool = D.every;
-  fireShot(m, s, e, { dmg: D.dmg * mul(), acc: 0.8, splash: 0, mult: DOG_MULT }, 'callin', 't', 'dog');
+  fireShot(m, s, e, { dmg: D.dmg * mul(), acc: 0.8, splash: 0, mult: DRONE_MULT }, 'callin', 't', 'drone');
 }
 
 function vehicleStep(m, s, dt) {
@@ -613,7 +613,7 @@ function updateAssets(m, dt) {
     switch (s.kind) {
       case 'turret': turretStep(m, s, dt); break;
       case 'mines': minesStep(m, s, dt); break;
-      case 'dog': dogStep(m, s, dt); break;
+      case 'drone': droneStep(m, s, dt); break;
       case 'vehicle': vehicleStep(m, s, dt); break;
       case 'shield': if (m.t >= s.until || s.shield <= 0) destroyAsset(m, s, 'spent'); break;
       default:
@@ -641,7 +641,7 @@ function pickWeaponTarget(m, a, w) {
   return best;
 }
 
-// A lock-on weapon (the Spear, the Expendable Anti-Tank) needs a moment on its target before it will fire.
+// A lock-on weapon (the guided missile, the one-shot rocket) needs a moment on its target before it will fire.
 function lockedOn(m, w, e, dt) {
   if (w.lockE !== e) { w.lockE = e; w.lockT = 0; }
   w.lockT += dt;
@@ -651,7 +651,7 @@ function lockedOn(m, w, e, dt) {
 
 function updateWeapons(m, dt) {
   const sq = m.squad, k = C.callin.swMul ?? mul();      // (0.19: the support weapons have their own multiplier)
-  for (const a of m.hdAlive) {
+  for (const a of m.vgAlive) {
     if (a.mounted) continue;
     const ok = (e) => e.drop || sq.free || e.g.state === 'hunt';
     if (a.sw) {
@@ -744,14 +744,14 @@ export function updateCallin(m, dt) {
   updateWeapons(m, dt);
   updateZones(m, dt);
   for (let i = m.assets.length - 1; i >= 0; i--) if (m.assets[i].dead) m.assets.splice(i, 1);
-  if (m.over || !m.hdAlive.length) return;
+  if (m.over || !m.vgAlive.length) return;
   S.scanT -= dt;
   if (S.scanT > 0) return;
   S.scanT = 0.4;
   // (0.26) every Vanguard keeps his own clock: each can call one of his own call-ins in the same moment as the others (no
   // squad-wide turn to wait for); the squad-wide items still go one at a time. (S.callAt holds every call: scripted moments, tests)
   if (t < S.callAt) return;
-  // (0.72, Ramzies: "vanguard doesn't seem to know how to use their stratagems") Each Vanguard weighs everything he has ready
+  // (0.72, Ramzies: "vanguard doesn't seem to know how to use their call-ins") Each Vanguard weighs everything he has ready
   // and calls the one that does the most good now (scoreCall), not the first in his list that would do: the big guns for the
   // big packs, the armour-breakers for armour, the light ones for the small fights. A call-in that sits ready while he fights
   // counts its wait (needOf lowers the pack it waits for).
@@ -762,7 +762,7 @@ export function updateCallin(m, dt) {
     if (d.shared ? t < (S.sharedAt || 0) : t < team.callAt) continue;
     if (!canCall(m, g)) continue;
     const key = d.shared ? 's' : g.team;
-    const ctx = ctxs[key] || (ctxs[key] = buildCtx(m, d.shared ? null : team.hd));
+    const ctx = ctxs[key] || (ctxs[key] = buildCtx(m, d.shared ? null : team.vg));
     if (ctx.engaged || ctx.hunt) g.waited = (g.waited || 0) + 0.4;
     const tgt = choose(m, g, ctx);
     if (!tgt) continue;

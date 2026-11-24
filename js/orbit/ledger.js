@@ -138,9 +138,9 @@ export function installLedger(Station) {
             : this.cratesPerMin() < 1 && this.staff.hauler < this.homes.hauler ? 'Freighters are not being unloaded fast enough: raise Supply\'s coffee to put more haulers on duty.'
               : this.cratesPerMin() < 1 ? 'More trade is the cure: another Docking Port, or a Cargo Store nearer the berths.'
                 : L.people.residents && this.tax < 12 ? `Raise the colonist tax (now ${this.tax}%), or build a Market for them to spend in.` : 'Take down what the station does not need, or bring in more trade with another berth.';
-        add('ministry', 'credits', this.credits < 0 ? `The station is ${r1(this.credits)} CR in debt and losing ${r1(c.net)} CR a minute.` : `The station is losing ${r1(c.net)} CR a minute: ${r1(c.income)} in, ${r1(c.spend)} out. The credits run out in ${c.runway < 1 ? 'under a day' : `${Math.round(c.runway)} days`}.`, fix, true);
+        add('office', 'credits', this.credits < 0 ? `The station is ${r1(this.credits)} CR in debt and losing ${r1(c.net)} CR a minute.` : `The station is losing ${r1(c.net)} CR a minute: ${r1(c.income)} in, ${r1(c.spend)} out. The credits run out in ${c.runway < 1 ? 'under a day' : `${Math.round(c.runway)} days`}.`, fix, true);
       }
-      else if (c.net < -0.5) add('ministry', 'net', `The station spends ${r1(c.net)} CR a minute more than it earns${c.runway !== null && c.runway < 40 ? `: the credits last ${Math.round(c.runway)} more days` : ''}.`, !fb ? noDock || 'Trade is what pays for a station: build a Docking Port and a Cargo Bay.' : c.idle.n ? `${c.idle.n} ${c.idle.n > 1 ? 'parts stand' : 'part stands'} empty or broken and cost ${r1(c.idle.v)} CR a minute.` : 'Build what earns before what costs: berths, cargo stores and residents pay; everything else is upkeep.');
+      else if (c.net < -0.5) add('office', 'net', `The station spends ${r1(c.net)} CR a minute more than it earns${c.runway !== null && c.runway < 40 ? `: the credits last ${Math.round(c.runway)} more days` : ''}.`, !fb ? noDock || 'Trade is what pays for a station: build a Docking Port and a Cargo Bay.' : c.idle.n ? `${c.idle.n} ${c.idle.n > 1 ? 'parts stand' : 'part stands'} empty or broken and cost ${r1(c.idle.v)} CR a minute.` : 'Build what earns before what costs: berths, cargo stores and residents pay; everything else is upkeep.');
       // -- trade: berths standing idle, or too few, or a berth that needs a room before it is one
       const T = L.trade;
       if (T.berths.spare >= 2) add('traffic', 'idle', `The station has ${T.berths.n} freighter berths and the trade keeps about ${T.berths.occ < 1 ? 'one' : Math.round(T.berths.occ)} busy.`, `The sector sends about ${Math.round(T.demand.total)} crates a minute, enough for ${T.needBerths} berth${T.needBerths > 1 ? 's' : ''}. More berths do not bring more ships: reputation, standing and a Spire or Operations Centre do. Each idle Docking Port still costs ${C.parts.dockport.up} CR a minute.`);
@@ -164,13 +164,13 @@ export function installLedger(Station) {
       if (n) for (const i of n.items) {
         if (i.ok) continue;
         const short = `${i.label}: ${Math.min(i.have, i.need)} of ${i.need}.`, pre = `For ${n.name} status`;
-        if (i.label === 'Residents') add('ministry', 'tier-residents', `${pre}: ${i.need} residents (now ${i.have}).`, L.people.free ? L.people.why : `There ${L.people.beds === 1 ? 'is' : 'are'} ${L.people.beds} bed${L.people.beds === 1 ? '' : 's'}. Fit Quarters into a Habitation Module: each room holds ${C.rooms.quarters.beds}.`);
-        else if (i.label === 'Capability') add('ministry', 'tier-cap', `${pre}: capability ${i.need} (now ${i.have}).`, 'Every crate, ship, resident, defence and member of staff adds to it, and happy factions multiply it.');
-        else if (i.label === 'Power supply') add('ministry', 'tier-power', `${pre}: ${i.need} power made (now ${i.have}).`, 'Build Solar Arrays or a Reactor Core.');
+        if (i.label === 'Residents') add('office', 'tier-residents', `${pre}: ${i.need} residents (now ${i.have}).`, L.people.free ? L.people.why : `There ${L.people.beds === 1 ? 'is' : 'are'} ${L.people.beds} bed${L.people.beds === 1 ? '' : 's'}. Fit Quarters into a Habitation Module: each room holds ${C.rooms.quarters.beds}.`);
+        else if (i.label === 'Capability') add('office', 'tier-cap', `${pre}: capability ${i.need} (now ${i.have}).`, 'Every crate, ship, resident, defence and member of staff adds to it, and happy factions multiply it.');
+        else if (i.label === 'Power supply') add('office', 'tier-power', `${pre}: ${i.need} power made (now ${i.have}).`, 'Build Solar Arrays or a Reactor Core.');
         else if (i.label === 'Platform readiness') { const g = this._gunneryTarget(); add('gunnery', 'tier-ready', `${pre}: the platform ${i.need}% ready (now ${i.have}%).`, g.why); }
-        else if (i.label === 'Crates traded') add('ministry', 'tier-crates', `${pre}: ${i.need} crates traded (now ${i.have}).`, fb ? 'Keep the berths busy: haulers and a Cargo Store nearby move crates faster.' : 'Build a Docking Port and a Cargo Bay.');
-        else if (i.label === 'Morale') add('ministry', 'tier-morale', `${pre}: morale ${i.need} (now ${i.have}).`, 'Bars, markets, parks and lower tax raise it.');
-        else add('ministry', `tier-${i.label}`, `${pre}: ${short}`, 'Paint the room into a part with a free slot (select the part, then EDIT ROOMS).');
+        else if (i.label === 'Crates traded') add('office', 'tier-crates', `${pre}: ${i.need} crates traded (now ${i.have}).`, fb ? 'Keep the berths busy: haulers and a Cargo Store nearby move crates faster.' : 'Build a Docking Port and a Cargo Bay.');
+        else if (i.label === 'Morale') add('office', 'tier-morale', `${pre}: morale ${i.need} (now ${i.have}).`, 'Bars, markets, parks and lower tax raise it.');
+        else add('office', `tier-${i.label}`, `${pre}: ${short}`, 'Paint the room into a part with a free slot (select the part, then EDIT ROOMS).');
       }
       return out;
     },

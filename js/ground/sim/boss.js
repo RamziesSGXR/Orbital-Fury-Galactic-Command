@@ -59,7 +59,7 @@ export function spawnBoss(m, opts = {}) {
   return e;
 }
 
-// (0.55) A super heavy brought in by a reinforcement: a bot dropship carries one, or one digs out of a bug hole. The chance per call
+// (0.55) A super heavy brought in by a reinforcement: a Foundry dropship carries one, or one digs out of a burrow. The chance per call
 // (CONFIG.boss.reinf) starts at level `from` and climbs perLevel a level; for the bots it also climbs with every dropship shot down
 // this mission past botsAfter (shooting them down from afar no longer stems the tide for free). Never while a super heavy is on the
 // field, never once the dropship is on its way, at most maxPer a mission and gapSec apart.
@@ -89,7 +89,7 @@ export function reinfHeavy(m, x, y, hurt = 1) {
 
 export function updateBoss(m, dt) {
   const t = m.t, B = C.boss;
-  if (m.bossPlan && !m.boss && m.phase !== 'over' && m.hdAlive.length && (t >= m.bossPlan.at || m.objDone)) {
+  if (m.bossPlan && !m.boss && m.phase !== 'over' && m.vgAlive.length && (t >= m.bossPlan.at || m.objDone)) {
     if (spawnBoss(m)) m.bossPlan = null; else m.bossPlan.at = t + 5;
   }
   // acid in the air (the titan's spit): lands, splashes

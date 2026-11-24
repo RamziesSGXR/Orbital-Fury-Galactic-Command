@@ -1,5 +1,5 @@
 // One mission = one game loop on one map. DOM-free and deterministic for a given seed.
-// The player runs the destroyer: a UAV scan, orbital call-ins from the armory, and Infantry pods and orders.
+// The player runs the ship: a UAV scan, orbital call-ins from the armory, and Infantry pods and orders.
 // The four Vanguards (one per call-in group) fight on their own and are reinforced automatically from a pool of lives.
 import { buildCostMul } from '../data/perks.js';
 import { solids, keepOut } from './solids.js';
@@ -120,7 +120,7 @@ export class Mission {
     // The session's difficulty (difficulty.js): applied before anything reads the numbers it scales. 10 when not given.
     this.difficulty = clampAny(opts.difficulty ?? LEVELS);
     this.noDefenders = opts.defenders === false;      // (0.18: tests turn the Infantry already at the site off)
-    this.forceJam = opts.jammer === true;              // (0.38) a campaign chapter wants a jammer site on the map
+    this.forceJam = opts.jammer === true;              // (0.38) a jammer site on the map, asked for
     this.noHbSides = opts.demochargeSides === false;     // (0.38) ...or none of the Demolition Charge's side jobs yet (no jammer; towers fall to guns)
     applyDifficulty(this.difficulty);
     this.reward = reward(this.difficulty);     // credits and score multiplier
@@ -161,13 +161,13 @@ export class Mission {
     // The player's kit and wallet belong to the session; buying in a mission changes them for good.
     this.kit = opts.kit || newKit();
     this.wallet = opts.wallet || newWallet();
-    this.names = { ships: [], hd: [], ...(opts.names || {}) };
+    this.names = { ships: [], vg: [], ...(opts.names || {}) };
     this.roster = opts.roster || null;     // (GC 0.69) the Vanguards' roles and personalities, by group (core/roster.js squad())
     this.ins = { pay: 0, sign: 0 };       // (GC 0.69) the insurance owed on the Vanguards lost so far, and their replacements' contracts
 
     this.stats = {
       kills: { L: 0, M: 0, H: 0 }, killsPlayer: 0, killsAlly: 0, bases: 0, lostH: 0, lostS: 0, ff: 0, shots: 0, orbCalls: 0, uavs: 0,
-      hdCalls: 0, infantryCalls: 0, despawned: 0, pois: 0, breaches: 0,
+      vgCalls: 0, infantryCalls: 0, despawned: 0, pois: 0, breaches: 0,
       dmg: { player: 0, squad: 0, callin: 0, enemy: 0 }, callinCalls: 0, callinBy: {}, mechs: 0, lrvs: 0, wipes: 0, objectives: 0, podKills: 0,
     };
     this.sc = { kills: 0, allyKills: 0, bases: 0, pois: 0, breaches: 0, objective: 0, timeBonus: 0, extraction: 0, lives: 0, survivor: 0, ff: 0, deaths: 0, wipes: 0, drops: 0, civ: 0, boss: 0, sides: 0, clear: 0 };
@@ -176,7 +176,7 @@ export class Mission {
     this.combo = { mult: 1, last: -99 };
     this.deaths = [];     // the death report: every Vanguard and Infantry who fell, in order
 
-    this.enemies = []; this.groups = []; this.allies = []; this.alive = []; this.hdAlive = []; this.infantryAlive = [];
+    this.enemies = []; this.groups = []; this.allies = []; this.alive = []; this.vgAlive = []; this.infantryAlive = [];
     this.shells = []; this.beams = []; this.bridgeQ = []; this.markers = []; this.pods = []; this.dships = []; this.incoming = []; this.uavs = []; this.relays = []; this.spotters = []; this.bubbles = []; this.evading = false; this.democharge = null;
     this.assets = []; this.zones = []; this.civs = [];
     this.crates = []; this.arty = []; this.posts = []; this.trenches = [];   // supply crates Infantry deploy into defences; artillery cannons; everything Infantry built (posts.js)
@@ -199,11 +199,11 @@ export class Mission {
     this.dmgMul = Math.min(C.ramp.dmgCap * dBase, dBase * (1 + C.ramp.dmg * this.W));
     this.bag = [];
     this.ups = { lives: 0, policy: 0, network: 0, ...(opts.ups || {}) };     // (GC 0.69) the STORE's upgrades for the ground (core/roster.js)
-    this.hd = { lives: maxLives() + (this.ups.lives | 0), max: maxLives() + (this.ups.lives | 0) };    // a full set of lives every mission
+    this.vg = { lives: maxLives() + (this.ups.lives | 0), max: maxLives() + (this.ups.lives | 0) };    // a full set of lives every mission
     this.wiped = false;
     this.infantry = initInfantry();
     this.support = { spawnT: 0, lastSpawn: -99, scanT: 0, near: 0 };
-    this.chat = { t: 0, hd: 0, infantry: 0, moveAt: -99, heavyAt: -99, infantryAt: -99, wasEngaged: false, lastState: '' };
+    this.chat = { t: 0, vg: 0, infantry: 0, moveAt: -99, heavyAt: -99, infantryAt: -99, wasEngaged: false, lastState: '' };
     this.noticeAt = { infantry: -99 };
     this.nuke = null;
     // The hour of the drop (cosmetic: it sets the light and the tint of the map, see render/sky.js). opts.tod forces it.
@@ -316,7 +316,7 @@ export class Mission {
     // The player's kit: UAV, orbital slots and the nuke.
     initPlayer(this);
 
-    // One Vanguard per group drops in from the destroyer.
+    // One Vanguard per group drops in from the ship.
     this.teams.forEach((tm, i) => {
       const ang = (i / this.teams.length) * Math.PI * 2 + Math.PI / 4;
       tm.pod = true;
@@ -380,7 +380,7 @@ export class Mission {
     // Tower's does not pull the drop onto itself: it lands where it was called, anywhere within the beacon's reach of the tower.
     else if (bc) { /* where it was called */ }
     else if (!atLz && !this.inZone(x, y, -5)) return this._deny('nocoverage', COMMS.noCoverage);
-    // (0.39) troopers aboard the destroyer (picked up) come down first; new ones only as far as there is room
+    // (0.39) troopers aboard the ship (picked up) come down first; new ones only as far as there is room
     const room = Math.max(0, st.max - infantryHeld(this)) + sf.reserve.length;
     if (room <= 0) return this._deny('full');
     const n = Math.min(st.drop, room), back = Math.min(n, sf.reserve.length);
@@ -433,7 +433,7 @@ export class Mission {
     if (!ORDER_KINDS.includes(kind)) return { ok: false, reason: 'kind' };
     const sq = targetSquads(this).filter((q) => q.n > 0);
     if (!sq.length) return this._deny('noinfantry');
-    if (kind === 'escort' && !this.hdAlive.length) return this._deny('nohd');
+    if (kind === 'escort' && !this.vgAlive.length) return this._deny('nohd');
     x = aoX(this, x, 20); y = aoY(this, y, 20);
     for (const q of sq) setSquadOrder(this, q, kind, x, y);
     this.radio(COMMS[ORDER_RADIO[kind]], 'infantry' + kind, 1);
@@ -777,10 +777,10 @@ export class Mission {
 
   // Names typed in the menus: a blank ship keeps the random one, a blank Vanguard name goes back to the code (B4).
   setNames(names) {
-    this.names = { ships: [], hd: [], ...(names || {}) };
+    this.names = { ships: [], vg: [], ...(names || {}) };
     this.teams.forEach((tm, i) => {
       if (this.names.ships[i]) tm.ship = this.names.ships[i];
-      if (tm.hd && !tm.hd.dead) tm.hd.name = this.names.hd[i] || '';
+      if (tm.vg && !tm.vg.dead) tm.vg.name = this.names.vg[i] || '';
     });
   }
 
@@ -828,7 +828,7 @@ export class Mission {
   // What an ally is called on screen: a typed Vanguard name, the deployment code (B4), or an Infantry rank and surname.
   tag(a) { return a ? (a.name || a.code || '?') : '?'; }
   shipOf(i) { const t = this.teams[i]; return t ? t.ship : ''; }
-  slotTag(team) { return this.names.hd[team.i] || `${team.letter}${team.n + 1}`; }
+  slotTag(team) { return this.names.vg[team.i] || `${team.letter}${team.n + 1}`; }
 
   earn(kind, amt, x, y) {
     if (!(amt > 0)) return;
@@ -876,11 +876,11 @@ export class Mission {
     };
     if (type === 'H') {
       let ti = o.team;
-      if (ti === undefined || ti < 0) ti = this.teams.findIndex((tm) => !tm.hd || tm.hd.dead);
+      if (ti === undefined || ti < 0) ti = this.teams.findIndex((tm) => !tm.vg || tm.vg.dead);
       if (ti < 0) ti = 0;
       const tm = this.teams[ti];
-      tm.n++; tm.hd = a; tm.pod = false;
-      a.team = ti; a.code = `${tm.letter}${tm.n}`; a.name = this.names.hd[ti] || '';
+      tm.n++; tm.vg = a; tm.pod = false;
+      a.team = ti; a.code = `${tm.letter}${tm.n}`; a.name = this.names.vg[ti] || '';
       initKit(this, a); applyRoster(this, a, ti);     // (GC 0.69) the group's role and personality from the STORE's roster
     } else {
       const st = infantryStats(this.kit);
@@ -926,7 +926,7 @@ export class Mission {
     return n < max;
   }
   _refreshAlive() {
-    this.alive.length = 0; this.hdAlive.length = 0; this.infantryAlive.length = 0;
+    this.alive.length = 0; this.vgAlive.length = 0; this.infantryAlive.length = 0;
     let sx = 0, sy = 0, hx = 0, hy = 0;
     const zx = C.sight.strikeBonus + zoneExtra(this.kit), vx = zoneExtra(this.kit);
     const tr = this.terrain;
@@ -941,9 +941,9 @@ export class Mission {
         a.zone = Math.min(a.vision, (a.zone0 ?? a.sight0) * sm + C.sight.playerBonus + zx);     // (0.47) the strike zone sits inside the view
       }
       this.alive.push(a); sx += a.x; sy += a.y;
-      if (a.type === 'H') { this.hdAlive.push(a); hx += a.x; hy += a.y; } else if (!a.pinned) this.infantryAlive.push(a);   // pinned Infantry are not the player's (yet)
+      if (a.type === 'H') { this.vgAlive.push(a); hx += a.x; hy += a.y; } else if (!a.pinned) this.infantryAlive.push(a);   // pinned Infantry are not the player's (yet)
     }
-    if (this.hdAlive.length) { this.hx = hx / this.hdAlive.length; this.hy = hy / this.hdAlive.length; this.cx = this.hx; this.cy = this.hy; }
+    if (this.vgAlive.length) { this.hx = hx / this.vgAlive.length; this.hy = hy / this.vgAlive.length; this.cx = this.hx; this.cy = this.hy; }
     else if (this.alive.length) { this.cx = sx / this.alive.length; this.cy = sy / this.alive.length; }
   }
   countAlly(type) { let n = 0; for (const a of this.allies) if (!a.dead && a.type === type && !a.pinned) n++; return n; }
@@ -998,7 +998,7 @@ export class Mission {
   }
   // The same, but only around living Vanguards (and UAV circles): the squad's own call-ins need this.
   inHdZone(x, y, extra = 0) {
-    for (const a of this.hdAlive) {
+    for (const a of this.vgAlive) {
       const r = a.zone + extra, dx = a.x - x, dy = a.y - y;
       if (dx * dx + dy * dy <= r * r) return true;
     }
@@ -1084,9 +1084,9 @@ export class Mission {
     a.dead = true; this.dirtyA = true;
     const isH = a.type === 'H', t = this.t, tm = isH ? this.teams[a.team] : null;
     if (isH) {
-      this.stats.lostH++; this.sc.deaths += C.score.hdDeath;
+      this.stats.lostH++; this.sc.deaths += C.score.vgDeath;
       this.ins.pay += C.stars.payout * (a.payMul || 1); this.ins.sign += C.stars.contract * (a.signMul || 1);     // (GC 0.69: a famous face costs more)
-      if (tm) { if (tm.hd === a) tm.hd = null; tm.deaths++; tm.lastDeath = { x: a.x, y: a.y }; tm.respawnAt = t + C.vanguards.reinforceSec; }
+      if (tm) { if (tm.vg === a) tm.vg = null; tm.deaths++; tm.lastDeath = { x: a.x, y: a.y }; tm.respawnAt = t + C.vanguards.reinforceSec; }
     } else this.stats.lostS++;
     if (a.sw) a.sw = null;
     if (a.mech) a.mech = null;
@@ -1097,11 +1097,11 @@ export class Mission {
       this.sc.ff += isH ? C.score.ffVanguard : C.score.ffInfantry;
       this.radio(COMMS.friendly, 'ff', 3);
     } else if (isH) {
-      this.radio(COMMS.hdDown, 'downH', 1);
+      this.radio(COMMS.vgDown, 'downH', 1);
     } else this.radio(COMMS.infantryDown, 'downS', 6);
     if (isH) {
       this.notice(tr('n.kia', { who: this.tag(a), cause }) + (tm ? '  ' + tm.ship : ''), 'bad');
-      if (this.hd.lives <= 0) this.radio(COMMS.noLives, 'nolives', 8);
+      if (this.vg.lives <= 0) this.radio(COMMS.noLives, 'nolives', 8);
     } else if (t - this.noticeAt.infantry > 1.2) {
       this.noticeAt.infantry = t;
       this.notice(tr('n.kia', { who: this.tag(a), cause }), 'dim');
@@ -1155,8 +1155,8 @@ export class Mission {
   // The four Vanguards come back by themselves, one pod per missing group, each costing one life.
   _podSpot() {
     const rng = this.rng;
-    if (this.hdAlive.length) {
-      const h = this.hdAlive[rng.int(this.hdAlive.length)];
+    if (this.vgAlive.length) {
+      const h = this.vgAlive[rng.int(this.vgAlive.length)];
       const ang = this.squad.dir + Math.PI + rng.range(-0.9, 0.9), d = rng.range(26, 40);
       return { x: aoX(this, h.x + Math.cos(ang) * d, 20), y: aoY(this, h.y + Math.sin(ang) * d, 20) };
     }
@@ -1190,26 +1190,26 @@ export class Mission {
   }
   _reinforce() {
     if (this.over) return;
-    const t = this.t, hd = this.hd, H = C.vanguards;
+    const t = this.t, vg = this.vg, H = C.vanguards;
     if (boardingNow(this)) return;    // nobody drops in while the dropship is loading
-    if (!this.hdAlive.length) {
+    if (!this.vgAlive.length) {
       if (!this.wiped && !this.pods.some((p) => p.type === 'H' && p.start)) {
         this.wiped = true;
-        if (hd.lives > 0) { this.stats.wipes++; this.sc.wipes += C.score.wipe; this.radio(COMMS.hdWipe, 'hdWipe', 0); }
+        if (vg.lives > 0) { this.stats.wipes++; this.sc.wipes += C.score.wipe; this.radio(COMMS.vgWipe, 'vgWipe', 0); }
         noteWipe(this);       // (0.40) a side task they were wiped at is left alone for a while
       }
     } else this.wiped = false;
     // (0.26) a reinforcement brings every dead Vanguard down together: once one is due, the others who are down come with him
-    const dead = (tm) => !(tm.hd && !tm.hd.dead) && !tm.pod;
+    const dead = (tm) => !(tm.vg && !tm.vg.dead) && !tm.pod;
     const due = this.teams.some((tm) => dead(tm) && t >= tm.respawnAt);
     for (const tm of this.teams) {
-      if (!due || !dead(tm) || hd.lives <= 0) continue;
-      hd.lives--;
-      const p = this._podSpot(), alone = !this.hdAlive.length;
+      if (!due || !dead(tm) || vg.lives <= 0) continue;
+      vg.lives--;
+      const p = this._podSpot(), alone = !this.vgAlive.length;
       tm.pod = true;
       this.pods.push({ type: 'H', team: tm.i, n: 1, landAt: t + (alone ? H.initialDropSec : H.dropDelaySec), x: p.x, y: p.y });
-      this.stats.hdCalls++;
-      this.notice(tr('n.calledIn', { who: this.slotTag(tm), ship: tm.ship, n: hd.lives }), 'warn');
+      this.stats.vgCalls++;
+      this.notice(tr('n.calledIn', { who: this.slotTag(tm), ship: tm.ship, n: vg.lives }), 'warn');
       this.emit('pod_call', { type: 'H', x: p.x, y: p.y, n: 1, team: tm.i });
     }
   }
@@ -1219,11 +1219,11 @@ export class Mission {
     this.over = true; this.outcome = outcome; this.phase = 'over';
     const s = C.score;
     if (outcome === 'victory') {
-      this.sc.lives = s.perLifeLeft * this.hd.lives;
+      this.sc.lives = s.perLifeLeft * this.vg.lives;
       if (this.extracted) { this.sc.extraction = s.extraction; this.earn('extraction', C.credits.extraction); }
       this.earn('extraction', C.credits.perMission);
     }
-    // (0.39) the destroyer leaves orbit (the Vanguards away, or the time up): Infantry still on the ground are left behind, lost like
+    // (0.39) the ship leaves orbit (the Vanguards away, or the time up): Infantry still on the ground are left behind, lost like
     // any other (and replaced at a cost); those taken up by a pickup are safe aboard
     const aboardS = this.infantry.reserve.length;
     if (!this.ls && (outcome === 'victory' || outcome === 'timeout')) {
@@ -1271,7 +1271,7 @@ export class Mission {
       score: Math.max(0, Math.round(raw)), raw: Math.round(raw), breakdown: { ...sc }, base: Math.round(this._baseScore()), difficulty: this.difficulty, reward: this.reward, opBonus: this.opBonus, bump: this.bump, bumpPay: this.bumpPay,
       kills: this.stats.killsPlayer + this.stats.killsAlly, stats: { ...this.stats }, bossName: this.boss ? this.boss.name : null,
       bases: this.stats.bases, baseTotal: this.baseTotal, pois: this.stats.pois, poiTotal: this.pois.length, breaches: this.stats.breaches, sides: (this.sides || []).filter((q) => q.done).length, sideTotal: (this.sides || []).length, fullClear: !!(this.plan && this.plan.full),
-      livesLeft: this.hd.lives, livesMax: this.hd.max, survivorsH: this.countAlly('H') + (this.extraction.boardedH || 0), survivorsS: (this.stats.leftS !== undefined || ((this.outcome === 'victory' || this.outcome === 'timeout') && !this.ls) ? 0 : this.countAlly('S')) + this.infantry.reserve.length + (this.extraction.boardedS || 0), leftS: this.stats.leftS || 0,
+      livesLeft: this.vg.lives, livesMax: this.vg.max, survivorsH: this.countAlly('H') + (this.extraction.boardedH || 0), survivorsS: (this.stats.leftS !== undefined || ((this.outcome === 'victory' || this.outcome === 'timeout') && !this.ls) ? 0 : this.countAlly('S')) + this.infantry.reserve.length + (this.extraction.boardedS || 0), leftS: this.stats.leftS || 0,
       civSaved: this.stats.civSaved || 0, civLost: this.stats.civLost || 0,
       lastStand: this.ls ? { lifted: this.ls.lifted, held: Math.round(this.ls.holdT), fallen: this.ls.fallen, pop: this.ls.pop } : null,
       objectives: this.objectives.map((o) => ({ type: o.type, done: o.done })), objDone: this.objDone, extracted: this.extracted,
@@ -1452,9 +1452,9 @@ export class Mission {
     // left; Infantry cannot finish the job for them) or the clock runs out, what counts is the primary objective: done, and the
     // mission is complete without extraction and the session goes on; not done, and the mission has failed.
     if (!this.over) {
-      const hdAlive = this.allies.some((a) => !a.dead && a.type === 'H');
+      const vgAlive = this.allies.some((a) => !a.dead && a.type === 'H');
       if (this.ls) { /* the last stand ends only when Mars is glassed (laststand.js) */ }
-      else if (!hdAlive && this.pendingPods('H') === 0 && this.hd.lives <= 0) this.finish(this.objDone ? 'complete' : 'defeat');
+      else if (!vgAlive && this.pendingPods('H') === 0 && this.vg.lives <= 0) this.finish(this.objDone ? 'complete' : 'defeat');
       else if (this.t >= this.limitSec) this.finish(this.objDone ? 'complete' : 'timeout');
     }
   }

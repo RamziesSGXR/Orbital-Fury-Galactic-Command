@@ -88,7 +88,7 @@ export const roamGroups = (m) => Math.min(C.roam.maxGroups + (alertStars(m) >= C
 function roamGoal(m) {
   const ex = m.extraction;
   if (m.phase === 'extract' && ex && ex.x !== undefined) return { x: ex.x, y: ex.y };
-  const L = m.hdAlive.length ? m.hdAlive : m.alive;
+  const L = m.vgAlive.length ? m.vgAlive : m.alive;
   if (!L.length) return { x: m.ao.cx, y: m.ao.cy };
   let x = 0, y = 0; for (const a of L) { x += a.x; y += a.y; }
   return { x: x / L.length, y: y / L.length };
@@ -155,7 +155,7 @@ export function updatePatrols(m, dt) {
   }
   // An intercept: a patrol already waiting just out of sight on the squad's way.
   const ic = m.intercept;
-  if (ic && t >= ic.nextAt && m.hdAlive.length) {
+  if (ic && t >= ic.nextAt && m.vgAlive.length) {
     ic.nextAt = t + Q.interceptSec / Math.max(0.7, Math.sqrt(m.pressure)) * rng.range(0.8, 1.2);
     if (room && (m.squad.goalDist ?? 0) > 80) {
       const p = predict(m, Q.interceptLead), sp = hiddenSpot(m, aoX(m, p.x, 30), aoY(m, p.y, 30), 0, 70);

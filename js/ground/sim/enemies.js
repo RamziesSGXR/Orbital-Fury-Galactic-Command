@@ -84,7 +84,7 @@ export function updateAllies(m, dt) {
         const breakIt = !!tb && Math.hypot(tb.x - a.x, tb.y - a.y) - tb.r <= C.structure.range && (!e || Math.hypot(e.x - a.x, e.y - a.y) > C.structure.breakR);
         if (e && !breakIt && (!H || sq.free || e.g.state === 'hunt')) {
           const pf = G, slow = a.sw ? 1.8 : 1, cmd = !H && m.kitCmd && a.cmdUntil > m.t ? m.kitCmd : null;     // (0.50) near a Squad Leader
-          if (pick.block && m.rng.next() >= C.hd.fire.collateral) {
+          if (pick.block && m.rng.next() >= C.vg.fire.collateral) {
             a.atk += 0.3;                           // a friendly is in the way: hold, look again in a moment
           } else {
             a.atk += pf.burst * slow / (a.inPost && a.inPost.what === 'foxhole' ? C.build.foxhole.rof : 1) / (cmd ? cmd.rof : 1);   // shooting from a foxhole: faster
@@ -97,7 +97,7 @@ export function updateAllies(m, dt) {
             // taking the shot anyway: some collateral is expected
             if (pick.block) {
               m.stats.collateral = (m.stats.collateral || 0) + 1;
-              hurtAlly(m, pick.block, prof.dmg * C.hd.fire.ffMul, 'squad', false, 'friendly');
+              hurtAlly(m, pick.block, prof.dmg * C.vg.fire.ffMul, 'squad', false, 'friendly');
             }
           }
         } else {
@@ -106,11 +106,11 @@ export function updateAllies(m, dt) {
           const bs = breakIt ? tb : !e && !soft ? baseNear(m, a.x, a.y, C.structure.range, H ? m.squad && m.squad.base : null) : null;     // (0.53.4: the base the squad is after first)
           if (soft) {
             a.atk += G.burst;
-            const dmg = G.dmg * (a.dmgMul || 1) * (a.bldMul || 1) * (soft.kind === 'hole' ? C.reinf.bugs.rifle : P.rifleMul) * (m.rng.next() < G.acc ? 1 : 0);   // a bug hole wants explosives
+            const dmg = G.dmg * (a.dmgMul || 1) * (a.bldMul || 1) * (soft.kind === 'hole' ? C.reinf.bugs.rifle : P.rifleMul) * (m.rng.next() < G.acc ? 1 : 0);   // a burrow wants explosives
             m.emit('tracer', { x: a.x, y: a.y, tx: soft.x, ty: soft.y, s: 'a', hit: true, big: false, fl: 0, snd: H ? 'rifle' : 'smg' });
             if (dmg > 0) (soft.isPoi ? m.damagePoi(soft, dmg, 'squad') : m.damageBreach(soft, dmg, 'squad'));
           } else if (bs) {
-            // A base or the citadel: the squad shoots it down itself, so nothing the destroyer can break is out of the Vanguards' reach.
+            // A base or the citadel: the squad shoots it down itself, so nothing the ship can break is out of the Vanguards' reach.
             a.atk += G.burst;
             const hit = m.rng.next() < G.acc, dx = a.x - bs.x, dy = a.y - bs.y, d = Math.hypot(dx, dy) || 1, k = bs.r * 0.7 / d;
             m.emit('tracer', { x: a.x, y: a.y, tx: bs.x + dx * k, ty: bs.y + dy * k, s: 'a', hit, big: false, fl: 0, snd: H ? 'rifle' : 'smg' });
@@ -135,7 +135,7 @@ export function updateAllies(m, dt) {
             a.spT = spec.every * (0.9 + 0.2 * m.rng.next());
             const t = e || soft, prof = { ...ROCKET };
             prof.dmg *= (a.dmgMul || 1) * (m.kitEat || 1);
-            if (e) { fireShot(m, a, e, prof, 'squad', 'a', 'rocket'); if (e.kind) claim(m, a, e, 'rocket', 1, C.hd.stagger.infantryRocket); }
+            if (e) { fireShot(m, a, e, prof, 'squad', 'a', 'rocket'); if (e.kind) claim(m, a, e, 'rocket', 1, C.vg.stagger.infantryRocket); }
             else {
               m.emit('tracer', { x: a.x, y: a.y, tx: t.x, ty: t.y, s: 'a', hit: true, big: true, fl: prof.flight, snd: 'rocket' });
               m.shells.push({ x: t.x, y: t.y, at: m.t + prof.flight, land: m.t + prof.flight, born: m.t, dmg: prof.dmg, splash: prof.splash, mult: prof.mult, by: 'squad', friendly: false, quiet: true });
@@ -159,7 +159,7 @@ export function updateAllies(m, dt) {
             const prof = { ...GRENADE };
             if (a.dmgMul) prof.dmg *= a.dmgMul;
             fireShot(m, a, e, prof, 'squad', 'a', 'grenade');
-            claim(m, a, e, 'gren', spec.near || 6, C.hd.stagger.infantryGren);     // (the group it counted, not just the splash)
+            claim(m, a, e, 'gren', spec.near || 6, C.vg.stagger.infantryGren);     // (the group it counted, not just the splash)
             bark(m, a, 'gren', '');
           } else a.grT = 0.5;
         }
@@ -170,8 +170,8 @@ export function updateAllies(m, dt) {
 
 // (0.40) A target someone else has a rocket (or a Hand Cannon) on right now: a super heavy can take everyone's.
 function shared(m, a, q) {
-  if (q.boss || !m.hdClaims) return false;
-  for (const c of m.hdClaims) {
+  if (q.boss || !m.vgClaims) return false;
+  for (const c of m.vgClaims) {
     if (c.by === a || c.until <= m.t) continue;
     if (c.kind === 'rocket' ? c.e === q : c.kind === 'ult' && (q.x - (c.e && !c.e.dead ? c.e.x : c.x)) ** 2 + (q.y - (c.e && !c.e.dead ? c.e.y : c.y)) ** 2 < c.r * c.r) return true;
   }
@@ -297,7 +297,7 @@ function lizardHeavy(m, e, p, t) {
 }
 // (while charging, the war beast turns to its target: see the charge branch above, which keeps aimA fresh)
 
-// (0.55) The thunder lizard's walking beam, like the destroyer's orbital laser: after a charge (a line to the target, then a ring
+// (0.55) The thunder lizard's walking beam, like the ship's cutting beam: after a charge (a line to the target, then a ring
 // where it will touch down), a column of light comes down `lead` metres short of the target, between it and the thunder lizard, and
 // walks: it steers at the nearest ally at `follow` m/s (it never jumps), burning everyone inside width/2 at dps, for dur seconds.
 // Running across it is how you get out of it; standing still is how you die. e.walk: the beam on the ground (render/world.js).
@@ -349,7 +349,7 @@ function thunderBeam(m, e, p, t, dt) {
 export const bossReach = (m) => C.sight.vanguard * ((m.biome && m.biome.ping) || 1) * (C.boss.reachMul || 1);
 function bossMove(m, e, dt, size) {
   let best = null, bd = Infinity;     // it hunts the Vanguards (anyone else only once they are gone)
-  for (const a of (m.hdAlive.length ? m.hdAlive : m.alive)) { if (a.dead || a.mounted) continue; const d2 = (a.x - e.x) ** 2 + (a.y - e.y) ** 2; if (d2 < bd) { bd = d2; best = a; } }
+  for (const a of (m.vgAlive.length ? m.vgAlive : m.alive)) { if (a.dead || a.mounted) continue; const d2 = (a.x - e.x) ** 2 + (a.y - e.y) ** 2; if (d2 < bd) { bd = d2; best = a; } }
   const gx = best ? best.x : m.hx, gy = best ? best.y : m.hy, d = Math.sqrt(bd);
   // (0.55) every super heavy fights from the edge of the allies' own sight (bossReach): it closes to standOff of that and stops,
   // and backs off when the squad gets well inside it (never on top of them)

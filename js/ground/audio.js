@@ -147,7 +147,7 @@ export class Audio {
   }
   flare(v = 1, pan = 0) { if (!this._ok('flare', 0.4)) return; this._pan = pan; this._tone(900, 2600, 0.6, 0.07 * v, 'sine'); this._noise(0.3, 3000, 1200, 0.08 * v, 'bandpass', 1.5, 0.55); this._pan = 0; }
   dropDown(v = 1, pan = 0) { if (!this.ctx) return; this._pan = pan; this._tone(700, 90, 1.1, 0.12 * v, 'sawtooth'); this._noise(1.4, 1200, 50, 0.6 * v, 'lowpass', 0.7, 0.9); this._tone(70, 25, 1.2, 0.5 * v, 'sine', 0.9); this._pan = 0; }
-  // a critical hit from the destroyer: a short metallic ping; a hit on a heavy's back: a heavier clank
+  // a critical hit from the ship: a short metallic ping; a hit on a heavy's back: a heavier clank
   crit(rear, v = 1, pan = 0) { if (!this._ok('crit', 0.09)) return; this._pan = pan; if (rear) { this._tone(300, 180, 0.12, 0.09 * v, 'square'); this._tone(1200, 800, 0.08, 0.05 * v, 'triangle'); } else this._tone(2400, 1700, 0.09, 0.05 * v, 'triangle'); this._pan = 0; }
   // Resupply: the request, a tap loading the pod, a full compartment, the launch and the landing.
   supAsk() { this._ui(() => { if (!this.ctx) return; [784, 988, 784, 1175].forEach((f, i) => this._tone(f, f, 0.11, 0.08, 'triangle', i * 0.13)); }); }
@@ -408,7 +408,7 @@ const VOICES = {
   flame:   { gap: 0.11, vol: 1, f: (a, v) => a._noise(0.26, 1000, 450, 0.1 * v, 'lowpass', 0.5) },
   rail:    { gap: 0.3,  vol: 1, f: (a, v) => { a._tone(2600, 280, 0.2, 0.16 * v, 'sawtooth'); a._noise(0.14, 3200, 200, 0.2 * v); } },
   missile: { gap: 0.2,  vol: 1, f: (a, v) => { a._noise(0.5, 900, 3400, 0.14 * v, 'highpass', 0.7); a._tone(380, 1100, 0.35, 0.07 * v, 'sawtooth'); } },
-  dog:     { gap: 0.1,  vol: 1, f: (a, v) => a._tone(1900, 650, 0.08, 0.06 * v, 'square') },
+  drone:     { gap: 0.1,  vol: 1, f: (a, v) => a._tone(1900, 650, 0.08, 0.06 * v, 'square') },
   lrvgun:  { gap: 0.07, vol: 1, f: (a, v) => { a._noise(0.08, 1300, 300, 0.16 * v); a._tone(95, 70, 0.07, 0.1 * v, 'square'); } },
   mechgat: { gap: 0.05, vol: 1, f: (a, v) => { a._tone(105, 85, 0.05, 0.08 * v, 'sawtooth'); a._noise(0.05, 1800, 600, 0.1 * v, 'bandpass', 0.9); } },
   mechrkt: { gap: 0.25, vol: 1, f: (a, v) => { a._noise(0.5, 400, 2000, 0.22 * v, 'bandpass', 0.8); a._tone(90, 40, 0.3, 0.26 * v); } },

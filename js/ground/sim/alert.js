@@ -73,7 +73,7 @@ export function updateAlert(m, dt) {
   if (al.spike > 0 && al.quietT > K.quietSec) { al.spike = Math.max(0, al.spike - dt / K.fadeSec); recompute(m, 'fade'); }
   const s = al.stars;
   // reinforcements dropped on the squad
-  if (s >= K.drop && m.hdAlive.length) {
+  if (s >= K.drop && m.vgAlive.length) {
     const every = K.dropEvery / (1 + (s - K.drop));
     if (al.dropAt === Infinity) al.dropAt = m.t + every;
     else if (m.t >= al.dropAt) {
@@ -82,7 +82,7 @@ export function updateAlert(m, dt) {
     }
   } else al.dropAt = Infinity;
   // the super heavy
-  if (s >= K.boss && !al.bossTried && !m.boss && m.hdAlive.length && heavyLevelOk(m)) {
+  if (s >= K.boss && !al.bossTried && !m.boss && m.vgAlive.length && heavyLevelOk(m)) {
     al.bossTried = true;
     if (m.rrng.next() < K.bossChance) spawnBoss(m);
   }

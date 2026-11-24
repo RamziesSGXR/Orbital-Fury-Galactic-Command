@@ -34,7 +34,7 @@ export const SAY = {
   truth: ['Today\'s headline: everything is fine.', 'Can we get a bigger font for "victory"?'],
   drive: ['Mind the flag!', 'Forklift coming through, on brand.', 'Who parked the tank in my spot?'],
   troop: ['Ten more laps and I\'ll feel free.', 'My rifle and I are in a committed relationship.', 'Is it Tuesday? Feels like a Tuesday.', 'Heard we ship out soon.', 'Sir, yes sir. Sorry, wrong person.'],
-  hd: ['Another day, another liberation.', 'Coffee. Then brand.', 'Cape\'s been ironed. Twice.', 'For Head Office. And for lunch.'],
+  vg: ['Another day, another drop.', 'Coffee. Then brand.', 'Armour\'s been polished. Twice.', 'For Head Office. And for lunch.'],
   civ: ['Lovely day for productivity.', 'I applied for leave. I\'m told it\'s being considered.', 'Did you see the broadcast? So inspiring. Again.', 'My cousin\'s a Vanguard. Was.', 'I\'ve been promoted to slightly higher clearance.'],
   eng: ['Measure twice, pour concrete once.', 'Who moved my level? It was level.', 'This tent is load-bearing. Emotionally.', 'Requisition says "build a fort". With what? Ambition?', 'Mind the hole. It is a planned hole.', 'Another bush cleared for brand.'],
   wounded: ['Just a scratch. A large one.', 'The medic says I\'m brave. I asked for painkillers.'],

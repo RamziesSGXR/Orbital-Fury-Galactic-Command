@@ -4,7 +4,7 @@
 // of them up to the fleet. The lessons (tutorial.js) come first, against small scripted groups; then the shelter opens and the
 // Talon host comes in waves that never stop, faster, bigger and stronger each time, until the last Vanguard falls. Then the fleet
 // glasses the plain (a rain of beams across the map) and the mission ends 'glassed'. (0.53) It can be won: at winAt off Mars it is
-// MISSION COMPLETE, and the player fights on to the end or moves on (into the campaign, or to the main menu).
+// MISSION COMPLETE, and the player fights on to the end or moves on (into an operation, or to the main menu).
 import { CONFIG as C } from '../config.js';
 import { makePost } from './posts.js';
 import { rollRoles, setSquadOrder, pendingTroops } from './infantry.js';
@@ -76,7 +76,7 @@ export function setupLastStand(m) {
   // are at their posts when the shelter opens (lsBegin)
   // the lessons ask for the UAV and an orbital: they are ready from the start
   for (const sl of m.player.slots) if (sl.readyAt !== undefined) sl.readyAt = 0;
-  m.hd.lives = m.hd.max = K.lives;
+  m.vg.lives = m.vg.max = K.lives;
   m.ls = { stage: 'lessons', glassT: 0, broke: false, fallen: false, waveT: K.waveFirst, waves: 0, lifted: 0, pop: K.personnel, holdT: 0, beamT: 0, dmg: 1, hp0: m.hpMul, level: m.difficulty || 1 };
   o.pop = K.personnel;
 }
@@ -119,8 +119,8 @@ export function lsJammer(m) {
 }
 // (0.37) The resupply lesson: a Vanguard asks for a supply pod now (they have run low on stims and grenades).
 export function lsSupply(m) {
-  if (!m.hdAlive.length) return false;
-  for (const a of m.hdAlive) { a.stims = Math.min(a.stims, 1); a.gren = 0; }
+  if (!m.vgAlive.length) return false;
+  for (const a of m.vgAlive) { a.stims = Math.min(a.stims, 1); a.gren = 0; }
   return askSupply(m);
 }
 
@@ -146,7 +146,7 @@ export function lsBegin(m) {
 function glass(m, why) {
   const ls = m.ls, o = m.objectives.find((q) => q.lastStand);
   ls.stage = 'glass'; ls.glassT = m.t; ls.fallen = why === 'fallen';
-  m.hd.lives = 0;
+  m.vg.lives = 0;
   for (const p of m.pods) p.n = 0;
   if (o && o.load > 0) { m.emit('shuttle', { x: o.hx, y: o.hy, n: o.load, ang: Math.atan2(o.hy - o.sy, o.hx - o.sx) }); ls.lifted++; o.load = 0; }   // the last Dropship
   m.radio(why === 'fallen' ? COMMS.lsFallen : COMMS.lsGlass, 'lsglass', 0);
@@ -196,14 +196,14 @@ export function updateLastStand(m, dt) {
         m.emit('reinf_spawn', { x, y, kind: m.faction.id, src: 'ls' });
       }
     }
-    if (!ls.broke && m.hd.lives <= K.breakAt) { ls.broke = true; m.radio(COMMS.lsBreaking, 'lsbreak', 0); m.emit('ls_stage', { stage: 'breaking' }); }
+    if (!ls.broke && m.vg.lives <= K.breakAt) { ls.broke = true; m.radio(COMMS.lsBreaking, 'lsbreak', 0); m.emit('ls_stage', { stage: 'breaking' }); }
     // the base falls with the last Vanguard (or the fleet stops waiting)
-    const hdLeft = m.hdAlive.length || m.pendingPods('H') > 0 || m.hd.lives > 0;
-    if (!hdLeft) glass(m, 'fallen');
+    const vgLeft = m.vgAlive.length || m.pendingPods('H') > 0 || m.vg.lives > 0;
+    if (!vgLeft) glass(m, 'fallen');
     else if (ls.holdT >= K.maxHold) glass(m, 'time');
   } else if (ls.stage === 'lessons') {
     // (no Vanguards left in the lessons either: straight to the glassing)
-    if (m.t > m.dropAt + 10 && !m.hdAlive.length && m.pendingPods('H') === 0 && m.hd.lives <= 0) { lsBegin(m); glass(m, 'fallen'); }
+    if (m.t > m.dropAt + 10 && !m.vgAlive.length && m.pendingPods('H') === 0 && m.vg.lives <= 0) { lsBegin(m); glass(m, 'fallen'); }
   }
   if (ls.stage === 'glass') {
     // beams across the map: at first round the base, then everywhere, and everything under one burns

@@ -59,7 +59,7 @@ export const C = {
   PADSEATS: 8,             // recruits in, or troopers out, per pad per flight
   BRIEF: 7.5,              // a squad's briefing before it marches out (1.5 game hours)
   HEAL: 300,               // a wounded trooper is back on duty after two and a half days in a Medical Bay
-  REBUILD: 240,            // a wrecked LRV or tank is replaced in two days
+  REBUILD: 240,            // a wrecked rover or tank is replaced in two days
   DEPLOY_AT: 16, SUPPLY_AT: 7, PATROL_AT: 9,   // hours: transports leave, supplies land, standing patrols go out
   DEPLOY_PAY: 30,          // supplies for every trained trooper shipped to the front
   WEAR: 3, MAINT: 12, UNPAID: 22,                 // condition: lost every week, regained when paid, lost when unpaid
@@ -95,9 +95,9 @@ export const MARKET = {
 // Head Office commitments: what a level costs a day (per level), and the standing a day it buys at an index of 100
 export const COMMIT = {
   levels: ['NONE', 'LOW', 'STANDARD', 'HIGH', 'ALL OUT'],
-  def: { ministry: 'Operations Office', cost: { ammo: 5, rations: 4 }, gain: 0.9, perk: 'Patrol and operation odds +2% a level; deployment orders pay 5% more a level.' },
-  pro: { ministry: 'Bureau of Expansion', cost: { sup: 14, fuel: 2 }, gain: 0.9, perk: 'Building goes 8% faster a level.' },
-  tru: { ministry: 'Publicity Office', cost: { cr: 6, sup: 6 }, gain: 0.9, perk: 'Morale +2 a level.' },
+  def: { dept: 'Operations Office', cost: { ammo: 5, rations: 4 }, gain: 0.9, perk: 'Patrol and operation odds +2% a level; deployment orders pay 5% more a level.' },
+  pro: { dept: 'Bureau of Expansion', cost: { sup: 14, fuel: 2 }, gain: 0.9, perk: 'Building goes 8% faster a level.' },
+  tru: { dept: 'Publicity Office', cost: { cr: 6, sup: 6 }, gain: 0.9, perk: 'Morale +2 a level.' },
 };
 export const GOODS = {
   rations: { name: 'Rations', short: 'RAT', cost: 1, color: '#c9b37a' },
@@ -119,7 +119,7 @@ export const ROADS = { 1: { name: 'Dirt Road', cost: 1, speed: 1.6, walk: 1.25 }
 export const VEHICLES = {
   lift: { name: 'Forklift', speed: 0.7, load: 12 }, truck: { name: 'Supply Truck', speed: 1.0, load: 30 },
   // armour sits in a Vehicle Bay until a special operation takes it along. bonus: added to the odds. fuel: burned per operation.
-  lrv: { name: 'LRV', speed: 1.4, load: 0, armour: true, bonus: 0.12, guard: 0.7, fuel: 10, desc: 'Fast and light. Better odds, and it gets wounded troopers home.' },
+  lrv: { name: 'Rover', speed: 1.4, load: 0, armour: true, bonus: 0.12, guard: 0.7, fuel: 10, desc: 'Fast and light. Better odds, and it gets wounded troopers home.' },
   tank: { name: 'Tank', speed: 0.7, load: 0, armour: true, bonus: 0.28, guard: 0.4, fuel: 25, desc: 'For the really big actions. Much better odds, far fewer casualties.' },
 };
 
@@ -132,7 +132,7 @@ export const TECH = {
   cargo:    { name: 'Heavy-Lift Dropships', tier: 2, cost: 260, hrs: 36, needs: ['radio'], desc: 'Every dropship carries 60 more goods and 4 more recruits or troopers.' },
   trucks:   { name: 'Third Truck', tier: 2, cost: 240, hrs: 30, needs: ['shelving'], desc: 'Every Motor Pool gets a third supply truck.' },
   asphalt:  { name: 'Bureau Asphalt', tier: 2, cost: 180, hrs: 24, needs: ['shelving'], desc: 'Paved road costs half. The Bureau supplies the asphalt, at a price it would rather not discuss.' },
-  lrv:      { name: 'Fast Recon Vehicles', tier: 2, cost: 300, hrs: 36, needs: ['drill'], desc: 'Unlocks the Vehicle Bay and its LRV, which special operations can take along.' },
+  lrv:      { name: 'Scout Rovers', tier: 2, cost: 300, hrs: 36, needs: ['drill'], desc: 'Unlocks the Vehicle Bay and its rover, which special operations can take along.' },
   highrise: { name: 'Vertical Housing', tier: 2, cost: 280, hrs: 36, needs: ['shelving'], desc: 'Unlocks the Hab Block: three storeys, thirty bunks, one plot.' },
   broadcast:{ name: 'Planetary Broadcast', tier: 2, cost: 300, hrs: 36, needs: ['radio'], desc: 'Unlocks the Broadcast Mast: a very tall mast that runs four landing pads and carries the Publicity Office to every ear.' },
   command:  { name: 'Unified Command', tier: 3, cost: 480, hrs: 60, needs: ['broadcast', 'highrise'], desc: 'Unlocks the Command Tower, which watches a long stretch of wall and makes the whole base stand straighter.' },
@@ -231,7 +231,7 @@ export const B = {
   hdbarracks: { name: 'Vanguard Barracks', group: 'military', w: 3, d: 2, cost: 420, up: 22, pw: -4, crew: 1, needs: ['barracks'], cryo: true,
               desc: 'Vanguards pass through on their way to the front, kept in cryo until needed. Staffed and powered, it earns +3 Defence standing every day.' },
   vbay:     { name: 'Vehicle Bay', group: 'military', w: 3, d: 3, cost: 380, up: 20, crew: 1, needs: ['motorpool'], tech: 'lrv', need: { fuel: 40 }, armour: true,
-              desc: 'Keeps a LRV, and a tank once Armoured Doctrine is researched. Special operations can take them along. A wrecked vehicle is replaced in two watches.' },
+              desc: 'Keeps a rover, and a tank once Armoured Doctrine is researched. Special operations can take them along. A wrecked vehicle is replaced in two watches.' },
   silo:     { name: 'Missile Silo', group: 'military', w: 3, d: 3, cost: 1400, up: 36, pw: -6, crew: 3, unique: true, tech: 'fortworks', needs: ['yard'], need: { fuel: 40 }, large: true,
               desc: 'The launch site from the ground fight. Crewed, powered and fuelled, it assembles a mini-nuke over three days and holds two. A warhead in the silo is fired at the next raid before it reaches the wire; or ship it to the front for credits and Defence standing.' },
   shelter:  { name: 'Underground Bunker', group: 'military', w: 2, d: 2, cost: 280, up: 10, pw: -1, mor: 3, needs: ['barracks'],
@@ -272,7 +272,7 @@ export const B = {
               desc: 'Your logo, name and motto, lit up at night.' },
   pool:     { name: 'Reflecting Pool', group: 'propaganda', w: 3, d: 2, cost: 200, up: 8, prop: 8, mor: 4,
               desc: 'A calm place to reflect on victory.' },
-  // ---------------------------------------------------------------- Fort Sanctuary (from the SESF base build)
+  // ---------------------------------------------------------------- Fort Sanctuary (from the community base build)
   plaque:   { name: 'Memorial Plaque', group: 'propaganda', w: 2, d: 1, cost: 120, up: 2, prop: 5, mor: 2, needs: ['memorial'], atGate: true,
               desc: 'A poem for those who stood firm and did not come home, held in refracted light by lens shards from Talon wreckage. Stands at a gate.' },
   flood:    { name: 'Floodlight Tower', group: 'military', w: 1, d: 1, cost: 110, up: 4, pw: -2, watch: 7, atWall: true, tech: 'fortworks',
@@ -288,7 +288,7 @@ export const B = {
   halls:    { stage: 2, name: 'Memorial Halls', group: 'propaganda', w: 4, d: 3, cost: 980, up: 20, pw: -2, tech: 'civic', needs: ['memorial'], large: true, prop: 18, mor: 5, pride: 1,
               desc: 'One wing for legendary Vanguards, one for the battles that made them, in holographic panels lit by Luminite. Inspires every recruit who marches past.' },
   mart:     { name: 'BRAND-MART', group: 'living', w: 3, d: 3, cost: 700, up: 14, pw: -3, tech: 'civic', large: true, mor: 4, sales: 14, staff: 3,
-              desc: 'Rations upgrades, souvenir shrapnel mugs and victoryop-approved luxuries, with self-checkout lanes run by Foundry cores. Earns credits every day.' },
+              desc: 'Rations upgrades, souvenir shrapnel mugs and Head Office-approved luxuries, with self-checkout lanes run by Foundry cores. Earns credits every day.' },
   casino:   { name: 'Colonists\' Casino', group: 'living', w: 3, d: 3, cost: 760, up: 16, pw: -4, tech: 'civic', large: true, mor: 5, sales: 18, staff: 3, weekly: { tru: -1 },
               desc: 'Statistically approved wagering on Talon RNG cores. Luck and victory, both supervised. Good for morale and credits; the Publicity Office frowns slightly.' },
   cryo:     { name: 'Cryopreservation Storage', group: 'military', w: 3, d: 2, cost: 680, up: 18, pw: -5, crew: 1, tech: 'archive', needs: ['hdbarracks'], large: true, odds: 0.05,
@@ -336,9 +336,9 @@ export const CREW_ORDER = ['gen', 'motorpool', 'factory', 'extractor', 'mine', '
 // Patrol missions the Operations Office offers. diff 1-5.
 export const MISSIONS = [
   { kind: 'Recon sweep', diff: [1, 2], size: [2, 3], dur: [45, 70] },
-  { kind: 'Bug hole closure', diff: [2, 4], size: [3, 4], dur: [60, 90], wants: 'tank' },
+  { kind: 'Burrow closure', diff: [2, 4], size: [3, 4], dur: [60, 90], wants: 'tank' },
   { kind: 'Convoy escort', diff: [2, 3], size: [4, 4], dur: [80, 100], wants: 'lrv' },
-  { kind: 'Bot outpost raid', diff: [3, 5], size: [4, 6], dur: [100, 130], wants: 'tank' },
+  { kind: 'Foundry outpost raid', diff: [3, 5], size: [4, 6], dur: [100, 130], wants: 'tank' },
   { kind: 'Civilian evacuation', diff: [2, 4], size: [3, 5], dur: [70, 110], wants: 'lrv' },
   { kind: 'Retrieve stolen flag', diff: [1, 1], size: [2, 2], dur: [40, 50] },
   { kind: 'Orbital spotting run', diff: [2, 3], size: [2, 3], dur: [50, 80] },

@@ -45,7 +45,7 @@ with sync_playwright() as pw:
             pg.wait_for_timeout(500); fr.evaluate("(() => { const b = [...document.querySelectorAll('#s-brief button')].find(x => /DEPLOY|DROP|CONTINUE|LAUNCH/i.test(x.textContent) && !x.disabled && x.offsetParent); if (b) b.click(); })()")
         assert fr.evaluate("__game.state") == 'play', 'the mission did not start'
         pg.wait_for_timeout(3000); pg.screenshot(path=f'{out}/{name}-7-ground.png')
-        hd, lv = fr.evaluate('[__game.mission.hd.max, __game.mission.difficulty]'); want = [30, 28, 26, 24, 22, 20, 18, 16, 14, 12][min(10, lv) - 1] + 4; assert hd == want, f'the station sent no reinforcements: {hd} lives at level {lv} (want {want})'
+        vgs, lv = fr.evaluate('[__game.mission.vg.max, __game.mission.difficulty]'); want = [30, 28, 26, 24, 22, 20, 18, 16, 14, 12][min(10, lv) - 1] + 4; assert vgs == want, f'the station sent no reinforcements: {vgs} lives at level {lv} (want {want})'
         assert fr.evaluate('!!__game.mission.defenders'), 'the base put no garrison on site'
         print(name, 'ground', fr.evaluate("({ faction: __game.mission.faction.id, obj: __game.mission.objectives.map(o => o.type), level: __game.mission.difficulty, t: Math.round(__game.mission.t) })"))
         # the result comes back to the map (handed over as Orbital Fury would after its debrief)

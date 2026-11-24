@@ -63,7 +63,7 @@ def lrv():          # the squad's light vehicle: four wheels, a roll cage, a gun
         box('seat%d' % s, (0.4, 0.4, 0.4), (s * 0.3, 0.05, 0.9), m=kit, bevel=0.04); ball('lamp%d' % s, (s * 0.46, -1.32, 0.76), lit_w, 0.07); box('fender%d' % s, (0.2, 0.7, 0.08), (s * 0.72, -0.92, 0.9), m=uni_d)
     cyl('bar', (-0.56, 0.5, 1.62), (0.56, 0.5, 1.62), 0.035, m=steel_d, sides=5); disc('ring', 0.26, 0.08, 1.62, steel_d, 8, at=(0, 0.3)); box('mgun', (0.12, 0.5, 0.12), (0, 0.1, 1.8), m=black, bevel=0.01); cyl('mbar', (0, -0.1, 1.8), (0, -0.9, 1.82), 0.03, m=black, sides=6)
     o = disc('spare', 0.36, 0.2, 0.0, black, 10); o.rotation_euler = (R(90), 0, 0); o.location = (0, 1.56, 0.86)
-# (GC 0.72, Ramzies: "animations for the mech aren't in and it looks too much like the helldivers one") THE WALKER, made
+# (GC 0.72, Ramzies: "animations for the mech aren't in and it looks too much like another game's") THE WALKER, made
 # over: not a suit with a gun for each arm but a two-legged gun carriage. An angular armoured hull with a sloped glacis and a
 # vision slit, a turret on top with a pair of long autocannon, a missile box on the left flank, a sensor mast on the right,
 # and legs that fold in a Z (the thigh forward to the knee, the shin back to a raised heel, a long foot forward to three toes
@@ -161,8 +161,8 @@ def shuttle():      # the evacuation shuttle: a white lifting body with a row of
         cyl('eng%d' % s, (s * 0.4, 1.9, 0.76), (s * 0.4, 2.5, 0.76), 0.22, m=steel_d, sides=8); cyl('burn%d' % s, (s * 0.4, 2.5, 0.76), (s * 0.4, 2.54, 0.76), 0.17, m=hot, sides=8)
         cyl('leg%d' % s, (s * 0.5, -0.8, 0.36), (s * 0.56, -0.8, 0), 0.05, m=steel_d, sides=5); cyl('legb%d' % s, (s * 0.5, 1.0, 0.36), (s * 0.56, 1.0, 0), 0.05, m=steel_d, sides=5)
     box('fin', (0.08, 0.9, 0.8), (0, 1.9, 1.5), m=orange, bevel=0.015, taper=0.5)
-def dog():          # the guard dog: a small four-legged machine with a sensor head
-    start('veh_dog')
+def drone():        # the escort drone: a small four-legged machine with a sensor head
+    start('veh_drone')
     box('body', (0.4, 1.0, 0.3), (0, 0, 0.62), m=uni, bevel=0.06); box('head', (0.3, 0.36, 0.26), (0, -0.62, 0.74), m=uni_d, bevel=0.05); box('eye', (0.2, 0.03, 0.08), (0, -0.81, 0.76), m=lit_b); box('pack', (0.3, 0.4, 0.14), (0, 0.1, 0.84), m=kit, bevel=0.03)
     for i, (x, y) in enumerate(((0.24, -0.36), (-0.24, -0.36), (0.24, 0.4), (-0.24, 0.4))):
         cyl('up%d' % i, (x, y, 0.6), (x * 1.2, y + 0.12, 0.32), 0.06, m=steel_d, sides=5); cyl('lo%d' % i, (x * 1.2, y + 0.12, 0.32), (x * 1.2, y - 0.04, 0.0), 0.045, m=black, sides=5)
@@ -252,7 +252,7 @@ def worksite():     # a work site: scaffolding, stores and a mast, where somethi
     disc('drum', 0.11, 0.3, 0.04, uni_d, 8, at=(0.66, 0.5)); cyl('mast', (-0.6, -0.5, 0), (-0.6, -0.5, 2.0), 0.025, m=steel_d, sides=4); ball('lamp', (-0.6, -0.5, 2.04), hazard, 0.07); box('sign', (0.4, 0.03, 0.26), (0, -0.46, 1.14), m=hazard)
 
 OUT = {}
-ALL = (dropship, striker, lrv, mech, shuttle, dog, uav, mine, shieldgen, trench, cover0, cover1, cover2, lz, bridge, worksite)     # (GC 0.64: the wire is fleet.py's)
+ALL = (dropship, striker, lrv, mech, shuttle, drone, uav, mine, shieldgen, trench, cover0, cover1, cover2, lz, bridge, worksite)     # (GC 0.64: the wire is fleet.py's)
 for fn in ALL:
     fn(); bpy.context.view_layer.update()
     OUT[MADE[-1]] = export(MADE[-1], CUR, MECH_FRAMES if MADE[-1] == 'veh_mech' else {'stand': (lambda: None)}, lod=0)     # (GC 0.72: the walker walks)

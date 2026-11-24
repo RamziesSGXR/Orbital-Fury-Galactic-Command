@@ -89,7 +89,7 @@ body.photo #showui { display: none !important; }</style>
       </div>
       </div>
     </div>
-    <!-- (0.28) the command radio (tutorial and campaign): a button by the minimap, and the log it opens (on a phone, in the minimap's place) -->
+    <!-- (0.28) the command radio (the tutorial): a button by the minimap, and the log it opens (on a phone, in the minimap's place) -->
     <button id="btn-radio" class="hidden" type="button" data-ta="radio.title" data-tt="radio.open"><i class="radio-ic" aria-hidden="true"></i><b class="rdot" aria-hidden="true"></b></button>
     <div id="radiolog" class="hidden" role="log" aria-live="off">
       <div class="rl-h"><span data-t="radio.title">COMMAND RADIO</span><button id="radio-full" class="rl-b" type="button" data-ta="radio.log" data-tt="radio.log">⤢</button><button id="radio-x" class="rl-b" type="button" data-ta="radio.map" data-tt="radio.map">✕</button></div>
@@ -121,7 +121,7 @@ body.photo #showui { display: none !important; }</style>
     <button id="btn-tac" class="tacb" type="button" data-tt="hud.tacTitle"><span class="n" data-t="tac.title">TACTICAL BUILD</span><kbd data-k="map">TAB</kbd></button>
     <!-- the tactical build screen: the Vanguards and the Infantry squads fold away into these two drop menus -->
     <div id="tac-drops">
-      <button id="td-hd" class="btn tdb" type="button"><span data-t="tac.dropHd">VANGUARDS</span> <i>▴</i></button>
+      <button id="td-vg" class="btn tdb" type="button"><span data-t="tac.dropHd">VANGUARDS</span> <i>▴</i></button>
       <button id="td-sf" class="btn tdb" type="button"><span data-t="tac.dropSf">INFANTRY SQUADS</span> <i>▴</i></button>
     </div>
     </div>
@@ -158,7 +158,7 @@ body.photo #showui { display: none !important; }</style>
     <!-- what is selected on the map (a post, a autoturret or a defence site): its name, level and health, just above it -->
     <div id="selpop" class="hidden" role="dialog"></div>
     <div id="dock">
-      <button id="dk-hd" class="dkb dkh" type="button" data-ta="tac.tHd"><span class="hdc"></span></button>
+      <button id="dk-vg" class="dkb dkh" type="button" data-ta="tac.tHd"><span class="vgc"></span></button>
       <button id="dk-sq" class="dkb"><span class="n"></span><span class="s">--</span></button>
       <button id="dk-drop" class="dkb"><span class="n" data-t="hud.infantryDrop">INFANTRY DROP</span><span class="s">--</span></button>
       <button id="dk-pick" class="dkb"><span class="n" data-t="hud.pickup">PICKUP</span><span class="s">--</span></button>
@@ -230,7 +230,6 @@ body.photo #showui { display: none !important; }</style>
         <button id="btn-resume" class="btn tt-item tt-resume hidden" type="button"></button>
         <button id="btn-load-t" class="btn tt-item" type="button"><span data-t="title.load">LOAD GAME</span><small id="tt-load-sub" data-t="title.loadNone">Save an operation from the menu to keep it here</small></button>
         <button id="btn-train" class="btn tt-item" type="button"><span data-t="title.train">TUTORIAL</span><small data-t="title.trainSub">Learn the controls on a practice base</small></button>
-        <button id="btn-campaign" class="btn tt-item" type="button"><span data-t="title.campaign">CAMPAIGN</span><i class="tt-dev" data-t="title.inDev">IN DEVELOPMENT</i><small id="tt-cp-sub" data-t="title.campaignSub">A story across missions</small></button>
         <button id="btn-play" class="btn tt-item" type="button"><span data-t="title.quick">ENDLESS PLAY</span><small data-t="title.quickSub">Mission after mission against the enemy you pick</small></button>
         <button id="btn-settings" class="btn tt-item" type="button"><span data-t="ui.settings">SETTINGS</span><small data-t="title.setSub">Sound, layout, language</small></button>
         <button id="btn-credits-t" class="btn tt-item" type="button"><span data-t="ui.credits">CREDITS</span><small data-t="title.aboutSub">The team, the tools and the story</small></button>
@@ -244,19 +243,6 @@ body.photo #showui { display: none !important; }</style>
         <p class="fine" data-t="ui.disclaimer"></p>
         <p class="ver" id="ver-t"></p>
       </footer>
-    </div>
-  </section>
-
-  <!-- (0.24) the campaign: a test story while the real one is built -->
-  <section id="s-campaign" class="screen">
-    <div class="cp">
-      <button id="cp-back" class="btn cp-back" type="button" data-t="cp.back">BACK</button>
-      <p class="tt-eyebrow" id="cp-brand" data-t="cp.eyebrow">PRIVATE FLEET FIRE SUPPORT · CAMPAIGN</p>
-      <h2 class="cp-title" id="cp-title"></h2>
-      <div class="cp-dev" role="note"><b data-t="cp.devH">In development</b> <span data-t="cp.dev"></span></div>
-      <p class="cp-prog" id="cp-prog"></p>
-      <div class="cp-story" id="cp-story"></div>
-      <ol class="cp-chs" id="cp-chs"></ol>
     </div>
   </section>
 
@@ -506,7 +492,7 @@ body.photo #showui { display: none !important; }</style>
       <button class="x-close" data-close="s-map" data-ta="map.close">✕</button>
       <div class="eyebrow" data-t="map.title">Tactical map</div>
       <div class="mapwrap"><canvas id="bigmap" width="900" height="900" data-ta="map.aria"></canvas></div>
-      <div class="map-key"><span class="k-hd">● <span data-t="map.k.allies">ALLIES</span></span><span class="k-en">■ <span data-t="map.k.enemies">ENEMIES</span></span><span class="k-rad">▪ <span data-t="map.k.radar">RADAR</span></span><span class="k-obj">◆ <span data-t="map.k.obj">OBJECTIVE</span></span><span class="k-base">○ <span data-t="map.k.base">ENEMY BASE</span></span><span class="k-poi">□ <span data-t="map.k.poi">TARGET</span></span><span class="k-side">◇ <span data-t="map.k.side">SIDE OBJECTIVE</span></span><span class="k-bcn">⊥ <span data-t="map.k.beacon">INFANTRY DROP</span></span><span class="k-boss">⊗ <span data-t="map.k.boss">SUPER HEAVY</span></span></div>
+      <div class="map-key"><span class="k-vg">● <span data-t="map.k.allies">ALLIES</span></span><span class="k-en">■ <span data-t="map.k.enemies">ENEMIES</span></span><span class="k-rad">▪ <span data-t="map.k.radar">RADAR</span></span><span class="k-obj">◆ <span data-t="map.k.obj">OBJECTIVE</span></span><span class="k-base">○ <span data-t="map.k.base">ENEMY BASE</span></span><span class="k-poi">□ <span data-t="map.k.poi">TARGET</span></span><span class="k-side">◇ <span data-t="map.k.side">SIDE OBJECTIVE</span></span><span class="k-bcn">⊥ <span data-t="map.k.beacon">INFANTRY DROP</span></span><span class="k-boss">⊗ <span data-t="map.k.boss">SUPER HEAVY</span></span></div>
       <p class="fine" data-t="map.note"></p>
       <div class="btns"><button id="map-follow" class="btn" data-t="map.follow">FOLLOW SQUAD</button><button id="map-close" class="btn primary" data-t="map.back">BACK</button></div>
     </div>
@@ -583,7 +569,7 @@ body.photo #showui { display: none !important; }</style>
     </div>
   </div>
 
-  <!-- (0.37) NEW OPERATION: what QUICK PLAY and a campaign chapter ask for (the tutorial only asks the callsign) -->
+  <!-- (0.37) NEW OPERATION: what QUICK PLAY asks for (the tutorial only asks the callsign) -->
   <section id="s-lock" class="screen overlay">
     <div class="card lockcard">
       <button class="x-close" data-close="s-lock" data-ta="ui.backBtn">✕</button>

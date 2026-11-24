@@ -6,7 +6,7 @@
 // (The pad is on the map from the drop, locked until the objective is done, so Infantry can dig in round it early.)
 //   landing   the dropship comes down on the pad
 //   boarding  every Vanguard runs for the ramp and boards
-//   away      the dropship climbs out; (0.39) the destroyer leaves orbit CONFIG.extract.orbitSec later and the mission ends. Infantry
+//   away      the dropship climbs out; (0.39) the ship leaves orbit CONFIG.extract.orbitSec later and the mission ends. Infantry
 //             go home only by a pickup (infantry.js): anyone still on the ground then is left behind. The extraction dship's belly
 //             light cannon fires on the way down and while it waits.
 import { alertRaise, callPressure } from './alert.js';
@@ -33,7 +33,7 @@ function board(m, a) {
   if (a.type === 'H') {
     ex.boardedH++;
     const tm = m.teams[a.team];
-    if (tm && tm.hd === a) { tm.hd = null; tm.boarded = true; }
+    if (tm && tm.vg === a) { tm.vg = null; tm.boarded = true; }
     m.extracted = true;
     m.notice(tr(ex.boardedH > 1 ? 'n.aboardN' : 'n.aboard1', { who: m.tag(a), n: ex.boardedH }), 'good');
   } else ex.boardedS++;
@@ -46,7 +46,7 @@ export function updateExtract(m, dt) {
   if (!ex.state) openExtract(m);
 
   if (ex.state === 'open') {
-    for (const a of m.hdAlive) {
+    for (const a of m.vgAlive) {
       if (a.mounted || (a.x - ex.x) ** 2 + (a.y - ex.y) ** 2 > X.radius * X.radius) continue;
       if (bossAlive(m)) {               // a super heavy on the field: the dropship will not come in until it is dead
         if (ex.blockedSince === undefined) ex.blockedSince = t;
@@ -99,16 +99,16 @@ export function updateExtract(m, dt) {
     return;
   }
   if (ex.state === 'boarding') {
-    for (const a of m.hdAlive) if (!a.mounted && !a.dead && (a.x - ex.x) ** 2 + (a.y - ex.y) ** 2 <= X.boardR * X.boardR) board(m, a);
-    const waiting = m.hdAlive.filter((a) => !a.dead).length + m.pendingPods('H');
+    for (const a of m.vgAlive) if (!a.mounted && !a.dead && (a.x - ex.x) ** 2 + (a.y - ex.y) ** 2 <= X.boardR * X.boardR) board(m, a);
+    const waiting = m.vgAlive.filter((a) => !a.dead).length + m.pendingPods('H');
     // (0.53.7) nobody aboard yet but Vanguards still on their way (or coming down): it holds a little longer (holdMore)
-    const coming = m.hd.lives > 0 ? m.teams.filter((q) => !q.hd && !q.boarded).length : 0;     // (and those about to drop back in)
+    const coming = m.vg.lives > 0 ? m.teams.filter((q) => !q.vg && !q.boarded).length : 0;     // (and those about to drop back in)
     const hold = ex.boardedH === 0 && waiting + coming > 0 && t < ex.leaveBy + X.holdMore;
-    if ((waiting === 0 && ex.boardedH > 0) || (t >= ex.leaveBy && !hold) || (waiting === 0 && m.hd.lives <= 0)) {
+    if ((waiting === 0 && ex.boardedH > 0) || (t >= ex.leaveBy && !hold) || (waiting === 0 && m.vg.lives <= 0)) {
       ex.state = 'away'; ex.awayAt = t; ex.leaveAt = t + X.orbitSec;
       m.radio(ex.boardedH ? COMMS.victory : COMMS.extractEmpty, 'exaway', 0);
       m.emit('extract_away', { x: ex.x, y: ex.y, n: ex.boardedH });
-      // (0.39) the destroyer will not wait: Infantry still on the ground have orbitSec to be picked up
+      // (0.39) the ship will not wait: Infantry still on the ground have orbitSec to be picked up
       const left = m.infantryAlive.filter((a) => !a.dead).length;
       m.notice(tr(left ? 'n.orbitLeaveN' : 'n.orbitLeave', { s: X.orbitSec, n: left }), left ? 'bad' : 'info');
       m.radio(COMMS.orbitLeave(X.orbitSec, left), 'orbitleave', 0);

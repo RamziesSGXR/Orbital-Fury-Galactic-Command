@@ -3,7 +3,7 @@
 // distinct ones before each drop and deals them into four groups of four, one group per Vanguard (CONFIG.callin).
 // Orbital call-ins belong to the player: they are bought and upgraded in the armory (see data/kit.js).
 //
-// k      what kind of thing it is: strike | zone | turret | mines | shield | weapon | LRV | mech | jump | dog | resupply
+// k      what kind of thing it is: strike | zone | turret | mines | shield | weapon | LRV | mech | jump | drone | resupply
 // use    when the squad calls it: cluster | heavy | smoke | defense | fight | travel | resupply
 // cd     seconds before it can be called again. A call-in that is on the list twice recharges in half the time.
 // anti   true when it can take down a heavy. Every Vanguard's group of four holds at least one of these (see dealGroups), and
@@ -28,24 +28,24 @@ export const CALLINS = {
                    zone: { kind: 'fire', r: 8, sec: 10, dps: 30 } },
   striker_rockets: { cat: 'STRIKER', g: 'RKT', cd: 60, k: 'strike', use: 'cluster', min: 3, heavy: true, anti: true,
                    pat: 'scatter', n: 6, len: 8, span: 1.2, delay: 3.5, dmg: 240, splash: 5.5, mult: M(1, 1, 0.7, 0.15), fly: true, base: true },
-  striker_500:     { cat: 'STRIKER', g: 'HVY', cd: 110, k: 'strike', use: 'heavy', base: true,
+  striker_heavy:     { cat: 'STRIKER', g: 'HVY', cd: 110, k: 'strike', use: 'heavy', base: true,
                    pat: 'point', n: 1, len: 0, span: 0, delay: 5, dmg: 2400, splash: 22, mult: M(1, 1, 1, 0.6), fly: true, safe: 34, anti: true },
   striker_smoke:   { cat: 'STRIKER', g: 'SMK', cd: 60, k: 'zone', use: 'smoke',
                    delay: 3, zone: { kind: 'smoke', r: 15, sec: 22 }, fly: true },
 
-  // ---------- Orbital: strikes from the destroyer ----------
-  // (The old Orbital Gatling Barrage is gone: the ship's own gun is the one gatling now. See CONFIG.gun and data/kit.js.)
+  // ---------- Orbital: strikes from the ship ----------
+  // (The old gatling barrage is gone: the ship's own gun is the one gatling now. See CONFIG.gun and data/kit.js.)
   orb_airburst:  { cat: 'ORBITAL', g: 'ABR', cd: 75, k: 'strike', use: 'cluster', min: 4,
                    pat: 'scatter', n: 6, len: 24, span: 1.4, delay: 3, dmg: 170, splash: 12, mult: M(1, 0.8, 0.2, 0.05) },
   orb_120:       { cat: 'ORBITAL', g: '120', cd: 85, k: 'strike', use: 'cluster', min: 5,
                    pat: 'scatter', n: 8, len: 24, span: 12, delay: 4, dmg: 280, splash: 8, mult: M(1, 1, 0.5, 0.15) },
-  orb_380:       { cat: 'ORBITAL', g: '380', cd: 130, k: 'strike', use: 'cluster', min: 5, base: true,
+  orb_main:       { cat: 'ORBITAL', g: '380', cd: 130, k: 'strike', use: 'cluster', min: 5, base: true,
                    pat: 'scatter', n: 10, len: 32, span: 14, delay: 5, dmg: 560, splash: 12, mult: M(1, 1, 0.6, 0.2), safe: 20 },
   orb_walk:      { cat: 'ORBITAL', g: 'WLK', cd: 105, k: 'strike', use: 'cluster', min: 4,
                    pat: 'walk', n: 12, len: 80, span: 8, delay: 4, dmg: 360, splash: 8, mult: M(1, 1, 0.5, 0.15) },
   orb_precision: { cat: 'ORBITAL', g: 'AIM', cd: 80, k: 'strike', use: 'heavy', base: true,
                    pat: 'point', n: 1, len: 0, span: 0, delay: 3, dmg: 1500, splash: 6, mult: M(1, 1, 1, 0.35) },
-  orb_rail:      { cat: 'ORBITAL', g: 'LNS', cd: 100, k: 'strike', use: 'heavy', heavyOnly: true,
+  orb_seeker:      { cat: 'ORBITAL', g: 'LNS', cd: 100, k: 'strike', use: 'heavy', heavyOnly: true,
                    pat: 'point', n: 1, len: 0, span: 0, delay: 3, dmg: 3200, splash: 4, mult: M(1, 1, 1, 0.4), lock: true },
   orb_gas:       { cat: 'ORBITAL', g: 'GAS', cd: 75, k: 'strike', use: 'cluster', min: 4,
                    pat: 'point', n: 1, len: 0, span: 0, delay: 3, dmg: 60, splash: 13, mult: M(1, 0.8, 0.3, 0.05),
@@ -55,7 +55,7 @@ export const CALLINS = {
   orb_napalm:    { cat: 'ORBITAL', g: 'INC', cd: 105, k: 'strike', use: 'cluster', min: 5,
                    pat: 'scatter', n: 8, len: 26, span: 5, delay: 4, dmg: 130, splash: 7, mult: M(1, 0.9, 0.4, 0.1),
                    zone: { kind: 'fire', r: 9, sec: 12, dps: 34 } },
-  orb_laser:     { cat: 'ORBITAL', g: 'BEAM', cd: 115, k: 'beam', use: 'heavy', delay: 3,
+  orb_beam:     { cat: 'ORBITAL', g: 'BEAM', cd: 115, k: 'beam', use: 'heavy', delay: 3,
                    beam: { dps: 260, width: 6, dur: 16, follow: 15, leash: 60 } },
 
   // ---------- Ship utilities: help for the squad rather than firepower (the player's, bought and equipped like orbitals) ----------
@@ -90,30 +90,30 @@ export const CALLINS = {
                    t: { hp: 450, ammo: 70, range: 24, every: 1, dmg: 60, acc: 1, splash: 0, style: 'arc-zap', chain: 4 } },
   minefield:     { cat: 'DEFENSE', g: 'MIN', cd: 85, k: 'mines', use: 'defense', threat: 5,
                    n: 14, r: 15, trig: 2.8, dmg: 170, splash: 4.5, life: 160 },
-  shield_relay:  { cat: 'DEFENSE', g: 'SHD', cd: 110, k: 'shield', use: 'fight', threat: 6,
+  shield_proj:  { cat: 'DEFENSE', g: 'SHD', cd: 110, k: 'shield', use: 'fight', threat: 6,
                    shield: 700, r: 22, life: 80 },
 
   // ---------- Support weapons: one Vanguard picks one up ----------
-  recoilless:    { cat: 'SUPPORT', g: 'ATL', cd: 110, k: 'weapon', use: 'heavy', anti: true,
+  atl:    { cat: 'SUPPORT', g: 'ATL', cd: 110, k: 'weapon', use: 'heavy', anti: true,
                    sw: { ammo: 8, every: 2.4, dmg: 340, splash: 4.5, range: 75, acc: 0.9, mult: M(1, 1, 0.9, 0.25), prefer: 'HM' } },
   autocannon:    { cat: 'SUPPORT', g: 'LCN', cd: 100, k: 'weapon', use: 'fight', threat: 5, anti: true,
                    sw: { ammo: 60, every: 0.55, dmg: 90, splash: 3.4, range: 80, acc: 0.88, mult: M(1, 1, 0.8, 0.2), prefer: 'M', crowd: true } },
   flamethrower:  { cat: 'SUPPORT', g: 'FLM', cd: 100, k: 'weapon', use: 'fight', threat: 6,
                    sw: { ammo: 160, every: 0.12, dmg: 9, splash: 2.6, range: 17, acc: 1, mult: M(1, 0.9, 0.3, 0.1), prefer: '' } },
-  railgun:       { cat: 'SUPPORT', g: 'COIL', cd: 110, k: 'weapon', use: 'heavy', anti: true,
+  coil:       { cat: 'SUPPORT', g: 'COIL', cd: 110, k: 'weapon', use: 'heavy', anti: true,
                    sw: { ammo: 12, every: 1.5, dmg: 420, splash: 0, range: 95, acc: 0.9, mult: M(1, 1, 1, 0.2), prefer: 'HM' } },
-  mg43:          { cat: 'SUPPORT', g: 'MGN', cd: 90, k: 'weapon', use: 'fight', threat: 4,
+  lmg:          { cat: 'SUPPORT', g: 'MGN', cd: 90, k: 'weapon', use: 'fight', threat: 4,
                    sw: { ammo: 240, every: 0.09, dmg: 8, splash: 0, range: 55, acc: 0.8, mult: M(1, 0.6, 0.15, 0.05), prefer: '' } },
-  spear:         { cat: 'SUPPORT', g: 'GMS', cd: 130, k: 'weapon', use: 'heavy', heavyOnly: true, anti: true,
+  guided:         { cat: 'SUPPORT', g: 'GMS', cd: 130, k: 'weapon', use: 'heavy', heavyOnly: true, anti: true,
                    sw: { ammo: 4, every: 3, dmg: 1150, splash: 5, range: 140, acc: 1, mult: M(1, 1, 1, 0.4), kinds: 'MH', prefer: 'H', lock: 2.4, vary: 0.2 } },
-  eat:           { cat: 'SUPPORT', g: 'OSR', cd: 70, k: 'weapon', use: 'heavy', heavyOnly: true, anti: true,
+  oneshot:           { cat: 'SUPPORT', g: 'OSR', cd: 70, k: 'weapon', use: 'heavy', heavyOnly: true, anti: true,
                    sw: { ammo: 1, every: 1, dmg: 1500, splash: 4, range: 90, acc: 0.95, mult: M(1, 1, 1, 0.4), only: 'H', lock: 0.9, vary: 0.08 } },
 
   // ---------- Vehicles and gear ----------
-  lrv:           { cat: 'VEHICLE', g: 'LRV', cd: 150, k: 'lrv', use: 'travel', shared: true },
+  lrv:           { cat: 'VEHICLE', g: 'RVR', cd: 150, k: 'lrv', use: 'travel', shared: true },
   mech:          { cat: 'VEHICLE', g: 'MCH', cd: 170, k: 'mech', use: 'fight', threat: 8, anti: true },
   jump:          { cat: 'GEAR', g: 'JMP', cd: 120, k: 'jump', use: 'travel', shared: true },
-  dog:           { cat: 'GEAR', g: 'DRN', cd: 100, k: 'dog', use: 'fight', threat: 4 },
+  drone:           { cat: 'GEAR', g: 'DRN', cd: 100, k: 'drone', use: 'fight', threat: 4 },
   resupply:      { cat: 'GEAR', g: 'SUP', cd: 90, k: 'resupply', use: 'resupply', shared: true },
   // ---------- (0.23) the gunner's minefields: dropped from the ship where the gunner aims, in the strike zone ----------
   // AP: many small mines; incendiary: each mine leaves fire behind; AT: a few big ones that only heavies set off.
@@ -133,7 +133,7 @@ const ALL_IDS = Object.keys(CALLINS);
 // (0.23) The Vanguards draw orbital strikes too (with their own cooldowns; the gunner's are not touched), but not the ship's
 // utilities, the laser (a beam the gunner steers) or the gunner's own minefields.
 export const CALLIN_IDS = ALL_IDS.filter((id) => { const d = CALLINS[id]; return id !== 'resupply' && !d.player && (d.cat !== 'ORBITAL' || (!d.util && (d.k === 'strike' || d.k === 'zone'))); });
-export const HD_ORB_IDS = CALLIN_IDS.filter((id) => CALLINS[id].cat === 'ORBITAL');
+export const VG_ORB_IDS = CALLIN_IDS.filter((id) => CALLINS[id].cat === 'ORBITAL');
 // What the gunner can buy and put in the loadout's slots: orbitals and ship utilities, (0.23) Strikers (once the Hangar is bought)
 // and minefields.
 export const ORB_IDS = ALL_IDS.filter((id) => CALLINS[id].cat === 'ORBITAL');
@@ -144,7 +144,7 @@ export const CAT_COLOR = { STRIKER: '#ffe600', ORBITAL: '#ff7a3d', DEFENSE: '#7d
 
 export const ANTI_IDS = CALLIN_IDS.filter((id) => CALLINS[id].anti && !CALLINS[id].shared);
 export const isAnti = (id) => !!(CALLINS[id] && CALLINS[id].anti);
-// (0.26) the heavy weapons: support weapons that can take down a heavy (recoilless, light cannon, railgun, spear, EAT)
+// (0.26) the heavy weapons: support weapons that can take down a heavy (anti-tank launcher, light cannon, coil rifle, guided missile, one-shot rocket)
 export const HEAVY_W_IDS = CALLIN_IDS.filter((id) => CALLINS[id].k === 'weapon' && CALLINS[id].anti && !CALLINS[id].shared);
 export const isHeavyW = (id) => HEAVY_W_IDS.includes(id);
 
@@ -170,7 +170,7 @@ export function rollLoadout(seed, forced = []) {
   }
   // (0.23) at least two orbital strikes among them (the squad calls orbitals too)
   let orbs = out.filter((id) => CALLINS[id].cat === 'ORBITAL').length;
-  for (const id of rng.shuffle(HD_ORB_IDS.slice())) { if (orbs >= 2 || out.length >= N) break; if (!out.includes(id)) { out.push(id); orbs++; } }
+  for (const id of rng.shuffle(VG_ORB_IDS.slice())) { if (orbs >= 2 || out.length >= N) break; if (!out.includes(id)) { out.push(id); orbs++; } }
   // the rest at random, a heavy weapon HW.weight times as likely as anything else
   const pool = CALLIN_IDS.filter((id) => !out.includes(id));
   while (out.length < N && pool.length) {

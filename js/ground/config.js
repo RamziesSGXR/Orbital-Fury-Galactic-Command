@@ -47,7 +47,7 @@ export const CONFIG = {
   // The Vanguard kit. Primary: the service rifle (CONFIG.combat.vanguard). Secondary: the Hand Cannon, a slow-loading, short-range,
   // heavy-penetration pistol that hits very hard. Four stims (heal over a few seconds and a burst of speed), three
   // heavy-penetration grenades (six to kill a medium), and a dodge that comes round every so often. A resupply restocks all of it.
-  hd:       { stims: 4, stimHeal: 0.5, stimSec: 3.5, stimBoostSec: 8, stimSpeed: 1.4, stimCool: 3.5, stimAt: 0.5, stimRunAt: 0.8,
+  vg:       { stims: 4, stimHeal: 0.5, stimSec: 3.5, stimBoostSec: 8, stimSpeed: 1.4, stimCool: 3.5, stimAt: 0.5, stimRunAt: 0.8,
               // Grenades: four, for groups and for heavies. Damage follows the enemy's own health as the war toughens it: a grenade
               // kills lights in its blast, takes `med` of a medium and `heavy` of a heavy (about four to kill one). `group` is the
               // weight of enemies (light 1, medium 2, heavy 4) round a spot worth a grenade.
@@ -88,7 +88,7 @@ export const CONFIG = {
   // share, except a rocket or a blast that lands in a unit's back from right behind it (within backR of it): that is the full hit.
   // A blast hurts everyone in it by the weapon's own table against their armour (allyArmor: Vanguards medium, Infantry light).
   // react: how long an ally takes to see a blast coming (a grenade on the ground, a shell in the air) before running from it.
-  ff: { own: 0.5, backR: 2.2, react: 0.5, ultDmg: 500, allyArmor: { H: 'M', S: 'L' }, strayMul: 0.5, enemy: { lane: 1.6, collateral: 0.06, ffMul: 0.5, splashMul: 0.5 }, flee: { hd: 7.5, infantry: 6 } },
+  ff: { own: 0.5, backR: 2.2, react: 0.5, ultDmg: 500, allyArmor: { H: 'M', S: 'L' }, strayMul: 0.5, enemy: { lane: 1.6, collateral: 0.06, ffMul: 0.5, splashMul: 0.5 }, flee: { vg: 7.5, infantry: 6 } },
   // Infantry arrive when the player calls a pod. By default they go and clear the nearest objective on their own.
   // (0.18) the first drop is ready at once (the mission starts on the tactical screen); until startSec a drop can go anywhere
   // within startR of the landing zone, before the Vanguards are down.
@@ -153,7 +153,7 @@ export const CONFIG = {
   wipe:     { d: [110, 170], padD: [18, 34], quietR: 80, edge: 70, spread: 8 },
   squad:    { speed: 6, chaseSpeed: 8.5, engageRange: 38, pushAfterSec: 45,
               clusterRadius: 15, setupSec: 5, setupCooldownSec: 15, carrySlow: 0.85, fightOnSec: 12, fightOnSpeed: 0.5, spotRange: 95 },
-  // Bases and the citadel. The Vanguards destroy them with rifles, support weapons and call-ins, exactly as the destroyer
+  // Bases and the citadel. The Vanguards destroy them with rifles, support weapons and call-ins, exactly as the ship
   // can: rifle fire counts for a fraction of its normal damage, and anything the squad calls hits structures harder (callinMul).
   structure: { range: 48, standOff: 26, push: 14, rifleH: 0.8, rifleS: 0.3, callinMul: 2.6, weaponTry: 0.4, breakR: 12 },     // (0.53.4: breakR, a stalemate's)
 
@@ -253,7 +253,7 @@ export const CONFIG = {
     infantrySmg: { dps: 11, burst: 0.3, acc: 0.78, range: 30, mult: { L: 1, M: 0.45, H: 0.1 } },
     // Hits from behind and critical hits, for every side. A unit's back is the arc behind it (cos of the angle between where it faces
     // and where the hit comes from below back.cos). Heavies carry their weak spot on the back (back.heavy). Every hit can crit; the
-    // destroyer's own strikes crit most often. Turning: how fast units swing round (rad/s), so a slow heavy can be caught from behind.
+    // ship's own strikes crit most often. Turning: how fast units swing round (rad/s), so a slow heavy can be caught from behind.
     back: { cos: -0.4, mul: 1.5, heavy: 2.2 },
     crit: { mul: 2, player: 0.14, gun: 0.10, ally: 0.06, enemy: 0.04 },
     turn: { ally: 9, L: 9, M: 5, H: { bugs: 2.2, bots: 1.2, lizards: 1.6 } },
@@ -392,7 +392,7 @@ export const CONFIG = {
               rescue: { n: 5, claimR: 26, offR: 45, reward: 200 },
               // an abandoned Infantry artillery cannon: a Vanguard stands by it for holdSec and it is ours (weapon 9, once someone mans it)
               arty: { holdR: 16, holdSec: 18, reward: 250 },
-              // (0.37) an enemy structure only a Demolition Charge brings down (the spore spewer, the call-in jammer, the cognitive disruptor):
+              // (0.37) an enemy structure only a Demolition Charge brings down (the spore tower, the call-in jammer, the cognitive disruptor):
               // while it stands no orbital can be called within R of it. chance: how often a mission has one (from fromMission)
               jammer: { R: 85, r: 10, reward: 320, chance: 0.6, fromMission: 2 },     // (from an operation's second mission: the first is a calm start)
               // (0.37) the squad calls a Demolition Charge on an enemy broadcast tower too (from jammer.fromMission), while it still has more than
@@ -405,7 +405,7 @@ export const CONFIG = {
   // lives left and the time for it. Time is estimated at pace x squad speed plus `work` seconds per task. Re-planned every `every` s.
   // ask: once the objective is done, a squad with lives to spare but too little time for a full clear asks the gunner for more
   // (minutes rounded up, at most maxMin, costing perMin credits a minute; the player has askSec to answer; asks per mission).
-  // (0.39) Holding orbit over the zone burns the destroyer's fuel: each minute costs perMinIn more of perMin for every minute the
+  // (0.39) Holding orbit over the zone burns the ship's fuel: each minute costs perMinIn more of perMin for every minute the
   // mission has run so far.
   // (0.53.7) clearChance: how many missions out of a hundred the squad is set on a full clear once the objective is done (whether
   // the clock covers it or not; with more than clearLives lives)
@@ -586,13 +586,13 @@ export const CONFIG = {
   // are bunched up. The dropship leaves once every Vanguard is aboard, or after boardSec.
   // The extraction pad is on the map from the drop (locked until the objective is done). A Vanguard on it throws the blue beacon
   // (it falls for beaconSec); then the dropship takes callSec to arrive, waits boardSec on the pad, and the enemy comes in waves.
-  // (0.39) orbitSec: once the Vanguards are aboard and away, the destroyer leaves orbit this many seconds later; Infantry still on the
+  // (0.39) orbitSec: once the Vanguards are aboard and away, the ship leaves orbit this many seconds later; Infantry still on the
   // ground then are left behind (lost, and paid for like any lost trooper)
   // (0.53.7) gatherSec: that long before the dropship comes down, every Vanguard closes on the pad (squad.js)
   extract:  { minFromLz: 600, minFromBase: 150, minFromObj: 60, radius: 25, callSec: 120, beaconSec: 2.2, landSec: 5, boardSec: 20, boardR: 6, orbitSec: 10, warnSec: 60, gatherSec: 15, holdMore: 25 },
   // At the start of a mission the ship gun is ready and selected; the UAV and every orbital start part-way through a cooldown.
   weapons:  { swapSec: 0.3, warmupSec: 8, startCdFrac: 0.5, startCdMin: 12 },
-  // The destroyer's free-fire Ship Gun (its one gatling). It fires wherever the player can see, so it is not tied to the strike zone, and it is the
+  // The ship's free-fire Ship Gun (its one gatling). It fires wherever the player can see, so it is not tied to the strike zone, and it is the
   // only thing that uses the player's ammo. Rounds scatter around the aim point and the spread blooms while the trigger is held.
   // (0.59) ammo 600 -> 200; light penetration to start (pen[0]), the Penetrator Rounds upgrade takes it to medium then heavy
   gun:      { ammo: 200, pen: [{ L: 1, M: 0.35, H: 0.12 }, { L: 1, M: 1, H: 0.35 }, { L: 1, M: 1, H: 0.7 }], regen: 9, regenDelay: 1.3, rps: 22, dmg: 16, splash: 1.9, spread: 4.5, bloom: 7, bloomUp: 2.4, bloomDown: 5, struct: 0.04, body: 0.75, bodyMax: 8,
@@ -645,15 +645,15 @@ export const CONFIG = {
     vip:  { pickR: 22, pickSec: 40, regrabSec: 4, dropR: 28, deliverSec: 100, gap: 500, garrisonR: 220 },
     // Evacuation: one big site with a shelter and a hangar. While a Vanguard holds the site the shelter sends civilians out a few
     // at a time; they walk to the hangar and board shuttles (one leaves for every `shuttle` aboard). Done when `need` are out.
-    evac: { r: 95, gap: 84, need: 44, batch: 4, every: 11, maxOut: 14, speed: 3.6, hp: 45, shuttle: 10, hdR: 75, door: 4 },
+    evac: { r: 95, gap: 84, need: 44, batch: 4, every: 11, maxOut: 14, speed: 3.6, hp: 45, shuttle: 10, vgR: 75, door: 4 },
     // (0.18) One operation of each faction's own, in the pool with the others for that faction (sim/ops.js):
     // oil (bugs): hold an oil pump while it fills a tank (fillSec while the squad holds it; slowRate with the enemy on the pump,
     //   within r), then a dropship comes for the tank (inSec, loadSec, outSec). trips loads and it is done.
     oil:    { r: 22, trips: 3, fillSec: 55, slowRate: 0.3, inSec: 6, loadSec: 9, outSec: 6, pad: 16 },
-    // cannon (bots): an orbital defence cannon firing at the destroyer every `every` seconds. While it stands the ship keeps
+    // cannon (bots): an orbital defence cannon firing at the ship every `every` seconds. While it stands the ship keeps
     //   dodging: the player's strikes land up to scatter metres off, the ship gun spreads gunMul times as wide. Destroy it (hp).
     cannon: { hp: 6500, r: 14, every: 6, scatter: 16, gunMul: 1.8 },
-    // (0.53) gun (lizards, and the campaign's finale): the planetary defence gun, an ally the enemy comes for. hp, r across, zone
+    // (0.53) gun (lizards): the planetary defence gun, an ally the enemy comes for. hp, r across, zone
     //   (the squad there starts it), shots to bring the mothership down, chargeSec a shot (slowRate of it with the enemy on the
     //   gun), shotPay credits a shot; drops at it every dropEvery seconds (dropFaster less a shot fired, never under dropMin) of
     //   dropSize[0] growing to dropSize[1] troops, dropDist metres out; the mothership drawn shipOff metres from the gun.
@@ -698,7 +698,7 @@ export const CONFIG = {
     heavyW: { each: 0.9, weight: 3 },
     lrv:   { hp: 800, speed: 14, life: 160, seats: 4, gunRange: 70, gunDmg: 62, gunEvery: 0.42, ejectAt: 0.25, dropSec: 4 },
     mech:  { hp: 850, armor: 0.5, gatAmmo: 500, rktAmmo: 12, dropSec: 5 },
-    dog:   { hp: 140, life: 150, range: 38, every: 0.45, dmg: 9 },
+    drone:   { hp: 140, life: 150, range: 38, every: 0.45, dmg: 9 },
     jump:  { sec: 40, speedMul: 1.7 },
   },
 
@@ -729,7 +729,7 @@ export const CONFIG = {
                     // (0.55) turrets on its back (x, y in its radii, +x forward), as a bot base's (C.eturret), damage x turretMul
                     turrets: [[-0.45, -0.42], [-0.45, 0.42]], turretMul: 1.2 },
           lizards: { hp: 14000, shield: 6000, regen: 120, regenDelay: 7, r: 12, speed: 1.9, stop: 48,
-                    // (0.55) walk: its beam walks the ground like the orbital laser (enemies.js thunderBeam): charge s, then dur s
+                    // (0.55) walk: its beam walks the ground like the cutting beam (enemies.js thunderBeam): charge s, then dur s
                     // burning width across at dps, starting lead m short of the target and steering at follow m/s; every s between
                     walk: { range: 78, charge: 2.2, lock: 0.6, dur: 5, dps: 60, width: 6, follow: 7, lead: 16, every: 7 } } },
   // Resupply on request: the Vanguards ask, the player loads a pod in slow motion (cells per compartment, fillSec real seconds at
@@ -738,12 +738,12 @@ export const CONFIG = {
               boostSec: 45, boostDmg: 0.15, boostSpeed: 1.1 },
 
   // Chatter: speech bubbles over Vanguards and Infantry, on cooldowns so they stay readable.
-  chatter:  { hdCool: 11, infantryCool: 20, hdSec: 4.2, infantrySec: 3.2, infantryGlobalGap: 3.5, hdGlobalGap: 1.6 },
+  chatter:  { vgCool: 11, infantryCool: 20, vgSec: 4.2, infantrySec: 3.2, infantryGlobalGap: 3.5, vgGlobalGap: 1.6 },
 
   score:    { light: 10, medium: 50, heavy: 200, allyKillShare: 0.2, base: 1000,
               objective: 2500, perMinuteLeft: 100, extraction: 1500, perLifeLeft: 25, survivorVanguard: 100, survivorInfantry: 25,
               poi: 250, breach: 150, dropDown: 300, side: 600, fullClear: 1500, civSaved: 40, civLost: -30, ffCiv: -60,
-              hdDeath: -75, wipe: -250,
+              vgDeath: -75, wipe: -250,
               ffVanguard: -200, ffInfantry: -50,
               comboStep: 0.1, comboMax: 3.0, comboWindowSec: 2, comboResetSec: 3 },
   // Loading screens always last at least this long, then wait for a click.

@@ -124,7 +124,7 @@ const MODELS = {
   'lizards:L': 'talon_L', 'lizards:M': 'talon_M', 'lizards:H': 'talon_H', 'lizards:mort': 'talon_bombardier', 'lizards:soak': 'talon_herd', 'lizards:boss': 'talon_thunder',
   van: 'vanguard', inf: 'soldier', civ0: 'citizen_a', civ1: 'citizen_b', civ2: 'citizen_c',
   // (GC 0.41) vehicles and aircraft, made in Blender (tools/blender/vehicles.py) and dressed in the fleet's colours as the people are
-  dship: 'veh_dropship', jet: 'veh_striker', lrv: 'veh_lrv', mech: 'veh_mech', shuttle: 'veh_shuttle', dog: 'veh_dog', uav: 'veh_uav',
+  dship: 'veh_dropship', jet: 'veh_striker', lrv: 'veh_lrv', mech: 'veh_mech', shuttle: 'veh_shuttle', drone: 'veh_drone', uav: 'veh_uav',
   // (GC 0.50) the enemy's own craft (tools/blender/craft.py): the Foundry's dropship and the Talon's war barge, each under way (`stand`) and over its drop (`hover`)
   'edrop:ship': 'drop_foundry', 'edrop:warp': 'drop_talon',
 };
@@ -139,7 +139,7 @@ export class Units3D {
     // how tall each stands for a footprint radius of one is whatever its model is; `k` scales the footprint asked for
     this.def = {
       dship: () => bake(mats ? makeDropship(mats) : jet()), jet: () => bake(jet()), crate: () => bake(mats ? makeCrate(mats) : (() => { const g = new THREE.Group(); part(g, BOX, mat('#ffd678'), 0, 0.5, 0, 1, 1, 1); return g; })()),
-      van: () => (mats ? personFrames(() => makePerson(vanMats, 'hd'), true) : bake(person('troop'))), inf: () => (mats ? personFrames(() => makePerson(mats, 'troop'), true) : bake(person('troop'))),
+      van: () => (mats ? personFrames(() => makePerson(vanMats, 'vg'), true) : bake(person('troop'))), inf: () => (mats ? personFrames(() => makePerson(mats, 'troop'), true) : bake(person('troop'))),
       civ0: () => (mats ? personFrames(() => makePerson(mats, 'civ0'), false) : bake(person('troop'))), civ1: () => (mats ? personFrames(() => makePerson(mats, 'civ1'), false) : bake(person('troop'))), civ2: () => (mats ? personFrames(() => makePerson(mats, 'civ2'), false) : bake(person('troop'))), lrv: () => bake(mats ? makeLRV(mats) : mech({})), mech: () => bake(mech(this.mats)),
       'bugs:L': () => bake(molt(1)), 'bugs:M': () => bake(molt(2)), 'bugs:H': () => bake(molt(3)),
       'bots:L': () => bake(foundry(1, mats)), 'bots:M': () => bake(foundry(2, mats)), 'bots:H': () => (mats ? bake(foundry(3, mats), '#7a3028') : bake(foundry(2, mats))),

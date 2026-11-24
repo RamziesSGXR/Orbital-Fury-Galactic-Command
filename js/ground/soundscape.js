@@ -38,7 +38,7 @@ export function soundSources(m, shots = []) {
     prev.set(key, { x, y });
     out.push({ key, kind, x, y, vol: Math.min(1, 0.5 + n * 0.05), moving, n, sp: d / (S.everySec || 0.25), ground: m.biome && m.biome.id });     // (0.72: how fast, and on what, for the footsteps)
   };
-  group('hd', 'squad', m.hdAlive || [], 1);
+  group('vg', 'squad', m.vgAlive || [], 1);
   const bySq = new Map();
   for (const a of m.infantryAlive || []) { let L = bySq.get(a.sq); if (!L) bySq.set(a.sq, L = []); L.push(a); }
   for (const [sq, L] of bySq) group('sq' + sq, 'infantry', L, 2);

@@ -1,7 +1,7 @@
 // (0.24) The title screen's view: the planet below the Fire-Support Ship, from orbit. Stars, the planet's limb and its thin
 // atmosphere across the bottom of the screen, cloud drifting over a dark surface with the lights of its cities on the night side,
 // and the ship's fire control at work: a reticle walks the surface, and every few seconds a strike comes down where it settles.
-// One canvas, behind the title and campaign screens; it only draws while one of them is showing, and holds still for anyone who
+// One canvas, behind the title screen; it only draws while it is showing, and holds still for anyone who
 // prefers reduced motion.
 const TAU = Math.PI * 2;
 let cv = null, ctx = null, raf = 0, W = 0, H = 0, DPR = 1, last = 0, t0 = 0;
@@ -156,7 +156,7 @@ function loop(now) {
   if (!COARSE || now - drawnAt >= 30) { drawnAt = now; draw(now); }
   raf = requestAnimationFrame(loop);
 }
-const showing = () => ['s-title', 's-campaign'].some((id) => { const e = document.getElementById(id); return e && e.classList.contains('on'); });
+const showing = () => ['s-title'].some((id) => { const e = document.getElementById(id); return e && e.classList.contains('on'); });
 
 export function startTitleBg() {
   if (!cv) {

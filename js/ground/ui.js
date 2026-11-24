@@ -5,7 +5,6 @@ import { FACTIONS, BIOMES } from './data/data.js';
 import { fmtTime, fmtNum, sessionTotals, MAX_NAME, carriesOn, levelReached } from './session.js';
 import { CALLINS, CAT_COLOR } from './data/callin.js';
 import { LETTERS, TEAM_COLOR } from './data/names.js';
-import { STORY } from './data/story.js';
 import { perkN, perkPct, perksTotal } from './data/perks.js';
 import { siteGain } from './sim/sites.js';
 import { GROUPS as KEY_GROUPS, label as keyLabelOf, keyOf as keyOfAction, defaultOf as defaultKeyOf } from './keys.js';
@@ -24,10 +23,9 @@ import { t, tl, getLang, LANGS } from './i18n.js';
 import { postIcon } from './render/posts.js';
 import { squadColor } from './render/squads.js';
 import { LEVELS, levelFactors, reward, levelName, livesAt } from './difficulty.js';
-import { CAST, CAST_ORDER } from './data/story.js';
 
 const $ = (id) => document.getElementById(id);
-const SCREENS = ['s-title', 's-campaign', 's-glass', 's-shop', 's-brief', 's-debrief', 's-final', 's-next'];
+const SCREENS = ['s-title', 's-glass', 's-shop', 's-brief', 's-debrief', 's-final', 's-next'];
 const OVERLAYS = ['s-pause', 's-lock', 's-controls', 's-manual', 's-names', 's-settings', 's-notice', 's-info', 's-armory', 's-credits', 's-map', 's-radio', 's-feedback'];
 const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -84,11 +82,8 @@ export function isOn(id) { return $(id).classList.contains('on'); }
 export function anyOverlay() { return OVERLAYS.some((o) => $(o).classList.contains('on')); }
 export function hideOverlays() { for (const o of OVERLAYS) overlay(o, false); }
 
-// (0.24) The campaign screen: the test story, and its chapters (only those that can be played have a button).
-// (0.37) the chapters in order: cleared ones can be replayed, the next one is open, the rest wait for the one before. st: { prog
-// (session.js getCampaign), run (the campaign run under way, or null), onResume }
 // (0.41) SAVE GAME / LOAD GAME: the three slots. mode 'save' | 'load'; slots: what main.js slotInfo says of each (null: empty);
-// h.arm: the button waiting for a second tap ('save2', 'load1', 'del3'); h.replaces(n): 'camp' | 'quick' when loading slot n would
+// h.arm: the button waiting for a second tap ('save2', 'load1', 'del3'); h.replaces(n): 'quick' when loading slot n would
 // replace a run under way; h.mid: saving during a mission (the run as it was at the drop).
 export function fillSaves(mode, slots, h) {
   const auto = mode === 'auto', save = mode === 'save' || auto;      // (0.46) 'auto': every slot is in use as a new operation drops
@@ -103,11 +98,11 @@ export function fillSaves(mode, slots, h) {
     const b = el('div', 'sv-b');
     b.appendChild(el('div', 'sv-k', esc(t('sv.slot', { n })) + (s && s.cur ? ` <i>${esc(t('sv.cur'))}</i>` : '')));
     if (s) {
-      b.appendChild(el('div', 'sv-t', esc(s.camp ? (s.ch ? t('sv.camp', { n: s.ch, t: s.chT }) : t('sv.campEnd', { n: s.next })) : t('sv.quick', { op: s.op.toUpperCase() }))));
+      b.appendChild(el('div', 'sv-t', esc(t('sv.quick', { op: s.op.toUpperCase() }))));
       b.appendChild(el('div', 'sv-l', esc(t('sv.line', { cs: s.cs, done: s.done, level: s.level, rank: t('rank.' + s.rank), cr: Math.round(s.cr).toLocaleString('en-US') }))));
       b.appendChild(el('div', 'sv-at', esc(t('sv.at', { at: when(s.at) }))));
       const rp = !save && h.replaces(n);
-      if (rp && h.arm === `load${n}`) b.appendChild(el('div', 'sv-warn', esc(t(rp === 'camp' ? 'sv.replaceCamp' : 'sv.replaceQuick'))));
+      if (rp && h.arm === `load${n}`) b.appendChild(el('div', 'sv-warn', esc(t('sv.replaceQuick'))));
     } else b.appendChild(el('div', 'sv-t sv-e', esc(t('sv.empty'))));
     li.appendChild(b);
     const acts = el('div', 'sv-acts');
@@ -119,47 +114,6 @@ export function fillSaves(mode, slots, h) {
     li.appendChild(acts);
     ol.appendChild(li);
   });
-}
-
-export function fillCampaign(story, onPlay, st = {}) {
-  const prog = st.prog || { done: [], ck: {} }, run = st.run && st.run.story ? st.run : null;
-  $('cp-title').textContent = t(`cp.${story.id}.t`);
-  const box = $('cp-story'); box.innerHTML = '';
-  for (const k of [1, 2, 3]) box.appendChild(el('p', '', esc(t(`cp.${story.id}.p${k}`))));
-  // (0.27) who is on the radio
-  box.appendChild(el('h3', 'cp-cast-h', esc(t('cp.cast'))));
-  const ul = el('ul', 'cp-cast');
-  for (const k of CAST_ORDER) { const c = CAST[k], li = el('li', '', `<b>${esc(c.name)}</b><small>${esc(t(c.unit))}</small>`); li.style.setProperty('--cc', c.col); ul.appendChild(li); }
-  box.appendChild(ul);
-  const N = story.chapters.length, next = story.chapters.find((c) => !prog.done.includes(c.n));
-  const runCh = run ? story.chapters.find((c) => c.n === run.story.ch + (run.missions ? run.missions.length : 0)) : null;
-  $('cp-prog').textContent = t(prog.done.length >= N ? 'cp.progAll' : 'cp.prog', { n: prog.done.length, of: N });
-  const ol = $('cp-chs'); ol.innerHTML = '';
-  let arc = null;
-  for (const c of story.chapters) {
-    // (0.53) the arcs: a heading each time the world changes
-    if (c.arc && c.arc !== arc) { arc = c.arc; ol.appendChild(el('li', 'cp-arc', esc(t(`cp.${story.id}.arc.${arc}`)))); }
-    const done = prog.done.includes(c.n), open = done || c === next || (c.n > 1 && prog.done.includes(c.n - 1)) || c.n === 1;
-    const li = el('li', 'cp-ch' + (done ? ' done' : '') + (open ? '' : ' locked') + (c === runCh ? ' run' : ''));
-    li.appendChild(el('h3', '', `${esc(t(`cp.${story.id}.c${c.n}`))}${done ? ` <i class="cp-ok">${esc(t('cp.cleared'))}</i>` : ''}`));
-    li.appendChild(el('p', '', esc(t(`cp.${story.id}.c${c.n}b`))));
-    if (c.teach) li.appendChild(el('p', 'cp-teach', esc(t(`cp.${story.id}.c${c.n}t`))));
-    const row = el('div', 'cp-btns');
-    if (c === runCh && st.onResume) { const b = el('button', 'btn primary', esc(t('cp.continue', { n: run.missions.length + 1 }))); b.type = 'button'; b.onclick = () => st.onResume(); row.appendChild(b); }
-    if (open && c.play) { const b = el('button', 'btn' + (c === runCh ? '' : ' primary'), esc(t(done ? 'cp.replay' : 'cp.play', { n: c.n }))); b.type = 'button'; b.onclick = () => onPlay(c); row.appendChild(b); }
-    else if (!open) row.appendChild(el('span', 'cp-lock', esc(t('cp.locked', { n: c.n - 1 }))));
-    li.appendChild(row);
-    ol.appendChild(li);
-  }
-  // (0.41) every chapter flown: the run goes on as an endless one, with everything in its armory
-  if (st.end && st.onResume) {
-    const e = st.end, li = el('li', 'cp-ch cp-end run');
-    li.appendChild(el('h3', '', esc(t('cp.endH'))));
-    li.appendChild(el('p', '', esc(t('cp.endB'))));
-    li.appendChild(el('p', 'cp-teach', esc(t('cp.endRun', { n: e.n, level: e.level, rank: t('rank.' + e.rank), cr: fmtNum(e.cr) }))));
-    const row = el('div', 'cp-btns'), b = el('button', 'btn primary', esc(t('cp.continue', { n: e.n })));
-    b.type = 'button'; b.onclick = () => st.onResume(); row.appendChild(b); li.appendChild(row); ol.prepend(li);     // (first: it is what comes next)
-  }
 }
 
 // (0.24) The milestone splash: ms = { k, of, done, bonus, names, next } shows it; null takes it down.
@@ -324,8 +278,8 @@ export class Hud {
     $('btn-tac').addEventListener('click', () => this.onTac && this.onTac());
     $('dk-tac').addEventListener('pointerdown', (e) => { e.preventDefault(); this.onTac && this.onTac(); });
     // its two drop menus: the Vanguards, and the Infantry squads with their orders
-    for (const [id, cls] of [['td-hd', 'tac-hd'], ['td-sf', 'tac-sf']]) {
-      $(id).addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); const b = document.body, on = !b.classList.contains(cls); b.classList.remove('tac-hd', 'tac-sf'); b.classList.toggle(cls, on); });
+    for (const [id, cls] of [['td-vg', 'tac-vg'], ['td-sf', 'tac-sf']]) {
+      $(id).addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); const b = document.body, on = !b.classList.contains(cls); b.classList.remove('tac-vg', 'tac-sf'); b.classList.toggle(cls, on); });
     }
     // What is selected on the map: a small panel just above it, with a door to send Infantry in (or to bring them out).
     $('selpop').addEventListener('pointerdown', (ev) => { ev.stopPropagation(); const b = ev.target.closest('[data-sa]'); if (!b) return; ev.preventDefault(); this.onSelAct && this.onSelAct(b.dataset.sa); });
@@ -334,7 +288,7 @@ export class Hud {
     // Compact (touch) HUD: the dock under the weapon bar, the squad and orders tray it opens, and the idle fade.
     this.dkSq = $('dk-sq'); this.dkDrop = $('dk-drop');
     this.dkSq.addEventListener('pointerdown', (e) => { e.preventDefault(); if (this.drawing) this.onSquadAct && this.onSquadAct('draw'); else this.onTac && this.onTac(true, 'units'); });
-    $('dk-hd').addEventListener('pointerdown', (e) => { e.preventDefault(); this.onTac && this.onTac(true, 'hd'); });
+    $('dk-vg').addEventListener('pointerdown', (e) => { e.preventDefault(); this.onTac && this.onTac(true, 'vg'); });
     this.dkDrop.addEventListener('pointerdown', (e) => { e.preventDefault(); this.onOrder && this.onOrder('infantry'); });
     this.dkPick = $('dk-pick');
     this.dkPick.addEventListener('pointerdown', (e) => { e.preventDefault(); this.onOrder && this.onOrder('pickup'); });
@@ -640,16 +594,6 @@ export class Hud {
     this.notice(text, 'radio');
   }
   clearRadio() { /* (radio lines are notices now) */ }
-  // (0.27) the campaign's cast on the radio: their tag in their colour, then the line; up longer than other news (it is read)
-  cast(c, text) {
-    if (document.body.classList.contains('lay-phone') && this.radioOn) return;     // (0.42.1: a phone has it in the radio tab already)
-    const touch = document.body.classList.contains('touch');
-    const box = $('notices'), d = el('div', 'nt cast'); d.style.setProperty('--cc', c.col);
-    const b = document.createElement('b'); b.textContent = c.tag; d.append(b, document.createTextNode(text)); box.appendChild(d);
-    while (box.children.length > (touch ? 3 : 6)) box.removeChild(box.firstChild);
-    timeMessage(d, touch ? 7000 : 9500, 1200);     // (GC 0.58) MESSAGE TIME on the main menu
-  }
-
   // The notice feed: Vanguard deployments and deaths, breaches, points of interest, purchases.
   notice(text, tone = 'info') {
     const touch = document.body.classList.contains('touch');
@@ -676,7 +620,7 @@ export class Hud {
     clearTimeout(this._tst); this._tst = setTimeout(() => e.classList.remove('show'), ms);
   }
 
-  // ---- (0.28) the command radio (tutorial and campaign): a button by the minimap; its log above the minimap, or (on a phone) in its
+  // ---- (0.28) the command radio (the tutorial): a button by the minimap; its log above the minimap, or (on a phone) in its
   // place until it is shut again. Chatter only shows here: the button lights when there is something new.
   radioShow(on) {
     this.radioOn = !!on; $('btn-radio').classList.toggle('hidden', !on); document.body.classList.toggle('radio-on', !!on);
@@ -867,8 +811,8 @@ export class Hud {
     const rows = $('hdrows'); rows.innerHTML = ''; this.rr = []; this.sc = []; this._hdOpen = -1; $('hdpanel').classList.remove('pop');
     m.teams.forEach((tm, i) => {
       const r = el('div', 'hr', `<b class="l">${tm.letter}</b><span class="rn"></span><div class="hm"><div class="h1"><span class="t">--</span><span class="ship">${esc(tm.ship)}</span></div><i class="hp"><u></u></i><div class="h3"><span class="st"></span><span class="sts"></span><div class="cells"></div></div></div>`);
-      r.style.setProperty('--tc', tm.color); r.dataset.hd = i;
-      r.addEventListener('pointerdown', (ev) => { if (ev.target.closest('.sc')) return; this.onHd && this.onHd(i); if (document.body.classList.contains('lay-phone')) { if (this.dbl('h' + i)) { this.hdOpen(i); this.onFocus && this.onFocus('hd', i); } else this.hdOpen(i); return; } if (this.dbl('h' + i)) this.onFocus && this.onFocus('hd', i); });     // (0.21: on a phone a tap opens the chip, a double tap goes there)
+      r.style.setProperty('--tc', tm.color); r.dataset.vg = i;
+      r.addEventListener('pointerdown', (ev) => { if (ev.target.closest('.sc')) return; this.onHd && this.onHd(i); if (document.body.classList.contains('lay-phone')) { if (this.dbl('h' + i)) { this.vgOpen(i); this.onFocus && this.onFocus('vg', i); } else this.vgOpen(i); return; } if (this.dbl('h' + i)) this.onFocus && this.onFocus('vg', i); });     // (0.21: on a phone a tap opens the chip, a double tap goes there)
       const cells = r.querySelector('.cells');
       for (const id of tm.ids) {
         const sg = m.callin.groups[id], d = sg.def, c = el('div', 'sc', `<span class="g">${d.g}</span><i class="f"></i>`);
@@ -883,7 +827,7 @@ export class Hud {
       this.rr.push({ el: r, t: r.querySelector('.t'), ship: r.querySelector('.ship'), hp: r.querySelector('.hp u'), st: r.querySelector('.st'), sts: r.querySelector('.sts'), rn: r.querySelector('.rn'), key: '', rk: '' });
     });
     // (0.19.1) the dock's chips: a letter and a health bar each, so the Vanguards can be watched with the sheet shut
-    const hc = document.querySelector('#dk-hd .hdc'); hc.innerHTML = ''; this.hc = [];
+    const hc = document.querySelector('#dk-vg .vgc'); hc.innerHTML = ''; this.hc = [];
     m.teams.forEach((tm) => {
       const c = el('span', 'hc', `<b>${tm.letter}</b><i><u></u></i>`); c.style.setProperty('--tc', tm.color);
       hc.appendChild(c); this.hc.push({ el: c, u: c.querySelector('u'), key: '' });
@@ -897,7 +841,7 @@ export class Hud {
 
   update(m, cam, session) {
     // (0.19: on Mars the clock counts how long the base has held, once the evacuation is open)
-    // (0.39) once the Vanguards are away, the clock counts down to the destroyer leaving orbit
+    // (0.39) once the Vanguards are away, the clock counts down to the ship leaving orbit
     const orbit = !m.ls && m.extraction && m.extraction.state === 'away' && m.extraction.leaveAt ? Math.max(0, m.extraction.leaveAt - m.t) : null;
     const left = m.ls ? (m.ls.stage === 'lessons' ? null : m.ls.holdT) : orbit !== null ? orbit : Math.max(0, m.limitSec - m.t);
     this._set('timer', $('timer'), left === null ? '--:--' : fmtTime(left));
@@ -944,7 +888,7 @@ export class Hud {
     }
     $('hud').classList.toggle('ls', !!m.ls);
     // (0.19.5) the Vanguards' lives beside the credits: the mission is lost when they are gone (red with a quarter or less left)
-    const lv = Math.max(0, m.hd.lives), lmax = m.hd.max || lv || 1;
+    const lv = Math.max(0, m.vg.lives), lmax = m.vg.max || lv || 1;
     if (this.last.lives !== lv) {
       const d = this.last.lives === undefined ? 0 : lv - this.last.lives;
       this.last.lives = lv; $('lives-v').textContent = String(lv);
@@ -985,7 +929,7 @@ export class Hud {
   _roster(m) {
     m.teams.forEach((tm, i) => {
       const r = this.rr[i]; if (!r) return;
-      const a = tm.hd && !tm.hd.dead ? tm.hd : null;
+      const a = tm.vg && !tm.vg.dead ? tm.vg : null;
       let name, st = '', sts = '', f = 0, cls = '';
       if (a) {
         name = m.tag(a);
@@ -1001,7 +945,7 @@ export class Hud {
         // (0.27.3) a phone held upright shows the chip short: an arrow and the time (minutes past a minute), the words in the open row
         const mmss = (n) => (n >= 60 ? `${Math.floor(n / 60)}:${String(n % 60).padStart(2, '0')}` : `${n}S`);
         if (pod) { const n = Math.ceil(Math.max(0, pod.landAt - m.t)); st = t('hud.r.drop', { n }); sts = `▼ ${mmss(n)}`; cls = 'drop'; }
-        else if (m.hd.lives <= 0) { st = sts = t('hud.r.lost'); cls = 'lost'; }
+        else if (m.vg.lives <= 0) { st = sts = t('hud.r.lost'); cls = 'lost'; }
         else { const n = Math.ceil(Math.max(0, tm.respawnAt - m.t)); st = t('hud.r.call', { n }); sts = `◷ ${mmss(n)}`; cls = 'wait'; }
       }
       const ship = tm.ship, hc = this.hc && this.hc[i];
@@ -1016,12 +960,12 @@ export class Hud {
   }
   // (0.21) phones: the Vanguards are four chips (letter, health, call-ins ready); a tap on one shows its full row for a few
   // seconds (a tap again, or another chip, closes it)
-  hdOpen(i) {
+  vgOpen(i) {
     clearTimeout(this._hdT);
     this._hdOpen = this._hdOpen === i ? -1 : i;
     (this.rr || []).forEach((r, k) => r.el.classList.toggle('open', k === this._hdOpen));
     $('hdpanel').classList.toggle('pop', this._hdOpen >= 0);
-    if (this._hdOpen >= 0) this._hdT = setTimeout(() => this.hdOpen(this._hdOpen), 5000);
+    if (this._hdOpen >= 0) this._hdT = setTimeout(() => this.vgOpen(this._hdOpen), 5000);
   }
 
   // (0.48) the alert level as a threat rank (0.49: chevrons and a named rank, like a DEFCON board, not stars): five chevrons, lit
@@ -1038,11 +982,11 @@ export class Hud {
   }
   _supply(m) {
     this._alert(m);
-    const sf = m.countAlly('S'), pods = m.pendingPods('S'), st = infantryStats(m.kit), lives = m.hd.lives, up = m.infantry.reserve.length;
-    const key = `${lives}|${m.hd.max}|${sf}|${pods}|${st.max}|${up}|${getLang()}`;
+    const sf = m.countAlly('S'), pods = m.pendingPods('S'), st = infantryStats(m.kit), lives = m.vg.lives, up = m.infantry.reserve.length;
+    const key = `${lives}|${m.vg.max}|${sf}|${pods}|${st.max}|${up}|${getLang()}`;
     if (this.last.supply === key) return;
     this.last.supply = key;
-    // (0.20) Infantry on the ground, out of the most there can be, on the resource bar (0.39: and ▲ those aboard the destroyer)
+    // (0.20) Infantry on the ground, out of the most there can be, on the resource bar (0.39: and ▲ those aboard the ship)
     $('infantryc-v').innerHTML = `${sf}<small>/${st.max}</small>${pods ? ` <i>+${pods}</i>` : ''}${up ? ` <i class="up">▲${up}</i>` : ''}`;
     $('supply').innerHTML = `<span>${t('hud.lives')} <b class="lives${lives <= 4 ? ' low' : ''}">${lives}</b></span><span>Infantry <b>${sf}</b>/${st.max}${pods ? ` <i>+${pods}</i>` : ''}</span>`;
   }
@@ -1053,7 +997,7 @@ export class Hud {
     for (const c of this.sc) {
       const g = m.callin.groups[c.id], d = g.def, rdy = callinReady(m, c.id);
       let st = rdy >= 1 ? 'rdy' : 'cd';
-      if (g.assets.length || (d.k === 'jump' && tt < m.buff.jumpUntil) || (d.k === 'weapon' && m.hdAlive.some((a) => a.sw && a.sw.id === c.id)) || (d.k === 'mech' && m.hdAlive.some((a) => a.mech))) st += ' act';
+      if (g.assets.length || (d.k === 'jump' && tt < m.buff.jumpUntil) || (d.k === 'weapon' && m.vgAlive.some((a) => a.sw && a.sw.id === c.id)) || (d.k === 'mech' && m.vgAlive.some((a) => a.mech))) st += ' act';
       else if (m.markers.some((mk) => mk.id === d.name) || m.queue.some((q) => q.sid === c.id)) st += ' inc';
       if (!callinOnline(m, c.id)) st += ' off';
       const key = `${st}|${Math.round(rdy * 24)}`;
@@ -1100,7 +1044,7 @@ export class Hud {
     r = cur('protect', RDY); act('protect', r[0], r[1]);
     r = cur('attack', RDY); act('attack', r[0], r[1]);
     if (none) set('escort', t('hud.o.noInfantry'), 'off');
-    else if (!m.hdAlive.length) set('escort', t('hud.o.noHd'), 'off');
+    else if (!m.vgAlive.length) set('escort', t('hud.o.noHd'), 'off');
     else { r = cur('escort', RDY); set('escort', r[0], r[1]); }
     this.fillTactical(m);     // (0.20: the command panel and the selection are always up)
   }
@@ -1168,7 +1112,7 @@ export class Hud {
       b.className = 'tcq' + (sf.sel === i ? ' sel' : '') + (n ? ' has' : '') + (selN ? '' : ' off');
     });
   }
-  // (0.18) the ship mode: the destroyer's weapons; picking one closes the console with it armed
+  // (0.18) the ship mode: the ship's weapons; picking one closes the console with it armed
   _tacShip(m) {
     const box = document.querySelector('#tactical .tac-ship'), p = m.player;
     const key = p.slots.map((s) => s.type + (s.id || '')).join(',') + getLang();
@@ -1356,7 +1300,7 @@ export class Hud {
   _hdbar(m) {
     m.teams.forEach((tm, i) => {
       const b = this.hb && this.hb[i]; if (!b) return;
-      const a = tm.hd && !tm.hd.dead ? tm.hd : null;
+      const a = tm.vg && !tm.vg.dead ? tm.vg : null;
       let name = tm.letter, sub, cls = '';
       if (a) {
         name = m.tag(a);
@@ -1366,7 +1310,7 @@ export class Hud {
       } else {
         const pod = m.pods.find((p) => p.type === 'H' && p.team === i);
         if (pod) { sub = t('hud.r.drop', { n: Math.ceil(Math.max(0, pod.landAt - m.t)) }); cls = ' wait'; }
-        else if (m.hd.lives <= 0) { sub = t('hud.r.lost'); cls = ' empty'; }
+        else if (m.vg.lives <= 0) { sub = t('hud.r.lost'); cls = ' empty'; }
         else { sub = t('hud.r.call', { n: Math.ceil(Math.max(0, tm.respawnAt - m.t)) }); cls = ' wait'; }
       }
       const key = `${name}|${sub}|${cls}`;
@@ -1479,7 +1423,7 @@ export class Hud {
 // One line on what the Vanguards are doing right now.
 export function squadStatus(m) {
   if (m.over) return '';
-  if (!m.hdAlive.length) return t(m.pendingPods('H') ? 'sq.dropping' : 'sq.none');
+  if (!m.vgAlive.length) return t(m.pendingPods('H') ? 'sq.dropping' : 'sq.none');
   const sq = m.squad;
   if (sq.mounted) return t('sq.lrv');
   if (m.vip && m.vip.carrier) return t('sq.vip');
@@ -1531,7 +1475,7 @@ export function runBriefing({ info, mission, touch, onContinue, onEnd, onCancel,
 
   const f = FACTIONS[info.faction], b = BIOMES[info.biome];
   $('r-op').textContent = info.op.toUpperCase();
-  $('r-enemy').innerHTML = `<span class="r-k">${t('brief.enemy')}</span> <b style="color:${f.color}">${f.name}</b> <span style="color:var(--g-dim)">(${f.full})</span>`;
+  $('r-enemy').innerHTML = `<span class="r-k">${t('brief.enemy')}</span> <b style="color:${f.color}">${f.name}</b>${f.full.toUpperCase() !== f.name ? ` <span style="color:var(--g-dim)">(${f.full})</span>` : ''}`;     // (0.77: the short name is the full one now)
   $('r-biome').innerHTML = `<span class="r-k">${t('brief.biome')}</span> <b>${b.name.toUpperCase()}</b> <span class="r-long" style="color:var(--g-dim)">· ${t('brief.area')} ${t('brief.areaVal', { n: pre.ao })}</span>`;
   $('r-obj').innerHTML = `<span class="r-k">${t('brief.objective')}</span> <b style="color:var(--yellow)">${pre.objectives.map((o) => OBJ_NAME[o]).join(' + ')}</b>`
     + (pre.defenders ? `<br><b class="r-def">${esc(t('brief.defenders', { n: pre.defenders.n, place: t('place.' + (pre.defenders.type === 'nuke' ? 'launch' : pre.defenders.type === 'vip' ? 'pickup' : pre.defenders.type)) }))}</b>` : '');   // (0.18) Infantry already holding the site
@@ -1729,13 +1673,13 @@ function upgradeLines(it, kit) {
 // Draw the armory into root. opts: { kit, wallet, live, onBuy(id), onEquip(id), onUnequip(slot), note }
 // The armory's tabs, and which sections each holds.
 // (0.51) MISSION COMPLETE: opts.step 'perk' (pick a commendation from opts.perks) or 'offer' (the next mission from opts.offers).
-// opts.kit (what is already picked), opts.level (the operation's next level), opts.story (a campaign: the mission is set), onPick(i)
+// opts.kit (what is already picked), opts.level (the operation's next level), onPick(i)
 export function renderNext(opts) {
   const box = $('nx-cards'); box.innerHTML = '';
   const perk = opts.step === 'perk';
   $('nx-eyebrow').textContent = t('nx.eyebrow', { n: opts.done });
   $('nx-title').textContent = t(perk ? 'nx.perkTitle' : 'nx.offerTitle');
-  $('nx-sub').textContent = perk ? t('nx.perkSub', { n: perksTotal(opts.kit), max: C.perks.max }) : t(opts.story ? 'nx.offerSubStory' : 'nx.offerSub');
+  $('nx-sub').textContent = perk ? t('nx.perkSub', { n: perksTotal(opts.kit), max: C.perks.max }) : t('nx.offerSub');
   $('nx-foot').textContent = perk ? '' : t('nx.offerFoot');
   if (perk) {
     opts.perks.forEach((k, i) => {
@@ -1747,10 +1691,10 @@ export function renderNext(opts) {
     });
   } else {
     opts.offers.forEach((o, i) => {
-      const lv = opts.level + o.bump, fac = opts.story ? opts.storyFac : o.faction, bio = opts.story ? opts.storyBiome : o.biome;
+      const lv = opts.level + o.bump, fac = o.faction, bio = o.biome;
       const b = el('button', 'nx-c nx-offer bump-' + o.bump + (fac ? ' fac-' + fac : ''), `<span class="nx-tag">${esc(t('nx.bump', { n: o.bump }))}</span>`
         + `<b class="nx-n">${esc(fac ? t('fac.' + fac) : '')}${bio ? ` · ${esc(t('biome.' + bio))}` : ''}</b>`
-        + `<span class="nx-b">${esc(o.obj ? t('obj.name.' + o.obj) : opts.storyObj || '')}</span>`
+        + `<span class="nx-b">${esc(o.obj ? t('obj.name.' + o.obj) : '')}</span>`
         + `<span class="nx-v">${esc(opts.prev == null ? t('nx.level', { n: lv, name: t(...levelName(lv)) }) : lv > opts.prev ? t('nx.harder', { n: lv - opts.prev }) : lv < opts.prev ? t('nx.easier', { n: opts.prev - lv }) : t('nx.same'))}</span><span class="nx-pay">${esc(t('nx.pay', { x: (reward(lv) * (1 + C.offers.payPer * o.bump)).toFixed(2) }))}</span>`);
       b.type = 'button'; b.dataset.i = String(i); b.onclick = () => opts.onPick(i);
       box.appendChild(b);
@@ -1845,7 +1789,7 @@ export function renderShop(root, opts) {
   const page = root.closest('.screen'), pageKeep = page ? page.scrollTop : 0;
   root.innerHTML = '';
   root.appendChild(el('div', 'shop-cr', `${t('arm.credits')} <b>${fmtNum(wallet.bal)}</b>${opts.note ? `<span class="note">${esc(opts.note)}</span>` : ''}`));
-  // (0.44) SESF coins: SPEND A COIN, then pick anything open but the Classified ones, free
+  // (0.44) challenge coins: SPEND A COIN, then pick anything open but the Classified ones, free
   const coinMode = !live && opts.coinMode && opts.coins > 0;
   if (!live && opts.coins > 0) {
     const cv = opts.coinVal || 0;      // (0.50) a coin is credits paid toward an item: the next one spent is worth this
@@ -1909,8 +1853,8 @@ export function renderShop(root, opts) {
   for (const sec of sections) {
     if (sec.name === 'orbitals' || sec.name === 'utilities' || sec.name === 'strikers' || sec.name === 'defense') sec.list.sort((a, b) => (a.id === 'hangar' ? -2 : a.owned ? -1 : 0) - (b.id === 'hangar' ? -2 : b.owned ? -1 : 0));     // (the Hangar first, then what is owned)
     const slug = SEC_SLUG[sec.name] || sec.name, pane = panes[tabOf(sec.name).id];
-    const hd = el('h3', 'shop-h sec-' + slug, `<i class="dot"></i>${esc(t('kit.sec.' + sec.name))}`);
-    pane.appendChild(hd);
+    const head = el('h3', 'shop-h sec-' + slug, `<i class="dot"></i>${esc(t('kit.sec.' + sec.name))}`);
+    pane.appendChild(head);
     for (const it of sec.list) {
       const inLoad = it.orb && kit.loadout.slice(0, kit.slots).includes(it.orb);
       const isNew = fresh.has(it.id) || (it.orb && fresh.has('own:' + it.orb));
@@ -2052,18 +1996,18 @@ export function renderLiveArmory(root, opts) {
 // ---------------- squad names ----------------
 export function buildNames(names) {
   const body = $('names-body'); body.innerHTML = '';
-  body.appendChild(el('div', 'nrow nhead', `<b></b><span>${t('names.ship')}</span><span>${t('names.hd')}</span>`));
+  body.appendChild(el('div', 'nrow nhead', `<b></b><span>${t('names.ship')}</span><span>${t('names.vg')}</span>`));
   for (let i = 0; i < 4; i++) {
     const r = el('div', 'nrow'); r.style.setProperty('--tc', TEAM_COLOR[i]);
-    r.innerHTML = `<b>${LETTERS[i]}</b><input class="nship" maxlength="${MAX_NAME}" placeholder="${esc(t('names.randomShip'))}" spellcheck="false" autocomplete="off"><input class="nhd" maxlength="${MAX_NAME}" placeholder="${esc(t('names.auto', { l: LETTERS[i] }))}" spellcheck="false" autocomplete="off">`;
-    r.querySelector('.nship').value = names.ships[i] || ''; r.querySelector('.nhd').value = names.hd[i] || '';
+    r.innerHTML = `<b>${LETTERS[i]}</b><input class="nship" maxlength="${MAX_NAME}" placeholder="${esc(t('names.randomShip'))}" spellcheck="false" autocomplete="off"><input class="nvg" maxlength="${MAX_NAME}" placeholder="${esc(t('names.auto', { l: LETTERS[i] }))}" spellcheck="false" autocomplete="off">`;
+    r.querySelector('.nship').value = names.ships[i] || ''; r.querySelector('.nvg').value = names.vg[i] || '';
     body.appendChild(r);
   }
 }
 export function readNames(clean) {
   const ships = [...document.querySelectorAll('#names-body .nship')].map((i) => clean(i.value));
-  const hd = [...document.querySelectorAll('#names-body .nhd')].map((i) => clean(i.value));
-  return { ships, hd };
+  const vg = [...document.querySelectorAll('#names-body .nvg')].map((i) => clean(i.value));
+  return { ships, vg };
 }
 export function clearNames() { document.querySelectorAll('#names-body input').forEach((i) => { i.value = ''; }); }
 
@@ -2074,7 +2018,7 @@ function deathList(res) {
   if (!d.length) return `<div class="d-none">${esc(t('deb.none'))}</div>`;
   const rows = d.slice(0, 140).map((x) => {
     const h = x.type === 'H', col = h ? TEAM_COLOR[x.team] || '#fff' : 'var(--g-dim)';
-    return `<div class="dr${h ? ' hd' : ''}"><span class="tm">${fmtTime(x.t)}</span><span class="tg" style="color:${col}">${esc(x.tag)}</span><span class="cs">${esc(x.cause)}</span>${h ? `<span class="sh">${esc(x.ship.replace(/^SES /, ''))}</span>` : ''}</div>`;
+    return `<div class="dr${h ? ' vg' : ''}"><span class="tm">${fmtTime(x.t)}</span><span class="tg" style="color:${col}">${esc(x.tag)}</span><span class="cs">${esc(x.cause)}</span>${h ? `<span class="sh">${esc(x.ship.replace(/^SES /, ''))}</span>` : ''}</div>`;
   });
   if (d.length > 140) rows.push(`<div class="d-none">${esc(t('deb.more', { n: d.length - 140 }))}</div>`);
   return rows.join('');
@@ -2087,7 +2031,7 @@ function shipLine(res) {
     + (tm.deaths ? ` <small>(${esc(t('deb.x.shipLost', { n: tm.deaths }))})</small>` : '')).join(' · ') + '</span>';
 }
 export function fillDebrief(info, res, session, block = '', startCr = null) {
-  $('d-op').textContent = info.chapter ? info.op : `${info.op} · ${t('hud.mission')} ${session && session.missions ? session.missions.length : 1}`;     // (0.37: the operation, and which mission of it)
+  $('d-op').textContent = `${info.op} · ${t('hud.mission')} ${session && session.missions ? session.missions.length : 1}`;     // (0.37: the operation, and which mission of it)
   const o = $('d-outcome'); o.textContent = t('out.' + res.outcome); o.className = res.outcome;
   const inWar = document.documentElement.classList.contains('gc');     // (GC 0.25) a fight of the war: its result goes back to the war room
   $('d-why').textContent = inWar && t('gc.why.' + res.outcome) !== 'gc.why.' + res.outcome ? t('gc.why.' + res.outcome) : t('deb.why.' + res.outcome);
@@ -2327,22 +2271,20 @@ export function buildDiff(cur, saved, onPick) {
   $('diff-note').textContent = note;
 }
 
-// (0.37) NEW OPERATION: what QUICK PLAY and a campaign chapter ask before they start (callsign, squad names, the starting level,
-// for QUICK PLAY the enemy, and how an operation works); the tutorial only asks the callsign. mode: 'quick', 'camp' or 'tut';
-// o: { level, chapter (the campaign's), from (a checkpoint: the chapter cleared it carries on from), replaces (a saved run goes) }
+// (0.37) NEW OPERATION: what QUICK PLAY asks before it starts (callsign, squad names, the starting level, the enemy, and how an
+// operation works); the tutorial only asks the callsign. mode: 'quick' or 'tut'; o: { level, replaces (a saved run goes) }
 export function fillLock(mode, o = {}) {
-  const tut = mode === 'tut', camp = mode === 'camp', level = o.level || 3, lives = tut ? C.vanguards.lives : livesAt(level);     // (GC 0.62) the lives the level gives
-  $('lock-eyebrow').textContent = t(tut ? 'lock.eyebrowTut' : camp ? 'lock.eyebrowCamp' : 'lock.eyebrowQuick');
+  const tut = mode === 'tut', level = o.level || 3, lives = tut ? C.vanguards.lives : livesAt(level);     // (GC 0.62) the lives the level gives
+  $('lock-eyebrow').textContent = t(tut ? 'lock.eyebrowTut' : 'lock.eyebrowQuick');
   $('lock-h').textContent = t(tut ? 'title.tutName' : 'lock.title');
   let sub = '';
   if (tut) sub = t('lock.subTut');
-  else if (camp && o.chapter) sub = t('lock.subCamp', { n: o.chapter.n, name: t(`cp.${STORY.id}.c${o.chapter.n}`) }) + (o.from ? ' ' + t('lock.subFrom', { n: o.from }) : '');
   else sub = t('lock.subQuick');
-  if (o.replaces) sub += ' ' + t(camp ? 'lock.replacesCamp' : 'lock.replaces');
+  if (o.replaces) sub += ' ' + t('lock.replaces');
   $('lock-sub').textContent = sub;
   $('diff').classList.toggle('hidden', tut);
-  $('enemy').classList.toggle('hidden', tut || camp);
-  $('lock-op').classList.toggle('hidden', tut || camp);     // (0.45) the campaign's operation has its name
+  $('enemy').classList.toggle('hidden', tut);
+  $('lock-op').classList.toggle('hidden', tut);
   $('lock-run').classList.toggle('hidden', tut);
   $('lock-rules').innerHTML = ['lock.r0', 'lock.r1', 'lock.r2', 'lock.r3', 'lock.r4', 'lock.r5'].map((k) => `<li>${esc(t(k, { n: lives }))}</li>`).join('');
   $('btn-lock').textContent = tut ? t('lock.goTut') : t('lock.go', { n: level });
@@ -2352,7 +2294,7 @@ export function fillLock(mode, o = {}) {
 
 // The field manual: everything the gunner can do, and the tips, by section (lists in the language tables).
 const TC_TABS = { units: 'tac.tUnitsH', build: 'tac.title', armory: 'tac.tArmH' };     // (0.20: the command panel's contexts)
-export const MANUAL = ['you', 'infantry', 'build', 'hd', 'enemy', 'armory', 'session'];
+export const MANUAL = ['you', 'infantry', 'build', 'vg', 'enemy', 'armory', 'session'];
 export function fillManual() {
   const body = $('manual-body');
   body.innerHTML = MANUAL.map((k) => `<section class="man-sec"><h3>${esc(t('man.h.' + k))}</h3><ul>${tl('man.l.' + k).map((x) => `<li>${esc(x)}</li>`).join('')}</ul></section>`).join('');
@@ -2521,7 +2463,7 @@ export function fillMissionInfo(m, info) {
     const order = ORDER[o.type], cur = o.done ? order.length : Math.max(0, order.indexOf(stepOf(m, o)));
     const steps = STEPS[o.type].map((st) => {
       const k = order.indexOf(st), cls = o.done || k < cur ? 'done' : k === cur || (k > cur && k === cur + 1 && st === 'done') ? 'now' : '';
-      const v = o.type === 'evac' && st === 'run' ? { r: E.hdR } : o.type === 'oil' ? { n: C.objective.oil.trips } : o.type === 'gun' ? { n: C.objective.gun.shots } : o.type === 'fortress' ? { n: C.objective.democharge.fuseSec, r: C.objective.democharge.blastR } : vals;
+      const v = o.type === 'evac' && st === 'run' ? { r: E.vgR } : o.type === 'oil' ? { n: C.objective.oil.trips } : o.type === 'gun' ? { n: C.objective.gun.shots } : o.type === 'fortress' ? { n: C.objective.democharge.fuseSec, r: C.objective.democharge.blastR } : vals;
       return `<li class="${cls}">${esc(t(`info.${o.type}.${st}`, v))}</li>`;
     }).join('');
     parts.push(`<h3>${m.objectives.length > 1 ? `${n + 1}. ` : ''}${OBJ_NAME[o.type]}${o.done ? ` <span class="ok">${t('info.done')}</span>` : ''}</h3><ol class="steps">${steps}</ol>`);

@@ -11,7 +11,7 @@ const SHIFT = new Set(['gen', 'motorpool', 'pad', 'depot', 'medbay', 'mess', 'co
 const phaseAt = h => h < 6 || h >= 21 ? 'night' : h < 6.5 ? 'firstcall' : h < 7 ? 'reveille' : h < 8 ? 'pt' : h < 9 ? 'chow' : h < 11.5 ? 'work' : h < 13 ? 'mess' : h < 17 ? 'work' : h < 17.5 ? 'retreat' : 'evening';
 const watchPhase = (s, n) => n % 4 === 0 ? phaseAt((s.time.hour + 12) % 24) : s.time.phase;   // one in four stands the night watch
 const HOUSING = ['hq', 'hab', 'barracks', 'block'];
-const HD_PER = 4;   // Vanguards thawed and walking about per Vanguard Barracks
+const VG_PER = 4;   // Vanguards thawed and walking about per Vanguard Barracks
 const EAT = ['mess', 'burger', 'chicken', 'cola'];
 const rnd = (a, b) => a + Math.random() * (b - a);
 const pick = a => a[Math.floor(Math.random() * a.length)];
@@ -444,24 +444,24 @@ export class Life {
     for (const b of s.b) {
       if (!b.done) continue;
       const d = B[b.type];
-      if (d.cryo && !b.off && s.power.ratio >= 0.5) for (let i = 0; i < HD_PER; i++) want.add(`hd${b.id}_${i}`);
+      if (d.cryo && !b.off && s.power.ratio >= 0.5) for (let i = 0; i < VG_PER; i++) want.add(`vg${b.id}_${i}`);
       for (let i = 0; i < (d.staff || 0); i++) want.add(`cv${b.id}_${i}`);
     }
     for (const key of want) if (!this.actors.has(key)) {
-      const hd = key[0] === 'h', home = +key.slice(2).split('_')[0], i = +key.split('_')[1], b = s.byId(home), [x, z] = this.doorOf(b);
-      const a = this.person(key, hd ? 'hd' : 'civ' + ((home + i) % 3), x, z);
-      a.extra = hd ? 'hd' : 'civ'; a.home = home; a.n = i; a.hidden = true; a.act = 'inside';
+      const vg = key[0] === 'v', home = +key.slice(2).split('_')[0], i = +key.split('_')[1], b = s.byId(home), [x, z] = this.doorOf(b);
+      const a = this.person(key, vg ? 'vg' : 'civ' + ((home + i) % 3), x, z);
+      a.extra = vg ? 'vg' : 'civ'; a.home = home; a.n = i; a.hidden = true; a.act = 'inside';
     }
-    for (const [id, a] of this.actors) if ((a.extra === 'hd' || a.extra === 'civ') && !want.has(id)) this.actors.delete(id);   // engineers are engineers()'s to keep
+    for (const [id, a] of this.actors) if ((a.extra === 'vg' || a.extra === 'civ') && !want.has(id)) this.actors.delete(id);   // engineers are engineers()'s to keep
   }
   extra(a, dt) {
     const s = this.sim, h = a.n % 4 === 0 ? (s.time.hour + 12) % 24 : s.time.hour, ph = watchPhase(s, a.n), b = s.byId(a.home); if (!b) return;
-    const hd = a.extra === 'hd', flag = s.b.find(o => o.type === 'seflag');
+    const vg = a.extra === 'vg', flag = s.b.find(o => o.type === 'seflag');
     // Marines: reveille 05:30, PT, chow, Morning Colors at 08:00, training, Evening Colors, victory, taps at 22:00
     // Colonists: in at 07:30, lunch, out at 17:30, the evening broadcast, home
-    const colours = (ph === 'reveille' || ph === 'retreat' || (hd && h >= 8 && h < 8.25)) && flag;
+    const colours = (ph === 'reveille' || ph === 'retreat' || (vg && h >= 8 && h < 8.25)) && flag;
     const want = this.ceremony && !a.hidden ? 'honors' : colours ? 'honors'
-      : hd ? (h < 5.5 || h >= 22 ? 'home' : h < 7 ? 'pt' : h < 7.9 ? 'mess' : h < 11.5 ? 'train' : h < 12.5 ? 'mess' : h < 16.5 ? 'train' : h < 18 ? 'pt' : 'free')
+      : vg ? (h < 5.5 || h >= 22 ? 'home' : h < 7 ? 'pt' : h < 7.9 ? 'mess' : h < 11.5 ? 'train' : h < 12.5 ? 'mess' : h < 16.5 ? 'train' : h < 18 ? 'pt' : 'free')
       : (h < 7.5 || h >= 21 ? 'home' : h < 11.5 ? 'work' : h < 12.5 ? 'mess' : h < 17.5 ? 'work' : 'free');
     if (a.task !== want && want === 'honors') {
       a.task = want; a.goal = null; a.path = []; a.then = null; a.lap = null; a.wait = 0;
@@ -505,7 +505,7 @@ export class Life {
         const done = s.b.filter(o => o.done), of = (...ts) => done.filter(o => ts.includes(o.type));
         // the evening broadcast draws a crowd; otherwise a drink, the flag, or a walk
         const tv = of('billboard', 'speaker', 'mast'), vend = of('vend'), r = Math.random();
-        if (tv.length && r < (hd ? 0.25 : 0.55)) { const v = pick(tv), [x, z] = this.front(v, rnd(1, 2.4), rnd(-1.4, 1.4)); this.go(a, x, z, () => { a.act = 'look'; a.face = this.centre(v); a.wait = rnd(8, 16); }); }
+        if (tv.length && r < (vg ? 0.25 : 0.55)) { const v = pick(tv), [x, z] = this.front(v, rnd(1, 2.4), rnd(-1.4, 1.4)); this.go(a, x, z, () => { a.act = 'look'; a.face = this.centre(v); a.wait = rnd(8, 16); }); }
         else if (vend.length && r < 0.75) { const v = pick(vend), [x, z] = this.front(v, 0.6, rnd(-0.3, 0.3)); this.go(a, x, z, () => { a.act = 'drink'; a.face = this.centre(v); a.wait = rnd(4, 7); }); }
         else if (flag && r < 0.88) { const [x, z] = this.front(flag, rnd(1.2, 2.4), rnd(-1.2, 1.2)); this.go(a, x, z, () => { a.act = 'salute'; a.face = this.centre(flag); a.wait = rnd(3, 5); }); }
         else { const [x, z] = this.near(a.x + rnd(-6, 6), a.z + rnd(-6, 6)); this.go(a, x + 0.5, z + 0.5, () => { a.act = 'idle'; a.wait = rnd(2, 5); }); }

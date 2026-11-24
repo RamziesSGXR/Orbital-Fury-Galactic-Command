@@ -1088,7 +1088,7 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
   dressFolk() {
     const m = this.m, dark = (c, f) => c.clone().multiplyScalar(f), u = m.uniform.color, prim = m.prim.color;
     const fleet = { uniform: u, uniform_dark: dark(u, 0.78), kit: dark(u, 0.62), helmet: m.helmet.color, armband: m.armband.color, trim: prim };
-    const K = { troop: { file: 'soldier', remap: fleet }, hd: { file: 'vanguard', remap: fleet }, eng: { file: 'engineer', remap: { trim: prim } }, inspector: { file: 'inspector', remap: { trim: prim } },
+    const K = { troop: { file: 'soldier', remap: fleet }, vg: { file: 'vanguard', remap: fleet }, eng: { file: 'engineer', remap: { trim: prim } }, inspector: { file: 'inspector', remap: { trim: prim } },
       civ0: { file: 'citizen_a', remap: { trim: prim } }, civ1: { file: 'citizen_b', remap: { trim: prim } }, civ2: { file: 'citizen_c', remap: { trim: prim } } };
     if (this.folk) this.folk.dispose();
     this.folk = new Crowd3D(this.world, { cap: 64 }); this.folk.load(K);

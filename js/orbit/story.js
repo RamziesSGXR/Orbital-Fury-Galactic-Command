@@ -147,7 +147,7 @@ export function installStory(Station) {
     _weekly() {
       const capNow = this.capability(), gain = capNow - this.lastWeek.cap;
       const shorts = Object.entries(this.short).filter(([, x]) => x).map(([k]) => k === 'rations' ? 'rations' : C.supplies[C.div[k].uses].name.toLowerCase());
-      if (!this.sandbox) this.say('ministry', `Week ${this.week() - 1} report. Capability ${capNow} (${gain >= 0 ? '+' : ''}${gain}). ${this.weekIn} crates into the stores. ${shorts.length ? `Short of: ${shorts.join(', ')}.` : 'No shortages.'}`, { gold: gain > 0 && !shorts.length });
+      if (!this.sandbox) this.say('office', `Week ${this.week() - 1} report. Capability ${capNow} (${gain >= 0 ? '+' : ''}${gain}). ${this.weekIn} crates into the stores. ${shorts.length ? `Short of: ${shorts.join(', ')}.` : 'No shortages.'}`, { gold: gain > 0 && !shorts.length });
       this.lastWeek = { in: this.weekIn, cap: capNow }; this.weekIn = 0;
       // and the one thing most worth doing next, so growing is never a guess
       if (!this.sandbox && !this._noAdvice) { const ask = this.asks().find((x) => !x.urgent); if (ask) this.say(ask.from === 'colonists' ? 'colonists' : ask.from, `Asked of you this week. ${ask.text} ${ask.why}`); }
@@ -410,7 +410,7 @@ export function installStory(Station) {
       this.addColonists(4);
       const total = [...this.parts.values()].filter((p) => p.fault).length;
       this.goal = { kind: 'restore', total, done: false, empty: [...this.parts.values()].reduce((n, p) => n + p.rooms.filter((r) => r === 'empty').length, 0) };
-      this.say('ministry', `Commander, welcome to what is left of this station. ${total} parts are dark, half the rooms are stripped, and the stores are nearly bare. Bring it back.`, { gold: true });
+      this.say('office', `Commander, welcome to what is left of this station. ${total} parts are dark, half the rooms are stripped, and the stores are nearly bare. Bring it back.`, { gold: true });
     },
     goalItems() {
       if (!this.goal) return [];
@@ -421,7 +421,7 @@ export function installStory(Station) {
     _goal() {
       if (this.t < 5 || !this.goalItems().every((i) => i.ok)) return;
       this.goal.done = true; this.stats.raidsWon += 2;
-      this.say('ministry', 'STATION RESTORED. Every part lit, the decks refitted, people aboard. The Head Office has taken notice, Commander.', { gold: true });
+      this.say('office', 'STATION RESTORED. Every part lit, the decks refitted, people aboard. The Head Office has taken notice, Commander.', { gold: true });
       this.events.push({ type: 'restored' });
     },
 

@@ -118,8 +118,8 @@ def _ruin(name, top, side, extra):
 def ruin_bugs(): _ruin('prop_ruin_bugs', r_bug, r_bug_d, lambda rnd: [blob('resin%d' % i, r=0.14, scale=(1, 0.7, 1.3), loc=(rnd.uniform(-0.7, 0.7), -0.19, rnd.uniform(0.2, 0.55)), sub=1, m=r_resin, rough=0.2, seed=i) for i in range(4)])
 def ruin_lizards(): _ruin('prop_ruin_lizards', r_liz, r_liz_d, lambda rnd: [box('glyph%d' % i, (0.1, 0.03, 0.18), (-0.45 + i * 0.45, -0.18, 0.45 - 0.1 * abs(i - 1)), m=r_glyph) for i in range(3)])
 
-# (GC 0.72, Ramzies: "bug breaches look like 2d holes", "some craters after blowing things up look 2d") a bug hole and a
-# crater's rim, a radius of one. The bug hole: a ring of heaved earth round a dark pit, chitin spikes in the rim, clods thrown out.
+# (GC 0.72, Ramzies: "breaches look like 2d holes", "some craters after blowing things up look 2d") a burrow and a
+# crater's rim, a radius of one. The burrow: a ring of heaved earth round a dark pit, chitin spikes in the rim, clods thrown out.
 # The crater: earth thrown up round a blast; its colour is the ground's (the game tints `white`), its scorched bowl is painted.
 def _rim(name, r, tube, h, m, n=22, seed=1, rough=0.18):
     # uneven all the way round (each section its own width, height and reach), and closed: the last section is the first

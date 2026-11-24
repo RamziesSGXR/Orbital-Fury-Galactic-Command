@@ -20,7 +20,7 @@ import { upgrade } from './core/roster.js';
 import { SEED } from './galaxy/tutorial.js';
 import { shopItems, buy, equip, unequip, shownAt, TIER_MAX } from './ground/data/kit.js';
 import { Audio } from './ground/audio.js';
-import { newKit, newWallet } from './ground/data/kit.js';
+import { newKit, newWallet, fixKit } from './ground/data/kit.js';
 import { words } from './core/words.js';
 import { career } from './core/career.js';
 import { catalogue, KINDS, FACTION_ABOUT } from './core/collection.js';
@@ -130,7 +130,7 @@ const GAMES = { war: { name: 'GALACTIC CAMPAIGN', over: 'THE CAMPAIGN', text: 'H
 const SLOTS = 'ofgc.slots', LAST = 'ofgc.last', parkKey = (g, n) => `ofgc.slot.${g}.${n}`;
 const slots = () => { const v = read(SLOTS, null) || {}; v.cur = v.cur || {}; v.sum = v.sum || {}; for (const g in GAMES) { v.cur[g] = v.cur[g] || 0; v.sum[g] = v.sum[g] || [null, null, null]; } return v; };
 function keysOf(g) {
-  if (g === 'fury') return ['ofs.session', 'ofs.campRun', 'ofs.slots'];
+  if (g === 'fury') return ['ofs.session', 'ofs.slots'];
   if (g !== 'war') return [SOLO[g]];
   const out = [KEY]; try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.startsWith('ofgc.site.')) out.push(k); } } catch { /* no storage */ } return out;
 }
@@ -162,7 +162,8 @@ function playSlot(g, n) {
   if (g === 'fury') return enterFury(false);
   soloGo(g, false);
 }
-async function warContinue() { camp = read(KEY, null); if (!camp) return toTitle(); write(LAST, { g: 'war', n: slots().cur.war }); await ensureLogo(app.faction.logo); toWar({ saved: camp.war, tutorial: settings.hints && !settings.hintsDone && !qs.has('seed') }); }
+async function warContinue() { camp = read(KEY, null); if (!camp) return toTitle(); camp.kit = fixKit(camp.kit);     // (0.77: call-ins renamed)
+  write(LAST, { g: 'war', n: slots().cur.war }); await ensureLogo(app.faction.logo); toWar({ saved: camp.war, tutorial: settings.hints && !settings.hintsDone && !qs.has('seed') }); }
 function warNew() { write(LAST, { g: 'war', n: slots().cur.war }); if (read(KEY, null)) return confirmBox('Start a new campaign?', 'The campaign in this save, with its stations and bases, will be lost. (To keep it, start the new one in another save on the PLAY tab.)', 'START A NEW CAMPAIGN', () => toFound('war')); toFound('war'); }
 
 // ---- the pictures: line art for each game, drawn here so the menu needs no image files for them
@@ -182,7 +183,7 @@ const ART = {
 const TABS = [['home', 'HOME'], ['play', 'PLAY'], ['collection', 'COLLECTION'], ['career', 'CAREER'], ['store', 'STORE'], ['options', 'OPTIONS']];
 const tabName = (k) => (TABS.find((x) => x[0] === k) || [k, k === 'livery' ? 'YOUR LIVERY' : k.toUpperCase()])[1];
 let tab = 'home', optTab = 'play', playGame = null;     // playGame: the game whose saves the PLAY tab is showing
-const NEWS = { title: 'Orbital Commander gets its controls back', lines: ['The station has the standalone game\'s panels again. COMMANDER (O): the accounts, the colonist tax, and every division\'s allotment, standing orders, mood and people. UPGRADES (U): the whole path, tier by tier. COMMS (C): every channel, kept to scroll back through.', 'Hover a number on the top bar to see where it comes from; click it for the full accounts.', 'Click a part for its card: status, power, rooms, crew. FIT OUT ROOMS (I) to choose what is inside it. Click a person to see what they are doing, and FOLLOW them.', 'VIEW: hull, blueprint or life signs, with the hull taken away or cut open. Keys for all of it (OPTIONS > CONTROLS), half speed to 8×, and people say things when you are close.', 'Earlier, 0.75: your crest opens your livery, OPTIONS in four parts.'] };
+const NEWS = { title: 'Our own names, everywhere', lines: ['The ground fight\'s enemies go by their own names: the Molt, the Foundry and the Talon. Molt breaches dig out of burrows, Foundry dropships bring fresh troops, and the jammers are a howler nest, a call-in jammer and a cognitive disruptor.', 'Call-ins with new names: Scout Rover, Sprint Boosters, Scatter Mines, Fire Mines and Tank Traps. What you own in a save carries over.', 'The old story campaign is gone from the ground game. The Galactic Campaign is the campaign; a run of the old one goes on as an ordinary operation.', 'FOB Commander: Burrow closures and Foundry outpost raids, and the Vehicle Bay keeps a rover.', 'Earlier, 0.76: Orbital Commander gets its controls back.'] };
 // (GC 0.73) what is done with the mouse and Esc (fixed); every key below them can be changed (js/core/keys-ui.js)
 const KEYS = {
   war: [['Click a system', 'Select it; click another to send a fleet'], ['Drag, mouse wheel', 'Move and zoom the map'], ['END ROUND', 'Play out the round'], ['Esc', 'The menu']],

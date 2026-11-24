@@ -245,7 +245,7 @@ export class Input {
       else if (act === 'thermal') this.h.polarity();
       else if (act === 'relief') this.h.relief();
       else if (act === 'info') this.h.info();
-      else if (act === 'radio' && this.h.radio) this.h.radio();     // (0.28) the command radio (tutorial and campaign)
+      else if (act === 'radio' && this.h.radio) this.h.radio();     // (0.28) the command radio (the tutorial)
       else if (act === 'supply') this.h.supply();
       else if (act === 'timeYes' && this.h.timeYes) this.h.timeYes();
       else if (act === 'look') this.h.look();

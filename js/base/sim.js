@@ -1125,7 +1125,7 @@ export class Sim {
     const vs = [...new Set(kinds)].map(k => this.armourFree(k)).filter(Boolean);
     const p = { ...o, id: this.nid++, t: 0, veh: vs.map(v => v.kind), vids: vs.map(v => v.id), members: squad.map(t => t.id) };
     p.chance = this.chance(p, squad);
-    // the LRV gets there and back in two thirds of the time; the right vehicle for the job pays a quarter more
+    // the rover gets there and back in two thirds of the time; the right vehicle for the job pays a quarter more
     if (p.veh.includes('lrv')) p.dur = Math.round(p.dur * 0.67);
     if (p.wants && p.veh.includes(p.wants)) p.sup = Math.round(p.sup * 1.25);
     for (const v of vs) { v.mission = p.id; v.parked = false; const h = this.byId(v.home); h.stock.fuel -= VEHICLES[v.kind].fuel; }
@@ -1156,7 +1156,7 @@ export class Sim {
     for (const id of p.members) {
       const t = this.troop(id); if (!t) continue;
       if (!this.rng.chance((win ? 0.05 * p.diff : 0.13 * p.diff) * guard)) { back.push(t); continue; }
-      // hit: a free bed in a Medical Bay (or a LRV to carry them) saves most; otherwise some are flown off planet
+      // hit: a free bed in a Medical Bay (or a rover to carry them) saves most; otherwise some are flown off planet
       const beds = this.wardBeds - this.troops.filter(o => o.hurt > 0).length, lrv = vs.some(v => v.kind === 'lrv');
       if (this.rng.chance(beds > 0 ? (lrv ? 0.9 : 0.75) : 0.25)) { t.hurt = C.HEAL; hurt.push(t); back.push(t); }
       else if (this.rng.chance(0.4)) evac.push(t); else dead.push(t);

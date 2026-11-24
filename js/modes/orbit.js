@@ -255,7 +255,7 @@ function drain() {
       case 'crate': break;
       case 'comms': case 'order': {     // (0.76) into the comms log; while it is shut, the corner shows the line too
         const shown = P.radio(e.from, e.text, e.type === 'comms' ? e : {});
-        if (!shown) { const d = C.div[e.from]; ui.feed(`${(d && d.short) || (e.from === 'ministry' ? 'HEAD OFFICE' : String(e.from || 'STATION').toUpperCase())}: ${e.text}`, e.warn ? 'warn' : 'radio'); }
+        if (!shown) { const d = C.div[e.from]; ui.feed(`${(d && d.short) || (e.from === 'office' ? 'HEAD OFFICE' : String(e.from || 'STATION').toUpperCase())}: ${e.text}`, e.warn ? 'warn' : 'radio'); }
         if (e.warn) audio.deny(); break;
       }
       case 'request': P.settled(e); deskSig = ''; desk(); break;
@@ -266,7 +266,7 @@ function drain() {
         break;
       case 'fire': try { view.fire(e); } catch { /* a shot not drawn */ } break;
       case 'tier': { audio.win(); if (!app.tutorial) best({ stationTier: e.tier }); ui.message(`${C.tiers[e.tier].name} STATUS GRANTED`, 5000); thumbs = {}; bar(true);
-        const T = C.tiers[e.tier], u = st.unlocksOf(e.tier), nw = [...u.parts, ...u.rooms]; P.radio('ministry', `${T.name} status granted. The build zone grows to ${T.radius}.${nw.length ? ` New: ${nw.join(', ')}.` : ''}`, { gold: true }); break; }
+        const T = C.tiers[e.tier], u = st.unlocksOf(e.tier), nw = [...u.parts, ...u.rooms]; P.radio('office', `${T.name} status granted. The build zone grows to ${T.radius}.${nw.length ? ` New: ${nw.join(', ')}.` : ''}`, { gold: true }); break; }
       default:
     }
   }
@@ -419,8 +419,8 @@ const mode = {
     tabs(); bar(true); stats(); desk(); selBar();
     tut0 = st.parts.size; tut = app.tutorial || (!loaded && app.settings.hints && !guideSeen(TUT_KEY)) ? makeGuide(TUT, { key: TUT_KEY, tutorial: app.tutorial, words, audio, exit: () => app.leavePost() }) : null; if (tut) tut.tick(); else { const co = $('th-coach'); if (co) co.hidden = true; }
     if (!loaded) { const gr = app.grant('s_grant'); if (gr) st.credits += gr; }
-    if (!loaded) { ui.message('A NEW STATION', 2600); P.radio('ministry', `Welcome aboard, Commander. ${st.faction.station} is yours, with an Outpost permit and ${Math.round(st.credits).toLocaleString('en-US')} CR. Start with a gun from FIRE SUPPORT, a Docking Port, and somewhere to put the cargo.`); P.radio('ministry', 'Lay the station out, then let your people at it. They will change it to suit themselves, and only trouble will reach your desk. The accounts are under COMMANDER.', { dim: true }); }
-    else P.radio('ministry', `Welcome back, Commander. Week ${st.week()}, day ${st.dow()}.`);
+    if (!loaded) { ui.message('A NEW STATION', 2600); P.radio('office', `Welcome aboard, Commander. ${st.faction.station} is yours, with an Outpost permit and ${Math.round(st.credits).toLocaleString('en-US')} CR. Start with a gun from FIRE SUPPORT, a Docking Port, and somewhere to put the cargo.`); P.radio('office', 'Lay the station out, then let your people at it. They will change it to suit themselves, and only trouble will reach your desk. The accounts are under COMMANDER.', { dim: true }); }
+    else P.radio('office', `Welcome back, Commander. Week ${st.week()}, day ${st.dow()}.`);
   },
   store() { if (st && args) app.siteSave('orbit', args.system.id, st.save()); },
   report() { let net = 0; try { net = st.ledger().credits.net; } catch { /* no accounts yet */ } return { air: Math.min(5, [...st.parts.values()].filter((p) => p.state !== 'building' && C.parts[p.type] && C.parts[p.type].group === 'comms').length), profit: net > 0.05, net, level: Math.min(4, st.tier + 1), tier: C.tiers[st.tier].name, cap: st.capability() }; },

@@ -154,7 +154,7 @@ export const Market = {
       for (const [g, n] of Object.entries(cost)) { const k = n * frac; if (g === 'cr') this.spend('commit', 0, k); else if (g === 'sup') this.spend('commit', k); else this.takeStore(g, k); }
       this.commitLast[m] = frac;
       if (frac > 0) this.gain(m, this.commitGain(m, lvl) * frac);
-      if (frac < 0.6 && (this.time?.day || 0) % 3 === 0) this.say(m, `Commitment to the ${COMMIT[m].ministry} short: ${Math.round(frac * 100)}% paid. The base keeps a reserve of what it needs; trade for more ${Object.keys(cost).map(g => COMMIT_NAMES[g]).join(' and ')}, or lower the level.`);
+      if (frac < 0.6 && (this.time?.day || 0) % 3 === 0) this.say(m, `Commitment to the ${COMMIT[m].dept} short: ${Math.round(frac * 100)}% paid. The base keeps a reserve of what it needs; trade for more ${Object.keys(cost).map(g => COMMIT_NAMES[g]).join(' and ')}, or lower the level.`);
     }
   },
   // the perks of a commitment, as a 0..4 number scaled by how much of it was actually paid

@@ -17,8 +17,7 @@ import { soundSources, resetScape } from './soundscape.js';
 import { Music } from './music.js';
 import * as S from './session.js';
 import { startTitleBg } from './render/titlebg.js';
-import { STORY, CAST, chapterFor } from './data/story.js';
-import { castLines, CastRadio, RadioLog, aarMission, aarSession, aarStand } from './campaign.js';
+import { RadioLog, VOICE, aarMission, aarSession, aarStand } from './campaign.js';
 import { feedEnd, feedOn, feedFeedback, feedbackCan, FB_MAX } from './feed.js';
 import { rollPerks, addPerk, perkRoom } from './data/perks.js';
 import * as UI from './ui.js';
@@ -28,7 +27,7 @@ import { hbFilling, tapDemoCharge } from './sim/ops.js';
 import { note } from '../core/career.js';
 import { squad, upgrade } from '../core/roster.js';
 const handsBusy = (m) => !!m && (supplyFilling(m) || hbFilling(m));     // the supply loader or the Demolition Charge is open
-import { t, tEn, setLang, getLang, applyDom, startLang } from './i18n.js';
+import { t, setLang, getLang, applyDom, startLang } from './i18n.js';
 import { clampLevel, LEVELS, levelName, levelAt, TOP } from './difficulty.js';
 import { answerTime } from './sim/planner.js';
 import { spawnGroup } from './sim/director.js';
@@ -258,7 +257,7 @@ function relang() {
   if (UI.isOn('s-settings')) UI.buildSettings(settings, onSettingChange);
   if (tac && mission) { hud.fillTactical(mission, sel); hud.setTacState(input.touch); }
   if (state === 'title') toTitle();
-  else if (state === 'campaign') drawCampaign();
+
   if (UI.isOn('s-lock')) fillLockNow();
   else if (state === 'next') goNext();     // (0.51)
   else if (state === 'shop') { const n = session.missions.length + 1; $('shop-eyebrow').textContent = n === 1 ? t('arm.eyebrow1') : t('arm.eyebrowN', { n }); $('shop-go').textContent = t('arm.deploy', { n }); drawShop(); }
@@ -566,7 +565,7 @@ function holdOn(o) {
   return true;
 }
 // A right click (or, on the tactical screen, a tap) with an Infantry squad selected: an order where it lands. On a post or a defence site
-// they man it, on an enemy, a bug hole or a target they attack it, anywhere else they move there.
+// they man it, on an enemy, a burrow or a target they attack it, anywhere else they move there.
 // A crate on the ground (or a foxhole being dug) at (x, y) in the world, or null.
 function crateAt(x, y) {
   const r = Math.max(6, cam.view * 0.03);
@@ -763,8 +762,8 @@ function supplyCall(k) {
 function focusTeam(kind, i) {
   if (!mission || !(live() || (soft && !mission.over))) return;
   let p = null;
-  if (kind === 'hd') {
-    const tm = mission.teams[i], a = tm && tm.hd && !tm.hd.dead ? tm.hd : null;
+  if (kind === 'vg') {
+    const tm = mission.teams[i], a = tm && tm.vg && !tm.vg.dead ? tm.vg : null;
     const pod = !a && mission.pods.find((q) => q.type === 'H' && q.team === i);
     p = a || pod || null;
   } else {
@@ -1010,7 +1009,7 @@ function toTitle() {
   const rb = $('btn-resume');
   rb.classList.toggle('hidden', !resumable(saved));
   if (saved && saved.missions) rb.textContent = t('title.resume', { op: S.opOf(saved).replace(/^Operation\s+/i, '').toUpperCase(), n: saved.missions.length, score: S.fmtNum(saved.score), d: S.levelNow(saved) });
-  $('tt-cp-sub').textContent = campSub(); drawLoadBtn();
+  drawLoadBtn();
   UI.buildLangs(getLang(), pickLang);
   drawDiff();
   // (GC 0.39.2: the tutorial's card is gone from the title)
@@ -1019,55 +1018,34 @@ function toTitle() {
   if (!renderer.terrain) setTimeout(() => buildFor('ice', 4242), 30);
 }
 
-// (0.37) the campaign's line on the title screen: where it stands on this browser
-function campSub() {
-  const prog = S.getCampaign(), run = S.load('campRun', null), N = STORY.chapters.length;
-  if (run && run.story) {
-    const n = (run.missions ? run.missions.length : 0) + 1, ch = chapterFor(run, n);
-    if (ch) return t('title.cpRun', { n: ch.n, of: N });
-    if (resumable(run)) return t('title.cpEndless', { n });     // (0.41) the story flown, the run goes on: endless, with its armory
-  }
-  const next = STORY.chapters.find((c) => !prog.done.includes(c.n));
-  if (!prog.done.length) return t('title.campaignSub');
-  return next ? t('title.cpNext', { n: next.n, of: N, done: prog.done.length }) : t('title.cpAll', { of: N });
-}
-// (0.37) NEW OPERATION: QUICK PLAY and a campaign chapter ask for the callsign, squad names, the starting level (and for QUICK PLAY
-// the enemy) and say how an operation works; START begins it, BACK goes back. The tutorial asks only the callsign.
+// (0.37) NEW OPERATION: QUICK PLAY asks for the callsign, squad names, the starting level and the enemy, and says how an operation
+// works; START begins it, BACK goes back. The tutorial asks only the callsign.
 let lockMode = 'quick', lockCtx = {};
 function askLock(mode = 'quick', o = {}) {
   lockMode = mode; lockCtx = o;
   $('callsign').value = S.load('callsign', '');
   rollOpName();     // (0.45) QUICK PLAY: a name ready to keep, change or roll again
-{ const old = S.load('session', null); if (old && old.story && !S.load('campRun', null)) { S.save('campRun', old); S.drop('session'); } }     // (0.37: runs from before are kept apart)
   drawDiff(); fillLockNow();
   UI.overlay('s-lock', true);
   $('btn-lock').focus({ preventScroll: true });
 }
 function fillLockNow() {
-  const replaces = lockMode === 'quick' ? resumable(S.load('session', null)) : lockMode === 'camp' ? !!S.load('campRun', null) : false;
+  const replaces = lockMode === 'quick' ? resumable(S.load('session', null)) : false;
   UI.fillLock(lockMode, { ...lockCtx, level: chosenDiff(), replaces });
 }
 // (0.45) the operation's name on the lock-in (QUICK PLAY): a rolled one to start with; ROLL picks another, or type your own
 function rollOpName() { $('op-name').value = S.makeNames().op.replace(/^Operation\s+/, ''); }
 const typedCallsign = () => { const cs = $('callsign').value.trim().toUpperCase().replace(/[^\w \-.]/g, '').slice(0, 16); S.save('callsign', cs); return cs; };
-// key: where a run is kept ('session' for QUICK PLAY, 'campRun' for the campaign's)
+// key: where a run is kept ('session')
 function beginSession(resume, key = 'session') {
   audio.unlock(); audio.click();
   if (resume) session = S.fixSession(S.load(key, null));
   if (!session || !resume) {
     const cs = typedCallsign();
-    if (storyPick) {
-      // (0.37) a campaign chapter: from the start, or from where the chapter before it was cleared (the run as it was then: the
-      // kit, credits and ranks), at the level picked now
-      const ck = storyPick.n > 1 ? S.getCampaign().ck[storyPick.n - 1] : null;
-      session = ck ? S.fixSession(JSON.parse(JSON.stringify(ck))) : S.newSession(cs, chosenDiff(), tEn(`cp.${STORY.id}.t`));
-      session.callsign = cs; session.difficulty = chosenDiff(); session.held = null; session.op = tEn(`cp.${STORY.id}.t`); delete session.slot;     // (0.41: a new run, in no slot until saved to one)
-      session.story = { id: STORY.id, ch: storyPick.n - session.missions.length };     // (its next mission is the chapter picked)
-    } else session = S.newSession(cs, chosenDiff(), S.opName($('op-name').value));     // (0.45: the name typed, or a rolled one if blank)
+    session = S.newSession(cs, chosenDiff(), S.opName($('op-name').value));     // (0.45: the name typed, or a rolled one if blank)
     session.feed = 1;     // (0.43) a new operation: the community feed hears of it at its first drop
     session.opId = `${Date.now().toString(36)}${Math.floor(Math.random() * 1e9).toString(36)}`;     // (0.48.1) posted once per id
   }
-  storyPick = null;
   goShop();
 }
 
@@ -1080,12 +1058,10 @@ function goNext() {
   state = 'next'; mission = null; paused = false; audio.humStop(); hud.reset(); setPlacing(null); setHideUi(false);
   UI.hideOverlays(); UI.showScreen('s-next');
   const done = session.missions.length, step = p.perks && p.perks.length ? 'perk' : 'offer';
-  const ch = p.story ? chapterFor(session, done + 1) : null;
   UI.renderNext({
-    step, done, kit: session.kit, perks: p.perks || [], offers: p.offers || [], level: S.levelNow(session), story: !!ch,
+    step, done, kit: session.kit, perks: p.perks || [], offers: p.offers || [], level: S.levelNow(session),
     // (0.62.8) the level of the mission just flown, its bump included: the cards say how much harder the next one is than that
     prev: (() => { const M = session.missions || [], l = M[M.length - 1]; return l ? levelAt(session.difficulty ?? LEVELS, M.length) + (l.bump || 0) : null; })(),
-    storyFac: ch ? ch.play.faction : null, storyBiome: ch ? ch.play.biome : null, storyObj: ch ? tEn(`cp.${STORY.id}.c${ch.n}`) : '',
     onPick: (i) => {
       audio.ready();
       if (step === 'perk') { addPerk(session.kit, p.perks[i]); p.perks = []; }
@@ -1102,14 +1078,14 @@ function goShop(focus = false, note) {
   state = 'shop'; mission = null; paused = false; audio.humStop(); hud.reset(); setPlacing(null); setHideUi(false); $('s-pause').classList.remove('out');
   UI.hideOverlays(); UI.showScreen('s-shop');
   const n = session.missions.length + 1;
-  $('shop-eyebrow').textContent = n === 1 ? t('arm.eyebrow1') : session.story && !chapterFor(session, n) ? t('arm.eyebrowEnd', { n }) : t('arm.eyebrowN', { n });     // (0.41: past the campaign's last chapter)
+  $('shop-eyebrow').textContent = n === 1 ? t('arm.eyebrow1') : t('arm.eyebrowN', { n });
   $('shop-go').textContent = t('arm.deploy', { n });
   if (BOT) botShop(session.kit, session.wallet);
   coinMode = false; endLabels();
   drawShop(note, focus);
 }
-// (0.37) QUICK PLAY's run and the campaign's are kept apart, so starting one never loses the other
-const runKey = (s) => (s && s.story ? 'campRun' : 'session');
+// (GC 0.77) one run is kept: QUICK PLAY's
+const runKey = () => 'session';
 // (0.41) What is kept of the run: between missions, the run as it is; during one, the run as it was at the drop (with that mission
 // held, so it is the one that comes back after a reload), never credits half earned. A run with a save slot is saved there too,
 // so it saves itself after every mission.
@@ -1155,7 +1131,7 @@ function audTick() {
   const k = killsN(), alive = mission.alive ? mission.alive.length : 0; AUD.max = Math.max(AUD.max, alive);
   AUD.rate = AUD.rate * 0.9 + (k - AUD.k0) * 6; AUD.k0 = k;     // (kills a minute, eased over about ten seconds)
   const bases = mission.baseTotal ? (mission.stats.bases || 0) / mission.baseTotal : 0, danger = alive > 0 ? 1 - alive / AUD.max : 0;
-  const fans = (mission.hdAlive || []).reduce((s, a) => s + (a.aud || 0), 0) + ((mission.ups && mission.ups.network) || 0);     // (GC 0.69) the Vanguards' acts (a Heartthrob pulls viewers in) and the network deal
+  const fans = (mission.vgAlive || []).reduce((s, a) => s + (a.aud || 0), 0) + ((mission.ups && mission.ups.network) || 0);     // (GC 0.69) the Vanguards' acts (a Heartthrob pulls viewers in) and the network deal
   const want = Math.max(0.05, Math.min(1, 0.2 + Math.min(0.4, AUD.rate / 40) + 0.2 * bases + 0.15 * danger + fans));
   AUD.was = AUD.v; AUD.v += (want - AUD.v) * 0.08; AUD.sum += AUD.v; AUD.n++; AUD.peak = Math.max(AUD.peak, AUD.v);
   el.classList.remove('hidden'); $('aud-n').textContent = (AUD.v * 12).toFixed(1) + 'M';     // (a full house is twelve million sets)
@@ -1219,12 +1195,8 @@ function goBrief(again = false) {
   const back = !keep && held && held.n === session.missions.length + 1 ? held.info : null;     // CANCEL (or MAIN MENU) left this one waiting
   session.held = null;
   const nx = !keep && !back && session.next ? session.next : null;     // (0.51) the offer picked after the last mission
-  info = keep ? { op: keep.op, faction: keep.faction, biome: keep.biome, seed: keep.seed, tod: keep.tod, chapter: keep.chapter, bump: keep.bump } : back ? { ...back } : nx && !nx.story ? { op: nx.op, faction: nx.faction, biome: nx.biome, seed: nx.seed, obj: nx.obj, bump: nx.bump } : S.rollMission(prev, Math.random, settings.enemy);   // (the enemy picked on the title screen or in Settings)
-  if (nx && nx.story) info.bump = nx.bump;
-  // (0.27) a story session: its missions are the chapters, in order, from the one picked
-  const ch = chapterFor(session, session.missions.length + 1);
-  if (!keep && !back && !ch) info.op = S.opOf(session);     // (0.37) one operation a session: every mission flies under its name
-  if (!keep && !back && ch) { info.faction = ch.play.faction; info.biome = ch.play.biome; info.seed = ch.play.seed; info.chapter = ch.n; info.op = tEn(`cp.${STORY.id}.op`, { name: tEn(`cp.${STORY.id}.c${ch.n}`) }); }
+  info = keep ? { op: keep.op, faction: keep.faction, biome: keep.biome, seed: keep.seed, tod: keep.tod, bump: keep.bump } : back ? { ...back } : nx ? { op: nx.op, faction: nx.faction, biome: nx.biome, seed: nx.seed, obj: nx.obj, bump: nx.bump } : S.rollMission(prev, Math.random, settings.enemy);   // (the enemy picked on the title screen or in Settings)
+  if (!keep && !back) info.op = S.opOf(session);     // (0.37) one operation a session: every mission flies under its name
   if (!keep && !back && session.missions.length === 0) { // URL overrides for testing: ?seed= ?faction= ?biome= (first mission only)
     if (qs.get('seed')) info.seed = Number(qs.get('seed')) >>> 0;
     if (FACTION_OK(qs.get('faction'))) info.faction = qs.get('faction');
@@ -1234,19 +1206,18 @@ function goBrief(again = false) {
   // The groups and objective come from the mission seed, so the briefing can show them before the drop.
   // ?loadout=id,id,... and ?objective=nuke|vip|fortress force a loadout or objective for testing.
   const ovLoad = (qs.get('loadout') || '').split(',').filter((id) => CALLIN_IDS.includes(id)), ovObj = (qs.get('objective') || '').split(',').filter(Boolean);
-  if (!ovObj.length && ch && ch.play && ch.play.objective) ovObj.push(ch.play.objective);
   if (!ovObj.length && info.obj) ovObj.push(info.obj);     // (0.51) the offer's objective
   info.ovObj = ovObj;
   const pre = new Mission({ seed: info.seed, faction: info.faction, biome: info.biome, sessionMinutes: SMIN ?? S.sessionMinutes(session), events: false, missionN: n, opDone: n - 1, difficulty: levelFor(info), bump: (info && info.bump) | 0,
     loadout: ovLoad.length ? ovLoad : undefined, objectives: ovObj, kit: session.kit, wallet: session.wallet, names: session.names, roster: rosterFor(), ups: upsFor(), defenders: !qs.has('skipstart') });
   info.loadout = pre.loadout.slice();
   if (keep) { info.ovObj = keep.ovObj || []; info.loadout = keep.loadout.slice(); }
-  else if (!back) info.tod = qs.has('tod') ? ((Number(qs.get('tod')) % 24) + 24) % 24 : ch && ch.play.tod !== undefined ? ch.play.tod : pre.tod0;   // ?tod=14 forces the hour (testing)
+  else if (!back) info.tod = qs.has('tod') ? ((Number(qs.get('tod')) % 24) + 24) % 24 : pre.tod0;   // ?tod=14 forces the hour (testing)
   UI.setBriefHeader(n, session.score);
   if (briefCtl) briefCtl.cancel();
   const ctl = briefCtl = UI.runBriefing({
     info, mission: n, touch: input.touch, canEnd: session.missions.length > 0, again: !!keep,
-    pre: { objectives: pre.objectives.map((o) => o.type), defenders: pre.defenders, teams: pre.teams, ao: Math.round(pre.ao.size), difficulty: pre.difficulty, start: session.difficulty, lives: pre.hd.max, opBonus: pre.opBonus, opDone: pre.opDone },
+    pre: { objectives: pre.objectives.map((o) => o.type), defenders: pre.defenders, teams: pre.teams, ao: Math.round(pre.ao.size), difficulty: pre.difficulty, start: session.difficulty, lives: pre.vg.max, opBonus: pre.opBonus, opDone: pre.opDone },
     onReveal: () => audio.chirp(),
     onContinue: () => { briefCtl = null; audio.click(); deploy(); },
     onEnd: (stop) => endTap('btn-end', () => { stop(); briefCtl = null; endSession(true); }),     // (0.44: a second tap; ending by choice pays an challenge coin)
@@ -1305,7 +1276,7 @@ function deploy() {
   shots.length = 0; resetScape();
   mission = new Mission({ seed: info.seed, faction: info.faction, biome: info.biome, sessionMinutes: SMIN ?? S.sessionMinutes(session), events: true, missionN: session.missions.length + 1, opDone: session.missions.length, difficulty: levelFor(info), bump: (info && info.bump) | 0,
     loadout: info.loadout, keepOrder: true, objectives: info.ovObj, kit: session.kit, wallet: session.wallet, names: session.names, roster: rosterFor(), ups: upsFor(), tod: info.tod,
-    countdown: qs.has('skipstart') || BOT ? 0 : C.vanguards.countdown, defenders: !qs.has('skipstart'), ...chapterOpts() });
+    countdown: qs.has('skipstart') || BOT ? 0 : C.vanguards.countdown, defenders: !qs.has('skipstart') });
   bot = BOT ? makeBot() : null;
   enterPlay();
 }
@@ -1315,11 +1286,11 @@ function enterPlay() {
   cam.view = window.innerWidth >= window.innerHeight ? C.world.viewWidth : 280;
   firePending = false; acc = 0; endHandled = false; overAt = 0; wantAbort = false;
   drawing = false; stroke = null; armed = false; tac = false; sel = null; box = null;
-  document.body.classList.remove('tac-open', 'tac-hd', 'tac-sf', 'placing'); $('s-pause').classList.remove('out');
+  document.body.classList.remove('tac-open', 'tac-vg', 'tac-sf', 'placing'); $('s-pause').classList.remove('out');
   hud.reset(); hud.setOp(info.op); hud.setMission(mission); UI.showScreen(null); UI.hideOverlays();
   state = 'play'; paused = false; soft = false; hud.setSoft(false); menuSoft = false; toggleSpeed(1); clearPlan();
   audio.humStart();
-  castRadio = null; radioLog.clear(); hud.radioShow(radioWanted());     // (0.42.1: first, so the opening lines go in a phone's radio tab too)
+  radioLog.clear(); hud.radioShow(radioWanted());     // (0.42.1: first, so the opening lines go in a phone's radio tab too)
   hud.message(t('msg.start', { op: info.op.toUpperCase(), tod: todName(info.tod), clock: todClock(info.tod) }), 2600);
   hud.radio(COMMS.startDrop);
   if (input.touch && window.innerHeight > window.innerWidth) mission.notice(t('ui.rotate'), 'info');     // (0.19.1: in the feed, not over the map)
@@ -1330,24 +1301,13 @@ function enterPlay() {
     if (!mission.ls) hud.notice(t('tac.startNote'), 'info');     // (0.21: a line in the log, not a card over the squad; the tutorial teaches the rest)
   }
   hud.setTcTab('units'); setTac(true);     // (0.20: the command panel is up from the start, on the troops)
-  // (0.27) a campaign chapter: the briefing first (the game waits under it), then the cast on the radio through the mission
-  // (the radio was set up above: on a phone, every mission has it, since the feed lives there)
-  const ch = storyChapter();
-  if (ch && !BOT) {
-    castRadio = new CastRadio(castSay, { chat: ['chat.camp', `chat.camp.c${ch.n}`], teach: ch.teach || [], tip: (txt) => { radioLog.add('mission', { tag: '', col: '', text: txt, narr: true }); hud.notice(txt, 'info'); } });
-    hud.radioShow(true);
-    audio.humStop();
-    const lines = castLines(ch, 'brief'); radioLog.addLines('brief', lines);
-    cinema.play('camp', lines, () => { if (state === 'play' && mission) audio.humStart(); }, campOpts(ch, 'brief'));
-  }
 }
-// (0.28) the command radio: what the cast says goes in its log (and the feed, unless it is just chatter); tutorial and campaign only
+// (0.28) the command radio: the tutorial's story and what is said in it, to read again (and a phone's feed)
 const radioLog = new RadioLog();
 radioLog.onAdd = (it) => { hud.radioAdd(radioLog, it); if (UI.isOn('s-radio')) UI.fillRadio(radioLog); };
 // (0.42.1) a phone's feed (the notices and radio lines that went over the map) goes in the radio tab instead
 hud.feed = (text, tone) => radioLog.add('mission', { tag: '', col: '', text, narr: true, tone });
-const radioWanted = () => !BOT && !!mission && (!!mission.ls || !!(session && session.story) || applyLayout.last === 'phone');
-function castSay(c, text, line) { radioLog.add('mission', line); if (!line.flavor) { audio.chirp(); hud.cast(c, text); } }
+const radioWanted = () => !BOT && !!mission && (!!mission.ls || applyLayout.last === 'phone');
 let radioFrom = null;
 function openRadioLog(from) {
   if (!radioLog.items.length && !hud.radioOn) return;
@@ -1361,12 +1321,6 @@ function closeRadioLog() {
   if (radioFrom === 'pause') UI.overlay('s-pause', true); else if (radioFrom === 'play') { paused = false; audio.unlock(); }
   radioFrom = null;
 }
-// (0.38) what a chapter sets on its mission besides the map: no super heavy, a jammer site
-function chapterOpts() { const ch = storyChapter(), p = ch && ch.play; return p ? { ...(p.boss === false ? { boss: false } : {}), ...(p.jammer ? { jammer: true } : {}), ...(p.hb === false ? { demochargeSides: false } : {}) } : {}; }
-// (0.27) the chapter this mission is, in a story session (null otherwise), and the cinematic's options for it
-let castRadio = null;
-function storyChapter() { return session && session.story && info && info.chapter ? STORY.chapters.find((c) => c.n === info.chapter) || null : null; }
-function campOpts(ch, mood) { return { mood, night: !!ch.night, planet: ch.arc || 'fronteria', head: t('cine.chapter', { n: ch.n, name: t(`cp.${STORY.id}.c${ch.n}`) }), tag: t(mood === 'brief' ? 'cine.brief' : 'cine.debrief') }; }
 
 // ---------------- (0.19) the tutorial: the last stand on Mars ----------------
 // A mission of its own, outside any session: a throwaway session holds its kit and credits (never saved), and a saved session is
@@ -1381,23 +1335,23 @@ function lsReset() {
   document.body.classList.remove('ls-warn', 'ls-glass'); $('glassfx').classList.remove('on', 'white', 'soft');
 }
 // (0.53) The tutorial is MISSION COMPLETE: the game stops and the player picks: fight on to the end (the stand goes on until the
-// last Vanguard falls), or move on (straight into the campaign's first mission, or to the main menu). There is no extraction.
+// last Vanguard falls), or move on (a new operation of your own, or the main menu). There is no extraction.
 function lsComplete(saved) {
   S.save('tutDone', true);
   if (!soft) softPause(true);
   hud.ask(t('tut.done', { saved }), [
     { label: t('tut.fightOn'), primary: true, fn: () => { audio.click(); if (soft) softPause(false); } },
-    { label: t('tut.toCampaign'), fn: () => leaveTutorial(true) },
+    { label: t('tut.toOperation'), fn: () => leaveTutorial(true) },
     { label: t('tut.toMenu'), fn: () => leaveTutorial(false) },
   ], 1e9);
 }
-function leaveTutorial(campaign) {
+function leaveTutorial(play) {
   audio.click(); endHandled = true;
   setPlacing(null); setDrawing(false); setTac(false); disarm(); setHideUi(false); deselect();
   if (tut) { tut.close(); tut = null; }
   lsReset(); session = null; info = null;
   toTitle();
-  if (campaign) { openCampaign(); playChapter(STORY.chapters[0]); }
+  if (play) noticeFirst(() => askLock('quick'));     // (GC 0.77: an operation of your own; the story campaign is gone)
 }
 function startLastStand() {
   lsReset();
@@ -1426,7 +1380,7 @@ function startLastStand() {
   S.save('tutSeen', true);
   // the story first (the game waits under it), then the lessons
   const tu = tut;
-  radioLog.addLines('brief', lsLines('intro')); castRadio = BOT ? null : new CastRadio(castSay, { cues: false, chat: ['chat.tut'] });     // (0.28: Base Tharsis on the command radio)
+  radioLog.addLines('brief', lsLines('intro'));
   cinema.play('intro', lsLines('intro'), () => { if (tut === tu && mission) { tut.start(); audio.humStart(); } });
 }
 // (GC 0.56) THE TRAINING GROUND: the tutorial with no story. The same practice base and the same lessons (tutorial.js, TRAIN),
@@ -1491,7 +1445,7 @@ function finishLastStand() {
   if (tut) { tut.close(); tut = null; }
   S.save('tutDone', true);
   UI.fillGlass(res, aarStand(res, session && session.callsign));
-  castRadio = null; UI.radioBtn('btn-radio-g', radioLog.items.length > 0);
+  UI.radioBtn('btn-radio-g', radioLog.items.length > 0);
   state = 'glass'; audio.humStop(); lsEnding = true;      // (the map keeps drawing under the white-out)
   const end = () => { lsReset(); hud.reset(); UI.showScreen('s-glass'); };
   if (res.outcome !== 'glassed') { end(); return; }        // (left early: straight to the end screen)
@@ -1538,27 +1492,22 @@ function finishMission() {
   // (0.51) what comes next: a commendation to pick (while there is room for one) and the next mission's offers, kept with the run
   // so a reload asks the same; the bot takes the first of each
   if (S.carriesOn(res.outcome) && !session.tutorial) {
-    const st = !!(session.story && chapterFor(session, session.missions.length + 1));
-    session.pend = { perks: perkRoom(session.kit) ? rollPerks() : [], offers: S.rollOffers(session, Math.random, settings.enemy, st), story: st };
+    session.pend = { perks: perkRoom(session.kit) ? rollPerks() : [], offers: S.rollOffers(session, Math.random, settings.enemy) };
     if (BOT) { if (session.pend.perks.length) addPerk(session.kit, session.pend.perks[0]); session.next = session.pend.offers[0]; session.pend = null; }
   }
   if (S.carriesOn(res.outcome)) persist(); else { S.drop(runKey(session)); if (session.slot) S.clearSlot(session.slot); }
-  // (0.37) a campaign chapter cleared: kept on this browser, with the run as it stands, to carry on from (or replay the next)
-  if (session.story && info.chapter && S.carriesOn(res.outcome)) S.chapterCleared(session, info.chapter);
+
   retryArm = false;
   UI.fillDebrief(info, res, session, aarMission(session, info, res), startCredits());
   endArmed = null; endLabels();
-  state = 'debrief'; audio.humStop(); hud.reset(); castRadio = null;
+  state = 'debrief'; audio.humStop(); hud.reset();
   const show = () => {
     if (state !== 'debrief') return;
     UI.showScreen('s-debrief');
     if (ms) UI.milestone(ms, { onShow: () => { audio.click(); UI.milestone(null); msShow(true); }, onLater: () => { audio.click(); UI.milestone(null); } });
   };
-  // (0.27) a campaign chapter: its debrief plays first (won or lost), then the screen
-  const ch = storyChapter();
-  if (ch && !BOT) { const lines = castLines(ch, S.carriesOn(res.outcome) ? 'win' : 'lose', res); radioLog.addLines('debrief', lines); cinema.play('camp', lines, show, campOpts(ch, S.carriesOn(res.outcome) ? 'win' : 'lose')); }
-  else show();
-  UI.radioBtn('btn-radio-d', !!ch && radioLog.items.length > 0);
+  show();
+  UI.radioBtn('btn-radio-d', false);
 }
 // (0.51) the level a mission flies at: the operation's climb, and the offer's bump on top for that mission only
 function levelFor(i) { return Math.min(TOP, S.levelNow(session) + ((i && i.bump) | 0)); }
@@ -1822,8 +1771,8 @@ let svMode = 'load', svArm = null, svNote = '';
 const saveBtn = () => $('btn-save-m').classList.toggle('hidden', !session || !!session.tutorial);
 function slotInfo(s, n) {
   if (!s) return null;
-  const r = s.run, ch = r.story ? chapterFor(r, r.missions.length + 1) : null;
-  return { n, at: s.at, camp: !!r.story, ch: ch ? ch.n : 0, chT: ch ? t(`cp.${STORY.id}.c${ch.n}`) : '', op: S.opOf(r), cs: r.callsign || '',
+  const r = s.run;
+  return { n, at: s.at, op: S.opOf(r), cs: r.callsign || '',
     done: doneN(r), next: r.missions.length + 1, level: S.levelNow(r), rank: tierFor(doneN(r)), cr: (r.wallet && r.wallet.bal) || 0, cur: !!(session && session.slot === n) };
 }
 function drawSaves() {
@@ -1831,7 +1780,7 @@ function drawSaves() {
   const live = (k) => S.load(k, null);
   UI.fillSaves(svMode, slots.map((s, i) => slotInfo(s, i + 1)), {
     arm: svArm, note: svNote, mid,
-    replaces: (n) => { const s = slots[n - 1], cur = s && live(s.key); return !!(cur && resumable(cur) && cur.slot !== n) ? (s.key === 'campRun' ? 'camp' : 'quick') : null; },
+    replaces: (n) => { const s = slots[n - 1], cur = s && live(s.key); return !!(cur && resumable(cur) && cur.slot !== n) ? 'quick' : null; },
     onSave: (n) => {
       if (slots[n - 1] && svArm !== `save${n}`) { svArm = `save${n}`; svNote = ''; audio.click(); drawSaves(); return; }
       svArm = null;
@@ -1845,7 +1794,7 @@ function drawSaves() {
       const rep = live(s.key);
       if (rep && resumable(rep) && rep.slot !== n && svArm !== `load${n}`) { svArm = `load${n}`; svNote = ''; audio.click(); drawSaves(); return; }
       svArm = null;
-      S.save(s.key, s.run); storyPick = null;
+      S.save(s.key, s.run);
       UI.overlay('s-saves', false);
       beginSession(true, s.key);
     },
@@ -1893,9 +1842,9 @@ $('sv-code-load').onclick = async () => {
   const r = await S.codeToRun($('sv-code-ta').value), msg = $('sv-code-msg');
   if (r.err) { audio.deny(); svCodeArm = false; codeArmBtn(); msg.textContent = t('sv.code.' + r.err); return; }
   const rep = S.load(r.key, null);
-  if (rep && resumable(rep) && !svCodeArm) { svCodeArm = true; codeArmBtn(); audio.click(); msg.textContent = t(r.key === 'campRun' ? 'sv.replaceCamp' : 'sv.replaceQuick'); return; }
+  if (rep && resumable(rep) && !svCodeArm) { svCodeArm = true; codeArmBtn(); audio.click(); msg.textContent = t('sv.replaceQuick'); return; }
   svCodeArm = false; codeArmBtn();
-  S.save(r.key, r.run); storyPick = null;
+  S.save(r.key, r.run);
   UI.overlay('s-saves', false);
   beginSession(true, r.key);
 };
@@ -1994,37 +1943,11 @@ for (const b of document.querySelectorAll('.x-close[data-close]')) { const f = C
 // (0.37) the flashing-lights notice comes once, before the first thing played; then what was asked for
 let afterNotice = null;
 function noticeFirst(go) { if (!S.load('notice', false)) { afterNotice = go; UI.overlay('s-notice', true); return; } go(); }
-$('btn-play').onclick = () => { audio.unlock(); audio.click(); storyPick = null; noticeFirst(() => askLock('quick')); };
+$('btn-play').onclick = () => { audio.unlock(); audio.click(); noticeFirst(() => askLock('quick')); };
 $('btn-notice').onclick = () => { S.save('notice', true); UI.overlay('s-notice', false); const go = afterNotice; afterNotice = null; if (go) go(); else askLock('quick'); };
-function closeLock() { UI.overlay('s-lock', false); audio.click(); if (lockMode === 'camp') storyPick = null; if (FURY && FURY.direct) furyOut(); }
+function closeLock() { UI.overlay('s-lock', false); audio.click(); if (FURY && FURY.direct) furyOut(); }
 $('btn-lock').onclick = () => { UI.overlay('s-lock', false); if (lockMode === 'tut') { typedCallsign(); startLastStand(); } else beginSession(false); };
-// (0.24) CAMPAIGN: Operation Freedom Vista. (0.37) Its progress is kept on this browser: the chapters cleared (each with the run as
-// it stood, to carry on from) and the run under way (CONTINUE).
-let storyPick = null;
-function playChapter(c) {
-  audio.click(); storyPick = c;
-  const ck = c.n > 1 && S.getCampaign().ck[c.n - 1];
-  noticeFirst(() => askLock('camp', { chapter: c, from: ck ? c.n - 1 : 0 }));
-}
-function resumeCampaign() { audio.unlock(); storyPick = null; beginSession(true, 'campRun'); }
-function drawCampaign() {
-  const run = S.load('campRun', null), n = run && run.missions ? run.missions.length + 1 : 1;
-  // (0.41) a run that has flown the story goes on as an endless one, its armory and all: the campaign screen carries it on
-  const end = run && run.story && !chapterFor(run, n) && resumable(run) ? { n, level: S.levelNow(run), cr: (run.wallet && run.wallet.bal) || 0, rank: tierFor(doneN(run)) } : null;
-  UI.fillCampaign(STORY, playChapter, { prog: S.getCampaign(), run, end, onResume: resumeCampaign });
-}
-function openCampaign() {
-  audio.unlock(); audio.click(); state = 'campaign';
-  drawCampaign();
-  UI.showScreen('s-campaign'); startTitleBg();
-  $('cp-back').focus({ preventScroll: true });
-}
-$('btn-campaign').onclick = openCampaign;
-// (GC 0.56) Galactic Command has one campaign, the galactic one: this game is endless play here, so its own campaign and the
-// story tutorial that opens it are off the title screen (?campaign brings them back, for a look and for their tests)
-if (!qs.has('campaign')) $('btn-campaign').style.display = 'none';
 $('btn-train').onclick = () => startTraining();
-$('cp-back').onclick = () => { audio.click(); storyPick = null; toTitle(); };
 $('btn-lock-change').onclick = () => closeLock();
 $('btn-notice-set').onclick = () => openSettings('notice');
 $('btn-resume').onclick = () => beginSession(true);
@@ -2102,7 +2025,7 @@ $('btn-copy-g').onclick = () => { audio.click(); copyScore('g-text', 'g-msg'); }
 $('btn-post').onclick = async () => { await copyScore(); window.open(C.share.channelUrl, '_blank', 'noopener'); };
 $('btn-share').onclick = async () => { try { await navigator.share({ text: $('f-text').value }); } catch { /* user cancelled */ } };
 $('callsign').value = S.load('callsign', '');
-{ const old = S.load('session', null); if (old && old.story && !S.load('campRun', null)) { S.save('campRun', old); S.drop('session'); } }     // (0.37: runs from before are kept apart)
+if (!GCX) S.dropStory();     // (GC 0.77) the story campaign's saves: progress dropped, a run of it kept as an operation
 document.addEventListener('visibilitychange', () => { if (document.hidden && live()) togglePause(true); audio.background(document.hidden && !!settings.bgMute); });
 // (GC 0.75) the main menu's OPTIONS, changed while this game is open (its menu over the fight): taken at once
 window.gcApply = (o) => { const q = o.quality !== settings.quality; Object.assign(settings, o); onSettingChange(q ? 'quality' : 'gc', true); if (UI.isOn('s-settings')) UI.buildSettings(settings, onSettingChange); };
@@ -2173,7 +2096,7 @@ function musicHeat(dt) {
   heatT -= dt;
   if (heatT <= 0) {
     heatT = 0.3;
-    const hs = mission.hdAlive || [];
+    const hs = mission.vgAlive || [];
     const vw = cam.view, vh = cam.view * ((renderer.H || 9) / (renderer.W || 16)), hw = vw / 2, hh = vh / 2;
     let w = 0, c = 0, boss = false, seen = false;
     const inView = (x, y, pad = 0) => Math.abs(x - cam.x) < hw + pad && Math.abs(y - cam.y) < hh + pad;
@@ -2200,11 +2123,11 @@ function musicHeat(dt) {
 function onEvent(ev, now) {
   renderer.handle(ev, now, mission);
   if (tut) tut.onEvent(ev);
-  if (castRadio) castRadio.onEvent(ev, mission);
+
   if (ev.type === 'ls_stage' && ev.stage === 'breaking') { document.body.classList.add('ls-warn'); audio.siren(); }
   if (ev.type === 'ls_stage' && ev.stage === 'glass') { lsGlass(now); audio.nukeBlast(); }
   if (ev.type === 'ls_stage' && ev.stage === 'complete' && !BOT) lsComplete(ev.saved);     // (0.53) the tutorial won
-  if (ev.type === 'ls_stage' && ev.stage === 'truth') { const c = CAST.tharsis; radioLog.add('mission', { tag: c.tag, col: c.col, unit: t(c.unit), text: t('tut.truth.b', { saved: ev.saved }) }); audio.cineSwell(6); }     // (0.40)
+  if (ev.type === 'ls_stage' && ev.stage === 'truth') { const c = VOICE.tharsis; radioLog.add('mission', { tag: c.tag, col: c.col, unit: t(c.unit), text: t('tut.truth.b', { saved: ev.saved }) }); audio.cineSwell(6); }     // (0.40)
   const L = ev.x !== undefined ? loudness(ev.x, ev.y) : 1, P = ev.x !== undefined ? pan(ev.x) : 0;
   if (ev.type === 'glassbeam') audio.glassBeam(Math.max(0.35, L), P);
   if (ev.type === 'alert' && ev.up) heatKick = Math.min(0.35, heatKick + 0.15);     // (0.48) the spike is audible
@@ -2448,7 +2371,7 @@ function frame(ts) {
       // the step the game looked alive again the moment it was paused and froze again on resume. Now the step is caught and
       // the frame carries on drawing, so the player keeps the map, the pause and the menu whatever happens in here.
       const _s0 = performance.now();
-      try { simulate(dt, now); ambient(mission, dt); if (castRadio && !mission.over) castRadio.tick(mission); } catch (err) { simBroke(err); }
+      try { simulate(dt, now); ambient(mission, dt); } catch (err) { simBroke(err); }
       perfT.sim += (performance.now() - _s0 - perfT.sim) * 0.08;
     }
     else if (tut && tut.held && mission.events.length) { for (const ev of mission.events) onEvent(ev, now); mission.events.length = 0; }   // (an order given with a card up counts)
@@ -2581,10 +2504,10 @@ function simulate(dt, now) {
 UI.fillVersion();
 applySettings();
 renderer.resize();
-// (0.53) operations saved before the new campaign are cleared, once; the title says so
+// (0.53) operations saved before then are cleared, once; the title says so
 const wipedOld = GCX ? false : S.resetOldSaves();
 // (GC 0.39.1) the name over the title is the player's own command (the fleet is its own brand), not a house name
-function brand() { const n = FURY && FURY.livery && String(FURY.livery.name || '').replace(/[<>&]/g, '').trim(); if (!n) return; for (const [id, tail] of [['tt-brand', ' · Fire Support'], ['cp-brand', ' · FIRE SUPPORT · CAMPAIGN']]) { const el = $(id); if (el) { el.removeAttribute('data-t'); el.textContent = (id === 'cp-brand' ? n.toUpperCase() : n) + tail; } } }
+function brand() { const n = FURY && FURY.livery && String(FURY.livery.name || '').replace(/[<>&]/g, '').trim(); if (!n) return; const el = $('tt-brand'); if (el) { el.removeAttribute('data-t'); el.textContent = n + ' · Fire Support'; } }
 if (GCX) gcStart(); else { if (FURY) { lookStart(FURY); brand(); $('btn-gc-exit').onclick = () => { audio.click(); audio.humStop(); FURY.onExit(); }; } toTitle(); if (FURY && FURY.training) setTimeout(startTraining, 400);
   else if (FURY && FURY.direct) { $('s-title').style.visibility = 'hidden'; setTimeout(() => { furyBegan = true; (resumable(S.load('session', null)) ? $('btn-resume') : $('btn-play')).click(); }, 60);
     // however a box over the (hidden) title is closed, an empty title means the player is done here: back to the menu
@@ -2599,7 +2522,7 @@ window.__game = { hud, audio, music, get tut() { return tut; }, get frames() { r
   cam, input, renderer, settings, order, get placing() { return placing; }, get drawing() { return drawing; }, squadAct, selectSquad, focusTeam, strokeBegin, strokeMove, strokeEnd, goShop, openArmory, closeArmory,
   setSetting: (k, v) => { settings[k] = v; onSettingChange(k); },
   makePost: (w, x, y, o) => (mission ? makePost(mission, w, x, y, o) : null), spawnGroup: (x, y, o) => (mission ? spawnGroup(mission, x, y, 'hunt', o) : null), addJammer: (x, y) => (mission ? addJammer(mission, x, y) : null), select: (o) => select(o), get sel() { return sel; }, buildMenu, setTac, get tac() { return tac; },
-  radioLog, tickRadio: () => { if (castRadio && mission && !mission.over) castRadio.tick(mission); }, get castRadio() { return castRadio; },
+  radioLog,
   wirePlan: (x, y, f) => (mission ? wirePlan(mission, x, y, f) : null), placeTurn: (d) => placeTurn(d), placeShapeToggle: () => placeShapeToggle(), get placeFace() { return placeFace; }, get placeShape() { return placeShape; },
   arm, disarm, get armed() { return armed; }, get cinema() { return cinema; }, clickAt, commandAt, get plan() { return planQ.length; }, get planItems() { return planQ; }, runOrder: (k, x, y) => runOrder(k, x, y), planFire: () => planFire(), setForm: (f) => setForm(f), get ghost() { return ghostAt; }, get placing2() { return placing; }, setPlacing, deselect, setHideUi, get hideUi() { return hideUi; }, get held() { return session && session.held; }, goHome,
 };

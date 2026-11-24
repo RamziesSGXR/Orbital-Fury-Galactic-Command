@@ -71,7 +71,7 @@ export function initInfantry() {
   const sf = {
     sel: -1, pick: null, spotAt: 0, fid: 0,
     // (0.39) the hangar's dropships: when each is next ready (Infantry drops and pickups share them; fleet() grows this to the kit's
-    // number), and the troopers a pickup has taken up to the destroyer (the next drops bring them back down first)
+    // number), and the troopers a pickup has taken up to the ship (the next drops bring them back down first)
     fleet: [C.infantry.firstDropSec], reserve: [],
     squads: Array.from({ length: S.squads }, (_, i) => ({ i, order: newOrder(), tgt: null, tgtT: 0, clearT: 0, skip: new Map(), stand: null, ax: 0, ay: 0, n: 0, cx: 0, cy: 0 })),
   };
@@ -98,7 +98,7 @@ export function takeDropship(m, cut = 0) {
 }
 // (0.40) how much of a drop's cooldown n troopers brought back down take off it
 export const backCut = (m, n) => C.infantry.backCut * Math.min(1, n / Math.max(1, infantryStats(m.kit).drop));
-// Infantry in the field, coming down and aboard the destroyer (a pickup): all of them count against the most you can have
+// Infantry in the field, coming down and aboard the ship (a pickup): all of them count against the most you can have
 export const infantryHeld = (m) => m.countAlly('S') + m.pendingPods('S') + m.infantry.reserve.length;
 // Squads an order applies to: the selected one, or every squad that has troops.
 function recount(m) {
@@ -349,7 +349,7 @@ export function dropHold(m, q, x, y) {
 }
 export function callDropship(m, x, y, n, squad, hold = false) {
   const st = infantryStats(m.kit);
-  // (0.39) troopers a pickup took up to the destroyer come back down first (the new ones make up the rest)
+  // (0.39) troopers a pickup took up to the ship come back down first (the new ones make up the rest)
   const back = m.infantry.reserve.splice(0, n).map((r) => r.role || 'rifle');
   const roles = back.length ? [...back, ...rollRoles(m, n - back.length, st).filter((r, k) => k > 0 || !back.includes('leader'))].slice(0, n) : rollRoles(m, n, st);
   while (roles.length < n) roles.push('rifle');
@@ -432,7 +432,7 @@ export function updateDropships(m, dt) {
 // ---------------------------------------------------------------- (0.39) pickups
 // A pickup point (PICKUP, beside INFANTRY DROP) goes down anywhere in the strike zone. When Infantry are standing in it and one of the
 // hangar's dropships is ready, a dropship comes for them (once everyone sent to it is there, or the first have waited a while): it
-// takes (0.40) everyone standing in the zone aboard, however many, and they go up to the destroyer (m.infantry.reserve), for the
+// takes (0.40) everyone standing in the zone aboard, however many, and they go up to the ship (m.infantry.reserve), for the
 // next Infantry drops to bring back down anywhere. A point nobody is in waits like a building: select it and send troops to it. It goes
 // once a dropship has taken the last of them (or it is called off). Infantry drops and pickups share the hangar's dropships.
 const LZ_WAIT = 8;      // seconds the first troopers in a point wait for the rest before a dropship is sent anyway
@@ -782,7 +782,7 @@ function stepSquad(m, q, list, dt, speed, bm, claimed) {
     let tx, ty, spd = speed, wander = false;
     const ki = list.indexOf(a), kn = list.length, fo = formOff(q, a, ki, kn);
     if (o.kind === 'escort') {
-      if (!m.hdAlive.length) continue;            // nobody to escort right now: hold here until they are back
+      if (!m.vgAlive.length) continue;            // nobody to escort right now: hold here until they are back
       tx = sq.ax + a.fx; ty = sq.ay + a.fy; spd = chase;
       // with the squad holding a site: the walls between the Vanguards' (offset along each wall so nobody shares a spot)
       const site = m.phase !== 'clear' ? siteAt(m, sq.ax, sq.ay) : null;

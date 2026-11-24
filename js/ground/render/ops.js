@@ -41,7 +41,7 @@ function radioArt(ctx, s, now, px, col) {
   void col;
 }
 
-// (0.37) A jammer site, by the enemy: a spore spewer (a swollen pod with spore vents), a call-in jammer (a mast with a dish) or
+// (0.37) A jammer site, by the enemy: a spore tower (a swollen pod with spore vents), a call-in jammer (a mast with a dish) or
 // a cognitive disruptor (a tall pylon with a ring); the ground it jams has a pulsing dashed edge.
 const JAM_COL = { bugs: '#ffb020', bots: '#ff4a3a', lizards: '#c08cff' };
 function jammerArt(ctx, s, now, px) {
@@ -51,7 +51,7 @@ function jammerArt(ctx, s, now, px) {
   ctx.strokeStyle = rgba(col, 0.22 + 0.25 * p); ctx.lineWidth = px(2); ctx.setLineDash([px(10), px(7)]);
   ctx.lineDashOffset = -now * px(6); ring(ctx, s.x, s.y, s.R); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
   ctx.fillStyle = rgba(col, 0.05 + 0.04 * p); ring(ctx, s.x, s.y, s.R); ctx.fill();
-  // (0.62.8) the thing itself: a shrieker nest, a call-in jammer or a cognitive disruptor (sideart.js), raised
+  // (0.62.8) the thing itself: a howler nest, a call-in jammer or a cognitive disruptor (sideart.js), raised
   if (!(VIEW.p3 && VIEW.m3.has('side_jam_' + s.fac))) raise(ctx, s, s.x, s.y, r * 1.9, 2.6, (c) => { c.save(); c.translate(s.x, s.y); jammerBody(c, s.fac, col, r, s.id || 1, s.face || 0, now, px); c.restore(); }, RAISE_S);
   void p;
 }
@@ -289,7 +289,7 @@ export function drawRadar(ctx, m, now, px, col) {
     ctx.fillRect(b.x - r, b.y - r, r * 2, r * 2);
   }
   // the sweep ring right after a ping, centred on the squad
-  if (age < 1.2 && m.hdAlive.length) {
+  if (age < 1.2 && m.vgAlive.length) {
     ctx.strokeStyle = `rgba(157,255,184,${0.5 * (1 - age / 1.2)})`; ctx.lineWidth = px(2);
     ring(ctx, m.hx, m.hy, 40 + age * 500); ctx.stroke();
   }

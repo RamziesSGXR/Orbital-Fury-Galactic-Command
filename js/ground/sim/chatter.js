@@ -11,16 +11,16 @@ export function bark(m, a, kind, n = '', force = false) {
   const H = a.type === 'H', CH = C.chatter, t = m.t, g = m.chat;
   if (!force) {
     if (t < (a.sayAt || 0)) return false;
-    if (t < (H ? g.hd : g.infantry)) return false;
+    if (t < (H ? g.vg : g.infantry)) return false;
   }
-  const lines = tl((H ? 'hd.' : 'infantry.') + kind);
+  const lines = tl((H ? 'vg.' : 'infantry.') + kind);
   if (!lines.length) return false;
   let text = fill(pickLine(m.crng, lines), n);
-  if (H && kind !== 'hurt' && kind !== 'heavy' && m.crng.next() < 0.45) text += ' ' + pickLine(m.crng, tl('motto.hd'));
+  if (H && kind !== 'hurt' && kind !== 'heavy' && m.crng.next() < 0.45) text += ' ' + pickLine(m.crng, tl('motto.vg'));
   else if (!H && (kind === 'engage' || kind === 'attack') && m.crng.next() < 0.3) text += ' ' + pickLine(m.crng, tl('motto.infantry'));
-  a.say = { text, until: t + (H ? CH.hdSec : CH.infantrySec), small: !H };
-  a.sayAt = t + (H ? CH.hdCool : CH.infantryCool) * (0.8 + 0.4 * m.crng.next());
-  if (H) g.hd = t + CH.hdGlobalGap; else g.infantry = t + CH.infantryGlobalGap;
+  a.say = { text, until: t + (H ? CH.vgSec : CH.infantrySec), small: !H };
+  a.sayAt = t + (H ? CH.vgCool : CH.infantryCool) * (0.8 + 0.4 * m.crng.next());
+  if (H) g.vg = t + CH.vgGlobalGap; else g.infantry = t + CH.infantryGlobalGap;
   m.emit('bark', { id: a.id, h: H });
   return true;
 }
@@ -52,7 +52,7 @@ export function updateChatter(m, dt) {
   // ---- Vanguard pings: fighting beats the breach beats the goal ----
   const goal = goalName(m);
   const eg = m.eGrid;
-  for (const a of m.hdAlive) {
+  for (const a of m.vgAlive) {
     if (a.mounted && !(m.lrv && m.lrv.seats[0] === a)) { /* passengers share the vehicle's ping */ }
     if (a.ping && a.ping.e && a.ping.until > t) continue;     // a target mark (grenade, Hand Cannon) stays up until it times out
     const e = eg.nearest(a.x, a.y, 55);
@@ -62,10 +62,10 @@ export function updateChatter(m, dt) {
     if (br && bd < 260 * 260) { ping(a, br.x, br.y, 'breach', t + 4); continue; }
     if (goal) ping(a, goal.x, goal.y, 'go', t + 4);
   }
-  for (const a of m.hdAlive) if (a.ping && a.ping.until < t) a.ping = null;
+  for (const a of m.vgAlive) if (a.ping && a.ping.until < t) a.ping = null;
 
   // ---- Vanguard speech: what they are about to do ----
-  const hds = m.hdAlive;
+  const hds = m.vgAlive;
   if (!hds.length) return;
   const pick = hds[Math.floor(m.crng.next() * hds.length)];
   if (sq.engaged && !ch.wasEngaged) bark(m, pick, 'engage');

@@ -7,7 +7,7 @@
 //                      (Nobody goes looking for them: they are near the ways the squad is likely to walk.)
 //   spore tower (0.40): the bugs' fungal stalk (a point of interest of its own kind, like the broadcast tower): allies near it
 //                      see a lot less far while it stands. Destroy it.
-//   jammer (0.37):     an enemy structure only a Demolition Charge brings down (a spore spewer, a call-in jammer, a cognitive disruptor,
+//   jammer (0.37):     an enemy structure only a Demolition Charge brings down (a spore tower, a call-in jammer, a cognitive disruptor,
 //                      by the enemy): no orbital can be called within its reach while it stands. The squad clears round it and asks
 //                      the gunner for a Demolition Charge (ops.js); the enemy broadcast tower takes one too.
 // Drop beacons: places the player can send an Infantry drop to without a strike zone. Infantry build them (infantry.js); a radio tower powered
@@ -145,7 +145,7 @@ export function beaconAt(m, x, y) {
   return null;
 }
 
-const hdNear = (m, x, y, r) => { for (const a of m.hdAlive) if (!a.mounted && (a.x - x) ** 2 + (a.y - y) ** 2 <= r * r) return a; return null; };
+const vgNear = (m, x, y, r) => { for (const a of m.vgAlive) if (!a.mounted && (a.x - x) ** 2 + (a.y - y) ** 2 <= r * r) return a; return null; };
 
 function finish(m, s, ok) {
   s.done = ok; s.failed = !ok; s.state = ok ? 'done' : 'failed';
@@ -175,7 +175,7 @@ export function updateSides(m, dt) {
   for (const s of m.sides || []) {
     if (s.done || s.failed) continue;
     if (s.kind === 'radio') {
-      const a = hdNear(m, s.x, s.y, S.radio.holdR);
+      const a = vgNear(m, s.x, s.y, S.radio.holdR);
       if (a && s.state === 'idle') { s.state = 'active'; m.radio(COMMS.radioStart, 'radiostart', 0); m.emit('side_state', { kind: 'radio', state: 'active', x: s.x, y: s.y }); }
       if (s.state !== 'active') continue;
       if (a) s.holdT += dt;
@@ -193,7 +193,7 @@ export function updateSides(m, dt) {
     } else if (s.kind === 'arty') {
       // an abandoned artillery cannon: a Vanguard gets it working again (then it needs a crew, like one Infantry build); the enemy
       // comes to see what the noise is
-      const a = hdNear(m, s.x, s.y, S.arty.holdR);
+      const a = vgNear(m, s.x, s.y, S.arty.holdR);
       if (a && s.state === 'idle') { s.state = 'active'; m.radio(COMMS.artyStart, 'artystart', 0); m.emit('side_state', { kind: 'arty', state: 'active', x: s.x, y: s.y }); }
       if (s.state !== 'active') continue;
       if (a) s.holdT += dt;
@@ -216,7 +216,7 @@ export function updateSides(m, dt) {
       if (s.rallyT <= 0) {
         s.rallyT = S.propaganda.every;
         const R = aoScale(m, S.propaganda.reach);
-        if (m.hdAlive.length && Math.hypot(m.hx - s.x, m.hy - s.y) <= R * 1.3) {
+        if (m.vgAlive.length && Math.hypot(m.hx - s.x, m.hy - s.y) <= R * 1.3) {
           let n = 0;
           for (const g of m.groups) if (g.state !== 'hunt' && !g.garrison && (g.cx - s.x) ** 2 + (g.cy - s.y) ** 2 <= R * R) { alertGroup(m, g); n++; }
           if (n) m.emit('rally', { x: s.x, y: s.y, n });

@@ -10,9 +10,9 @@ export const storeSub = (k) => { if (k) sub = k; return sub; };
 
 // The Vanguards' names are the ground fight's own (its NAMES screen keeps them in ofs.names): one list, edited in either place.
 const NAMES = 'ofs.names', MAX = 18;
-const names = () => { try { const n = JSON.parse(localStorage.getItem(NAMES)) || {}; return { ships: SLOTS.map((_, i) => String((n.ships || [])[i] || '')), hd: SLOTS.map((_, i) => String((n.hd || [])[i] || '')) }; } catch { return { ships: ['', '', '', ''], hd: ['', '', '', ''] }; } };
+const names = () => { try { const n = JSON.parse(localStorage.getItem(NAMES)) || {}; return { ships: SLOTS.map((_, i) => String((n.ships || [])[i] || '')), vg: SLOTS.map((_, i) => String((n.vg || n.hd || [])[i] || '')) }; } catch { return { ships: ['', '', '', ''], vg: ['', '', '', ''] }; } };
 const clean = (s) => String(s || '').replace(/[^\w \-.'#]/g, '').replace(/\s+/g, ' ').trim().slice(0, MAX).toUpperCase();
-function setName(i, v) { const n = names(); n.hd[i] = clean(v); try { localStorage.setItem(NAMES, JSON.stringify(n)); } catch { /* not kept */ } }
+function setName(i, v) { const n = names(); n.vg[i] = clean(v); try { localStorage.setItem(NAMES, JSON.stringify(n)); } catch { /* not kept */ } }
 
 // little pictures for the roles and the acts (a 24-unit square, drawn in lines)
 const P = {
@@ -52,7 +52,7 @@ function pageRoster() {
   const cards = SLOTS.map((L, i) => {
     const s = r.slots[i], R = ROLES[s.role], Pe = PERSONAS[s.persona];
     return `<div class="vcard${i === pick ? ' on' : ''}" data-st="slot" data-i="${i}" role="button" tabindex="0"><div class="vtop"><b class="vlet">${L}</b>${pic(R.icon, 'big')}</div>
-      <input class="vname" data-i="${i}" maxlength="${MAX}" placeholder="VANGUARD ${L}" value="${esc(nm.hd[i])}" aria-label="Vanguard ${L}'s name" spellcheck="false">
+      <input class="vname" data-i="${i}" maxlength="${MAX}" placeholder="VANGUARD ${L}" value="${esc(nm.vg[i])}" aria-label="Vanguard ${L}'s name" spellcheck="false">
       <em>${esc(R.name)}</em><span>${s.persona === 'none' ? 'No act' : esc(Pe.name)}</span></div>`;
   }).join('');
   const s = r.slots[pick];
@@ -66,7 +66,7 @@ function pageRoster() {
       <div class="vgrid">${cards}</div>
       <div class="vpick"><i>ROLE</i><div class="chips">${row('role')}</div><i>PERSONALITY</i><div class="chips">${row('persona')}</div></div></section>
     <section class="tpan cdet stdet"><h3>Vanguard ${SLOTS[pick]}</h3><div class="cart" id="st-art"></div>
-      <b class="sdn">${esc(nm.hd[pick] || 'Vanguard ' + SLOTS[pick])}</b><small class="sds">${esc(R.name)}${s.persona !== 'none' ? ' · ' + esc(Pe.name) : ''}</small>
+      <b class="sdn">${esc(nm.vg[pick] || 'Vanguard ' + SLOTS[pick])}</b><small class="sds">${esc(R.name)}${s.persona !== 'none' ? ' · ' + esc(Pe.name) : ''}</small>
       <p>${esc(R.line)}${s.persona !== 'none' ? ' ' + esc(Pe.line) : ''}</p>${fxList(sq[pick].fx)}</section></div>`;
 }
 

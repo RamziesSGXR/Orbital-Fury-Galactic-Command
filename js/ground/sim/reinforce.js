@@ -34,7 +34,7 @@ export function initReinf(m) {
 function groupsFor(m, extra = 0, count = 1, pMin = 0, maxN = 0) {
   const M = R.multi, more = (count - 1) * M.perExtra;
   const n = Math.min(maxN || R.maxGroups + (count - 1) * M.perCap, R.groups + Math.floor((Math.max(m.pressure, pMin) - 1) * R.perPressure + extra + more));
-  const per = m.faction.id === 'bugs' ? R.bugs.pack * R.bugs.packs : 1;     // (a bug hole spills more than a group's worth for each)
+  const per = m.faction.id === 'bugs' ? R.bugs.pack * R.bugs.packs : 1;     // (a burrow spills more than a group's worth for each)
   const size = Math.max(1, m.groupSize * per);
   let room = Math.floor((C.enemies.hardCap - m.enemies.length) / size);
   // (0.53.7) an answer to the squad (pMin: the extraction's waves, the drops on the squad) may take the room that patrols wandering

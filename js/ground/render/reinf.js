@@ -1,4 +1,4 @@
-// World-space drawing for Revision 7: enemy reinforcements (flares, bug holes, dropships, war barges), the free-fire zone, the
+// World-space drawing for Revision 7: enemy reinforcements (flares, burrows, dropships, war barges), the free-fire zone, the
 // evacuation site and its civilians, and the extraction pad with its dropship. Every function draws in metres; px(n) is n screen
 // pixels in metres at the current zoom.
 import { t as tr } from '../i18n.js';
@@ -41,7 +41,7 @@ export function drawFlares(ctx, m, now, px, labels, scale, pal) {
   }
 }
 
-// ---------------------------------------------------------------- bug holes
+// ---------------------------------------------------------------- burrows
 export function drawHoles(ctx, m, now, px, labels, scale, pal) {
   const t = m.t, col = pal.enemy;
   for (const b of m.breaches) {
@@ -234,7 +234,7 @@ export function drawSupply(ctx, m, now, px, labels, scale, teamColor) {
   }
   if (t < S.boostUntil && !VIEW.drops) {
     ctx.strokeStyle = 'rgba(125,255,155,0.55)'; ctx.lineWidth = px(1.6);
-    for (const a of m.hdAlive) { ring(ctx, a.x, a.y, Math.max(px(13), 4) + Math.sin(now * 5 + a.id) * px(1.5)); ctx.stroke(); }
+    for (const a of m.vgAlive) { ring(ctx, a.x, a.y, Math.max(px(13), 4) + Math.sin(now * 5 + a.id) * px(1.5)); ctx.stroke(); }
   }
 }
 
@@ -340,7 +340,7 @@ export function drawExtraction(ctx, m, now, px, labels, scale) {
   }
   // the dship's line (the dropship itself is drawn later, over the pad's walls: drawExtractionDropship)
   if (ex.state === 'boarding') {
-    const hds = m.hdAlive.length;
+    const hds = m.vgAlive.length;
     text = tr(hds ? 'lab.boardingLeft' : 'lab.boarding', { on: ex.boardedH || 0, left: hds, n: Math.max(0, Math.ceil(ex.leaveBy - t)) });
   } else if (ex.state === 'landing') text = tr('lab.dshipLanding');
   else if (ex.state === 'away') text = tr(m.infantryAlive.length ? 'lab.orbitLeaveN' : 'lab.dshipAway', { n: ex.boardedH || 0, s: Math.max(0, Math.ceil((ex.leaveAt || t) - t)), k: m.infantryAlive.length });
@@ -374,11 +374,11 @@ export function drawExtractionDropship(ctx, m, now, px) {
   dshipDetail(ctx, x, y, ang, s, now, 0, down, '#ffe600');
 }
 
-// Pings of hits that matter: critical hits from the destroyer and hits on a heavy's back.
+// Pings of hits that matter: critical hits from the ship and hits on a heavy's back.
 export function critText(f) { return tr(f & 1 ? (f & 2 ? 'lab.rearCrit' : 'lab.rearHit') : f & 2 ? 'lab.crit' : 'lab.armor'); }   // (4 alone: the armoured front took it)
 
 // ---------------------------------------------------------------- (0.54.1) the mothership and its wreck
-// The campaign's jellyfish (jelly.js), bigger than any citadel, hanging over the map. Falling it tips, burns and sinks; the wreck
+// The Talon mothership (jelly.js), bigger than any citadel, hanging over the map. Falling it tips, burns and sinks; the wreck
 // stays where it came down, scorched and still smoking.
 let jAt = -1, jM = null;
 const model = (now) => { if (jAt !== now) { jAt = now; jM = jellyModel(now); } return jM; };

@@ -137,7 +137,7 @@ with sync_playwright() as pw:
         pg.click('#th-coach [data-gc=next]'); pg.wait_for_timeout(300); pg.click('#th-coach [data-gc=skip]'); title(); pg.wait_for_timeout(500)
         assert pg.evaluate(f"localStorage.getItem('ofgc.solo.{kind}')") == before, f'the {kind} tutorial wrote over the saved {kind}'
     # every tab fits a desktop screen with nothing to scroll to
-    for name, vw, vh in [('laptop', 1280, 720), ('small', 1366, 650), ('hd', 1920, 1080)]:
+    for name, vw, vh in [('laptop', 1280, 720), ('small', 1366, 650), ('vg', 1920, 1080)]:
         pg.set_viewport_size({'width': vw, 'height': vh})
         for t in ['home', 'play', 'livery', 'livery:emblem', 'livery:colours', 'livery:name', 'collection', 'career', 'store', 'options', 'options:display', 'options:audio', 'options:controls']:
             if t.startswith('livery:'): pg.click(f"[data-lv=sub][data-k={t.split(':')[1]}]"); pg.wait_for_timeout(200)

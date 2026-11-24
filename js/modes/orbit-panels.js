@@ -20,13 +20,13 @@ const PLACES = { hauler: 'Cargo Stores, Cargo Racks and Station Command', engine
 const ORDER_NAMES = { rations: 'RATIONS', shift: 'SHIFTS', plan: 'MAINTENANCE PLAN', checks: 'SHIP INSPECTIONS', care: 'MEDICAL CARE', mix: 'TRAFFIC MIX', rate: 'TRAFFIC VOLUME', broadcast: 'BROADCAST' };
 // Radio channels: who is talking, in which colour, and how they sign off
 const CH = {
-  ministry: { n: 1, name: 'HEAD OFFICE', col: '#f5d547', off: ['Head Office out.', 'Keep it on brand.', ''] },
+  office: { n: 1, name: 'HEAD OFFICE', col: '#f5d547', off: ['Head Office out.', 'Keep it on brand.', ''] },
   traffic: { n: 2, name: 'TRAFFIC CONTROL', col: '#e6e6e6', off: ['Control out.', 'Keep the lanes clear.', ''] },
   colonists: { n: 7, name: 'CIVILIAN BAND', col: '#b9e6c8', off: ['', 'Thank you for your service.'] },
   captain: { n: 9, name: 'SHIP-TO-STATION', col: '#7fc8ff', off: ['Over.', 'Over and out.'] },
 };
 let n = 3; for (const k of ['supply', 'maintenance', 'security', 'truth', 'medical', 'command', 'science', 'gunnery']) if (C.div[k]) CH[k] = { n: n++, name: C.div[k].name.toUpperCase(), col: C.div[k].col, off: ['Out.', ''] };
-const chOf = (k) => CH[k] || CH.ministry;
+const chOf = (k) => CH[k] || CH.office;
 const WHO = (k) => chOf(k).name;
 // What people say, in a bubble over their head, when the camera is close
 const CHAT = {

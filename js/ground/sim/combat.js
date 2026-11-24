@@ -52,7 +52,7 @@ export function ffBlast(m, x, y, rad, dmg, mult, by, fx, fy) {
 }
 
 // ---------- enemies ----------
-// by: 'player' (the destroyer), 'squad' (rifles) or 'callin' (call-ins, turrets, vehicles, support weapons).
+// by: 'player' (the ship), 'squad' (rifles) or 'callin' (call-ins, turrets, vehicles, support weapons).
 // (fx, fy): where the hit comes from, for the back bonus. cs: whose crit chance (defaults to the attacker's side; '' for none).
 // Troops still under the dropship or war barge that brought them cannot be hurt until it has pulled away (or they have walked out
 // from under it): the ship covers them.
@@ -65,8 +65,8 @@ export function reveal(m, e) {
 export const revealed = (m, e) => e.revealUntil > m.t;
 export const locked = (m, e) => e.revealUntil > m.t && m.t - e.revealFrom >= C.reveal.lockSec;
 
-// A commander's jammer: the enemy jamming (x, y), if any. Nothing the destroyer or the squad calls down can land there.
-// (0.37) A jammer site (sides.js: the spore spewer, call-in jammer or cognitive disruptor) does the same over its reach R, but the
+// A commander's jammer: the enemy jamming (x, y), if any. Nothing the ship or the squad calls down can land there.
+// (0.37) A jammer site (sides.js: the spore tower, call-in jammer or cognitive disruptor) does the same over its reach R, but the
 // ship gun's direct fire and Infantry's grenades still get through it (gun: true leaves the sites out).
 export function jammedAt(m, x, y, pad = 0, gun = false) {
   for (const e of m.jammers || []) if (!e.dead && (e.x - x) ** 2 + (e.y - y) ** 2 <= (e.jamR + pad) ** 2) return e;
@@ -137,7 +137,7 @@ export function hurtEnemy(m, e, dmg, by, fx, fy, cs, pierce = false, armor = 1) 
 }
 
 // Damage everything in a circle. mult is the per-size multiplier table (L, M, H, B for bases).
-// friendly: also hurts allies (the destroyer does, call-ins do not). The blast comes from its centre (for the back bonus).
+// friendly: also hurts allies (the ship does, call-ins do not). The blast comes from its centre (for the back bonus).
 // cs: crit side ('' for none). Civilians on an evacuation are hurt by friendly blasts too.
 // (fx, fy): where the blow comes from, when that is not the centre (a shell fired by someone standing there).
 export function damageArea(m, x, y, rad, dmg, mult, by = 'player', friendly = true, cs, fx = x, fy = y) {
@@ -203,7 +203,7 @@ function absorb(m, x, y, dmg) {
 // hit (not a nibble), and the dodge has to have come round again. Friendly fire and falling pods cannot be dodged.
 // Infantry troopers dodge too, far less often. A UAV overhead adds to either chance (its threat-warning upgrade adds more).
 function tryDodge(m, a, dmg) {
-  const H = a.type === 'H', D = C.hd.dodge, SD = C.hd.infantryDodge, t = m.t;
+  const H = a.type === 'H', D = C.vg.dodge, SD = C.vg.infantryDodge, t = m.t;
   if (a.mounted || (a.mech && a.mech.hp > 0) || t < (a.dodgeAt || 0) || dmg < D.minHit) return false;
   const uav = a.uavAt !== undefined && t - a.uavAt < 0.25 ? uavBuff(m.kit).dodge : 0;
   if (m.rng.next() >= (H ? D.chance : SD.chance) + uav) return false;
@@ -217,7 +217,7 @@ function tryDodge(m, a, dmg) {
   return true;
 }
 
-// raw: true skips the armor (friendly fire from the destroyer is full strength). (fx, fy): where an enemy hit comes from, so a
+// raw: true skips the armor (friendly fire from the ship is full strength). (fx, fy): where an enemy hit comes from, so a
 // shot in the back hurts more; enemy hits can crit too.
 export function hurtAlly(m, a, rawDmg, by, raw = false, src = null, fx, fy) {
   if (a.dead || !(rawDmg > 0)) return;
@@ -234,7 +234,7 @@ export function hurtAlly(m, a, rawDmg, by, raw = false, src = null, fx, fy) {
   }
   let dmg = absorb(m, a.x, a.y, rawDmg * (raw ? 1 : ALLY[a.type].armor * (a.armorMul || 1)));
   if (dmg <= 0) return;
-  if (a.type === 'H' && by === 'enemy' && !raw) dmg = Math.min(dmg, a.maxHp * C.hd.maxHit);     // nothing kills a healthy Vanguard in one hit
+  if (a.type === 'H' && by === 'enemy' && !raw) dmg = Math.min(dmg, a.maxHp * C.vg.maxHit);     // nothing kills a healthy Vanguard in one hit
   a.hp -= dmg;
   if (a.hp <= 0) {
     const who = by === 'player' ? 'player' : 'enemy';
@@ -278,7 +278,7 @@ export function inZoneKind(m, x, y, kind) {
 // Is a friendly standing in the line of fire from `src` to (tx, ty)? Returns the closest one in the way, or null. A friendly
 // behind the shooter, or beyond the target, is not in the way.
 export function blocker(m, src, tx, ty) {
-  const lane = C.hd.fire.lane, dx = tx - src.x, dy = ty - src.y, len2 = dx * dx + dy * dy, len = Math.sqrt(len2);
+  const lane = C.vg.fire.lane, dx = tx - src.x, dy = ty - src.y, len2 = dx * dx + dy * dy, len = Math.sqrt(len2);
   if (len < 4) return null;
   let found = null, fu = 9;
   m.aGrid.near(src.x + dx / 2, src.y + dy / 2, len / 2 + lane + 2, (o) => {

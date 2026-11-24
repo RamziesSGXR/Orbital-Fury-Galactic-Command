@@ -20,7 +20,7 @@ export function initSupply(m) {
 // Does anyone need supplies? Returns the Vanguard who needs them most, or null.
 function needy(m) {
   let best = null, bs = 0;
-  for (const a of m.hdAlive) {
+  for (const a of m.vgAlive) {
     if (a.dead || a.mounted) continue;
     let s = 0;
     if (a.stims <= 1) s += 2 - a.stims;
@@ -36,7 +36,7 @@ function needy(m) {
 // Where the pod should land: beside the squad, on dry ground, clear of the Vanguards themselves.
 function dropSpot(m, a) {
   const tr = m.terrain;
-  const bx = m.hdAlive.length ? m.hx : a.x, by = m.hdAlive.length ? m.hy : a.y;
+  const bx = m.vgAlive.length ? m.hx : a.x, by = m.vgAlive.length ? m.hy : a.y;
   for (let k = 0; k < 12; k++) {
     const ang = (k / 12) * Math.PI * 2 + (m.supply.n % 3), d = 7 + (k % 3) * 3;
     const x = bx + Math.cos(ang) * d, y = by + Math.sin(ang) * d;
@@ -51,10 +51,10 @@ export function updateSupply(m, dt) {
   if (!S) return;
   // the boost from a fast load
   const boosted = t < S.boostUntil;
-  for (const a of m.hdAlive) a.dmgMul = boosted ? 1 + P.boostDmg : 1;
+  for (const a of m.vgAlive) a.dmgMul = boosted ? 1 + P.boostDmg : 1;
 
   if (S.state === 'idle') {
-    if (t < S.cdUntil || m.phase === 'over' || boardingNow(m) || !m.hdAlive.length) return;
+    if (t < S.cdUntil || m.phase === 'over' || boardingNow(m) || !m.vgAlive.length) return;
     S.scanT = (S.scanT || 0) - dt;
     if (S.scanT > 0) return;
     S.scanT = 1;
@@ -64,7 +64,7 @@ export function updateSupply(m, dt) {
     return;
   }
   if (S.state === 'ask') {
-    if (t >= S.ask.until || !m.hdAlive.length || boardingNow(m)) declineSupply(m, true);
+    if (t >= S.ask.until || !m.vgAlive.length || boardingNow(m)) declineSupply(m, true);
     return;
   }
   if (S.state === 'fill') {
@@ -90,8 +90,8 @@ function ask(m, a) {
 // (0.37) The tutorial's resupply lesson: a Vanguard asks now (the one who needs it most, or the first), whatever the cooldown.
 export function askSupply(m) {
   const S = m.supply;
-  if (!S || S.state !== 'idle' || !m.hdAlive.length || boardingNow(m)) return false;
-  ask(m, needy(m) || m.hdAlive[0]);
+  if (!S || S.state !== 'idle' || !m.vgAlive.length || boardingNow(m)) return false;
+  ask(m, needy(m) || m.vgAlive[0]);
   return true;
 }
 
@@ -135,7 +135,7 @@ export function launchSupply(m) {
   for (const q of f.slots) frac[q.kind] = q.n / q.max;
   const full = f.slots.every((q) => q.n >= q.max), realSec = f.t / P.slowmo;
   const fast = full && realSec <= P.fastSec;
-  const a = m.allies.find((x) => x.id === S.ask?.by && !x.dead) || m.hdAlive[0];
+  const a = m.allies.find((x) => x.id === S.ask?.by && !x.dead) || m.vgAlive[0];
   const spot = a ? dropSpot(m, a) : { x: m.hx, y: m.hy };
   S.state = 'inbound';
   S.drop = { x: spot.x, y: spot.y, at: m.t, landAt: m.t + P.dropSec, frac, fast, team: S.ask ? S.ask.team : 0, tag: S.ask ? S.ask.tag : '', secs: realSec };
@@ -152,7 +152,7 @@ function land(m) {
   // stims and grenades by how full their compartments were; the ammo compartment covers support weapons, the hand cannon,
   // mech suits and turrets
   restock(m, fr.stims, fr.grenades);
-  for (const a of m.hdAlive) {
+  for (const a of m.vgAlive) {
     if (fr.ammo > 0) {
       a.ultAt = Math.min(a.ultAt, m.t + 1);
       if (a.sw && a.sw.ammo) a.sw.left = Math.min(a.sw.ammo, a.sw.left + Math.round(a.sw.ammo * fr.ammo));
@@ -162,13 +162,13 @@ function land(m) {
   for (const s of m.assets) {
     if (s.dead) continue;
     if (s.kind === 'turret') s.ammo = Math.min(s.maxAmmo, s.ammo + s.maxAmmo * 0.6 * fr.ammo);
-    if (s.kind === 'dog') s.hp = s.maxHp;
+    if (s.kind === 'drone') s.hp = s.maxHp;
   }
   if (d.fast) S.boostUntil = m.t + P.boostSec;
   m.emit('asset_new', { kind: 'supply', x: d.x, y: d.y });
   m.emit('supply_down', { x: d.x, y: d.y, fast: d.fast });
   m.radio(d.fast ? COMMS.supplyBoost : COMMS.supplyDown, 'supdown', 0);
-  const a = m.hdAlive[0]; if (a) bark(m, a, 'supdown', '', true);
+  const a = m.vgAlive[0]; if (a) bark(m, a, 'supdown', '', true);
   S.state = 'idle'; S.cdUntil = m.t + P.cooldownSec; S.ask = null; S.n++;
   S.last = { x: d.x, y: d.y, at: m.t, fast: d.fast };
   S.drop = null;

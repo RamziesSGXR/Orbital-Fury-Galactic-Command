@@ -43,7 +43,7 @@ export function setupPois(m) {
 
 // ---------------------------------------------------------------- finds (CONFIG.loot)
 // Placed from a stream of their own, so the rest of the map is laid out the same with or without them.
-const LOOT_W = ['recoilless', 'autocannon', 'flamethrower', 'railgun', 'mg43', 'spear', 'eat'];
+const LOOT_W = ['atl', 'autocannon', 'flamethrower', 'coil', 'lmg', 'guided', 'oneshot'];
 function setupLoot(m) {
   const L = C.loot, rng = new RNG((m.seed ^ 0x2c1b3c6d) >>> 0), A = m.ao, kinds = Object.keys(L.kinds);
   const n = Math.max(L.min, Math.round(L.n * Math.min(1, (A.size / C.world.size) * 1.3)));
@@ -86,12 +86,12 @@ export function takeLoot(m, q, by) {
   let what = '';
   if (q.kind === 'wreck') {
     const g = m.player && m.player.gun; if (g) { g.ammo = g.max; g.dry = false; }
-    for (const a of m.hdAlive) if (a.sw) a.sw.left = Math.max(a.sw.left, CALLINS[a.sw.id] && CALLINS[a.sw.id].sw ? CALLINS[a.sw.id].sw.ammo : a.sw.left);
+    for (const a of m.vgAlive) if (a.sw) a.sw.left = Math.max(a.sw.left, CALLINS[a.sw.id] && CALLINS[a.sw.id].sw ? CALLINS[a.sw.id].sw.ammo : a.sw.left);
     what = tr('loot.got.wreck');
   } else if (q.kind === 'pod') {
     const d = CALLINS[q.w];
     let h = by.type === 'H' && !by.sw && !(by.mech && by.mech.hp > 0) ? by : null;
-    if (!h) { let bd = Infinity; for (const a of m.hdAlive) { if (a.sw || a.mounted || (a.mech && a.mech.hp > 0)) continue; const dd = (a.x - q.x) ** 2 + (a.y - q.y) ** 2; if (dd < bd) { bd = dd; h = a; } } }
+    if (!h) { let bd = Infinity; for (const a of m.vgAlive) { if (a.sw || a.mounted || (a.mech && a.mech.hp > 0)) continue; const dd = (a.x - q.x) ** 2 + (a.y - q.y) ** 2; if (dd < bd) { bd = dd; h = a; } } }
     if (h && d && d.sw) { h.sw = { id: q.w, ...d.sw, left: d.sw.ammo, t: 0.8, snd: 'ac', lockE: null, lockT: 0 }; m.emit('asset_new', { kind: 'weapon', sid: q.w, x: h.x, y: h.y }); }
     what = tr('loot.got.pod', { w: d ? d.name : '' });
   } else if (q.kind === 'cache') {
@@ -118,7 +118,7 @@ export function updatePois(m, dt) {
     if (p.owed > 0 && m.enemies.length < C.enemies.hardCap && spawnNear(m, p.x, p.y, 4, 16, 'patrol')) p.owed--;
     if (p.owed <= 0) p.woke = true;
   }
-  // Bug holes (reinforce.js opens them): a rumble, then one group after another digs out, then the hole falls in. Shot closed early,
+  // Burrows (reinforce.js opens them): a rumble, then one group after another digs out, then the hole falls in. Shot closed early,
   // nothing more comes out of it.
   for (let i = m.breaches.length - 1; i >= 0; i--) {
     const b = m.breaches[i];

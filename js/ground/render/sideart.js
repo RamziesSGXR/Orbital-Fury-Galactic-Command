@@ -3,7 +3,7 @@
 // with lines in them. Each function draws round (0, 0) in metres, r being the footprint's radius; what pulses or turns is left
 // out while the walls are made (baking()), so it does not get a wall of its own.
 //   the enemy's targets (points of interest):  relay · cache · battery, by faction
-//   side objectives:  the enemy's broadcast tower (propaganda), the spore spewer, the jammer (by faction),
+//   side objectives:  the enemy's broadcast tower (propaganda), the spore tower, the jammer (by faction),
 //                     the radio tower, the Infantry redoubt (rescue), the abandoned howitzer
 import { baking } from './relief.js';
 const TAU = Math.PI * 2;
@@ -160,8 +160,8 @@ function broadcast(c, fac, col, r, id, now, px, q) {
   }
   if (!baking()) { c.strokeStyle = rgba(col, 0.5 * (1 - ph)); c.lineWidth = px(1.6); circ(c, 0, 0, r * (1.0 + ph * 2.2)); c.stroke(); }
 }
-// the spore spewer: a ribbed stalk under a swollen, vented cap
-function spewer(c, col, r, id, now, px, q) {
+// the spore tower: a ribbed stalk under a swollen, vented cap
+function sporeTower(c, col, r, id, now, px, q) {
   const a0 = hash(id, 2) * TAU;
   c.fillStyle = q.b; for (let i = 0; i < 8; i++) { const a = a0 + i * 0.785; ell(c, Math.cos(a) * r * 0.62, Math.sin(a) * r * 0.62, r * 0.36, r * 0.22, a); c.fill(); }
   c.fillStyle = q.a; circ(c, 0, 0, r * 0.74); c.fill();
@@ -172,7 +172,7 @@ function spewer(c, col, r, id, now, px, q) {
 }
 export function poiArt(c, kind, fac, col, r, id, seen, now, px) {
   const q = pal(fac, seen);
-  if (kind === 'spore') spewer(c, col, r, id, now, px, q);
+  if (kind === 'spore') sporeTower(c, col, r, id, now, px, q);
   else if (kind === 'propaganda') broadcast(c, fac, col, r, id, now, px, q);
   else if (kind === 'relay') relay(c, fac, col, r, id, now, px, q);
   else if (kind === 'cache') cache(c, fac, col, r, id, now, px, q);
@@ -180,7 +180,7 @@ export function poiArt(c, kind, fac, col, r, id, seen, now, px) {
 }
 
 // ---------------------------------------------------------------- the jammer (a Demolition Charge's job), by faction
-// bugs: a shrieker nest (a ring of chitin horns round a dark shaft, wings wheeling over it); bots: a call-in jammer (an
+// bugs: a howler nest (a ring of chitin horns round a dark shaft, wings wheeling over it); bots: a call-in jammer (an
 // eight-sided blockhouse under a turning three-armed array); lizards: a cognitive disruptor (a split ring turning round a lens)
 export function jammerBody(c, fac, col, r, id, face, now, px) {
   const q = pal(fac, true), p = baking() ? 0.5 : 0.5 + 0.5 * Math.sin(now * 2.4 + id);
