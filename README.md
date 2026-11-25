@@ -1,6 +1,6 @@
 # Orbital Fury: Galactic Command
 
-**Prototype 0.83.0.** One war, run from four posts, in one game.
+**Prototype 0.84.0.** One war, run from four posts, in one game.
 
 You found a command (a name, a livery: emblem and colours) and hold the centre of the galaxy against three enemies. Everything in
 the war is yours to run, and each part changes the others:
@@ -13,6 +13,27 @@ the war is yours to run, and each part changes the others:
 | **The base** | Found a base on the system's key world: roads, zones, and buildings that grow along them. | +35% output from the system for each charter. |
 
 A system that falls takes its station and its base with it.
+
+## What's new in 0.84: milestones instead of research, and beauty
+
+Ramzies: science shouldn't really play a part; milestones and where things can and can't be placed should; and beauty
+and active defences to build, with defensive waves to come. This is the first half (the waves are next, as agreed: see
+item 16 in `docs/DIRECTION.md`):
+
+- **No research.** The Science Lab, the research tree and the SCIENCE page are gone. Every upgrade it gave comes with a
+  milestone instead: a head count on the base (the most it has had) or a charter. Recruit Drill at 10 on the base,
+  Fortification Doctrine (turrets, floodlights) at 15, Reinforced Shelving at 20; Long-Range Radio, Scout Rovers and the
+  Hab Block with the FOB charter; better solar, a third truck and cheap asphalt at 45; Heavy-Lift Dropships, the
+  Broadcast Mast, BRAND-MART, the archives and State Industry with the Fort; Unified Command and armour with the Fort and
+  80; the War Room with the Major Base (which now wants a Command Tower where it wanted a lab). Each is announced when it
+  comes; a locked card says which milestone it waits for; POPULATION shows the ladder on its track and what unlocks next.
+  An old save keeps whatever it researched.
+- **BEAUTY**, a new build tab: Planted Tree, Flower Planters, Garden, Fountain (needs a Water Well) and Park (from the FOB
+  charter). How good the base looks lifts morale where people can see it: in full within ten tiles of the bunks, half
+  further off, and none of it goes in an Industry zone. Gardens, fountains and parks are on air, for the war's ratings.
+  Their models were made in Blender with the base's kit (`tools/blender/README.md`). HAPPINESS shows the beauty score.
+- **Where it can't go, and why**: while placing a building or drawing a road, the reason it can't go where the pointer
+  is shows beside the pointer.
 
 ## What's new in 0.83: the Offices, round the base's goals
 
@@ -453,7 +474,7 @@ come back to them.
 - `python3 test/fleets.py` checks the opening choices and the Fleet Office.
 - `python3 test/armoury.py` checks the armoury, the chest and that they survive a reload (needs `npm start`).
 - `python3 test/base_fixes.py` checks FOB Commander's feedback fixes: wire on walls, the numbers after the main menu, a dropped 3D view coming back, crews, and a building's card.
-- `python3 test/base_offices.py` checks FOB Commander's Offices: every page from the dock with its measure, every page fitting 1280 x 720 without scrolling, the big numbers, Esc and O, and the market, a commitment, a loan, research, sending an operation and grading a file from the task board.
+- `python3 test/base_offices.py` checks FOB Commander's Offices: every page from the dock with its measure, every page fitting 1280 x 720 without scrolling, the big numbers, Esc and O, and the market, a commitment, a loan, sending an operation and grading a file from the task board; milestones in place of research; beauty by the bunks and not in an Industry zone; the reason at the pointer.
 - `python3 test/roster.py` checks the STORE: credits from the career, buying roles, personalities and an upgrade, giving them to the Vanguards, and a fight on the ground where they carry them.
 - `python3 test/base_ui.py` checks the base's controls: dragging the ground, roads keeping to the tiles and joining where they cross, the task board's orders, the build bar's cards, the readouts' breakdowns, the building card and the command post's orders, a request answered from the task board, and the clock.
 

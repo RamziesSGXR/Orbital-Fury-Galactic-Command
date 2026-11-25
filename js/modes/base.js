@@ -15,7 +15,7 @@ import { makeHud, LINES } from './base-hud.js';     // (GC 0.81) the standalone 
 import { war as warNow } from '../galaxy/screen.js';
 const KB = binds('base');     // (GC 0.73) the player's own keys
 // (0.46) what a base puts on air: every parade ground, speaker, billboard, banner, flag and monument standing is footage for the war's ratings
-const SHOWS = new Set(['parade', 'speaker', 'billboard', 'banner', 'hdbanner', 'flag', 'seflag', 'statue', 'monument', 'memorial', 'lecture', 'truth', 'plaque']);
+const SHOWS = new Set(['garden', 'fountain', 'park', 'parade', 'speaker', 'billboard', 'banner', 'hdbanner', 'flag', 'seflag', 'statue', 'monument', 'memorial', 'lecture', 'truth', 'plaque']);
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
@@ -77,7 +77,7 @@ const TUT = [
 function setTool(t) {
   tool = tool === t ? null : t; sel = 0; zsel = null; view.select(null);
   view.setGhost(null); view.showLine(null); view.showPlots(isZone(tool) || (tool && !isRoad(tool) && !LOOSE.has(tool)) ? sim.plotTiles() : null);
-  audio.click(); hud.buildBar(true); hud.selPanel();
+  audio.click(); hud.buildBar(true); hud.selPanel(); hud.pointerTip(null);
 }
 const clearSel = () => { sel = 0; zsel = null; view.select(null); hud.selPanel(); };
 function demolish() { const r = sim.demolish(sel); if (r === false || (r && r.ok === false)) { audio.deny(); if (r && r.why) app.toast(r.why); } else { audio.baseDown(); clearSel(); } }
@@ -138,8 +138,9 @@ function bind(canvasOnly = false) {     // (GC 0.78: canvasOnly, for a view buil
       if (drag) { if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > 6) drag.moved = true; if (drag.moved) { if (drag.btn === 2 || drag.btn === 1) view.spin(-dx * 0.008); else view.pan(dx, dy); } }
     }
     if (zoneDrag) { view.showPlots(zoneRect(zoneDrag, tileOf(e))); return; }
-    if (roadDrag && !roadDrag.bull) { const end = lineEnd(e), c = sim.checkLine(roadDrag, end, ROADS[tool].k); view.showLine(roadDrag, end, ROADS[tool].k === 'paved' ? 2 : 1, c.ok, ['wall', 'wire', 'bags', 'trench'].includes(ROADS[tool].k)); return; }
-    if (tool && !isRoad(tool) && !isZone(tool)) { const t = tileAt(e), sp = specOf(tool); view.setGhost(tool, t.tx, t.tz, t.rot, sim.canPlace(tool, t.tx, t.tz, t.rot, sp).ok, sp); }
+    if (roadDrag && !roadDrag.bull) { const end = lineEnd(e), c = sim.checkLine(roadDrag, end, ROADS[tool].k); view.showLine(roadDrag, end, ROADS[tool].k === 'paved' ? 2 : 1, c.ok, ['wall', 'wire', 'bags', 'trench'].includes(ROADS[tool].k)); hud.pointerTip(!c.ok && c.why && c.why !== 'Too short' ? c.why : null, e.clientX, e.clientY); return; }
+    if (tool && !isRoad(tool) && !isZone(tool)) { const t = tileAt(e), sp = specOf(tool), c = sim.canPlace(tool, t.tx, t.tz, t.rot, sp); view.setGhost(tool, t.tx, t.tz, t.rot, c.ok, sp); hud.pointerTip(c.ok ? null : c.why, e.clientX, e.clientY); }     // (GC 0.84) and why not, at the pointer
+    else hud.pointerTip(null);
   });
   const up = (e) => {
     if (mode.off) return;
@@ -171,6 +172,7 @@ function bind(canvasOnly = false) {     // (GC 0.78: canvasOnly, for a view buil
     if (sel || zsel) audio.click(); hud.selPanel();
   };
   canvas.addEventListener('pointerup', up);
+  canvas.addEventListener('pointerleave', () => { if (hud) hud.pointerTip(null); });     // (GC 0.84)
   canvas.addEventListener('pointercancel', (e) => { ptrs.delete(e.pointerId); drag = null; pinch = null; roadDrag = null; zoneDrag = null; });
   canvas.addEventListener('wheel', (e) => { e.preventDefault(); view.zoomBy(Math.exp(e.deltaY * 0.0012)); }, { passive: false });
   if (canvasOnly) return;
@@ -243,6 +245,7 @@ const mode = {
         else if (ev.t === 'built') { audio.ready(); hud.buildBar(); const b = sim.b.find((o) => o.id === ev.id); if (b && !ev.refit) note(app.tutorial ? {} : { built: 1 }, [['building', b.type]]); }
         else if (ev.t === 'week') { audio.objective(); hud.buildBar(); if (!app.tutorial) note({ baseDays: 1, baseFirst: ev.rank === 0 ? 1 : 0, baseReview: ev.review || 0 }); }
         else if (ev.t === 'desk') audio.chirp();
+        else if (ev.t === 'milestone') { audio.objective(); ui.message('MILESTONE', 2400); hud.buildBar(true); }     // (GC 0.84)
         else if (ev.t === 'raidAlarm') { audio.siren(); ui.message('MOVEMENT AT THE WIRE', 3000); }
       }
       life.update(dt);

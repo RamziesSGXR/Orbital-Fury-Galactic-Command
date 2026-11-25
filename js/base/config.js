@@ -24,7 +24,7 @@ export const C = {
     { name: 'Outpost', parcels: 12 },
     { name: 'Forward Operating Base', short: 'FOB', parcels: 20, needs: ['depot', 'barracks', 'mess', 'range', 'yard'], store: 400, troops: 30, pro: 50, cr: 600, sup: 600, alloc: 0.15 },
     { name: 'Fort', parcels: 36, needs: ['batch', 'motorpool', 'medbay', 'comms'], store: 900, troops: 60, pro: 60, cr: 1200, sup: 1500, alloc: 0.3 },
-    { name: 'Major Base', parcels: 441, needs: ['treatment', 'lab', 'fuelfarm'], store: 1300, troops: 110, pro: 70, cr: 2000, sup: 3000, alloc: 0.5 },
+    { name: 'Major Base', parcels: 441, needs: ['treatment', 'command', 'fuelfarm'], store: 1300, troops: 110, pro: 70, cr: 2000, sup: 3000, alloc: 0.5 },
   ],                  // supplies per tile of wall
   DAY: 120,                 // a watch: four calendar hours of simulation time; each closes its own books (upkeep, food, fuel)
   WEEK: 720,                // a calendar day: six four-hour watches (C.DAY each); the allocation comes every day
@@ -123,25 +123,26 @@ export const VEHICLES = {
   tank: { name: 'Tank', speed: 0.7, load: 0, armour: true, bonus: 0.28, guard: 0.4, fuel: 25, desc: 'For the really big actions. Much better odds, far fewer casualties.' },
 };
 
-// The light tech tree: a Science Lab researches one of these at a time. needs: research that must come first.
+// The upgrades. (GC 0.84) No research: each comes with a milestone, a head count on the base (pop, the most it has had)
+// or a charter (stage), and is announced when it does. cost, hrs and needs are the old research's, kept for old saves.
 export const TECH = {
-  radio:    { name: 'Long-Range Radio', tier: 1, cost: 120, hrs: 18, desc: 'Each Comms Tower runs three landing pads instead of two.' },
-  shelving: { name: 'Reinforced Shelving', tier: 1, cost: 150, hrs: 24, desc: 'All storage holds 25% more.' },
-  drill:    { name: 'Drill Sergeant Manuals', tier: 1, cost: 150, hrs: 24, desc: 'Recruits train 20% faster everywhere.' },
-  solar:    { name: 'Brand-Approved Photovoltaics', tier: 1, cost: 160, hrs: 24, desc: 'Solar Arrays make 6 power instead of 4.' },
-  cargo:    { name: 'Heavy-Lift Dropships', tier: 2, cost: 260, hrs: 36, needs: ['radio'], desc: 'Every dropship carries 60 more goods and 4 more recruits or troopers.' },
-  trucks:   { name: 'Third Truck', tier: 2, cost: 240, hrs: 30, needs: ['shelving'], desc: 'Every Motor Pool gets a third supply truck.' },
-  asphalt:  { name: 'Bureau Asphalt', tier: 2, cost: 180, hrs: 24, needs: ['shelving'], desc: 'Paved road costs half. The Bureau supplies the asphalt, at a price it would rather not discuss.' },
-  lrv:      { name: 'Scout Rovers', tier: 2, cost: 300, hrs: 36, needs: ['drill'], desc: 'Unlocks the Vehicle Bay and its rover, which special operations can take along.' },
-  highrise: { name: 'Vertical Housing', tier: 2, cost: 280, hrs: 36, needs: ['shelving'], desc: 'Unlocks the Hab Block: three storeys, thirty bunks, one plot.' },
-  broadcast:{ name: 'Planetary Broadcast', tier: 2, cost: 300, hrs: 36, needs: ['radio'], desc: 'Unlocks the Broadcast Mast: a very tall mast that runs four landing pads and carries the Publicity Office to every ear.' },
-  command:  { name: 'Unified Command', tier: 3, cost: 480, hrs: 60, needs: ['broadcast', 'highrise'], desc: 'Unlocks the Command Tower, which watches a long stretch of wall and makes the whole base stand straighter.' },
-  fortworks:{ name: 'Fortification Doctrine', tier: 1, cost: 180, hrs: 24, desc: 'Unlocks Defence Turrets, Floodlight Towers and the Emergency Operations Bunker.' },
-  civic:    { name: 'Civic Programme', tier: 2, cost: 260, hrs: 30, needs: ['shelving'], desc: 'Unlocks BRAND-MART, the Colonists\' Casino and the Memorial Halls.' },
-  archive:  { name: 'Quantum Archives', tier: 2, cost: 300, hrs: 36, needs: ['radio'], desc: 'Unlocks the Server and Storage Vault, the Security Brig and Cryopreservation Storage.' },
-  warroom:  { stage: 2, name: 'Strategic Command', tier: 3, cost: 520, hrs: 60, needs: ['archive', 'command'], desc: 'Unlocks the War Room: every front in real time, better odds and more operations to choose from.' },
-  industry: { name: 'State Industry', tier: 2, cost: 280, hrs: 36, needs: ['shelving'], desc: 'Unlocks the State Industrial Complex: your own supplies, made on the base, for fuel and power.' },
-  tank:     { name: 'Armoured Doctrine', tier: 3, cost: 450, hrs: 60, needs: ['lrv', 'cargo'], desc: 'Every Vehicle Bay also keeps a tank, for the really big actions.' },
+  radio:    { stage: 1, name: 'Long-Range Radio', tier: 1, cost: 120, hrs: 18, desc: 'Each Comms Tower runs three landing pads instead of two.' },
+  shelving: { pop: 20, name: 'Reinforced Shelving', tier: 1, cost: 150, hrs: 24, desc: 'All storage holds 25% more.' },
+  drill:    { pop: 10, name: 'Drill Sergeant Manuals', tier: 1, cost: 150, hrs: 24, desc: 'Recruits train 20% faster everywhere.' },
+  solar:    { pop: 45, name: 'Brand-Approved Photovoltaics', tier: 1, cost: 160, hrs: 24, desc: 'Solar Arrays make 6 power instead of 4.' },
+  cargo:    { stage: 2, name: 'Heavy-Lift Dropships', tier: 2, cost: 260, hrs: 36, needs: ['radio'], desc: 'Every dropship carries 60 more goods and 4 more recruits or troopers.' },
+  trucks:   { pop: 45, name: 'Third Truck', tier: 2, cost: 240, hrs: 30, needs: ['shelving'], desc: 'Every Motor Pool gets a third supply truck.' },
+  asphalt:  { pop: 45, name: 'Bureau Asphalt', tier: 2, cost: 180, hrs: 24, needs: ['shelving'], desc: 'Paved road costs half. The Bureau supplies the asphalt, at a price it would rather not discuss.' },
+  lrv:      { stage: 1, name: 'Scout Rovers', tier: 2, cost: 300, hrs: 36, needs: ['drill'], desc: 'Unlocks the Vehicle Bay and its rover, which special operations can take along.' },
+  highrise: { stage: 1, name: 'Vertical Housing', tier: 2, cost: 280, hrs: 36, needs: ['shelving'], desc: 'Unlocks the Hab Block: three storeys, thirty bunks, one plot.' },
+  broadcast:{ stage: 2, name: 'Planetary Broadcast', tier: 2, cost: 300, hrs: 36, needs: ['radio'], desc: 'Unlocks the Broadcast Mast: a very tall mast that runs four landing pads and carries the Publicity Office to every ear.' },
+  command:  { stage: 2, pop: 80, name: 'Unified Command', tier: 3, cost: 480, hrs: 60, needs: ['broadcast', 'highrise'], desc: 'Unlocks the Command Tower, which watches a long stretch of wall and makes the whole base stand straighter.' },
+  fortworks:{ pop: 15, name: 'Fortification Doctrine', tier: 1, cost: 180, hrs: 24, desc: 'Unlocks Defence Turrets, Floodlight Towers and the Emergency Operations Bunker.' },
+  civic:    { stage: 2, name: 'Civic Programme', tier: 2, cost: 260, hrs: 30, needs: ['shelving'], desc: 'Unlocks BRAND-MART, the Colonists\' Casino and the Memorial Halls.' },
+  archive:  { stage: 2, name: 'Quantum Archives', tier: 2, cost: 300, hrs: 36, needs: ['radio'], desc: 'Unlocks the Server and Storage Vault, the Security Brig and Cryopreservation Storage.' },
+  warroom:  { stage: 3, name: 'Strategic Command', tier: 3, cost: 520, hrs: 60, needs: ['archive', 'command'], desc: 'Unlocks the War Room: every front in real time, better odds and more operations to choose from.' },
+  industry: { stage: 2, name: 'State Industry', tier: 2, cost: 280, hrs: 36, needs: ['shelving'], desc: 'Unlocks the State Industrial Complex: your own supplies, made on the base, for fuel and power.' },
+  tank:     { stage: 2, pop: 80, name: 'Armoured Doctrine', tier: 3, cost: 450, hrs: 60, needs: ['lrv', 'cargo'], desc: 'Every Vehicle Bay also keeps a tank, for the really big actions.' },
 };
 // Training: points a recruit earns per game hour at each place; 100 makes a trooper.
 export const TRAIN = { range: 8, course: 6, lecture: 4, parade: 3 };   // points an hour; the duty day is 7.5 training hours
@@ -163,10 +164,11 @@ export const GROUPS = [
   ['logistics', 'LOGISTICS', 'Logistics zone: bring supplies and recruits in and store them. Depots also grow by themselves in the zone.', ['pad', 'depot', 'fueldepot', 'shed'], 'logi'],
   ['income', 'CIVIC', 'Civic and Commerce zone: shops and clubs that earn credits and keep people content.', ['vend', 'club', 'burger', 'chicken', 'cola', 'mart', 'casino'], 'comm'],
   ['training', 'TRAINING', 'Training zone: turn recruits into troopers. The front pays supplies and credits for every one you ship.', ['range', 'course', 'parade', 'lecture'], 'train'],
-  ['command', 'OPERATIONS', 'Operations zone: patrols, command, medicine, research and records.', ['patrol', 'medbay', 'comms', 'mast', 'armory', 'vbay', 'command', 'warroom', 'lab', 'vault', 'truth', 'hdbarracks', 'brig', 'cryo', 'eob'], 'ops'],
+  ['command', 'OPERATIONS', 'Operations zone: patrols, command, medicine and records.', ['patrol', 'medbay', 'comms', 'mast', 'armory', 'vbay', 'command', 'warroom', 'vault', 'truth', 'hdbarracks', 'brig', 'cryo', 'eob'], 'ops'],
   ['industry', 'INDUSTRY', 'Industry zone: the engineers and their plant, and whatever digs, pumps or makes. Noisy: keep it clear of Life Support.', ['yard', 'batch', 'motorpool', 'extractor', 'mine', 'factory'], 'ind'],
   ['power', 'UTILITIES', 'Power, water, sewage and fuel. Each covers a circle round it: a building outside power coverage goes dark, and bunks without water or sewage lose morale and fall sick.', ['gen', 'solar', 'substation', 'well', 'tower', 'rowpu', 'lagoon', 'treatment', 'fuelfarm']],
   ['defence', 'DEFENCE', 'Close the wall, watch it and light it. Inside a closed wall everything works 5% better and morale is +3; with a Lookout Tower, 10% and +6.', ['lookout', 'flood', 'turret', 'shelter']],
+  ['beauty', 'BEAUTY', 'How good the base looks lifts morale, where people can see it: within ten tiles of the bunks it counts in full, further off by half, and not at all in an Industry zone. Gardens, fountains and parks are on air too.', ['tree', 'planter', 'garden', 'fountain', 'park']],     // (GC 0.84)
   ['truth', 'PUBLICITY', 'Morale and propaganda, for the Publicity Office.', ['flag', 'banner', 'hdbanner', 'speaker', 'billboard', 'pool', 'plaque', 'statue', 'memorial', 'halls', 'partyhq', 'palace', 'monument']],
 ];
 // what a new base builds before anything else: these are what bring money in. Everything else waits for them
@@ -205,7 +207,7 @@ export const B = {
   solar:    { name: 'Solar Array', group: 'power', w: 2, d: 1, cost: 90, up: 5, pw: 4,
               desc: 'Clean, quiet, on-brand power. Not much of it.' },
   lab:      { staff: 2, name: 'Science Lab', group: 'industry', w: 3, d: 2, cost: 320, up: 18, pw: -3, crew: 1, needs: ['comms'], lab: true,
-              desc: 'Researches upgrades, one at a time, while it is staffed and powered. Pick what to study in the Science tab. More labs, faster research.' },
+              desc: 'Research is gone: upgrades come with milestones now (the Offices, POPULATION). The lab keeps its records; demolish it for the refund.' },
   gen:      { name: 'Biofuel Generator', group: 'power', w: 2, d: 2, cost: 220, up: 15, pw: 14, crew: 1, need: { fuel: 30 }, burn: { fuel: 8 },
               desc: 'Lots of power, but it burns Biofuel fuel, which has to be trucked in.' },
 
@@ -270,6 +272,17 @@ export const B = {
               desc: 'Plays the anthem on the hour, every hour.' },
   billboard:{ name: 'Logo Billboard', group: 'propaganda', w: 2, d: 1, cost: 140, up: 6, pw: -1, prop: 9, needs: ['truth'],
               desc: 'Your logo, name and motto, lit up at night.' },
+  // (GC 0.84) BEAUTY: look is what it adds to how the base looks (morale, where the bunks can see it)
+  tree:     { name: 'Planted Tree', group: 'beauty', w: 1, d: 1, cost: 20, up: 0.5, look: 2,
+              desc: 'Shade, birdsong (recorded), and something green to look at. Place them anywhere.' },
+  planter:  { name: 'Flower Planters', group: 'beauty', w: 1, d: 1, cost: 30, up: 1, look: 3,
+              desc: 'Regulation flowers in your colours. Place them anywhere.' },
+  garden:   { name: 'Garden', group: 'beauty', w: 2, d: 2, cost: 90, up: 3, look: 7,
+              desc: 'Hedges, a bench and a bed of flowers by the road. Troops sit here off duty.' },
+  fountain: { name: 'Fountain', group: 'beauty', w: 2, d: 2, cost: 180, up: 6, look: 10, needs: ['well'],
+              desc: 'A round basin and a jet of clean water. Needs a Water Well on the base to run.' },
+  park:     { stage: 1, name: 'Park', group: 'beauty', w: 3, d: 3, cost: 260, up: 8, look: 15, mor: 2,
+              desc: 'Lawns, trees, a path and benches: the best thing on the base to look at, and good footage.' },
   pool:     { name: 'Reflecting Pool', group: 'propaganda', w: 3, d: 2, cost: 200, up: 8, prop: 8, mor: 4,
               desc: 'A calm place to reflect on victory.' },
   // ---------------------------------------------------------------- Fort Sanctuary (from the community base build)

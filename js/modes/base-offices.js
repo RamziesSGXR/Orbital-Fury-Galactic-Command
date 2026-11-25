@@ -12,7 +12,8 @@
 //   HAPPINESS    morale and what moves it, in three: defence (the wall, the perimeter, raids), housing (bunks, food,
 //                latrines, noise, water) and looks (propaganda, condition, what is on air)
 //   OPERATIONS   deployment orders, training, special operations (SEND), squads out, the last results
-//   SCIENCE      the research tree
+// (GC 0.84) No SCIENCE: research is gone, and its upgrades come with milestones (POPULATION has the ladder). HAPPINESS's
+// looks take in beauty: trees, planters, gardens, fountains and parks.
 // The calls, requests and files to grade are on the task board. Every page fits a 1280 x 720 screen without scrolling.
 import { C, B, GKEYS, TECH, TRAIN, VEHICLES, LOANS, COMMIT, MARKET, MIN } from '../base/config.js';
 import { MKEYS } from '../base/sim.js';
@@ -21,14 +22,14 @@ import { logoCanvas } from '../base/logo.js';
 
 const $ = (id) => document.getElementById(id);
 // the pages: key, name, the colour of its label
-export const OTABS = [['pop', 'POPULATION', ''], ['bud', 'BUDGET & TRADE', ''], ['eff', 'EFFICIENCY', ''], ['hap', 'HAPPINESS', ''], ['ops', 'OPERATIONS', 'c-def'], ['sci', 'SCIENCE', 'c-sci']];
+export const OTABS = [['pop', 'POPULATION', ''], ['bud', 'BUDGET & TRADE', ''], ['eff', 'EFFICIENCY', ''], ['hap', 'HAPPINESS', ''], ['ops', 'OPERATIONS', 'c-def']];
 const GSHORT = (g) => (g === 'cr' ? 'CR' : g === 'sup' ? 'SUP' : MARKET.goods[g] ? MARKET.goods[g].short : g.toUpperCase());
 const chg = (hist) => { if (!hist || hist.length < 2) return ''; const a = hist.at(-2), b = hist.at(-1), d = (b - a) / (a || 1) * 100; return `<small class="${d > 0.5 ? 'up' : d < -0.5 ? 'down' : ''}">${d > 0 ? '▲' : d < 0 ? '▼' : ''}${Math.abs(d).toFixed(1)}%</small>`; };
 const clamp01 = (v) => Math.max(0, Math.min(1, v || 0));
 // what moves morale, in the three the player can act on (and the rest)
-const HAPPY = { defence: ['wall', 'pride', 'grief'], housing: ['crowd', 'comfort', 'food', 'latrine', 'noise', 'hazard', 'power', 'water', 'sewer', 'smell', 'sick'], looks: ['prop', 'worn', 'commit'] };
+const HAPPY = { defence: ['wall', 'pride', 'grief'], housing: ['crowd', 'comfort', 'food', 'latrine', 'noise', 'hazard', 'power', 'water', 'sewer', 'smell', 'sick'], looks: ['beauty', 'prop', 'worn', 'commit'] };
 // what moves morale, by name on the HAPPINESS page (the full wording is the hover)
-const CAUSE = { wall: 'CLOSED, WATCHED WALL', pride: 'MEDALS AND PRIDE', grief: 'GRIEF', crowd: 'NO BUNK', comfort: 'COMFORT', food: 'HUNGER', latrine: 'LATRINES', noise: 'NOISE BY THE BUNKS', hazard: 'FUEL BY THE BUNKS', power: 'POWER CUTS', water: 'WATER', sewer: 'SEWAGE', smell: 'THE LAGOON\'S SMELL', sick: 'SICKNESS', prop: 'PROPAGANDA', worn: 'WORN BUILDINGS', commit: 'PUBLICITY COMMITMENT' };
+const CAUSE = { beauty: 'BEAUTY', wall: 'CLOSED, WATCHED WALL', pride: 'MEDALS AND PRIDE', grief: 'GRIEF', crowd: 'NO BUNK', comfort: 'COMFORT', food: 'HUNGER', latrine: 'LATRINES', noise: 'NOISE BY THE BUNKS', hazard: 'FUEL BY THE BUNKS', power: 'POWER CUTS', water: 'WATER', sewer: 'SEWAGE', smell: 'THE LAGOON\'S SMELL', sick: 'SICKNESS', prop: 'PROPAGANDA', worn: 'WORN BUILDINGS', commit: 'PUBLICITY COMMITMENT' };
 const CHECKS = { latrines: 'Clean latrines, no queues', mess: 'A seat at the mess for everyone', bunks: 'A bunk for everyone', crews: 'Every crewed building fully crewed', power: 'Power for everything', walks: 'Short walks' };
 
 // h: the interface's helpers (base-hud.js): fmt, esc, dur, calDay, OFFICE, CAT, MOR, CONDITION, warns(), flash(text),
@@ -56,7 +57,9 @@ export function makeOffices(o, h) {
   // ---------------------------------------------------------------- POPULATION: the milestones
   function pagePop(s) {
     const heads = s.heads(), st = s.stage || 0, S = C.STAGES, top = S[S.length - 1].troops, nx = s.nextStage(), ck = s.stageCheck() || [];
-    const marks = S.map((x, i) => i ? `<s class="${i <= st ? 'on' : ''}" style="left:${x.troops / top * 100}%"><em>${esc((x.short || x.name).toUpperCase())}<br>${x.troops}</em></s>` : '').join('');
+    const L = ladder(s), peak = s.peak || heads;
+    const marks = S.map((x, i) => i ? `<s class="${i <= st ? 'on' : ''}" style="left:${x.troops / top * 100}%"><em>${esc((x.short || x.name).toUpperCase())}<br>${x.troops}</em></s>` : '').join('')
+      + L.filter((m) => !m.stage).map((m) => `<s class="mini${peak >= m.pop ? ' on' : ''}" style="left:${m.pop / top * 100}%" title="${m.pop} on the base: ${esc(m.keys.map((k) => TECH[k].name).join(', '))}"></s>`).join('');
     let x = headline('POPULATION', `${heads} on the base, engineers included. ${nx ? `The next milestone, a ${esc(nx.name)} charter, comes at ${nx.troops}, with the terms below.` : 'Every charter granted.'}`,
       `<div class="track"><i><u style="width:${clamp01(heads / top) * 100}%"></u>${marks}</i><b>${heads}</b></div>`);
     // the next charter
@@ -76,6 +79,9 @@ export function makeOffices(o, h) {
     const T = s.troops, patrol = T.filter((t) => t.state === 'patrol').length, hurt = T.filter((t) => t.state !== 'patrol' && t.hurt > 0).length, ready = T.filter((t) => t.state !== 'patrol' && !(t.hurt > 0) && t.train >= 100).length, rec = T.length - patrol - hurt - ready, eng = s.engineers();
     const parts = [['TRAINED', ready, '#8df0a0'], ['RECRUITS', rec, 'var(--amber)'], ['OUT ON OPERATIONS', patrol, 'var(--cyan)'], ['WOUNDED', hurt, '#ff8a7a'], ['ENGINEERS', eng, '#9ab8ff']], all = Math.max(1, heads);
     let c2 = sec('WHO IS HERE') + `<div class="stack">${parts.map(([n, v, c]) => (v ? `<u style="width:${v / all * 100}%;background:${c}" title="${n}: ${v}"></u>` : '')).join('')}</div><div class="legend">${parts.map(([n, v, c]) => `<span><i style="background:${c}"></i>${n} ${v}</span>`).join('')}</div>`;
+    { const next = L.filter((m) => !m.got).slice(0, 3);
+      c2 += sec('UNLOCKS', ` · ${L.filter((m) => m.got).reduce((a, m) => a + m.keys.length, 0)} OF ${Object.keys(TECH).length}`) + (next.length ? next.map((m) => `<div class="oc-unl"><b>${esc(m.label)}</b><span>${m.keys.map((k) => `<i title="${esc(TECH[k].desc)}">${esc(TECH[k].name)}</i>`).join(', ')}</span></div>`).join('') : fine('Every upgrade unlocked.'))
+        + fine('No research: upgrades come with milestones. Hover one for what it does.'); }
     const home = T.length - patrol, empty = Math.max(0, s.beds - T.length);
     c2 += sec('ROOM TO GROW') + meter('BUNKS', `${T.length} / ${s.beds}`, T.length / Math.max(1, s.beds), T.length > s.beds ? 'r' : empty ? 'g' : 'a', { tip: 'Recruits only come to fill empty bunks. Zone more Life Support, or build barracks and habs.' })
       + meter('MESS SEATS', `${s.seats} / ${home}`, s.seats / Math.max(1, home), s.seats >= home ? 'g' : 'r', { tip: 'A seat at the mess for every trooper at home.' })
@@ -87,6 +93,14 @@ export function makeOffices(o, h) {
     else c3 += fine('The first audit comes at the end of the day.');
     c3 += fine('Audited at the end of each day; the score moves Growth standing most of the way to it.');
     return x + `<div class="oc-3"><div>${c1}</div><div>${c2}</div><div>${c3}</div></div>`;
+  }
+
+  // the milestones' ladder: each upgrade grouped by what unlocks it, in the order a base gets there
+  function ladder(s) {
+    const g = new Map();
+    for (const [k, t] of Object.entries(TECH)) { if (t.pop == null && t.stage == null) continue; const id = `${t.stage || 0}:${t.pop || 0}`; if (!g.has(id)) g.set(id, { stage: t.stage || 0, pop: t.pop || 0, keys: [] }); g.get(id).keys.push(k); }
+    return [...g.values()].map((m) => ({ ...m, at: Math.max(m.pop, m.stage ? C.STAGES[m.stage].troops : 0), got: m.keys.every((k) => s.hasTech(k)),
+      label: (m.stage ? `${(C.STAGES[m.stage].short || C.STAGES[m.stage].name).toUpperCase()} CHARTER` : '') + (m.stage && m.pop ? ' + ' : '') + (m.pop && (!m.stage || m.pop > C.STAGES[m.stage].troops) ? `${m.pop} ON THE BASE` : '') })).sort((a, b) => a.at - b.at || a.stage - b.stage);
   }
 
   // ---------------------------------------------------------------- BUDGET & TRADE
@@ -183,7 +197,7 @@ export function makeOffices(o, h) {
     let x = headline('HAPPINESS', `Morale ${now}, heading for ${tgt}: a baseline of ${mor.base ?? 45}${rest.map((k) => `, ${esc(h.MOR[k] || k)} ${mor[k] > 0 ? '+' : ''}${mor[k]}`).join('')}, and the three below. It moves slowly toward the target. Under 40, troopers work and train worse.`,
       `<div class="track mor"><i><u class="${now < 40 ? 'r' : now < 60 ? 'a' : 'g'}" style="width:${now}%"></u><s class="tgt" style="left:${tgt}%"><em>${tgt}</em></s></i><b>${now}</b></div>`);
     const group = (name, ks, extra) => {
-      const v = sum(ks), on = ks.filter((k) => mor[k] || k === 'wall' || k === 'crowd' || k === 'comfort' || k === 'prop'), scale = Math.max(10, ...on.map((k) => Math.abs(mor[k] || 0)));
+      const v = sum(ks), on = ks.filter((k) => mor[k] || k === 'wall' || k === 'crowd' || k === 'comfort' || k === 'prop' || k === 'beauty'), scale = Math.max(10, ...on.map((k) => Math.abs(mor[k] || 0)));
       return sec(name, ` · ${v > 0 ? '+' : ''}${v} MORALE`) + on.map((k) => dmeter(CAUSE[k] || esc(k.toUpperCase()), mor[k] || 0, scale, h.MOR[k])).join('') + '<div class="oc-sep"></div>' + extra;
     };
     const f = s.fort || s.fortify(), ri = s.raidInfo(), wb = s.wallBonus();
@@ -194,7 +208,8 @@ export function makeOffices(o, h) {
     const hou = group('HOUSING', HAPPY.housing, meter('BUNKS', `${s.troops.length} / ${s.beds}`, s.troops.length / Math.max(1, s.beds), s.troops.length > s.beds ? 'r' : 'g') + meter('MESS SEATS', `${s.seats} / ${home}`, s.seats / Math.max(1, home), s.seats >= home ? 'g' : 'r')
       + fine('Comfort comes from the mess, habs, vending and domes. Keep generators, fuel and Industry away from the bunks.'));
     const w = o.war ? o.war() : null, low = s.b.filter((b) => b.done && b.type !== 'hq' && b.cond < 70).length, likely = Math.round(0.35 * s.morale + 0.45 * s.prop + 0.2 * s.avgCond);
-    const looks = group('LOOKS', HAPPY.looks, meter('PROPAGANDA SCORE', s.prop, s.prop / 100, 'c', { tip: 'Each kind counts for less the more of it there is: a flag, banners, a loudspeaker and a statue beat ten banners.' })
+    const looks = group('LOOKS', HAPPY.looks, meter('BEAUTY SCORE', s.look || 0, (s.look || 0) / 100, 'g', { tip: 'Trees, planters, gardens, fountains and parks (BEAUTY): in full within ten tiles of the bunks, half further off, nothing in an Industry zone. Each kind counts for less the more of it there is.' })
+      + meter('PROPAGANDA SCORE', s.prop, s.prop / 100, 'c', { tip: 'Each kind counts for less the more of it there is: a flag, banners, a loudspeaker and a statue beat ten banners.' })
       + meter('CONDITION', `${Math.round(s.avgCond)}%${low ? ` · ${low} worn` : ''}`, s.avgCond / 100, s.avgCond >= 70 ? 'g' : 'a', { tip: h.CONDITION })
       + meter('ON AIR', `${w ? w.air || 0 : 0} of 5`, (w ? w.air || 0 : 0) / 5, 'c', { tip: 'Parade grounds, speakers, billboards, banners, flags, statues and monuments: footage for the war\'s ratings, in a campaign.' })
       + meter('INSPECTION', s.inspected && s.inspection ? `${s.inspection.score} today` : `likely ${likely}`, (s.inspected && s.inspection ? s.inspection.score : likely) / 100, 'a', { tip: 'The Publicity Office inspects each day: 35% morale, 45% propaganda, 20% condition. It sets Publicity standing.' }));
@@ -222,7 +237,7 @@ export function makeOffices(o, h) {
       c2 += `<div class="card2 op"><div class="l"><b><i class="opn">${oi + 1}</i>${esc(op.op)}${op.heavy ? ' <span class="warn">· HEAVY</span>' : ''}</b><span>${esc(op.kind)}${op.place ? `, the ${esc(op.place)}, ${op.km} km ${op.dir}` : ''}${want}</span><span>${'◆'.repeat(op.diff)}${'◇'.repeat(5 - op.diff)} · ${op.size} troopers · ${dur(op.dur * C.PATROL)} · +${op.def} standing, +${op.sup} SUP</span>${vb ? `<div class="oc-veh">${vb}</div>` : ''}</div>
         <div class="oc-odds"><b class="${ch >= 0.65 ? 'up' : ch < 0.45 ? 'down' : 'warn'}">${ok ? Math.round(ch * 100) + '%' : '—'}</b><button class="plate btn sm" data-send="${op.id}" ${ok ? '' : 'disabled'} title="${ok ? 'The odds are the squad\'s, with what it takes along' : `Needs ${op.size} troopers at home`}">SEND</button></div></div>`;
     }
-    c2 += fine(s.has('vbay') ? 'A failed operation costs Operations standing, and troopers can be lost.' : 'A failed operation costs standing, and troopers can be lost. Research Scout Rovers and build a Vehicle Bay to take a rover, later a tank, along: better odds.');
+    c2 += fine(s.has('vbay') ? 'A failed operation costs Operations standing, and troopers can be lost.' : 'A failed operation costs standing, and troopers can be lost. With a FOB charter comes the Vehicle Bay: build one to take a rover, later a tank, along, for better odds.');
     let c3 = sec('IN THE FIELD', s.patrols.length ? ` · ${s.patrols.length}` : '') + (s.patrols.length ? s.patrols.slice(0, 4).map((p) => meter(esc(p.op), `${p.brief > 0 ? 'briefing' : Math.round(p.t / p.dur * 100) + '%'} · odds ${Math.round(p.chance * 100)}%`, p.brief > 0 ? 0 : p.t / p.dur, 'c')).join('') : fine('Nobody out.'));
     const offices = s.b.filter((b) => b.type === 'patrol' && b.done);
     c3 += offices.length ? kv('STANDING PATROLS', `${offices.reduce((a, b) => a + (b.squads || 0), 0)} squads, from ${offices.length} Patrol Office${offices.length > 1 ? 's' : ''}`) : fine(`A Patrol Office (OPERATIONS) sends squads of three out every morning at ${C.PATROL_AT}:00 by itself.`);
@@ -230,24 +245,7 @@ export function makeOffices(o, h) {
     return `<div class="oc-3"><div>${c1}</div><div>${c2}</div><div>${c3}</div></div>`;
   }
 
-  // ---------------------------------------------------------------- SCIENCE
-  function pageSci(s) {
-    const labs = s.b.filter((b) => b.type === 'lab' && b.done), rate = s.labRate();
-    let top = !s.has('comms') ? '<p class="warn">Build a Comms Tower, then a Science Lab (OPERATIONS), to start research.</p>' : !labs.length ? '<p class="warn">Build a Science Lab (OPERATIONS) to start research.</p>' : kv('LABS', `${labs.length} · ${rate.toFixed(1)} lab hours an hour`);
-    top += fine('One thing at a time, while a lab is crewed and powered; more labs, faster research. Paid for up front, in credits.');
-    let cur;
-    if (s.tech.cur) { const k = s.tech.cur; cur = meter(`RESEARCHING: ${esc(TECH[k].name.toUpperCase())}`, `${Math.floor(s.tech.pts)} / ${TECH[k].hrs} h${rate > 0 ? ` · ${dur((TECH[k].hrs - s.tech.pts) / rate * C.WEEK / 24)} left` : ' · stalled'}`, s.tech.pts / TECH[k].hrs, rate > 0 ? 'c' : 'r', { big: true }); }
-    else cur = meter(labs.length ? 'THE LAB IS IDLE' : 'RESEARCHED', `${s.tech.done.length} of ${Object.keys(TECH).length}`, s.tech.done.length / Object.keys(TECH).length, 'c', { big: true });
-    const node = ([k, t]) => {
-      const st = s.techState(k), can = st === 'open' && labs.length && !s.tech.cur && s.credits - t.cost >= -s.OD;
-      return `<div class="tn ${st}" title="${esc(t.name + ': ' + t.desc)}"><b>${esc(t.name)}</b><span class="d">${esc(t.desc)}</span>${t.needs && st === 'locked' ? `<span class="nd">Needs ${t.needs.map((n) => esc(TECH[n].name)).join(', ')}</span>` : ''}`
-        + (st === 'done' ? '<span class="ok">RESEARCHED</span>' : st === 'busy' ? '<span class="ok">IN THE LAB</span>' : `<button class="plate btn sm" data-tech="${k}" ${can ? '' : 'disabled'} title="Research it: ${t.cost} credits, ${t.hrs} lab hours">${t.cost} CR · ${t.hrs}H</button>`) + `</div>`;
-    };
-    const tier = (n) => Object.entries(TECH).filter(([, t]) => t.tier === n);
-    return `<div class="oc-sci"><div>${top}</div><div>${cur}</div></div><div class="tech"><div class="col"><i>TIER 1</i>${tier(1).map(node).join('')}</div><div class="col"><i>TIER 2</i><div class="tg">${tier(2).map(node).join('')}</div></div><div class="col"><i>TIER 3</i>${tier(3).map(node).join('')}</div></div>`;
-  }
-
-  const PAGES = { pop: pagePop, bud: pageBud, eff: pageEff, hap: pageHap, ops: pageOps, sci: pageSci };
+  const PAGES = { pop: pagePop, bud: pageBud, eff: pageEff, hap: pageHap, ops: pageOps };
   // only redraw what changed, and never under a button the pointer is on, so it stays put while you click it
   function render(force) {
     if (!isOpen()) return;
@@ -272,7 +270,6 @@ export function makeOffices(o, h) {
     set('hap', `morale ${Math.round(s.morale)}`, s.morale / 100, s.morale < 40 ? 'r' : s.morale < 60 ? 'a' : 'g', s.morale < 40);
     const od = s.orders[0];
     set('ops', od ? `${od.sent}/${od.n} shipped` : s.offers.length ? `${s.offers.length} on offer` : `${s.patrols.length} out`, od ? od.sent / od.n : 0, 'a', !!od && od.due - s.time.day <= 1 && od.sent < od.n);
-    set('sci', s.tech.cur ? `${Math.floor(s.tech.pts / TECH[s.tech.cur].hrs * 100)}%` : s.has('lab') ? 'idle' : `${s.tech.done.length}/${Object.keys(TECH).length}`, s.tech.cur ? s.tech.pts / TECH[s.tech.cur].hrs : 0, 'c', !s.tech.cur && s.has('lab'));
     for (const b of document.querySelectorAll('#fb-dock [data-mt]')) b.classList.toggle('on', isOpen() && b.dataset.mt === tab);
   }
 
@@ -291,7 +288,6 @@ export function makeOffices(o, h) {
     const sd = t.closest('[data-send]'); if (sd) { if (s.send(+sd.dataset.send, vPick[sd.dataset.send] || [])) { delete vPick[sd.dataset.send]; audio.click(); } else { audio.deny(); h.flash('Not enough troopers at home for that.'); } redo(); return true; }
     const bo = t.closest('[data-borrow]'); if (bo) { if (s.borrow(bo.dataset.borrow)) audio.click(); else audio.deny(); redo(); return true; }
     const ry = t.closest('[data-repay]'); if (ry) { const [i, a] = ry.dataset.repay.split(':'); if (s.repay(+i, +a)) audio.click(); else audio.deny(); redo(); return true; }
-    const te = t.closest('[data-tech]'); if (te) { if (s.research(te.dataset.tech)) audio.click(); else { audio.deny(); h.flash('Not now: a lab must be built and free, and the credits there.'); } redo(); return true; }
     return false;
   }
   function reset() { tab = 'pop'; sub = 'budget'; sigT = ''; sigB = ''; for (const k in vPick) delete vPick[k]; close(); }

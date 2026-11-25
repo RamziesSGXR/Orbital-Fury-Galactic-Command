@@ -38,13 +38,13 @@ export const ICON = {
   training: 'M12 3a9 9 0 1 0 0 18 9 9 0 1 0 0-18M12 8a4 4 0 1 0 0 8 4 4 0 1 0 0-8M12 11.5v1', living: 'M3 11l9-7 9 7M5 10v10h14V10M10 20v-5h4v5',
   income: 'M4 20h16M7 17v-4M12 17V9M17 17V5', industry: 'M3 21V11l6 4v-4l6 4V5h4v16zM7 21v-3M12 21v-3', power: 'M13 2 5 14h6l-1 8 8-12h-6z', defence: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z',
   truth: 'M3 10v4h3l7 4V6l-7 4zM16 9c1.5 1.5 1.5 4.5 0 6M19 7c3 3 3 7 0 10', command: 'M12 21V9M8 21h8M5 7c4-4 10-4 14 0M8 10c2-2 6-2 8 0M12 9V3',
-  zones: 'M3 3h8v8H3zM13 13h8v8h-8zM13 3h8v8M3 13h8v8', wire: 'M2 12c2-3 4 3 6 0s4 3 6 0 4 3 6 0 2 1 2 1M4 6v12M12 6v12M20 6v12',
+  zones: 'M3 3h8v8H3zM13 13h8v8h-8zM13 3h8v8M3 13h8v8', beauty: 'M12 22v-7M12 15c-4 0-7-2.6-7-6s3-6 7-6 7 2.6 7 6-3 6-7 6zM8 22h8',     // (GC 0.84: a tree) wire: 'M2 12c2-3 4 3 6 0s4 3 6 0 4 3 6 0 2 1 2 1M4 6v12M12 6v12M20 6v12',
   bags: 'M3 17c0-2 2-3 4.5-3S12 15 12 17M12 17c0-2 2-3 4.5-3S21 15 21 17M3 17h18M7.5 14c0-2 2-3 4.5-3s4.5 1 4.5 3', trench: 'M2 9h5l2 8h6l2-8h5M9 17h6',
 };
 export const icon = (k) => `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="${ICON[k] || ''}"/></svg>`;
 
 // what the base's troops feel, by cause (the morale breakdown)
-const MOR = { base: 'baseline', comfort: 'comfort (mess, habs, vending, domes)', prop: 'propaganda', pride: 'medals and pride', food: 'hunger', noise: 'noise near the bunks', hazard: 'fuel or generators by the bunks', crowd: 'troops without bunks', latrine: 'latrine queues and filth', power: 'power cuts', grief: 'grief', worn: 'worn buildings', mood: 'desk decisions', wall: 'a closed, watched wall', unpaid: 'unpaid wages', water: 'water for the bunks', sewer: 'sewage from the bunks', smell: 'the lagoon smell', sick: 'sickness', commit: 'Publicity commitment' };
+const MOR = { base: 'baseline', comfort: 'comfort (mess, habs, vending, domes)', prop: 'propaganda', pride: 'medals and pride', food: 'hunger', noise: 'noise near the bunks', hazard: 'fuel or generators by the bunks', crowd: 'troops without bunks', latrine: 'latrine queues and filth', power: 'power cuts', grief: 'grief', worn: 'worn buildings', mood: 'desk decisions', beauty: 'how the base looks: trees, gardens, fountains, parks', wall: 'a closed, watched wall', unpaid: 'unpaid wages', water: 'water for the bunks', sewer: 'sewage from the bunks', smell: 'the lagoon smell', sick: 'sickness', commit: 'Publicity commitment' };
 // where supplies and credits come from and go
 export const CAT = { industry: 'Industry', calls: 'Calls answered', alloc: 'Daily allocation', deploy: 'Troopers shipped', ops: 'Operations and patrols', roster: 'Roster review', sales: 'Franchise sales', ledger: 'Desk decisions',
   deliveries: 'Morning deliveries', upkeep: 'Upkeep', build: 'Building and roads', refund: 'Demolition refunds', repair: 'Repairs', raid: 'Perimeter repairs', research: 'Research', wages: 'Colonist wages', loans: 'Loans and repayments', interest: 'Overdraft fees',
@@ -179,7 +179,7 @@ export function makeHud(o) {
     const flows = (ob) => Object.entries(ob).filter(([, v]) => Math.abs(v) >= 0.5).sort((a, b) => b[1] - a[1]).map(([c, v]) => row(CAT[c] || c, Math.round(v))).join('');
     const t = (title, body, foot) => `<b>${title}</b><table class="tipt">${body}</table>${foot ? `<span class="fine">${foot}</span>` : ''}`;
     if (k === 'sup') return t(`SUPPLIES ${fmt(s.supplies)} · ${sg(Math.round(r.supNet))} A WATCH`, flows(r.sup), 'Averaged over the last watches. A day is six watches.');
-    if (k === 'cr') return t(`CREDITS ${fmt(s.credits)} · ${sg(Math.round(r.crNet))} A WATCH`, flows(r.cr), 'Colonist wages, research and the market are paid in credits.');
+    if (k === 'cr') return t(`CREDITS ${fmt(s.credits)} · ${sg(Math.round(r.crNet))} A WATCH`, flows(r.cr), 'Colonist wages and the market are paid in credits.');
     if (k === 'debt') return t(`OWED ${fmt(s.debt())}`, s.loans.map((l) => row(LOANS[l.k].name, `${fmt(l.bal)} · −${Math.min(l.bal, LOANS[l.k].pay)}/day`, '')).join('') + (s.credits < 0 ? row('Overdraft', fmt(-s.credits), 'down') : ''), 'The Bureau takes a little back every day.');
     if (k === 'troops') {
       const home = s.troops.filter((x) => x.state !== 'patrol').length, out = s.troops.length - home, by = {}, d = s.dem;
@@ -270,7 +270,7 @@ export function makeHud(o) {
     if (d.watch) m.push(`watches ${d.watch} tiles of wall`);
     if (d.guns) m.push(`arms ${d.guns} tiles of wall`);
     if (d.squads) m.push('sends standing patrols');
-    if (d.lab) m.push('research');
+    if (d.look) m.push(`+${d.look} beauty near the bunks`);     // (GC 0.84)
     if (d.weekly) m.push(Object.entries(d.weekly).map(([st, v]) => `${v > 0 ? '+' : ''}${v} ${{ def: 'Defence', pro: 'Expansion', tru: 'Publicity' }[st]} a day`).join(', '));
     const sk = s.hasStd(k) ? STD[s.std] : null;
     if (d.prop) m.push(`+${Math.round(d.prop * (sk?.prop ?? 1))} propaganda`);
@@ -359,7 +359,7 @@ export function makeHud(o) {
     if (d.pad) { const r = s.rates(); v += ((r.sup.deploy || 0) + (r.cr.deploy || 0) * crp) / Math.max(1, s.count('pad')); }
     return v;
   }
-  const GOLD = { roads: '#9aa3a0', logistics: '#e6eadc', training: '#f5d547', living: '#7fe9e0', income: '#59ff8a', power: '#ffb03a', defence: '#ff6a4d', truth: '#c98bff', command: '#6aa8ff', industry: '#c8705a' };
+  const GOLD = { beauty: '#7cc96a', roads: '#9aa3a0', logistics: '#e6eadc', training: '#f5d547', living: '#7fe9e0', income: '#59ff8a', power: '#ffb03a', defence: '#ff6a4d', truth: '#c98bff', command: '#6aa8ff', industry: '#c8705a' };
   const roleOf = (k) => (GROUPS.find((g) => g[3].includes(k)) || ['command', 'COMMAND'])[0];
   function selPanel() {
     const s = sim(), p = $('fb-selp'), id = o.sel(), b = id && s.byId(id), zk = !b && o.zsel();
@@ -392,7 +392,7 @@ export function makeHud(o) {
       if (d.trucks || d.lifts) { const vs = s.veh.filter((v) => v.home === b.id); bits.push(kv(d.trucks ? 'TRUCKS' : 'FORKLIFT', `${vs.filter((v) => v.job).length} of ${vs.length} on a run`)); }
       if (d.ward) { const w = s.troops.filter((t) => t.hurt > 0); bits.push(kv('PATIENTS', `${Math.min(w.length, d.ward)} of ${d.ward} beds`) + w.slice(0, 5).map((t) => kv(esc(t.name), days(t.hurt))).join('')); }
       if (d.watch) bits.push(kv('WATCHES', b.crew > 0 ? d.watch + ' tiles of wall' : 'nothing: no crew'));
-      if (d.lab) bits.push(kv('RESEARCH', s.tech.cur ? `${TECH[s.tech.cur].name}, ${Math.floor(s.tech.pts / TECH[s.tech.cur].hrs * 100)}%` : 'idle'));
+      if (d.look) bits.push(kv('BEAUTY', b.type === 'fountain' && !s.has('well') ? '<span class="down">dry: no Water Well</span>' : b.seen ? `+${d.look} · seen from the bunks` : `+${Math.round(d.look / 2)} · <span class="warn">half: over ten tiles from the bunks</span>`));     // (GC 0.84)
       if (d.armour) for (const k of ['frv', 'tank']) { const v = s.veh.find((x) => x.home === b.id && x.kind === k), w = b.wreck?.[k]; if (v || w) bits.push(kv(VEHICLES[k].name.toUpperCase(), v ? (v.mission ? 'on an operation' : 'ready') : `replacement in ${days(w)}`)); }
       if (d.squads) { const out = s.patrols.filter((q) => q.office === b.id).length; bits.push(`<div class="kv"><span>SQUADS KEPT OUT</span><b><button class="plate btn sm ic" data-fb="sq:-1">−</button> ${b.squads} <button class="plate btn sm ic" data-fb="sq:1">+</button></b></div>` + kv('IN THE FIELD NOW', out)); }
       if (d.beds) bits.push(kv('TROOPS HOUSED', s.cap(b, 'beds')));
@@ -455,7 +455,10 @@ export function makeHud(o) {
     t.style.left = Math.min(host.width - r.width - 6, Math.max(6, x - host.left - r.width / 2)) + 'px';
     t.style.top = Math.max(4, (above ? y - host.top - r.height - 4 : y - host.top + 14)) + 'px';
   }
-  function hideTip() { const t = $('fb-tip'); if (t) t.hidden = true; }
+  function hideTip() { const t = $('fb-tip'); if (t) t.hidden = true; curTip = false; }
+  // (GC 0.84) while placing: why it cannot go where the pointer is, beside the pointer
+  let curTip = false;
+  function pointerTip(text, x, y) { if (text) { tip(`<span class="warn">${esc(words(text))}</span>`, x, y - 16, true); curTip = true; } else if (curTip && flashT <= 0) hideTip(); }
   function flash(text, cls = 'warn') { const top = $('fb-build').getBoundingClientRect().top || innerHeight - 200; tip(`<span class="${cls}">${esc(words(text))}</span>`, innerWidth / 2, top - 8, true); flashT = cls === 'warn' ? 2.4 : 4; }
 
   // ---------------------------------------------------------------- layout: keep the panels out of each other's way
@@ -478,5 +481,5 @@ export function makeHud(o) {
     view().zoneStrong = !!(o.tool() && o.tool().startsWith('zone:')) || (buildOpen && group === 'zones');
   }
 
-  return { mount, show, reset, tick, layout, buildBar, selPanel, board, flash, offices: () => offices, snap: () => snapMode, cycleSnap: () => { snapMode = SNAPS[(SNAPS.indexOf(snapMode) + 1) % SNAPS.length]; buildBar(true); }, group: () => group };
+  return { mount, show, reset, tick, layout, buildBar, selPanel, board, flash, pointerTip, offices: () => offices, snap: () => snapMode, cycleSnap: () => { snapMode = SNAPS[(SNAPS.indexOf(snapMode) + 1) % SNAPS.length]; buildBar(true); }, group: () => group };
 }

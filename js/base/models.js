@@ -36,6 +36,9 @@ export function makeMats(f) {
   };
   m.seflag = seFlagMat(f); m.hdbanner = vgBannerMat(f);
   m.signBurger = signMat('BIG VICTORY BURGER', '#c0392b', '#ffe600'); m.signChicken = signMat('PRIME TIME CLUCKS', '#1d3f8a', '#ffffff'); m.signCola = signMat('BUREAU COLA & FRIES', '#5a2a7a', '#ffd21f'); m.flag = flagMat(f, logo); m.banner = bannerMat(f); m.bill = billMat(f); m.tex = [logo, m.flag.map, m.banner.map, m.bill.map];
+  // (GC 0.84) beauty: leaves, bark, lawn and flowers, flat-shaded like the ground's own trees
+  m.leaf = std('#3f7a34', { flatShading: true, roughness: 1 }); m.leaf2 = std('#5f9a44', { flatShading: true, roughness: 1 }); m.hedge = std('#2f5f2a', { flatShading: true, roughness: 1 });
+  m.bark = std('#5a4630'); m.lawn = std('#557a3a', { roughness: 1 }); m.gravel = std('#b9ab8c', { roughness: 1 }); m.bloomR = std('#d8453a'); m.bloomY = std('#f2c84a'); m.bloomW = std('#eeeeea');
   m.potty = std('#3d7fb0'); m.pottyRoof = std('#e8ecef'); m.grime = new THREE.MeshBasicMaterial({ color: '#3a2a12', transparent: true, opacity: 0, depthWrite: false });
   // construction standards and engineers (0.13)
   m.canvas = std('#7d7556', { roughness: 0.95 }); m.canvasDark = std('#5a5440', { roughness: 0.95 }); m.gravel = std('#857c6a', { roughness: 1 });
@@ -491,6 +494,49 @@ const MAKE = {
     for (const x of [-0.7, 0.7]) box(g, 0.08, 1.2, 0.08, m.steel, x, 0.6, 0);
     box(g, 1.85, 0.95, 0.08, m.dark, 0, 1.45, 0); plane(g, 1.78, 0.89, m.bill, 0, 1.45, 0.045);
     box(g, 1.85, 0.06, 0.25, m.steel, 0, 1.95, 0.1); for (const x of [-0.6, 0, 0.6]) box(g, 0.08, 0.05, 0.08, m.glowY, x, 1.92, 0.22);
+  },
+  // ---------------------------------------------------------------- (GC 0.84) BEAUTY
+  tree(g, m) {
+    box(g, 0.9, 0.03, 0.9, m.lawn, 0, 0.015, 0, { cast: false });
+    cyl(g, 0.06, 0.09, 0.62, m.bark, 0, 0.31, 0, { seg: 6 });
+    add(g, new THREE.IcosahedronGeometry(0.38, 0), m.leaf, 0, 0.86, 0);
+    add(g, new THREE.IcosahedronGeometry(0.27, 0), m.leaf2, 0.08, 1.14, -0.05);
+  },
+  planter(g, m) {
+    for (const [x, z] of [[-0.22, 0], [0.22, 0]]) {
+      box(g, 0.36, 0.22, 0.7, m.prim, x, 0.11, z); box(g, 0.3, 0.04, 0.64, m.lawn, x, 0.23, z, { cast: false });
+      for (let i = 0; i < 4; i++) ball(g, 0.07, i % 2 ? m.bloomY : m.sec, x + (i % 2 ? 0.06 : -0.06), 0.29, z - 0.24 + i * 0.16, { seg: 6 });
+    }
+  },
+  garden(g, m) {
+    box(g, 1.9, 0.03, 1.9, m.lawn, 0, 0.015, 0, { cast: false });
+    box(g, 0.5, 0.025, 1.9, m.gravel, 0, 0.035, 0, { cast: false });                            // the path from the road
+    for (const [w, d, x, z] of [[1.8, 0.22, 0, -0.84], [0.22, 1.2, -0.84, -0.2], [0.22, 1.2, 0.84, -0.2]]) box(g, w, 0.34, d, m.hedge, x, 0.17, z);
+    for (const x of [-0.55, 0.55]) { box(g, 0.5, 0.08, 0.9, m.dark, x, 0.07, 0.25); for (let i = 0; i < 5; i++) ball(g, 0.075, [m.bloomR, m.bloomY, m.bloomW][i % 3], x - 0.12 + (i % 2) * 0.24, 0.16, -0.1 + i * 0.17, { seg: 6 }); }
+    box(g, 0.56, 0.05, 0.16, m.bark, 0, 0.2, -0.5); box(g, 0.56, 0.16, 0.04, m.bark, 0, 0.3, -0.58);       // a bench
+    for (const x of [-0.24, 0.24]) box(g, 0.04, 0.18, 0.14, m.steel, x, 0.09, -0.5);
+    cyl(g, 0.05, 0.07, 0.5, m.bark, -0.62, 0.25, -0.6, { seg: 6 }); add(g, new THREE.IcosahedronGeometry(0.28, 0), m.leaf2, -0.62, 0.68, -0.6);
+  },
+  fountain(g, m) {
+    box(g, 1.92, 0.04, 1.92, m.gravel, 0, 0.02, 0, { cast: false });
+    cyl(g, 0.86, 0.9, 0.26, m.white, 0, 0.15, 0, { seg: 24 }); cyl(g, 0.76, 0.76, 0.02, m.water, 0, 0.27, 0, { seg: 24, cast: false });
+    cyl(g, 0.1, 0.14, 0.55, m.white, 0, 0.5, 0, { seg: 10 }); cyl(g, 0.3, 0.12, 0.08, m.white, 0, 0.78, 0, { seg: 14 });
+    cyl(g, 0.25, 0.25, 0.015, m.water, 0, 0.82, 0, { seg: 14, cast: false });
+    cyl(g, 0.025, 0.05, 0.42, m.glass, 0, 1.03, 0, { seg: 6, cast: false });                        // the jet
+  },
+  park(g, m) {
+    box(g, 2.9, 0.03, 2.9, m.lawn, 0, 0.015, 0, { cast: false });
+    box(g, 0.42, 0.025, 2.9, m.gravel, 0, 0.035, 0, { cast: false }); box(g, 2.9, 0.025, 0.42, m.gravel, 0, 0.036, 0, { cast: false });
+    cyl(g, 0.38, 0.38, 0.03, m.gravel, 0, 0.04, 0, { seg: 16, cast: false }); ball(g, 0.16, m.bloomR, 0, 0.1, 0, { seg: 8 });
+    for (const [x, z, s] of [[-0.95, -0.95, 1], [0.95, -0.95, 0.85], [-0.95, 0.95, 0.9], [0.95, 0.95, 1.1], [-1.2, 0.2, 0.7], [1.2, -0.3, 0.75]]) {
+      cyl(g, 0.06 * s, 0.09 * s, 0.6 * s, m.bark, x, 0.3 * s, z, { seg: 6 });
+      add(g, new THREE.IcosahedronGeometry(0.36 * s, 0), m.leaf, x, 0.84 * s, z); add(g, new THREE.IcosahedronGeometry(0.25 * s, 0), m.leaf2, x + 0.06, 1.1 * s, z - 0.04);
+    }
+    for (const [x, z, r] of [[-0.45, 0.62, 0], [0.45, -0.62, Math.PI]]) {     // benches either side of the path
+      const b = new THREE.Group(); b.position.set(x, 0, z); b.rotation.y = r; g.add(b);
+      box(b, 0.5, 0.05, 0.15, m.bark, 0, 0.2, 0); box(b, 0.5, 0.15, 0.04, m.bark, 0, 0.3, 0.07); for (const lx of [-0.21, 0.21]) box(b, 0.04, 0.18, 0.13, m.steel, lx, 0.09, 0);
+    }
+    cyl(g, 0.025, 0.03, 0.9, m.steel, 0.32, 0.45, 0.32, { seg: 6 }); box(g, 0.12, 0.08, 0.12, m.glowY, 0.32, 0.92, 0.32);
   },
   pool(g, m) {
     box(g, 2.85, 0.06, 1.85, m.white, 0, 0.03, 0, { cast: false });

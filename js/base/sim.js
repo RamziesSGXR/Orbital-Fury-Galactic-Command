@@ -51,7 +51,7 @@ export function bestSite(seed, biome, N, all = false) {
   return all ? list.sort((a, b) => b.score - a.score) : best;
 }
 // small things that go anywhere inside the wall; everything else is built on a roadside plot, door to the street
-export const LOOSE = new Set(['flag', 'banner', 'hdbanner', 'potty', 'vend', 'speaker', 'solar', 'lookout', 'substation', 'well', 'tower']);
+export const LOOSE = new Set(['flag', 'banner', 'hdbanner', 'potty', 'vend', 'speaker', 'solar', 'lookout', 'substation', 'well', 'tower', 'tree', 'planter']);
 
 export class Sim {
   constructor(opts = {}) {
@@ -347,7 +347,7 @@ export class Sim {
   // what still stands between you and a building, as names: buildings, research, or another Comms Tower for a pad
   locked(type) {
     const d = B[type], n = (d.needs || []).filter(t => !this.has(t)).map(t => B[t].name);
-    if (d.tech && !this.hasTech(d.tech)) n.push(TECH[d.tech].name + ' research');
+    if (d.tech && !this.hasTech(d.tech)) n.push(this.milestoneText(d.tech));     // (GC 0.84) a milestone, not research
     if (d.stage && (this.stage || 0) < d.stage) n.push(`a ${C.STAGES[d.stage].name} charter`);
     if (d.pad && this.count('pad') >= this.padCap()) n.push(this.has('comms') || this.count('comms') ? 'another Comms Tower' : 'a Comms Tower');
     if (!this.founded() && !EARLY.has(type)) n.push(`the foundation first (${this.foundMissing().map(t => B[t].name).join(', ')})`);
@@ -359,13 +359,24 @@ export class Sim {
   padCap() { return 1 + this.count('comms') * (this.hasTech('radio') ? 3 : 2) + this.count('mast') * B.mast.pads; }
   padLoad() { return C.PADLOAD + (this.hasTech('cargo') ? 60 : 0); }
   padSeats() { return C.PADSEATS + (this.hasTech('cargo') ? 4 : 0); }
-  hasTech(k) { return !!this.tech?.done.includes(k); }
-  techState(k) {
-    if (this.hasTech(k)) return 'done';
-    if (this.tech.cur === k) return 'busy';
-    return (TECH[k].needs || []).every(t => this.hasTech(t)) ? 'open' : 'locked';
+  // (GC 0.84) MILESTONES in place of research: an upgrade is the base's once it has had TECH[k].pop on it (engineers
+  // included, the most it has ever had) and holds the charter TECH[k].stage. Research done in an old save still counts.
+  hasTech(k) { const T = TECH[k]; return !!this.tech?.done.includes(k) || (!!T && (T.pop != null || T.stage != null) && (this.peak || 0) >= (T.pop || 0) && (this.stage || 0) >= (T.stage || 0)); }
+  techState(k) { return this.hasTech(k) ? 'done' : 'locked'; }
+  milestoneText(k) { const T = TECH[k], out = []; if (T.pop && (this.peak || 0) < T.pop) out.push(`${T.pop} on the base`); if (T.stage && (this.stage || 0) < T.stage) out.push(`a ${C.STAGES[T.stage].name} charter`); return out.join(' and ') || 'nothing more'; }
+  // what the base has reached: the head count's high-water mark, and each upgrade announced as it comes. An old save's
+  // first look takes what it has without a fanfare
+  milestones() {
+    const fresh = !this.mile; this.peak = Math.max(this.peak || 0, this.heads()); this.mile ||= [];
+    const now = Object.keys(TECH).filter(k => this.hasTech(k) && !this.mile.includes(k)); if (!now.length) return;
+    this.mile.push(...now); if (fresh) return;
+    const T = TECH[now[0]], at = T.stage && (this.stage || 0) >= T.stage && (!T.pop || T.pop <= C.STAGES[T.stage].troops) ? `the ${C.STAGES[T.stage].name} charter` : `${T.pop} on the base`;
+    this.say('bur', `Milestone: ${at}. Unlocked: ${now.map(k => `${TECH[k].name} (${TECH[k].desc.replace(/\.$/, '').replace(/^Unlocks /, '').replace(/^the /, '')})`).join('; ')}.`);
+    this.events.push({ t: 'milestone', keys: now });
   }
   research(k) {
+    return false;     // (GC 0.84) research is gone; the old code is kept below for reading
+    // eslint-disable-next-line no-unreachable
     if (!TECH[k] || this.techState(k) !== 'open' || this.tech.cur) return false;
     if (!this.b.some(b => b.type === 'lab' && b.done)) return false;
     if (this.credits - TECH[k].cost < -this.OD) return false;
@@ -378,7 +389,7 @@ export class Sim {
     return on.filter(b => b.type === 'lab').reduce((a, b) => a + this.work(b) * (1 + this.stat(b, 'lab')), 0) * (1 + boost);
   }
   study(dt) {
-    const k = this.tech.cur; if (!k) return;
+    const k = this.tech.cur; if (!k || !this.b.some(b => b.type === 'lab' && b.done)) { if (k) { this.tech.cur = null; this.tech.pts = 0; } return; }     // (GC 0.84) an old save's research finishes only with its lab
     this.tech.pts += this.labRate() * dt / C.DAY * 24;
     if (this.tech.pts < TECH[k].hrs) return;
     this.tech.done.push(k); this.tech.cur = null; this.tech.pts = 0;
@@ -398,6 +409,7 @@ export class Sim {
     if (d.atGate && !(this.gates || []).some(g => Math.hypot(g.x - x - 1, g.z - z - 0.5) < 4.5)) return { ok: false, why: 'Stands at a gate: within four tiles of one' };
     const dz = spec?.design || 0, f = this.fits(type, x, z, rot, dz); if (!f.ok) return f;
     if (this.inBuffer(type, x, z, rot, dz)) return { ok: false, why: 'Buffer zone: kept clear' };
+    if (d.look) { const [w, dd] = dims(type, rot, dz); for (let j = 0; j < dd; j++) for (let i = 0; i < w; i++) if (this.zoneKey(this.zoneAt(x + i, z + j)) === 'ind') return { ok: false, why: 'Nobody would see it in an Industry zone: put beauty where people live and walk' }; }     // (GC 0.84)
     if (d.atWater) { const [w, dd] = dims(type, rot, dz); if (!this.nearWater(x, z, w, dd, 2)) return { ok: false, why: 'Must stand within two tiles of water' }; }
     if (d.deposit) { const [w, dd] = dims(type, rot, dz); let on = 0; for (let j = 0; j < dd; j++) for (let i = 0; i < w; i++) if (this.terr?.[(z + j) * this.N + x + i] === d.deposit) on++; if (on < 2) return { ok: false, why: d.deposit === 3 ? 'Must stand on an Biofuel seep' : 'Must stand on an ore field' }; }
     if (d.atWall) { let near = false; for (let j = -2; j <= 2 && !near; j++) for (let i = -2; i <= 2; i++) { const tx = x + i, tz = z + j; if (tx >= 0 && tz >= 0 && tx < this.N && tz < this.N && this.walls[tz * this.N + tx]) { near = true; break; } } if (!near) return { ok: false, why: 'Stands at the wall: within two tiles of it' }; }
@@ -635,6 +647,15 @@ export class Sim {
     this.citizens = done.reduce((a, b) => a + (B[b.type].staff || 0), 0);
     this.wardBeds = done.filter(b => B[b.type].ward && !b.off && b.crew > 0).reduce((a, b) => a + this.cap(b, 'ward'), 0);
     this.idle = home.filter(t => t.state === 'idle' && !t.at).length;
+    // (GC 0.84) BEAUTY: how good the base looks, where people can see it. Each kind is worth less the more of it there is;
+    // within ten tiles of a bunk it counts in full, further off by half
+    { const seenK = {}, bunks = done.filter(b => B[b.type].beds); let look = 0;
+      for (const b of done) { const L = this.stat(b, 'look'); if (!L || b.off) { b.seen = null; continue; }
+        const n = (seenK[b.type] = (seenK[b.type] || 0) + 1), cx = b.x + b.w / 2, cz = b.z + b.d / 2;
+        b.seen = bunks.some(o => Math.hypot(o.x + o.w / 2 - cx, o.z + o.d / 2 - cz) <= 10 + (o.w + b.w) / 2);
+        look += L * Math.pow(0.8, n - 1) * this.condF(b) * (b.seen ? 1 : 0.5) * (b.type === 'fountain' && !this.has('well') ? 0 : 1); }
+      this.look = Math.round(100 * (1 - Math.exp(-look / 40))); }
+    this.milestones();
     // propaganda and morale, each kind worth less the more of it you already have, so variety pays
     const seen = {}; let prop = 0, comfort = 0;
     for (const b of done) {
@@ -655,6 +676,7 @@ export class Sim {
       base: 45,
       comfort: Math.round(30 * (1 - Math.exp(-comfort / 22))),
       prop: Math.round(this.prop * 0.12),
+      beauty: Math.round((this.look || 0) * 0.15),     // (GC 0.84) up to +15
       pride: Math.round(this.pride),
       food: -Math.round(25 * this.hunger),
       crowd: -Math.min(25, over * 4),

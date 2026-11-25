@@ -3,12 +3,14 @@
 #   - (GC 0.83) the dock opens each page (POPULATION, BUDGET & TRADE, EFFICIENCY, HAPPINESS, OPERATIONS, SCIENCE) and
 #     marks it; each leads with its measure; every page fits a 1280 x 720 screen without scrolling
 #   - the big numbers open BUDGET (OWED: TRADE & LOANS), the day the budget, MORALE HAPPINESS; Esc closes, O opens
-#   - the controls work: trade on the market, a commitment up a level, borrow and repay, research, send a special
-#     operation; a file graded from the task board
+#   - the controls work: trade on the market, a commitment up a level, borrow and repay, send a special operation; a
+#     file graded from the task board
+#   - (GC 0.84) no SCIENCE: upgrades come with milestones (the ladder on POPULATION); beauty lifts morale near the bunks,
+#     not at all in an Industry zone; the cursor says why a building cannot go where it points
 import sys
 from playwright.sync_api import sync_playwright
 out = sys.argv[1] if len(sys.argv) > 1 else '/tmp/shots'; errs = []
-TABS = ['pop', 'bud', 'eff', 'hap', 'ops', 'sci']
+TABS = ['pop', 'bud', 'eff', 'hap', 'ops']
 with sync_playwright() as pw:
     br = pw.chromium.launch(executable_path='/usr/bin/google-chrome', args=['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'])
     pg = br.new_page(viewport={'width': 1280, 'height': 720})
@@ -21,13 +23,13 @@ with sync_playwright() as pw:
     pg.wait_for_function("gc.state === 'base' && document.getElementById('trans').hidden", timeout=120000)
     pg.wait_for_timeout(1500)
     print(pg.evaluate('JSON.stringify(gc.mode.fast())'))
-    # a base with something in every window: a day and a half on, a lab, a file to grade, money in the bank
+    # a base with something in every window: a day and a half on, a comms tower, a file to grade, money in the bank
     prep = pg.evaluate("""(() => { const s = gc.mode.sim; for (let i = 0; i < 5000; i++) s.step(0.1); s.drain();
       const hq = s.b.find(b => b.type === 'hq'), put = [];
-      for (const t of ['comms', 'lab']) { let b = null; for (let k = 0; k < 900 && !b; k++) { const r = s.place(t, hq.x - 24 + (k % 30) * 2, hq.z - 24 + Math.floor(k / 30) * 2, 0, true); if (r && r.id) b = r; } if (b) { b.done = true; b.prog = 1; put.push(b.type); } }
+      for (const t of ['comms']) { let b = null; for (let k = 0; k < 900 && !b; k++) { const r = s.place(t, hq.x - 24 + (k % 30) * 2, hq.z - 24 + Math.floor(k / 30) * 2, 0, true); if (r && r.id) b = r; } if (b) { b.done = true; b.prog = 1; put.push(b.type); } }
       s.recalc(); s.credits += 3000; s.supplies += 2000; const t = s.troops.find(x => x.state !== 'patrol'); t.train = 100; t.grade = null;
       return { put, troops: s.troops.length, offers: s.offers.length, files: s.toReview().length }; })()""")
-    print('prep', prep); assert prep['put'] == ['comms', 'lab'], prep
+    print('prep', prep); assert prep['put'] == ['comms'], prep
     pg.wait_for_timeout(600)
 
     # --- every window from the dock, and every page fits
@@ -48,7 +50,8 @@ with sync_playwright() as pw:
                 assert pg.evaluate(f"!!document.querySelector('#fb-mi-body [data-et={sub}].on')"), f'BUDGET {sub} did not open'
                 assert sh <= ch + 1, f'BUDGET {sub}: the page scrolls ({sh} > {ch})'
     assert pg.evaluate("[...document.querySelectorAll('#fb-dock .mdm u')].filter(u => parseFloat(u.style.width) > 0).length") >= 3, 'the dock has no measures'
-    pg.click('#fb-dock [data-mt=sci]'); pg.wait_for_timeout(300)
+    assert not pg.evaluate("!!document.querySelector('#fb-dock [data-mt=sci]')"), 'SCIENCE is still on the dock'
+    pg.click('#fb-dock [data-mt=ops]'); pg.wait_for_timeout(300)
     assert pg.evaluate("document.getElementById('fb-mins').hidden"), 'the dock button does not close its own window'
 
     # --- the readouts open the right page; Esc closes; O opens
@@ -84,12 +87,38 @@ with sync_playwright() as pw:
     assert js(f'#fb-mi-body [data-repay="{i}:100"]') == 'ok'; pg.wait_for_timeout(200)
     assert S(f's.loans[{i}].bal') == b0 - 100, 'REPAY 100 did nothing'
     pg.screenshot(path=f'{out}/offices-loans.png')
-    # --- research
-    pg.click('#fb-dock [data-mt=sci]'); pg.wait_for_timeout(300)
-    assert js('#fb-mi-body [data-tech=radio]') == 'ok', 'RESEARCH is not offered with a lab built'; pg.wait_for_timeout(300)
-    assert S('s.tech.cur') == 'radio' and 'RESEARCHING' in pg.inner_text('#fb-mi-body'), 'research did not start'
+    # --- milestones, not research: 45 on the base unlocks the better solar arrays; the Hab Block waits for the FOB charter
+    ms = S('(() => { const a = s.hasTech("solar"), why = s.milestoneText("solar"), blk = (s.locked("block") || []).join(", "); s.peak = Math.max(s.peak || 0, 45); s.recalc(); return { a, why, blk, b: s.hasTech("solar"), said: s.log.slice(-2).map(l => l.text || l).join(" | ") }; })()')
+    print('milestones', ms)
+    assert not ms['a'] and ms['why'] == '45 on the base' and ms['b'], 'the 45 milestone did not unlock solar'
+    assert 'Forward Operating Base charter' in ms['blk'], 'the Hab Block does not say it waits for the charter'
+    assert 'Milestone: 45 on the base' in ms['said'], 'the milestone was not announced'
+    pg.click('#fb-dock [data-mt=pop]'); pg.wait_for_timeout(400)
+    assert 'UNLOCKS' in pg.inner_text('#fb-mi-body') and pg.evaluate("document.querySelectorAll('#fb-mi-body .track s.mini').length") >= 3, 'POPULATION has no unlock ladder'
+    pg.screenshot(path=f'{out}/offices-pop-ladder.png')
+    # --- beauty: a garden by the bunks counts in full; nothing goes in an Industry zone
+    bt = S('''(() => { s.foundedF = true; const bk = s.b.find(b => b.done && s.cap(b, 'beds') > 0); const l0 = s.look || 0; let put = null, why = null;
+      for (let k = 0; k < 400 && !put; k++) { const x = bk.x - 6 + (k % 20), z = bk.z - 6 + Math.floor(k / 20); const c = s.canPlace('tree', x, z, 0); if (c.ok) put = s.place('tree', x, z, 0); else why = c.why; }
+      if (put) { put.done = true; put.prog = 1; } s.recalc();
+      return { placed: !!put, why, seen: put && put.seen, l0, l1: s.look, mor: s.mor.beauty }; })()''')
+    print('beauty', bt)
+    assert bt['placed'] and bt['l1'] > bt['l0'], 'a tree by the bunks did not lift the beauty score'
+    zoned = S('''(() => { const hq = s.b.find(b => b.type === 'hq'); for (let k = 0; k < 900; k++) { const x = hq.x - 30 + (k % 30) * 2, z = hq.z + 14 + Math.floor(k / 30) * 2; if (s.canPlace('tree', x, z, 0).ok) { s.paintZone(x, z, x, z, 'ind'); const c = s.canPlace('tree', x, z, 0); return c; } } return null; })()''')
+    print('tree in industry:', zoned)
+    assert zoned and not zoned['ok'] and 'Industry' in zoned['why'], 'beauty was allowed in an Industry zone'
+    # --- the cursor says why: a Garden (it needs a road out front) over open ground far from any road
+    pg.keyboard.press('Escape'); pg.wait_for_timeout(200)
+    pg.evaluate("document.querySelector('#fb-groups [data-g=beauty]').click()"); pg.wait_for_timeout(300)
+    assert pg.evaluate("document.querySelectorAll('#fb-items .bi[data-b]').length") == 5, 'the BEAUTY tab does not have its five'
+    pg.screenshot(path=f'{out}/beauty-bar.png')
+    pg.evaluate("document.querySelector('#fb-items [data-b=garden]').click()"); pg.wait_for_timeout(200)
+    pg.mouse.move(1100, 200); pg.wait_for_timeout(100); pg.mouse.move(1110, 210); pg.wait_for_timeout(300)
+    why = pg.evaluate("document.getElementById('fb-tip').hidden ? null : document.getElementById('fb-tip').textContent")
+    print('cursor says:', why); assert why, 'no reason at the cursor'
+    pg.keyboard.press('Escape'); pg.wait_for_timeout(200)
+    assert pg.evaluate("document.getElementById('fb-tip').hidden"), 'the reason stays after the tool is put away'
     # --- send a special operation
-    pg.click('#fb-mi-tabs [data-mt=ops]'); pg.wait_for_timeout(300)
+    pg.click('#fb-dock [data-mt=ops]'); pg.wait_for_timeout(300)
     p0, o0 = S('s.patrols.length'), S('s.offers.length')
     assert o0 > 0, 'no special operations on offer'
     assert js('#fb-mi-body [data-send]:not([disabled])') == 'ok', 'SEND is not offered'; pg.wait_for_timeout(300)

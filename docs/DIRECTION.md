@@ -102,4 +102,15 @@ Next, in this order (agreed after 0.65):
 10. Weapon fire and explosions with more character; ground fog that reacts; weather and flooding.
 12. Destructible buildings: ~~the enemy's, on the ground~~ **(0.67: each falls into its ruin)**; FOB Commander's next.
 13. Later: controller support (desktop first); another style for the campaign; story reasons for the war.
+
+FOB Commander's goals (agreed at 0.83 and 0.84, from Ramzies):
+14. ~~The Offices round the base's goals, measured with bars: population milestones, budget and trade, efficiency (how fast
+    people get in and out, roads and layout), happiness (defence, housing, how good the base looks).~~ **(0.83)**
+15. ~~No research: upgrades come with milestones (head counts and charters); placement rules are the rest. Beauty to
+    build: trees, planters, gardens, fountains, parks.~~ **(0.84)**
+16. Active defences and DEFENSIVE WAVES. Watch and act: the enemy comes in from a side in 3D; turrets, artillery, wire and
+    troopers fight; you prepare during the warning and, mid-wave, can pause, build, repair or call a strike. Losing costs
+    damage and wounds (wrecked buildings left as repairable ruins, troopers wounded, supplies stolen); the base survives.
+    In the campaign a wave comes when the base's system is attacked, offered like the ground fight (play it, or it
+    resolves by itself); in a quick game, raids at random and invasions.
 (Dropped: recolouring the enemies; each already has its own colours.)
