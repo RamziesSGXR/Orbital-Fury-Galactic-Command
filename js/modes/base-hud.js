@@ -10,18 +10,20 @@
 //     for, what it costs and its upkeep); the zones with the base's demand; BUILD AS a standard.
 //   - the building card (right): how it is doing in a line, upkeep and what it earns, standard, services, condition, crew,
 //     stocks, what it is doing; REPAIR, SWITCH OFF, CREW FIRST, UPGRADE, DEMOLISH with the refund.
-//   - the status bar: the clock (slower, pause, faster), the day, the time and what the base is doing at that hour.
+//   - the status bar: the clock (slower, pause, faster), the day, the time and what the base is doing at that hour, and
+//     (GC 0.82) the dock: a button for each of the Offices' windows (base-offices.js), with how that Office is doing.
 // Ministries are Offices here, votes are troops, the pelican a dropship.
 import { C, B, GROUPS, ZONES, ZKEYS, GOODS, GKEYS, STD, TRAIN, TECH, VEHICLES, LOANS, CHAINS, GROW, SUPPLY_MODES, SUPPLY_CAPS, COMMIT, MARKET, FOUNDATION } from '../base/config.js';
 import { MKEYS, rankOf, LOOSE } from '../base/sim.js';
 import { REQUESTS, CALLS } from '../base/desk.js';
 import { words } from '../core/words.js';
+import { makeOffices, OTABS } from './base-offices.js';     // (GC 0.82) the Offices' windows
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
 const fmt = (n) => Math.round(n).toLocaleString('en-US');
 const ORD = ['1ST', '2ND', '3RD', '4TH'];
-export const OFFICE = { def: 'OPERATIONS OFFICE', pro: 'BUREAU OF EXPANSION', tru: 'PUBLICITY OFFICE' };
+export const OFFICE = { def: 'OPERATIONS OFFICE', pro: 'GROWTH OFFICE', tru: 'PUBLICITY OFFICE' };     // (GC 0.82: the Growth Office, as MIN names it)
 export const OSHORT = { def: 'DEF', pro: 'EXP', tru: 'PUB' };
 // time as the player reads it: one calendar day is C.WEEK simulation seconds, an hour C.WEEK / 24
 const CAL_H = () => C.WEEK / 24;
@@ -94,7 +96,7 @@ const held = (el) => !!el.querySelector('button:hover, select:focus, input:focus
 export function makeHud(o) {
   const { audio } = o, sim = () => o.sim(), view = () => o.view();
   let root = null, group = 'roads', buildOpen = true, snapMode = 'grid', thumbs = {}, flashT = 0, itemsSig = '', groupsSig = '', boardSig = '', selSig = '', ivT = 0;
-  let lastWarn = [];
+  let lastWarn = [], offices = null;     // lastWarn: what needs fixing, { t, why }, for the board, INTELLIGENCE and the dock
 
   // ---------------------------------------------------------------- the DOM
   function mount() {
@@ -105,9 +107,11 @@ export function makeHud(o) {
       <div id="fb-build"><div id="fb-items"></div><div id="fb-groups" role="toolbar" aria-label="Build"></div></div>
       <div id="fb-status"><div id="fb-clock"><button class="plate btn sm" data-fb="slow" title="Slower ( [ )">◀</button><button class="plate btn sm" data-fb="pause" title="Pause (Space)" id="fb-pause">II</button><button class="plate btn sm" data-fb="fast" title="Faster ( ] )">▶</button><b id="fb-speed">1×</b>
         <span class="ck"><b id="fb-day">DAY 1</b> <b id="fb-time">06:00</b> <span id="fb-phase"></span></span></div>
-        <div id="fb-dock"><button class="md" data-fb="report" data-info="week"><b>STANDING</b><span id="md-st"></span></button><button class="md" data-fb="report"><b>CHARTER</b><span id="md-ch"></span></button><button class="md" data-fb="report"><b>DEFENCE</b><span id="md-def"></span></button><span id="fb-next"></span></div></div>
+        <div id="fb-dock"><span id="fb-next"></span>${OTABS.map(([k, n, c]) => `<button class="md" data-mt="${k}" title="${n[0] + n.slice(1).toLowerCase()} (O opens the Offices)"><b class="${c}">${n}</b><span id="md-${k}"></span></button>`).join('')}</div></div>
+      <div id="fb-mins" class="fpan" hidden><div class="fph"><span>THE OFFICES</span><div id="fb-mi-tabs" role="tablist"></div><button class="fx" data-fb="mclose" title="Close (Esc)" aria-label="Close">×</button></div><div id="fb-mi-body"></div></div>
       <div id="fb-tip" hidden></div>`;
     $('th-stage').appendChild(root);
+    offices = makeOffices(o, { fmt, esc, dur, calDay, OFFICE, CAT, MOR, CONDITION, ORDERS, warns: () => lastWarn, moneyOf, roleOf, GOLD, flash, refresh: () => { boardSig = ''; board(); readouts(); } });
     root.addEventListener('click', onClick);
     root.addEventListener('change', (e) => { if (e.target.id === 'fb-chain') { sim().setChain(e.target.value || null); sim().growStep(); buildBar(true); audio.click(); } });
     $('fb-items').addEventListener('pointermove', itemTip);
@@ -125,19 +129,19 @@ export function makeHud(o) {
   function show(on) { if (root) root.hidden = !on; $('s-theatre').classList.toggle('fob', on); if (!on) hideTip(); }
   function reset() {
     group = 'roads'; buildOpen = true; thumbs = {}; itemsSig = ''; groupsSig = ''; boardSig = ''; selSig = ''; lastWarn = [];
-    $('fb-orders').classList.remove('min');
+    $('fb-orders').classList.remove('min'); offices.reset();
     topBar(); buildBar(true); board(); selPanel(); tick();
   }
 
   // ---------------------------------------------------------------- the top bar: three big numbers, the readouts, the day
   function topBar() {
     $('th-stats').innerHTML = `<div class="fb-top">
-      <button class="fbig sup" data-info="sup" data-fb="report"><b id="fr-sup">0</b><span>SUPPLIES</span><i id="fr-sup-d"></i></button>
-      <button class="fbig cr" data-info="cr" data-fb="report"><b id="fr-cr">0</b><span>CREDITS</span><i id="fr-cr-d"></i></button>
-      <button class="fbig debt" data-info="debt" data-fb="report"><b id="fr-debt">0</b><span>OWED</span><i id="fr-debt-d"></i></button>
-      <div class="fres">${[['troops', 'TROOPS', 'trp'], ['morale', 'MORALE', 'mrl'], ['power', 'POWER', 'pw'], ['rations', 'RAT', 'rations'], ['fuel', 'FUEL', 'fuel'], ['ammo', 'AMMO', 'ammo'], ['ready', 'READY', 'ready']].map(([k, n, id]) => `<span class="ri" data-info="${k}"><i>${n}</i><b id="fr-${id}"></b></span>`).join('')}</div>
+      <button class="fbig sup" data-info="sup" data-fb="o:eco:budget"><b id="fr-sup">0</b><span>SUPPLIES</span><i id="fr-sup-d"></i></button>
+      <button class="fbig cr" data-info="cr" data-fb="o:eco:budget"><b id="fr-cr">0</b><span>CREDITS</span><i id="fr-cr-d"></i></button>
+      <button class="fbig debt" data-info="debt" data-fb="o:eco:loans"><b id="fr-debt">0</b><span>OWED</span><i id="fr-debt-d"></i></button>
+      <div class="fres">${[['troops', 'TROOPS', 'trp', 'pro'], ['morale', 'MORALE', 'mrl', 'tru'], ['power', 'POWER', 'pw', ''], ['rations', 'RAT', 'rations', 'pro'], ['fuel', 'FUEL', 'fuel', 'pro'], ['ammo', 'AMMO', 'ammo', 'pro'], ['ready', 'READY', 'ready', 'def']].map(([k, n, id, t]) => `<span class="ri${t ? ' go' : ''}" data-info="${k}"${t ? ` data-fb="o:${t}"` : ''}><i>${n}</i><b id="fr-${id}"></b></span>`).join('')}</div>
       <button class="plate btn sm" id="fr-buy" data-fb="buy" title="Buy 100 supplies on the planet market with credits">BUY SUPPLIES</button>
-      <button class="fweek" data-info="week" data-fb="report"><b id="fw-title">DAY 1</b><span class="wbar"><span id="fw-fill"></span><span id="fw-insp" title="The Publicity Office's inspection"></span></span><span id="fw-rank"></span></button></div>`;
+      <button class="fweek" data-info="week" data-fb="o:st"><b id="fw-title">DAY 1</b><span class="wbar"><span id="fw-fill"></span><span id="fw-insp" title="The Publicity Office's inspection"></span></span><span id="fw-rank"></span></button></div>`;
   }
   function readouts() {
     const s = sim(), r = s.rates(), sg = (v) => (v >= 0 ? '+' : '−') + fmt(Math.abs(v)), set = (id, v) => { const el = $(id); if (el && el.textContent !== String(v)) el.textContent = v; };
@@ -160,12 +164,9 @@ export function makeHud(o) {
     const hh = Math.floor(s.time.hour), mm = Math.floor((s.time.hour - hh) * 60);
     set('fb-day', `DAY ${s.time.cday || 1}`); set('fb-time', `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`); set('fb-phase', PHASE[s.time.phase] || '');
     set('fb-pause', o.ui.paused ? '▶' : 'II'); $('fb-pause').classList.toggle('on', o.ui.paused); set('fb-speed', o.ui.speed + '×');
-    // the dock
-    const S = C.STAGES[s.stage || 0], nx = C.STAGES[(s.stage || 0) + 1], ck = nx ? s.stageCheck() : null, ord = s.orders[0];
-    set('md-st', `${(ORD[s.ranking()] || '').toLowerCase()} of ${s.rivals.length + 1}`);
-    set('md-ch', `${(S.short || S.name)}${ck ? ` · ${ck.filter((c) => c.ok).length}/${ck.length}` : ''}`);
-    set('md-def', ord ? `${ord.sent}/${ord.n} shipped` : `${s.patrols.length} patrols out`);
-    $('md-def').parentElement.classList.toggle('alert', !!ord && ord.due - s.time.day <= 1 && ord.sent < ord.n);
+    // the dock (the Offices' buttons are base-offices.js's); beside it, the next charter
+    const nx = C.STAGES[(s.stage || 0) + 1], ck = nx ? s.stageCheck() : null;
+    offices.dock();
     let nt = '';
     if (nx && ck) { const met = ck.filter((c) => c.ok).length; nt = `NEXT CHARTER · ${(nx.short || nx.name).toUpperCase()}: ${met === ck.length ? 'every term met, granted within the hour' : 'still ' + ck.find((c) => !c.ok).text.replace(/ \(.*\)$/, '')}`; }
     set('fb-next', nt);
@@ -196,7 +197,7 @@ export function makeHud(o) {
       const ready = s.troops.filter((x) => x.train >= 100 && x.state !== 'patrol').length, rec = s.troops.filter((x) => x.train < 100), od = s.orders[0];
       return t(`READY ${ready} · IN TRAINING ${rec.length}`, row('Training places', s.b.filter((b) => b.done && B[b.type].train).reduce((a, b) => a + s.cap(b, 'slots'), 0), '') + row('Average progress', rec.length ? Math.round(rec.reduce((a, x) => a + x.train, 0) / rec.length) + '%' : '—', '') + (od ? row('Deployment order', `${od.sent} of ${od.n}, by day ${calDay(od.due)}`, od.sent < od.n && od.due - s.time.day <= 1 ? 'down' : '') : ''), 'At 100 points a recruit is a trooper. Transports leave the pad at 16:00.');
     }
-    if (k === 'week') return t(`DAY ${s.time.cday || 1} · ${ORD[s.rank] || ''} OF ${s.rivals.length + 1}`, row('Allocation at this rank', `~${fmt(C.ALLOC.base * C.ALLOC.mult[s.rank])} SUP`, '') + row('Inspection', s.inspected ? 'done today' : 'later today', '') + row('Charter', C.STAGES[s.stage || 0].name, ''), 'Tap for your standing, the charter and your defences.');
+    if (k === 'week') return t(`DAY ${s.time.cday || 1} · ${ORD[s.rank] || ''} OF ${s.rivals.length + 1}`, row('Allocation at this rank', `~${fmt(C.ALLOC.base * C.ALLOC.mult[s.rank])} SUP`, '') + row('Inspection', s.inspected ? 'done today' : 'later today', '') + row('Charter', C.STAGES[s.stage || 0].name, ''), 'Tap for the standings and the Bureau\'s ledger.');
     return '';
   }
 
@@ -222,11 +223,11 @@ export function makeHud(o) {
     }
     // what needs fixing
     lastWarn = [];
-    const warn = (title, why) => { lastWarn.push(title); items.push(`<div class="tb-i alert"><b>${esc(title)}</b><span>${esc(words(why))}</span></div>`); };
+    const warn = (title, why) => { lastWarn.push({ t: title, why }); items.push(`<div class="tb-i alert"><b>${esc(title)}</b><span>${esc(words(why))}</span></div>`); };
     { const ri = s.raidInfo(); if (ri.known) warn(ri.alarm ? 'RAID AT THE WIRE' : 'Raid expected', `${ri.what}${ri.dir ? ' from the ' + ri.dir : ''}, ${ri.when}.`); }
     const use = s.usage();
     for (const g of GKEYS) if (use[g] > 0 && s.amount(g) < use[g] * 0.5) warn(`${GOODS[g].name} running low`, `${Math.floor(s.amount(g))} left, ${Math.round(use[g])} used a watch. More storage brings bigger deliveries; or take an offer.`);
-    for (const m of MKEYS) if ((s.commit?.[m] || 0) && (s.commitLast?.[m] ?? 1) < 0.6) warn(`${COMMIT[m].dept}: commitment short`, `Only ${Math.round(s.commitLast[m] * 100)}% paid yesterday.`);
+    for (const m of MKEYS) if ((s.commit?.[m] || 0) && (s.commitLast?.[m] ?? 1) < 0.6) warn(`${COMMIT[m].dept}: commitment short`, `Only ${Math.round(s.commitLast[m] * 100)}% paid last watch: short of what it costs (ECONOMY, COMMITMENTS).`);
     { const u = s.util; if (u && !s.graceOn()) { if (u.dark) warn('Buildings dark', `${u.dark} building${u.dark > 1 ? 's are' : ' is'} outside power coverage. Build a Substation near ${u.dark > 1 ? 'them' : 'it'} (UTILITIES).`); if (s.waterEff() < 0.75) warn('Short of water', 'Bunks without water lose morale and fall sick. Wells, a purification unit, or a tower to carry it (UTILITIES).'); if (s.sewerEff() < 0.75) warn('Short of sewage', 'Bunks with nowhere for their waste lose morale and fall sick. A lagoon or a treatment plant (UTILITIES).'); } }
     if (s.power.ratio < 1) warn('Short of power', `${s.power.made} made, ${s.power.used} wanted: buildings run slow. Build a Generator or a Solar Array.`);
     if (s.hunger > 0.15) warn('Troops going hungry', 'Not enough seats at meals, or not enough rations. A Mess Hall feeds 24.');
@@ -412,13 +413,14 @@ export function makeHud(o) {
   // ---------------------------------------------------------------- clicks
   function onClick(e) {
     const s = sim();
+    if (offices.click(e)) return;     // (GC 0.82) the Offices' window and the dock
     const g = e.target.closest('[data-g]'); if (g && root.contains(g)) { const k = g.dataset.g; buildOpen = k === group ? !buildOpen : true; group = k; if (o.tool()) o.setTool(o.tool()); audio.click(); buildBar(true); return; }
     const sd = e.target.closest('[data-std]'); if (sd) { const k = +sd.dataset.std, lk = s.stdLock(k); if (lk) { flash(lk + '.'); audio.deny(); return; } s.setStd(k); thumbs = {}; audio.click(); buildBar(true); return; }
     if (e.target.closest('[data-snap]')) { snapMode = SNAPS[(SNAPS.indexOf(snapMode) + 1) % SNAPS.length]; audio.click(); buildBar(true); return; }
     const bi = e.target.closest('[data-b]'); if (bi) { const k = bi.dataset.b; if (LINES[k] && LINES[k].k) { const lk = s.equipLock(LINES[k].k); if (lk) { flash(`${LINES[k].name}: ${lk.toLowerCase()} (INDUSTRY).`); audio.deny(); return; } } if (B[k] && s.locked(k)) { flash(`${B[k].name} needs ${s.locked(k).join(' and ')} first.`); audio.deny(); return; } o.setTool(k); buildBar(true); return; }
-    const call = e.target.closest('[data-call]'); if (call) { const [id, y] = call.dataset.call.split(':').map(Number); s.answer(id, !!y); audio.click(); boardSig = ''; board(); return; }
-    const dec = e.target.closest('[data-dec]'); if (dec) { const [id, i] = dec.dataset.dec.split(':').map(Number); if (s.decide(id, i)) audio.click(); else audio.deny(); boardSig = ''; board(); return; }
-    const of = e.target.closest('[data-offer]'); if (of) { const r = s.takeOffer(+of.dataset.offer); if (!r.ok) { flash(r.why || 'Not now.'); audio.deny(); } else audio.click(); boardSig = ''; board(); return; }
+    const call = e.target.closest('[data-call]'); if (call) { const [id, y] = call.dataset.call.split(':').map(Number); s.answer(id, !!y); audio.click(); boardSig = ''; board(); offices.render(true); return; }
+    const dec = e.target.closest('[data-dec]'); if (dec) { const [id, i] = dec.dataset.dec.split(':').map(Number); if (s.decide(id, i)) audio.click(); else audio.deny(); boardSig = ''; board(); offices.render(true); return; }
+    const of = e.target.closest('[data-offer]'); if (of) { const r = s.takeOffer(+of.dataset.offer); if (!r.ok) { flash(r.why || 'Not now.'); audio.deny(); } else audio.click(); boardSig = ''; board(); offices.render(true); return; }
     const so = e.target.closest('[data-so],[data-sc]'); if (so) { if (s.setSupplyPlan(so.dataset.so ? 'mode' : 'cap', so.dataset.so || +so.dataset.sc)) audio.click(); selSig = ''; selPanel(); return; }
     const nk = e.target.closest('[data-nk]'); if (nk) { if (s.shipNuke(+nk.dataset.nk)) audio.click(); else audio.deny(); selSig = ''; selPanel(); return; }
     const f = e.target.closest('[data-fb]'); if (!f) return;
@@ -426,7 +428,7 @@ export function makeHud(o) {
     if (a === 'fold') { const or = $('fb-orders'); or.classList.toggle('min'); f.textContent = or.classList.contains('min') ? '+' : '–'; return; }
     if (a === 'slow' || a === 'fast') { const sp = o.ui.speeds, i = Math.max(0, Math.min(sp.length - 1, sp.indexOf(o.ui.speed) + (a === 'fast' ? 1 : -1))); o.ui.speed = sp[i]; $('th-speed').textContent = o.ui.speed + '×'; if (o.ui.paused) $('th-pause').click(); else audio.click(); readouts(); return; }
     if (a === 'pause') { $('th-pause').click(); readouts(); return; }
-    if (a === 'report') { audio.click(); o.report(); return; }
+    if (a.startsWith('o:')) { const [, t, sub] = a.split(':'); if (offices.isOpen() && offices.tab() === t && !sub) offices.close(); else offices.open(t, sub); audio.click(); return; }     // (GC 0.82)
     if (a === 'buy') { if (s.buySupplies()) { audio.click(); readouts(); } else { audio.deny(); flash('Not enough credits for 100 supplies.'); } return; }
     if (a === 'close') { o.clearSel(); return; }
     if (!b) return;
@@ -463,11 +465,11 @@ export function makeHud(o) {
   // every 0.3 s
   function tick() {
     if (!root || root.hidden) return;
-    readouts(); board(); selPanel();
+    readouts(); board(); selPanel(); offices.render();
     if (group === 'zones' && (ivT = (ivT + 1) % 10) === 0) buildBar();
     else buildBar();
     view().zoneStrong = !!(o.tool() && o.tool().startsWith('zone:')) || (buildOpen && group === 'zones');
   }
 
-  return { mount, show, reset, tick, layout, buildBar, selPanel, board, flash, snap: () => snapMode, cycleSnap: () => { snapMode = SNAPS[(SNAPS.indexOf(snapMode) + 1) % SNAPS.length]; buildBar(true); }, group: () => group };
+  return { mount, show, reset, tick, layout, buildBar, selPanel, board, flash, offices: () => offices, snap: () => snapMode, cycleSnap: () => { snapMode = SNAPS[(SNAPS.indexOf(snapMode) + 1) % SNAPS.length]; buildBar(true); }, group: () => group };
 }

@@ -1,8 +1,7 @@
 // THE BASE: the base on a system's key world. The rules and the 3D are FOB Super Commander's (js/base); this file is how
 // the commander meets them inside Galactic Command: one base for each system, roads, zones and buildings from the shared
 // tool bar, requests on the shared desk, and its charter reported back to the map (the system pays more into the war).
-import { C, B, GROUPS, ZONES, GOODS, SUPPLY_MODES, SUPPLY_CAPS, MIN } from '../base/config.js';
-import { modal } from '../galaxy/screen.js';
+import { C, B, GROUPS, ZONES, GOODS, SUPPLY_MODES, SUPPLY_CAPS } from '../base/config.js';
 import { makeGuide } from './guide.js';
 import { Sim, LOOSE } from '../base/sim.js';
 import { Life } from '../base/life.js';
@@ -12,7 +11,7 @@ import { words } from '../core/words.js';
 import { note } from '../core/career.js';
 import { upgrade } from '../core/roster.js';
 import { binds } from '../core/binds.js';
-import { makeHud, LINES, CONDITION } from './base-hud.js';     // (GC 0.81) the standalone game's interface
+import { makeHud, LINES } from './base-hud.js';     // (GC 0.81) the standalone game's interface
 const KB = binds('base');     // (GC 0.73) the player's own keys
 // (0.46) what a base puts on air: every parade ground, speaker, billboard, banner, flag and monument standing is footage for the war's ratings
 const SHOWS = new Set(['parade', 'speaker', 'billboard', 'banner', 'hdbanner', 'flag', 'seflag', 'statue', 'monument', 'memorial', 'lecture', 'truth', 'plaque']);
@@ -33,43 +32,8 @@ const baseFaction = (sys) => ({ ...structuredClone(app.faction), base: `Fort ${s
 // ---------------------------------------------------------------- the shared frame: the readouts, the build bar, the desk and the
 // building card are FOB Commander's own now (base-hud.js); the frame keeps the top bar's name, MENU and TO THE MAP
 const specOf = (k) => (sim.designable(k) ? { design: 0, parts: [] } : sim.hasStd(k) ? { std: sim.std } : null);
-const ord = (n) => n + (n % 10 === 1 && n % 100 !== 11 ? 'ST' : n % 10 === 2 && n % 100 !== 12 ? 'ND' : n % 10 === 3 && n % 100 !== 13 ? 'RD' : 'TH');
-// (0.63) THE BASE REPORT: the numbers behind the base that had no place on screen. The charter's terms, the three standings
-// and where they put you against the other outfits (which sets the weekly allocation), and how defensible the base is.
-// Opened from STANDING or CHARTER at the top
-function report() {
-  const S = C.STAGES, st = sim.stage || 0, nx = S[st + 1], ck = sim.stageCheck() || [], tick = (ok) => `<span class="${ok ? 'y' : 'n'}">${ok ? '✓' : '✗'}</span>`;
-  const rank = sim.ranking(), rows = sim.table(), alloc = (r) => Math.round(C.ALLOC.base * C.ALLOC.mult[Math.min(r, C.ALLOC.mult.length - 1)] * (1 + (S[st].alloc || 0)));
-  const f = sim.fort || sim.fortify(), pct = (x) => `${Math.round(x * 100)}%`, A = sim.audit, I = sim.inspection;
-  let h = `<div class="brep"><h2>Base report</h2>`;
-  h += `<h3>CHARTER · ${esc((S[st].short || S[st].name).toUpperCase())}${nx ? ` → ${esc((nx.short || nx.name).toUpperCase())}` : ''}</h3>`;
-  h += nx ? `<p class="dim">The Bureau grants the next charter by itself as soon as every term is met, and takes its fee then. It brings more land, a bigger weekly allocation and new buildings.</p><ul class="ck">${ck.map((c) => `<li>${tick(c.ok)} ${esc(c.text)}</li>`).join('')}</ul>`
-    : `<p class="dim">The highest charter there is.</p>`;
-  h += `<h3>STANDING · ${ord(rank + 1)} OF ${rows.length}</h3><p class="dim">The Head Office ranks every outfit by its three standings added up. Your place sets the allocation paid each day: ${alloc(rank)} supplies now${rank > 0 ? `, ${alloc(rank - 1)} one place up` : ''}. Standings drift back toward ${C.STAND.rest} each day, so they have to be kept up.</p>`;
-  for (const m of ['def', 'pro', 'tru']) { const v = Math.round(sim.stand[m]); h += `<div class="sb"><b>${MIN[m].short}</b><i><u style="width:${v}%"></u></i><span>${v}</span></div><p class="sm2 dim" style="margin:0 0 4px">${esc(MIN[m].name)}: ${esc(MIN[m].wants)}</p>`; }
-  h += `<table><tr><th>Outfit</th><th>DEF</th><th>EXP</th><th>PUB</th><th>ALL</th></tr>${rows.map((r) => `<tr class="${r.me ? 'me' : ''}"><td>${esc(r.name)}</td>${['def', 'pro', 'tru'].map((m) => `<td>${Math.round(r.stand[m])}</td>`).join('')}<td>${sim.total(r.stand)}</td></tr>`).join('')}</table>`;
-  if (A || I) h += `<p class="sm2">${A ? `Last supply audit (day ${A.week}): <b>${A.score}</b>/100 · supply lines ${A.lines}, food ${A.food}, housing ${A.housing}, growth ${A.growth}. ` : ''}${I ? `Last inspection (day ${I.week}): <b>${I.score}</b>/100 · morale ${I.morale}, propaganda ${I.prop}, upkeep ${I.cond}.` : ''}</p>`;
-  const W = sim.walks(), R = C.TIDY, mm = (m) => m == null ? '—' : `${m} m`;   // (0.68) the layout
-  h += `<h3>LAYOUT · ${W.all == null ? 'NOTHING TO WALK TO YET' : W.all < 5 ? 'ALL UNDER ONE ROOF' : `${W.all} M ON AVERAGE`}</h3><p class="dim">How far troopers walk, on the routes they take, from their bunks. The daily efficiency review wants ${R.walk} m or less on average: put bunks near the mess, the latrines and the work.</p>`;
-  h += `<ul class="ck"><li>${tick((W.work ?? 0) <= R.walk)} To work: ${mm(W.work)}${W.far ? ` · longest: ${esc(W.far.name)}, ${W.far.m} m` : ''}</li><li>${tick((W.mess ?? 0) <= R.walk)} To the mess: ${mm(W.mess)}</li><li>${tick((W.latrine ?? 0) <= R.walk)} To a latrine: ${mm(W.latrine)}</li></ul>`;
-  { // (GC 0.78) condition, explained: what wears a building, what mends it, what a worn one costs
-    const bs = sim.b.filter((b) => b.done && b.type !== 'hq'), avg = bs.length ? Math.round(bs.reduce((a, b) => a + b.cond, 0) / bs.length) : 100;
-    const low = bs.filter((b) => b.cond < 70), worst = [...low].sort((p, q) => p.cond - q.cond).slice(0, 3), short = bs.filter((b) => (b.unpaid || 0) >= 2).length;
-    h += `<h3>CONDITION · ${avg}% ON AVERAGE</h3><p class="dim">${esc(CONDITION)} Tents wear faster than upkeep mends them; prefabs and permanent buildings do not.</p>`;
-    h += `<ul class="ck"><li>${tick(!low.length)} Buildings under 70%: ${low.length}${worst.length ? ` · ${worst.map((b) => `${esc(B[b.type].name)} ${Math.round(b.cond)}%`).join(', ')}` : ''}</li><li>${tick(!short)} Upkeep paid on every building today${short ? `: ${short} missed it (keep supplies in hand)` : ''}</li></ul>`;
-  }
-  h += `<h3>DEFENCE · ${f.closed ? `${f.score}/100` : 'NO CLOSED WALL'}</h3>`;
-  h += `<ul class="ck"><li>${tick(f.closed)} A wall all the way round, with a gate${f.closed ? '' : ' (until it closes, the base scores 0 and raiders walk in)'}</li>`;
-  if (f.closed) h += `<li>${tick(f.cover >= 0.9)} Wall watched by a lookout or tower: ${pct(f.cover)}</li>
-    <li>${tick(f.armed >= 0.5)} Wall covered by guns with ammunition: ${pct(f.armed)}</li>
-    <li>${tick(!f.gates || f.manned >= f.gates)} Gates with a guard: ${f.manned} of ${f.gates}</li>
-    <li>${tick(f.entr >= 1)} Two gates or fewer: ${f.gates}</li>
-    <li>${tick(f.depth >= 0.8)} Command post and fuel kept well back from the wall: ${pct(f.depth)}</li>`;
-  h += `</ul>`;
-  h += `<p class="dim sm2">Each day the perimeter review turns this score into Defence standing: above 45 gains it, below loses it. Patrols that come back win it too.</p>`;
-  modal(h + '</div><button class="plate btn go" data-x="close" style="margin-top:10px;position:sticky;bottom:0">CLOSE</button>');
-  $('modal').querySelector('[data-x=close]').onclick = () => { $('modal').hidden = true; audio.click(); };
-}
+// (GC 0.82) the base report that was here (the charter, the standings, the layout, condition and defence) is the Offices'
+// windows now: EXPANSION, STANDING, PUBLICITY and DEFENCE (base-offices.js)
 // what a standing building is doing right now, as short labels: [text, tone] with tone 'g' good, 'r' trouble, '' plain
 // (0.58) the standing supply order, on the command post's card: what each watch's dropship may buy, and the most it may spend
 function supplyRow() {
@@ -213,8 +177,9 @@ function bind(canvasOnly = false) {     // (GC 0.78: canvasOnly, for a view buil
     if (mode.off || e.target.tagName === 'INPUT') return;
     held.add(e.code); const a = KB.actionOf(e.code);     // (GC 0.73) the player's own keys (js/core/binds.js)
     if (a === 'rotate') rot = (rot + 1) % 4; else if (a === 'turnLeft') view.spin(-0.3); else if (a === 'turnRight') view.spin(0.3);
+    else if (e.code === 'Escape' && hud && hud.offices() && hud.offices().isOpen()) { e.stopImmediatePropagation(); hud.offices().close(); }     // (GC 0.82)
     else if (e.code === 'Escape' && tool) { e.stopImmediatePropagation(); setTool(tool); } else if (a === 'pause') { e.preventDefault(); $('th-pause').click(); }
-    else if (a === 'snap') hud.cycleSnap(); else if (a === 'slower' || a === 'faster') { const b = document.querySelector(`#fob [data-fb="${a === 'slower' ? 'slow' : 'fast'}"]`); if (b) b.click(); }     // (GC 0.81)
+    else if (a === 'offices') hud.offices().toggle(); else if (a === 'snap') hud.cycleSnap(); else if (a === 'slower' || a === 'faster') { const b = document.querySelector(`#fob [data-fb="${a === 'slower' ? 'slow' : 'fast'}"]`); if (b) b.click(); }     // (GC 0.81)
   }, true);
   window.addEventListener('keyup', (e) => held.delete(e.code));
   window.addEventListener('blur', () => held.clear());
@@ -242,7 +207,7 @@ const mode = {
     view.zoomT = view.zoom = 16;
     view.resize();
     acc = 0; tool = null; sel = 0; zsel = null; hover = null; saveT = 25; ui.speeds = [1, 2, 4];
-    if (!hud) { hud = makeHud({ app, ui, audio, sim: () => sim, view: () => view, tool: () => tool, setTool, sel: () => sel, zsel: () => zsel, clearSel, demolish, specOf, supplyRow, siloRow, zoneCard, report, toast: (t) => app.toast(t) }); hud.mount(); }
+    if (!hud) { hud = makeHud({ app, ui, audio, sim: () => sim, view: () => view, tool: () => tool, setTool, sel: () => sel, zsel: () => zsel, clearSel, demolish, specOf, supplyRow, siloRow, zoneCard, toast: (t) => app.toast(t) }); hud.mount(); }
     hud.show(true);
     tut = app.tutorial ? makeGuide(TUT, { key: TUT_KEY, tutorial: app.tutorial, words, audio, exit: () => app.leavePost() }) : null;     // (GC 0.81) outside the tutorial, the task board's ORDERS teach the base
     $('th-where').textContent = sim.faction.base;

@@ -96,7 +96,7 @@ export const MARKET = {
 export const COMMIT = {
   levels: ['NONE', 'LOW', 'STANDARD', 'HIGH', 'ALL OUT'],
   def: { dept: 'Operations Office', cost: { ammo: 5, rations: 4 }, gain: 0.9, perk: 'Patrol and operation odds +2% a level; deployment orders pay 5% more a level.' },
-  pro: { dept: 'Bureau of Expansion', cost: { sup: 14, fuel: 2 }, gain: 0.9, perk: 'Building goes 8% faster a level.' },
+  pro: { dept: 'Growth Office', cost: { sup: 14, fuel: 2 }, gain: 0.9, perk: 'Building goes 8% faster a level.' },
   tru: { dept: 'Publicity Office', cost: { cr: 6, sup: 6 }, gain: 0.9, perk: 'Morale +2 a level.' },
 };
 export const GOODS = {

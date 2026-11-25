@@ -3,7 +3,7 @@
 #   - the numbers at the top right are there after the main menu and back (they were drawn only when they changed)
 #   - a 3D view the graphics driver drops comes back: given back by the browser, or built again if it is not
 #   - the water purifier, treatment plant, Concrete Batch Plant and Missile Silo get crews (they never did)
-#   - a building's card: condition always shown and explained, REPAIR, CREW FIRST, SWITCH OFF; the report's CONDITION
+#   - a building's card: condition always shown and explained, REPAIR, CREW FIRST, SWITCH OFF; CONDITION in the PUBLICITY window
 import io, sys
 from PIL import Image
 from playwright.sync_api import sync_playwright
@@ -74,8 +74,8 @@ with sync_playwright() as pw:
     c['id'] = fixed[0]     # the one on the card
     pg.evaluate("document.querySelector('#fb-selp [data-fb=first]').click()"); pg.wait_for_timeout(300); assert pg.evaluate(f"gc.mode.sim.byId({c['id']}).first") is True, 'CREW FIRST'
     pg.evaluate("document.querySelector('#fb-selp [data-fb=off]').click()"); pg.wait_for_timeout(300); assert pg.evaluate(f"[gc.mode.sim.byId({c['id']}).off, gc.mode.sim.byId({c['id']}).crew]") == [True, 0], 'SWITCH OFF frees its crew'
-    pg.click('#fb-dock [data-fb=report]'); pg.wait_for_timeout(500)
-    assert any(h.startswith('CONDITION') for h in pg.evaluate("[...document.querySelectorAll('#modal h3')].map(h => h.textContent)")), 'the report has no CONDITION'
+    pg.click('#fb-dock [data-mt=tru]'); pg.wait_for_timeout(500)     # (GC 0.82) the report's CONDITION is the PUBLICITY Office's window now
+    assert any(h.startswith('CONDITION') for h in pg.evaluate("[...document.querySelectorAll('#fb-mi-body h3')].map(h => h.textContent)")), 'PUBLICITY has no CONDITION'
     br.close()
 assert not errs, errs
 print('no page errors · base fixes ok')

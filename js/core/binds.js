@@ -18,6 +18,7 @@ const DEFS = {
     ['rotate', 'Turn the building you are placing', 'KeyR', []], ['pause', 'Pause and go on', 'Space', []],
     // (GC 0.81) the standalone FOB game's keys
     ['snap', 'Change how a road\'s ends snap: grid, 45°, free', 'KeyG', []], ['slower', 'Slower', 'BracketLeft', []], ['faster', 'Faster', 'BracketRight', []],
+    ['offices', 'The Offices: the economy, the desk, defence, research and the rest', 'KeyO', []],     // (GC 0.82)
   ],
   orbit: [
     ['rotate', 'Turn the part you are placing', 'KeyR', []], ['build', 'Build it at the ring under the cursor', 'Enter', ['NumpadEnter']],
