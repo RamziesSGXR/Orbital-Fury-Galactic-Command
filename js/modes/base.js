@@ -12,6 +12,7 @@ import { note } from '../core/career.js';
 import { upgrade } from '../core/roster.js';
 import { binds } from '../core/binds.js';
 import { makeHud, LINES } from './base-hud.js';     // (GC 0.81) the standalone game's interface
+import { war as warNow } from '../galaxy/screen.js';
 const KB = binds('base');     // (GC 0.73) the player's own keys
 // (0.46) what a base puts on air: every parade ground, speaker, billboard, banner, flag and monument standing is footage for the war's ratings
 const SHOWS = new Set(['parade', 'speaker', 'billboard', 'banner', 'hdbanner', 'flag', 'seflag', 'statue', 'monument', 'memorial', 'lecture', 'truth', 'plaque']);
@@ -186,6 +187,15 @@ function bind(canvasOnly = false) {     // (GC 0.78: canvasOnly, for a view buil
   new ResizeObserver(() => { if (!mode.off && view) view.resize(); }).observe($('th-stage'));
 }
 
+// (GC 0.83) what the war takes from this base as it stands, for the Offices' OVERVIEW: the charter (its level multiplies
+// the troops, credits and defence), profit (ratings and credits wait for it) and what it puts on air; and in a campaign,
+// the round's list itself (the same one the frame shows under the top bar)
+function forWar() {
+  const r = mode.report(); let gives = null;
+  try { const g = warNow(); if (g && !app.camp.solo && args && args.system) gives = g.postGives(args.system.id, 'base', Math.max(1, Math.min(r.level || 1, (args.system.base || 0) + 1)), !!r.profit, r.air || 0); } catch { gives = null; }
+  return { ...r, gives };
+}
+
 // ---------------------------------------------------------------- the mode
 const mode = {
   off: true,
@@ -207,7 +217,7 @@ const mode = {
     view.zoomT = view.zoom = 16;
     view.resize();
     acc = 0; tool = null; sel = 0; zsel = null; hover = null; saveT = 25; ui.speeds = [1, 2, 4];
-    if (!hud) { hud = makeHud({ app, ui, audio, sim: () => sim, view: () => view, tool: () => tool, setTool, sel: () => sel, zsel: () => zsel, clearSel, demolish, specOf, supplyRow, siloRow, zoneCard, toast: (t) => app.toast(t) }); hud.mount(); }
+    if (!hud) { hud = makeHud({ app, ui, audio, sim: () => sim, view: () => view, tool: () => tool, setTool, sel: () => sel, zsel: () => zsel, clearSel, demolish, specOf, supplyRow, siloRow, zoneCard, war: forWar, toast: (t) => app.toast(t) }); hud.mount(); }
     hud.show(true);
     tut = app.tutorial ? makeGuide(TUT, { key: TUT_KEY, tutorial: app.tutorial, words, audio, exit: () => app.leavePost() }) : null;     // (GC 0.81) outside the tutorial, the task board's ORDERS teach the base
     $('th-where').textContent = sim.faction.base;

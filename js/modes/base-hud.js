@@ -15,7 +15,7 @@
 // Ministries are Offices here, votes are troops, the pelican a dropship.
 import { C, B, GROUPS, ZONES, ZKEYS, GOODS, GKEYS, STD, TRAIN, TECH, VEHICLES, LOANS, CHAINS, GROW, SUPPLY_MODES, SUPPLY_CAPS, COMMIT, MARKET, FOUNDATION } from '../base/config.js';
 import { MKEYS, rankOf, LOOSE } from '../base/sim.js';
-import { REQUESTS, CALLS } from '../base/desk.js';
+import { REQUESTS, CALLS, GRADES, fileOf } from '../base/desk.js';
 import { words } from '../core/words.js';
 import { makeOffices, OTABS } from './base-offices.js';     // (GC 0.82) the Offices' windows
 
@@ -49,6 +49,8 @@ const MOR = { base: 'baseline', comfort: 'comfort (mess, habs, vending, domes)',
 export const CAT = { industry: 'Industry', calls: 'Calls answered', alloc: 'Daily allocation', deploy: 'Troopers shipped', ops: 'Operations and patrols', roster: 'Roster review', sales: 'Franchise sales', ledger: 'Desk decisions',
   deliveries: 'Morning deliveries', upkeep: 'Upkeep', build: 'Building and roads', refund: 'Demolition refunds', repair: 'Repairs', raid: 'Perimeter repairs', research: 'Research', wages: 'Colonist wages', loans: 'Loans and repayments', interest: 'Overdraft fees',
   bought: 'Bought', sold: 'Sold', fees: 'Fees', salvage: 'Salvage and clearing', market: 'Market trades', trade: 'Trades with other bases', commit: 'Office commitments', grant: 'Grants', nuke: 'Warheads shipped' };
+// the roster review's grades: what each one means. A fair grade pays 8 supplies and 3 credits; a wild one is audited
+const GTIP = { A: 'A: outstanding on the range, the course and in conduct. Missions and medals count for a lot. A fair grade pays 8 supplies and 3 credits.', B: 'B: solid.', C: 'C: gets by.', D: 'D: back to training.' };
 const PHASE = { night: 'LIGHTS OUT', firstcall: 'FIRST CALL', reveille: 'REVEILLE', pt: 'PT', chow: 'CHOW', mess: 'MESS', work: 'DUTY', retreat: 'RETREAT', evening: 'FREE TIME' };
 const DEMAND = [['bunks', 'BUNKS'], ['seats', 'MESS SEATS'], ['latrines', 'LATRINES'], ['storage', 'STORAGE'], ['shops', 'SHOPS']];
 const SNAPS = ['grid', '45', 'free'], SNAPNAME = { grid: 'GRID', 45: '45°', free: 'FREE' };
@@ -107,11 +109,11 @@ export function makeHud(o) {
       <div id="fb-build"><div id="fb-items"></div><div id="fb-groups" role="toolbar" aria-label="Build"></div></div>
       <div id="fb-status"><div id="fb-clock"><button class="plate btn sm" data-fb="slow" title="Slower ( [ )">◀</button><button class="plate btn sm" data-fb="pause" title="Pause (Space)" id="fb-pause">II</button><button class="plate btn sm" data-fb="fast" title="Faster ( ] )">▶</button><b id="fb-speed">1×</b>
         <span class="ck"><b id="fb-day">DAY 1</b> <b id="fb-time">06:00</b> <span id="fb-phase"></span></span></div>
-        <div id="fb-dock"><span id="fb-next"></span>${OTABS.map(([k, n, c]) => `<button class="md" data-mt="${k}" title="${n[0] + n.slice(1).toLowerCase()} (O opens the Offices)"><b class="${c}">${n}</b><span id="md-${k}"></span></button>`).join('')}</div></div>
+        <div id="fb-dock"><span id="fb-next"></span>${OTABS.map(([k, n, c]) => `<button class="md" data-mt="${k}" title="${n[0] + n.slice(1).toLowerCase()} (O opens the Offices)"><b class="${c}">${n}</b><span id="md-${k}"></span><i class="mdm"><u id="mdb-${k}"></u></i></button>`).join('')}</div></div>
       <div id="fb-mins" class="fpan" hidden><div class="fph"><span>THE OFFICES</span><div id="fb-mi-tabs" role="tablist"></div><button class="fx" data-fb="mclose" title="Close (Esc)" aria-label="Close">×</button></div><div id="fb-mi-body"></div></div>
       <div id="fb-tip" hidden></div>`;
     $('th-stage').appendChild(root);
-    offices = makeOffices(o, { fmt, esc, dur, calDay, OFFICE, CAT, MOR, CONDITION, ORDERS, warns: () => lastWarn, moneyOf, roleOf, GOLD, flash, refresh: () => { boardSig = ''; board(); readouts(); } });
+    offices = makeOffices(o, { fmt, esc, dur, calDay, OFFICE, CAT, MOR, CONDITION, warns: () => lastWarn, flash, refresh: () => { boardSig = ''; board(); readouts(); } });
     root.addEventListener('click', onClick);
     root.addEventListener('change', (e) => { if (e.target.id === 'fb-chain') { sim().setChain(e.target.value || null); sim().growStep(); buildBar(true); audio.click(); } });
     $('fb-items').addEventListener('pointermove', itemTip);
@@ -136,12 +138,12 @@ export function makeHud(o) {
   // ---------------------------------------------------------------- the top bar: three big numbers, the readouts, the day
   function topBar() {
     $('th-stats').innerHTML = `<div class="fb-top">
-      <button class="fbig sup" data-info="sup" data-fb="o:eco:budget"><b id="fr-sup">0</b><span>SUPPLIES</span><i id="fr-sup-d"></i></button>
-      <button class="fbig cr" data-info="cr" data-fb="o:eco:budget"><b id="fr-cr">0</b><span>CREDITS</span><i id="fr-cr-d"></i></button>
-      <button class="fbig debt" data-info="debt" data-fb="o:eco:loans"><b id="fr-debt">0</b><span>OWED</span><i id="fr-debt-d"></i></button>
-      <div class="fres">${[['troops', 'TROOPS', 'trp', 'pro'], ['morale', 'MORALE', 'mrl', 'tru'], ['power', 'POWER', 'pw', ''], ['rations', 'RAT', 'rations', 'pro'], ['fuel', 'FUEL', 'fuel', 'pro'], ['ammo', 'AMMO', 'ammo', 'pro'], ['ready', 'READY', 'ready', 'def']].map(([k, n, id, t]) => `<span class="ri${t ? ' go' : ''}" data-info="${k}"${t ? ` data-fb="o:${t}"` : ''}><i>${n}</i><b id="fr-${id}"></b></span>`).join('')}</div>
+      <button class="fbig sup" data-info="sup" data-fb="o:bud:budget"><b id="fr-sup">0</b><span>SUPPLIES</span><i id="fr-sup-d"></i></button>
+      <button class="fbig cr" data-info="cr" data-fb="o:bud:budget"><b id="fr-cr">0</b><span>CREDITS</span><i id="fr-cr-d"></i></button>
+      <button class="fbig debt" data-info="debt" data-fb="o:bud:trade"><b id="fr-debt">0</b><span>OWED</span><i id="fr-debt-d"></i></button>
+      <div class="fres">${[['troops', 'TROOPS', 'trp', 'pop'], ['morale', 'MORALE', 'mrl', 'hap'], ['power', 'POWER', 'pw', 'eff'], ['rations', 'RAT', 'rations', 'bud:trade'], ['fuel', 'FUEL', 'fuel', 'bud:trade'], ['ammo', 'AMMO', 'ammo', 'bud:trade'], ['ready', 'READY', 'ready', 'ops']].map(([k, n, id, t]) => `<span class="ri${t ? ' go' : ''}" data-info="${k}"${t ? ` data-fb="o:${t}"` : ''}><i>${n}</i><b id="fr-${id}"></b></span>`).join('')}</div>
       <button class="plate btn sm" id="fr-buy" data-fb="buy" title="Buy 100 supplies on the planet market with credits">BUY SUPPLIES</button>
-      <button class="fweek" data-info="week" data-fb="o:st"><b id="fw-title">DAY 1</b><span class="wbar"><span id="fw-fill"></span><span id="fw-insp" title="The Publicity Office's inspection"></span></span><span id="fw-rank"></span></button></div>`;
+      <button class="fweek" data-info="week" data-fb="o:bud:budget"><b id="fw-title">DAY 1</b><span class="wbar"><span id="fw-fill"></span><span id="fw-insp" title="The Publicity Office's inspection"></span></span><span id="fw-rank"></span></button></div>`;
   }
   function readouts() {
     const s = sim(), r = s.rates(), sg = (v) => (v >= 0 ? '+' : '−') + fmt(Math.abs(v)), set = (id, v) => { const el = $(id); if (el && el.textContent !== String(v)) el.textContent = v; };
@@ -197,7 +199,7 @@ export function makeHud(o) {
       const ready = s.troops.filter((x) => x.train >= 100 && x.state !== 'patrol').length, rec = s.troops.filter((x) => x.train < 100), od = s.orders[0];
       return t(`READY ${ready} · IN TRAINING ${rec.length}`, row('Training places', s.b.filter((b) => b.done && B[b.type].train).reduce((a, b) => a + s.cap(b, 'slots'), 0), '') + row('Average progress', rec.length ? Math.round(rec.reduce((a, x) => a + x.train, 0) / rec.length) + '%' : '—', '') + (od ? row('Deployment order', `${od.sent} of ${od.n}, by day ${calDay(od.due)}`, od.sent < od.n && od.due - s.time.day <= 1 ? 'down' : '') : ''), 'At 100 points a recruit is a trooper. Transports leave the pad at 16:00.');
     }
-    if (k === 'week') return t(`DAY ${s.time.cday || 1} · ${ORD[s.rank] || ''} OF ${s.rivals.length + 1}`, row('Allocation at this rank', `~${fmt(C.ALLOC.base * C.ALLOC.mult[s.rank])} SUP`, '') + row('Inspection', s.inspected ? 'done today' : 'later today', '') + row('Charter', C.STAGES[s.stage || 0].name, ''), 'Tap for the standings and the Bureau\'s ledger.');
+    if (k === 'week') return t(`DAY ${s.time.cday || 1} · ${ORD[s.rank] || ''} OF ${s.rivals.length + 1}`, row('Allocation at this rank', `~${fmt(C.ALLOC.base * C.ALLOC.mult[s.rank])} SUP`, '') + row('Inspection', s.inspected ? 'done today' : 'later today', '') + row('Charter', C.STAGES[s.stage || 0].name, ''), 'Tap for the budget: the allocation by rank, and what the base makes and loses.');
     return '';
   }
 
@@ -216,6 +218,10 @@ export function makeHud(o) {
       const q = REQUESTS[r.k];
       items.push(`<div class="tb-i"><em>${esc(q.from.toUpperCase())} · ${dur(Math.max(0, r.due - s.t)).toUpperCase()} LEFT</em><b>${esc(q.title)}</b><span class="tb-txt">${esc(q.text.replaceAll('NAME', r.name))}</span><div class="tb-b">${q.opts.map((op, i) => `<button class="plate btn sm" data-dec="${r.id}:${i}" ${s.canDecide(r, i) ? '' : 'disabled'}>${esc(op.label)}</button>`).join('')}</div></div>`);
     }
+    // (GC 0.83) the roster review: one trooper's file at a time, from the Offices' DESK page that was
+    { const files = s.toReview(), left = s.reviewsLeft();
+      if (files.length && left > 0) { const t = files[0], f = fileOf(t);
+        items.push(`<div class="tb-i file"><em>ROSTER REVIEW · ${files.length} FILE${files.length > 1 ? 'S' : ''} · ${left} MORE THIS WATCH</em><b>${rankOf(t.missions)} ${esc(t.name)}${t.grade ? ` <small>last graded ${t.grade}</small>` : ''}</b><span>Range ${f.range} · course ${f.course} · ${f.missions} mission${f.missions === 1 ? '' : 's'}${f.medals ? ` · ${f.medals} medal${f.medals > 1 ? 's' : ''}` : ''}. ${esc(f.conduct)}</span><div class="tb-b">${GRADES.map((g) => `<button class="plate btn sm" data-grade="${t.id}:${g}" title="${GTIP[g]}">${g}</button>`).join('')}</div></div>`); } }
     // offers from the other bases
     for (const of of s.market.offers) {
       const M = MARKET.goods[of.g], mk = (of.buys ? s.sellAt(of.g) : s.buyAt(of.g)) * 10, ok = s.canTakeOffer(of);
@@ -420,6 +426,7 @@ export function makeHud(o) {
     const bi = e.target.closest('[data-b]'); if (bi) { const k = bi.dataset.b; if (LINES[k] && LINES[k].k) { const lk = s.equipLock(LINES[k].k); if (lk) { flash(`${LINES[k].name}: ${lk.toLowerCase()} (INDUSTRY).`); audio.deny(); return; } } if (B[k] && s.locked(k)) { flash(`${B[k].name} needs ${s.locked(k).join(' and ')} first.`); audio.deny(); return; } o.setTool(k); buildBar(true); return; }
     const call = e.target.closest('[data-call]'); if (call) { const [id, y] = call.dataset.call.split(':').map(Number); s.answer(id, !!y); audio.click(); boardSig = ''; board(); offices.render(true); return; }
     const dec = e.target.closest('[data-dec]'); if (dec) { const [id, i] = dec.dataset.dec.split(':').map(Number); if (s.decide(id, i)) audio.click(); else audio.deny(); boardSig = ''; board(); offices.render(true); return; }
+    const gr = e.target.closest('[data-grade]'); if (gr && !gr.closest('#fb-mins')) { const [id, g] = gr.dataset.grade.split(':'); const r = s.gradeTroop(+id, g); if (r) { flash(r.text, r.off > 1 ? 'down' : r.off ? 'warn' : 'up'); if (r.off > 1) audio.deny(); else audio.click(); } boardSig = ''; board(); readouts(); return; }     // (GC 0.83)
     const of = e.target.closest('[data-offer]'); if (of) { const r = s.takeOffer(+of.dataset.offer); if (!r.ok) { flash(r.why || 'Not now.'); audio.deny(); } else audio.click(); boardSig = ''; board(); offices.render(true); return; }
     const so = e.target.closest('[data-so],[data-sc]'); if (so) { if (s.setSupplyPlan(so.dataset.so ? 'mode' : 'cap', so.dataset.so || +so.dataset.sc)) audio.click(); selSig = ''; selPanel(); return; }
     const nk = e.target.closest('[data-nk]'); if (nk) { if (s.shipNuke(+nk.dataset.nk)) audio.click(); else audio.deny(); selSig = ''; selPanel(); return; }
@@ -449,7 +456,7 @@ export function makeHud(o) {
     t.style.top = Math.max(4, (above ? y - host.top - r.height - 4 : y - host.top + 14)) + 'px';
   }
   function hideTip() { const t = $('fb-tip'); if (t) t.hidden = true; }
-  function flash(text) { const top = $('fb-build').getBoundingClientRect().top || innerHeight - 200; tip(`<span class="warn">${esc(words(text))}</span>`, innerWidth / 2, top - 8, true); flashT = 2.4; }
+  function flash(text, cls = 'warn') { const top = $('fb-build').getBoundingClientRect().top || innerHeight - 200; tip(`<span class="${cls}">${esc(words(text))}</span>`, innerWidth / 2, top - 8, true); flashT = cls === 'warn' ? 2.4 : 4; }
 
   // ---------------------------------------------------------------- layout: keep the panels out of each other's way
   function layout(dt) {

@@ -1,6 +1,6 @@
 # Orbital Fury: Galactic Command
 
-**Prototype 0.82.0.** One war, run from four posts, in one game.
+**Prototype 0.83.0.** One war, run from four posts, in one game.
 
 You found a command (a name, a livery: emblem and colours) and hold the centre of the galaxy against three enemies. Everything in
 the war is yours to run, and each part changes the others:
@@ -13,6 +13,30 @@ the war is yours to run, and each part changes the others:
 | **The base** | Found a base on the system's key world: roads, zones, and buildings that grow along them. | +35% output from the system for each charter. |
 
 A system that falls takes its station and its base with it.
+
+## What's new in 0.83: the Offices, round the base's goals
+
+0.82 brought back every page the standalone game had, and it was a lot of reading. Ramzies: is it all useful, and does
+it fit? The goals of a base are now the window, each measured with bars rather than tables: "bars that measure,
+population milestones, budget & trade, efficiency, citizen happiness". Six pages instead of eight
+(`js/modes/base-offices.js`), each with a thin measure under its button on the dock:
+
+- **POPULATION**: the milestones, as one track: the charters at 30, 60 and 110 on the base. The next one's other terms
+  as bars (Growth standing, the fee, the works, storage) and its buildings; who is here (trained, recruits, out, wounded,
+  engineers); bunks and mess seats; the Growth Office's daily audit; and, in a campaign, what the charter gives the war.
+- **BUDGET & TRADE**: what the base makes and what it loses, a watch, in supplies and in credits, every source and cost
+  as a bar; the allocation by rank, the three standings that set it, and the commitment that buys each (− and +).
+  TRADE & LOANS: the market, offers from the other bases, debt, borrowing.
+- **EFFICIENCY**: how fast people and goods get in, round and out: the daily efficiency review's six checks, the walks
+  from the bunks against the 80 m mark, paved road, goods waiting on the pad, trucks out, troopers ready for the
+  transport, engineer crews, crewing, power, water, sewage, troops to a latrine.
+- **HAPPINESS**: morale and where it is heading, and everything that moves it in three: defence (the wall, the perimeter
+  review, raids), housing (bunks, comfort, hunger, noise, water) and looks (propaganda, condition, what is on air, the
+  inspection).
+- **OPERATIONS** (orders, training, special operations and SEND, squads out, the last results) and **SCIENCE** stay.
+- Gone: the Bureau's ledger, the production table, medals and the fallen, full after-action reports (hover a result),
+  supply lines and vehicles, the market's indices. The calls and requests were already on the task board; the roster
+  review's files to grade are there now too, one at a time.
 
 ## What's new in 0.82: the Offices' windows
 
@@ -429,7 +453,7 @@ come back to them.
 - `python3 test/fleets.py` checks the opening choices and the Fleet Office.
 - `python3 test/armoury.py` checks the armoury, the chest and that they survive a reload (needs `npm start`).
 - `python3 test/base_fixes.py` checks FOB Commander's feedback fixes: wire on walls, the numbers after the main menu, a dropped 3D view coming back, crews, and a building's card.
-- `python3 test/base_offices.py` checks FOB Commander's Offices: every window from the dock, every page fitting 1280 x 720 without scrolling, the big numbers, Esc and O, and the market, a commitment, a loan, research, grading a file and sending an operation.
+- `python3 test/base_offices.py` checks FOB Commander's Offices: every page from the dock with its measure, every page fitting 1280 x 720 without scrolling, the big numbers, Esc and O, and the market, a commitment, a loan, research, sending an operation and grading a file from the task board.
 - `python3 test/roster.py` checks the STORE: credits from the career, buying roles, personalities and an upgrade, giving them to the Vanguards, and a fight on the ground where they carry them.
 - `python3 test/base_ui.py` checks the base's controls: dragging the ground, roads keeping to the tiles and joining where they cross, the task board's orders, the build bar's cards, the readouts' breakdowns, the building card and the command post's orders, a request answered from the task board, and the clock.
 

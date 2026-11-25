@@ -1,14 +1,14 @@
 # (GC 0.82) Browser check of FOB Commander's Offices (js/modes/base-offices.js): python3 test/base_offices.py [out]
 # (needs the server on 8080)
-#   - the dock opens each Office's window and marks it; every page and every ECONOMY page fits a 1280 x 720 screen
-#     without scrolling
-#   - the big numbers open ECONOMY (budget, loans), the day opens STANDING, MORALE opens PUBLICITY; Esc closes, O opens
-#   - the window's controls work: trade on the market, a commitment's level, borrow and repay, research, grade a file,
-#     send a special operation
+#   - (GC 0.83) the dock opens each page (POPULATION, BUDGET & TRADE, EFFICIENCY, HAPPINESS, OPERATIONS, SCIENCE) and
+#     marks it; each leads with its measure; every page fits a 1280 x 720 screen without scrolling
+#   - the big numbers open BUDGET (OWED: TRADE & LOANS), the day the budget, MORALE HAPPINESS; Esc closes, O opens
+#   - the controls work: trade on the market, a commitment up a level, borrow and repay, research, send a special
+#     operation; a file graded from the task board
 import sys
 from playwright.sync_api import sync_playwright
 out = sys.argv[1] if len(sys.argv) > 1 else '/tmp/shots'; errs = []
-TABS = ['eco', 'led', 'def', 'pro', 'tru', 'sci', 'int', 'st']
+TABS = ['pop', 'bud', 'eff', 'hap', 'ops', 'sci']
 with sync_playwright() as pw:
     br = pw.chromium.launch(executable_path='/usr/bin/google-chrome', args=['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'])
     pg = br.new_page(viewport={'width': 1280, 'height': 720})
@@ -40,22 +40,24 @@ with sync_playwright() as pw:
         assert st['sh'] <= st['ch'] + 1, f'{t}: the page scrolls at 1280 x 720 ({st["sh"]} > {st["ch"]})'
         assert st['bottom'] <= st['bar'] + 1, f'{t}: the window runs under the status bar'
         pg.screenshot(path=f'{out}/offices-{t}.png')
-        if t == 'eco':
-            for sub in ['market', 'commit', 'loans', 'prod', 'budget']:
+        if t in ('pop', 'eff', 'hap'): assert pg.evaluate("!!document.querySelector('#fb-mi-body .og .og-m')"), f'{t}: no measure at the head of the page'
+        if t == 'bud':
+            for sub in ['trade', 'budget']:
                 pg.evaluate(f"document.querySelector('#fb-mi-body [data-et={sub}]').click()"); pg.wait_for_timeout(300)
                 sh, ch = pg.evaluate("[document.getElementById('fb-mi-body').scrollHeight, document.getElementById('fb-mi-body').clientHeight]")
-                assert pg.evaluate(f"!!document.querySelector('#fb-mi-body [data-et={sub}].on')"), f'ECONOMY {sub} did not open'
-                assert sh <= ch + 1, f'ECONOMY {sub}: the page scrolls ({sh} > {ch})'
-    pg.click('#fb-dock [data-mt=st]'); pg.wait_for_timeout(300)
+                assert pg.evaluate(f"!!document.querySelector('#fb-mi-body [data-et={sub}].on')"), f'BUDGET {sub} did not open'
+                assert sh <= ch + 1, f'BUDGET {sub}: the page scrolls ({sh} > {ch})'
+    assert pg.evaluate("[...document.querySelectorAll('#fb-dock .mdm u')].filter(u => parseFloat(u.style.width) > 0).length") >= 3, 'the dock has no measures'
+    pg.click('#fb-dock [data-mt=sci]'); pg.wait_for_timeout(300)
     assert pg.evaluate("document.getElementById('fb-mins').hidden"), 'the dock button does not close its own window'
 
     # --- the readouts open the right page; Esc closes; O opens
     pg.click('.fbig.debt'); pg.wait_for_timeout(300)
-    assert pg.evaluate("!document.getElementById('fb-mins').hidden && !!document.querySelector('#fb-mi-body [data-et=loans].on')"), 'OWED does not open LOANS'
+    assert pg.evaluate("!document.getElementById('fb-mins').hidden && !!document.querySelector('#fb-mi-body [data-et=trade].on')"), 'OWED does not open TRADE & LOANS'
     pg.click('.fweek'); pg.wait_for_timeout(300)
-    assert pg.evaluate("!!document.querySelector('#fb-mi-tabs [data-mt=st].on') && document.getElementById('fb-mi-body').textContent.includes('OUTFIT')"), 'the day does not open STANDING'
+    assert pg.evaluate("!!document.querySelector('#fb-mi-tabs [data-mt=bud].on') && document.getElementById('fb-mi-body').textContent.includes('THE ALLOCATION')"), 'the day does not open the budget'
     pg.click('#th-stats .ri[data-info=morale]'); pg.wait_for_timeout(300)
-    assert pg.evaluate("!!document.querySelector('#fb-mi-tabs [data-mt=tru].on')"), 'MORALE does not open PUBLICITY'
+    assert pg.evaluate("!!document.querySelector('#fb-mi-tabs [data-mt=hap].on')"), 'MORALE does not open HAPPINESS'
     pg.keyboard.press('Escape'); pg.wait_for_timeout(200)
     assert pg.evaluate("document.getElementById('fb-mins').hidden") and pg.evaluate("gc.state") == 'base', 'Esc does not close the window (or leaves the base)'
     pg.keyboard.press('KeyO'); pg.wait_for_timeout(300)
@@ -64,18 +66,18 @@ with sync_playwright() as pw:
     js = lambda sel: pg.evaluate(f"(() => {{ const b = document.querySelector({sel!r}); if (!b) return 'missing'; if (b.disabled) return 'disabled'; b.click(); return 'ok'; }})()")
     S = lambda e: pg.evaluate(f'(() => {{ const s = gc.mode.sim; return {e}; }})()')
     # --- the market
-    pg.click('.fbig.sup'); pg.evaluate("document.querySelector('#fb-mi-body [data-et=market]').click()"); pg.wait_for_timeout(300)
+    pg.click('.fbig.sup'); pg.evaluate("document.querySelector('#fb-mi-body [data-et=trade]').click()"); pg.wait_for_timeout(300)
     h0, c0 = S('[s.holding("rations"), s.credits]')
     assert js('#fb-mi-body [data-tq="10"]') == 'ok'; pg.wait_for_timeout(150)
     assert js('#fb-mi-body [data-trade="rations:1"]') == 'ok', 'BUY rations is not there'; pg.wait_for_timeout(200)
     h1, c1 = S('[s.holding("rations"), s.credits]'); print('market', h0, '->', h1, 'credits', round(c0), '->', round(c1))
     assert 9 <= h1 - h0 <= 10.5 and c1 < c0, 'buying on the market did nothing'     # (rations are eaten as it runs)
     # --- a commitment
-    pg.evaluate("document.querySelector('#fb-mi-body [data-et=commit]').click()"); pg.wait_for_timeout(200)
-    assert js('#fb-mi-body [data-commit="def:3"]') == 'ok'; pg.wait_for_timeout(200)
-    assert S('s.commit.def') == 3 and pg.evaluate("!!document.querySelector('#fb-mi-body [data-commit=\"def:3\"].on')"), 'the commitment did not change'
+    pg.evaluate("document.querySelector('#fb-mi-body [data-et=budget]').click()"); pg.wait_for_timeout(200)
+    l0 = S('s.commit.def || 0'); assert js(f'#fb-mi-body [data-commit="def:{l0 + 1}"]') == 'ok', 'COMMIT + is not there'; pg.wait_for_timeout(200)
+    assert S('s.commit.def') == l0 + 1, 'the commitment did not go up a level'
     # --- borrow and repay
-    pg.evaluate("document.querySelector('#fb-mi-body [data-et=loans]').click()"); pg.wait_for_timeout(200)
+    pg.evaluate("document.querySelector('#fb-mi-body [data-et=trade]').click()"); pg.wait_for_timeout(200)
     n0 = S('s.loans.length'); assert js('#fb-mi-body [data-borrow=quick]') == 'ok', 'BORROW is not offered'; pg.wait_for_timeout(200)
     assert S('s.loans.length') == n0 + 1 and S('s.loans.some(l => l.k === "quick")'), 'borrowing did nothing'
     i = S('s.loans.findIndex(l => l.k === "quick")'); b0 = S(f's.loans[{i}].bal')
@@ -86,18 +88,19 @@ with sync_playwright() as pw:
     pg.click('#fb-dock [data-mt=sci]'); pg.wait_for_timeout(300)
     assert js('#fb-mi-body [data-tech=radio]') == 'ok', 'RESEARCH is not offered with a lab built'; pg.wait_for_timeout(300)
     assert S('s.tech.cur') == 'radio' and 'RESEARCHING' in pg.inner_text('#fb-mi-body'), 'research did not start'
-    # --- grade a file
-    pg.click('#fb-mi-tabs [data-mt=led]'); pg.wait_for_timeout(300)
-    g0 = S('s.stats.graded || 0'); r = pg.evaluate("(() => { const b = document.querySelector('#fb-mi-body [data-grade]'); if (!b) return null; b.click(); return b.dataset.grade; })()")
-    pg.wait_for_timeout(300); print('graded', r)
-    assert r and S('s.stats.graded || 0') == g0 + 1, 'grading a file did nothing'
     # --- send a special operation
-    pg.click('#fb-mi-tabs [data-mt=def]'); pg.wait_for_timeout(300)
+    pg.click('#fb-mi-tabs [data-mt=ops]'); pg.wait_for_timeout(300)
     p0, o0 = S('s.patrols.length'), S('s.offers.length')
     assert o0 > 0, 'no special operations on offer'
     assert js('#fb-mi-body [data-send]:not([disabled])') == 'ok', 'SEND is not offered'; pg.wait_for_timeout(300)
     assert S('s.patrols.length') == p0 + 1 and S('s.offers.length') == o0 - 1, 'SEND did nothing'
-    pg.screenshot(path=f'{out}/offices-def-sent.png')
+    pg.screenshot(path=f'{out}/offices-ops-sent.png')
+    # --- grade a file, from the task board (GC 0.83)
+    pg.keyboard.press('Escape'); pg.wait_for_timeout(300)
+    pg.wait_for_selector('#fb-body [data-grade]', timeout=5000)
+    g0 = S('s.stats.graded || 0'); r = pg.evaluate("(() => { const b = document.querySelector('#fb-body [data-grade]'); if (!b) return null; b.click(); return b.dataset.grade; })()")
+    pg.wait_for_timeout(300); print('graded', r)
+    assert r and S('s.stats.graded || 0') == g0 + 1, 'grading a file from the task board did nothing'
     br.close()
 assert not errs, errs
 print('no page errors · the Offices ok')

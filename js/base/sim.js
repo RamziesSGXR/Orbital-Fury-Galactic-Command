@@ -1314,9 +1314,9 @@ export class Sim {
   }
   // (0.62) the efficiency review: a skill bonus for a base laid out and run well. Enough clean latrines, a seat at the mess and a
   // bunk for everyone, every crewed building fully crewed, and the power to run it all. Pays C.TIDY supplies; returns what it paid.
-  review() {
-    const R = C.TIDY; if (this.week < R.from) return 0;
-    const done = this.b.filter(b => b.done && !b.off), home = this.troops.filter(t => t.state !== 'patrol').length, P = this.potties || { n: 0 };
+  // (GC 0.83) the checks themselves, live, for the Offices' EFFICIENCY page: [key, ok, what is wrong]
+  reviewChecks() {
+    const R = C.TIDY, done = this.b.filter(b => b.done && !b.off), home = this.troops.filter(t => t.state !== 'patrol').length, P = this.potties || { n: 0 };
     const short = done.filter(b => B[b.type].crew && this.crewFrac(b) < 1), W = this.walks();
     const checks = [
       ['latrines', P.n > 0 && P.perPotty <= R.perPotty && !P.filthy, P.n ? (P.filthy ? 'a filthy latrine' : 'queues at the latrines') : 'no latrines'],
@@ -1326,6 +1326,11 @@ export class Sim {
       ['power', !this.power || this.power.ratio >= 1, 'not enough power'],
       ['walks', (W.all ?? 0) <= R.walk, `long walks (${W.all} m on average, the review wants ${R.walk})`],   // (GC 0.68) the layout
     ];
+    return checks;
+  }
+  review() {
+    const R = C.TIDY; if (this.week < R.from) return 0;
+    const checks = this.reviewChecks();
     const ok = checks.filter(c => c[1]).length, pay = ok * R.per + (ok === checks.length ? R.all : 0);
     if (pay) this.earn('review', pay);
     const miss = checks.filter(c => !c[1]).map(c => c[2]);
