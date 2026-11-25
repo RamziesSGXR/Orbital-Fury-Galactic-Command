@@ -71,7 +71,7 @@ const baseDraft = () => ({ capital: pick(GC.names.capitals), open: { fleets: 'st
 let camp = null;
 let state = 'title';       // title | found | war | ground | orbit | base
 let mode = null;           // the theatre on screen, if any
-let solo = null;           // (0.39) 'base' or 'orbit' while one post is played on its own, with no war round it
+let solo = null, soloHome = '';           // (0.39) 'base' or 'orbit' while one post is played on its own, with no war round it
 let tutorial = false;      // a post opened as its TUTORIAL from the main menu: a practice post, nothing of it is saved
 let soloCamp = null;       // what stands in for the campaign then: the command's identity and nothing else
 let fury = null;           // the Orbital Fury mode's own page, while it is open
@@ -183,7 +183,7 @@ const ART = {
 const TABS = [['home', 'HOME'], ['play', 'PLAY'], ['collection', 'COLLECTION'], ['career', 'CAREER'], ['store', 'STORE'], ['options', 'OPTIONS']];
 const tabName = (k) => (TABS.find((x) => x[0] === k) || [k, k === 'livery' ? 'YOUR LIVERY' : k.toUpperCase()])[1];
 let tab = 'home', optTab = 'play', playGame = null;     // playGame: the game whose saves the PLAY tab is showing
-const NEWS = { title: 'FOB Commander, from your feedback', lines: ['Barbed wire drawn along a wall runs along its top; sandbags and trenches go in front of it, not inside it.', 'The numbers at the top right stay after the main menu and back.', 'A 3D view the graphics driver drops, often after switching tabs, now comes back by itself.', 'The water purifier, treatment plant, concrete plant and missile silo get their crews at last. CREW FIRST and SWITCH OFF on a building\'s card say who works where.', 'Condition on every building\'s card, explained, with REPAIR; and a CONDITION section in the base report.'] };
+const NEWS = { title: 'Fixes from a play test', lines: ['FOB Commander: click a zone to see how much is painted, what is going up there, or why nothing is: no room, waiting for supplies, or what it still needs. What the base is short of is on the card too.', 'FOB Commander: answering the last request on your desk clears it at once. A post played on its own keeps its name when you start a new war.', 'War: a defence fought on the ground is briefed as one (\u201cThe Molt have landed on Calis I, one of ours\u201d). A fight\u2019s spoils stop at what the stores hold. The hints bring the system they ring into view.', 'Orbital Commander: the NEXT line keeps clear of the comms panel, and the commander\u2019s list stays in sight while the accounts scroll.', 'Earlier, 0.78: FOB Commander, from your feedback.'] };
 // (GC 0.73) what is done with the mouse and Esc (fixed); every key below them can be changed (js/core/keys-ui.js)
 const KEYS = {
   war: [['Click a system', 'Select it; click another to send a fleet'], ['Drag, mouse wheel', 'Move and zoom the map'], ['END ROUND', 'Play out the round'], ['Esc', 'The menu']],
@@ -397,7 +397,12 @@ function soloGo(kind, fresh, tut = false) {
 async function enterSolo(kind, me) {
   solo = kind; soloCamp = { v: 2, faction: me, war: null, kit: newKit(), wallet: newWallet(), sites: {}, stats: {}, solo: true };
   await ensureLogo(app.faction.logo);
-  const home = (me.capital || GC.names.capital || 'Aurelia');
+  // (GC 0.79) a post already saved keeps the world it was built on: it was named after the command's capital each time, so
+  // founding a new war renamed it (Fort Longwatch became Fort Kestrel Station)
+  const meta = (read(SOLO_META, {}) || {})[kind], had = read(SOLO[kind], null) && meta;
+  const kept = had ? meta.home || String(meta.name || '').replace(/^Fort\s+/i, '').replace(/\s+Station$/i, '').trim() : '';
+  const home = kept || me.capital || GC.names.capital || 'Aurelia';
+  soloHome = home;
   enterTheatre(kind, { system: { id: kind === 'base' ? 9001 : 9002, name: home, kind: 'capital', worlds: [{ name: home, type: 'capital' }], key: 0 } }, true);
 }
 // ---- Orbital Fury: the ground game whole, in its own page. (0.60) It has no menu of its own here: it starts on its
@@ -557,7 +562,7 @@ function leaveTheatre(out = {}) {
 // (0.39) a line about the post played on its own, for its card on the main menu
 function soloNote(out) {
   if (!solo || !mode) return; let r = out; try { if (r == null || r.level == null) r = mode.report ? mode.report() : {}; } catch { r = {}; }
-  const m = read(SOLO_META, {}) || {}; m[solo] = { name: $('th-where').textContent || '', charter: r.charter || '', tier: r.tier || '', troops: r.troops || 0, profit: !!r.profit, at: Date.now() }; write(SOLO_META, m);
+  const m = read(SOLO_META, {}) || {}; m[solo] = { name: $('th-where').textContent || '', home: soloHome || '', charter: r.charter || '', tier: r.tier || '', troops: r.troops || 0, profit: !!r.profit, at: Date.now() }; write(SOLO_META, m);
 }
 // ---------------------------------------------------------------- the frame every theatre shares
 // A theatre never touches the page outside this: it sets where it is, its numbers, its tools and what is said.

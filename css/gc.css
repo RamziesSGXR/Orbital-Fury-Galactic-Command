@@ -855,3 +855,8 @@ button.twho:hover .twn small, button.twho.on .twn small { color: var(--amber); }
 /* nothing lies under an open panel or the views: the NEXT strip steps aside */
 #s-theatre:has(#op.float) #th-tip, #s-theatre:has(#op-views:not([hidden])) #th-tip { display: none; }
 @media (max-width: 760px) { #s-theatre:has(#op:not([hidden])) #th-coach { top: 48px; } #op-dock .btn { padding: 5px 8px; font-size: 11px; } }
+
+/* (GC 0.79) Orbital Commander: the NEXT line keeps clear of the comms panel (it ran under it), and the commander channel's list
+   stays in sight while its accounts scroll */
+#s-theatre:has(#op-comms:not([hidden])) #th-tip { left: 8px; right: calc(min(380px, 40%) + 24px); transform: none; width: fit-content; margin-inline: auto; white-space: normal; text-align: center; }
+#op .cm-tabs { position: sticky; top: 0; align-self: start; z-index: 1; }

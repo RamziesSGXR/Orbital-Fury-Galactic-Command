@@ -126,7 +126,7 @@ export const CONFIG = {
   // who falls with a Medic in reach goes down instead, for downSec, and is back up reviveSec after the Medic gets to work.
   // downSight (0.31): a downed trooper sees only this share of his sight (and none of the player's view past it), and adds no strike zone.
   medic:    { range: 20, heal: 24, every: 1.3, hp: 90, close: 4, closeMul: 2, reviveR: 20, downSec: 14, reviveSec: 2.5, reviveHp: 0.4, downSight: 0.25 },
-  // (0.50) An challenge coin: credits paid toward an armory item, base + per mission that counted in the operation it came from, at
+  // (0.50) A challenge coin: credits paid toward an armory item, base + per mission that counted in the operation it came from, at
   // most max; one earned before 0.50 is worth old.
   // (0.51) Commendations (data/perks.js): at most max an operation, offer to pick from after each mission; per stack: orbital
   // recharge -cd (never under min of it), Striker rearm and dropship turnaround -rearm, ship gun damage and regeneration +dmg, Infantry

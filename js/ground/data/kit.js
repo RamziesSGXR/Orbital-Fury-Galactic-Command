@@ -313,9 +313,9 @@ function shopItems0(kit) {
 }
 
 // Buy an item. inMission only allows live upgrades (levels), not new unlocks or slots.
-// (0.44) What an challenge coin can buy: anything open in the armory that has a next level, but the Classified call-ins.
+// (0.44) What a challenge coin can buy: anything open in the armory that has a next level, but the Classified call-ins.
 export const coinOk = (it) => !!it && it.cost !== null && !it.locked && !it.secret && it.section !== 'classified';
-// free: (0.44) paid with an challenge coin, not credits (the caller takes the coin)
+// free: (0.44) paid with a challenge coin, not credits (the caller takes the coin)
 export function buy(kit, wallet, id, inMission = false, tier = TIER_MAX, free = false) {
   const it = shopItems(kit).find((x) => x.id === id);
   if (!it) return { ok: false, reason: 'unknown' };

@@ -325,7 +325,7 @@ export class Game {
   _arrivals() {
     for (const f of C.factions) {
       const F = this.F[f], c = C.enemy[f], fr = C.fronts[F.front];
-      if (F.state === 'wait' && this.round >= F.at - C.warn) { F.state = 'warn'; this.say('warn', `Intelligence Office: hostile signals near ${N.homes[f]}, on the ${fr.name.toLowerCase()}. Expected in ${Math.max(1, F.at - this.round)} round(s).`); }
+      if (F.state === 'wait' && this.round >= F.at - C.warn) { F.state = 'warn'; this.say('warn', `Intelligence Office: hostile signals near ${N.homes[f]}, on the ${fr.name.toLowerCase()}. Expected ${F.at - this.round <= 1 ? 'next round' : `in ${F.at - this.round} rounds`}.`); }
       if (F.state === 'warn' && this.round >= F.at) {
         F.state = 'active'; F.arrived = this.round;
         // They burst in: the home and the systems beside it on its front fall at once.
@@ -660,7 +660,7 @@ export class Game {
     left = clamp(left, 0, 1);
     const was = { fuel: this.res.fuel, ammo: this.res.ammo, tech: this.res.tech, army: this.res.army, rat: this.rat };     // (0.25) to show what the fight brought and cost
     this.res.ammo = Math.max(0, this.res.ammo - C.groundAmmo);
-    if (win) this.loot[b.f] += Math.round(left * C.post.groundLoot);
+    if (win) this._addLoot(b.f, Math.round(left * C.post.groundLoot));
     { const p = this.P[b.pid], lv = (p.station || 0) + (p.base || 0); if (win && b.kind === 'def' && lv) { const n = lv * C.support.evac; this.res.army = Math.min(Math.max(this.resMax(), this.res.army), this.res.army + n); if (this.aired !== this.round) this.rate(C.support.evacRatings, 'People brought out'); this.say('good', `${p.name}: the ${p.base ? 'base' : 'station'} is held and its people are out. ${n} troops rejoin the fight.`); } }
     const st = this.stunt(); if (st && win && res) { let ok = false; try { ok = !!st.test(res); } catch { ok = false; } if (ok) { this.cnt.stunt = (this.cnt.stunt || 0) + 1; this.rate(C.ratings.stunt, 'Sponsor stunt'); this.say('good', `Publicity Office: ${st.name}, live. The sponsors are delighted.`); } }
     if (this.aired !== this.round && win && left >= C.ratings.ground.flawlessAt) this.F[b.f].seen = this.round + C.plans.leakRounds;     // the footage shows more than they meant it to
@@ -678,11 +678,14 @@ export class Game {
     b.gains = {}; for (const k of ['fuel', 'ammo', 'tech', 'army']) { const d = Math.round((this.res[k] - was[k]) * 10) / 10; if (d) b.gains[k] = d; } { const d = Math.round(this.rat - was.rat); if (d) b.gains.rat = d; }
     return true;
   }
+  // (GC 0.79) A fight's material goes into the stores up to what they hold, like every other income (a stock already over, from
+  // a bigger cap before, is not cut back). Returns what went in.
+  _addLoot(f, n) { const cap = this.resMax(), was = this.loot[f]; this.loot[f] = Math.min(Math.max(cap, was), was + n); return Math.max(0, this.loot[f] - was); }
   // What a battle leaves on the map. The result is shown until `battleClose()`.
   _settle(b) {
     const p = this.P[b.pid], f = b.f, fn = N.factions[f], fr = C.fronts[this.F[f].front];
     const left = (side, own) => Math.min(side.ships, Math.ceil(Math.max(0, side.hp - own) / HP));   // ships still flying: the system's own defences soak up damage first
-    const gain = n => { this.loot[f] += n; b.lines.push(`+${n} ${fr.loot.toLowerCase()}.`); };
+    const gain = n => { const got = this._addLoot(f, n); b.lines.push(got < n ? `+${got} ${fr.loot.toLowerCase()} (the stores are full).` : `+${n} ${fr.loot.toLowerCase()}.`); };
     const mine = this.fleets.find(x => x.id === b.fid && x.owner === 'fed') || this.fleetAt(b.pid, 'fed'), theirs = this.fleets.find(x => x.id === b.fid && x.owner === f) || this.fleetAt(b.pid, f);
     if (b.win === null) {
       // The fight goes on. Each side keeps the ships its hit points still pay for, and the system keeps the damage to its own

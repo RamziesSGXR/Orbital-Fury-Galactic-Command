@@ -11,7 +11,9 @@ export function situation(info, objectives) {
   const f = FACTIONS[info.faction];
   const job = objectives.map((o) => t('job.' + o));
   const jobText = job.length > 1 ? t('job.then', { a: job[0], b: job[1] }) : job[0] || t('job.any');
-  return [t('sit.1', { full: f.full, biome: t(`biome.${info.biome}.the`), job: jobText }), t('sit.2'), t('sit.3')];
+  // (GC 0.79) a fight the war sent down: a defence is our ground under attack, an attack is theirs
+  const key = info.side === 'def' ? 'sit.1def' : info.side === 'atk' ? 'sit.1atk' : 'sit.1';
+  return [t(key, { full: f.full, biome: t(`biome.${info.biome}.the`), job: jobText, place: info.place || t(`biome.${info.biome}.the`) }), t('sit.2'), t('sit.3')];
 }
 
 // The tips for this mission, in the order they are shown: something about this enemy or objective first (the basics first on

@@ -33,7 +33,7 @@ const isZone = (t) => !!t && t.startsWith('zone:'), isRoad = (t) => !!ROADS[t];
 let app, ui, audio, canvas, view = null, sim = null, life = null, args = null;
 let acc = 0, group = 'roads', tool = null, rot = 0, sel = 0, barSig = '', deskSig = '', hudT = 0, saveT = 25, thumbs = {};
 let roadDrag = null, zoneDrag = null, drag = null, pinch = null; const ptrs = new Map(), held = new Set();
-let hover = null, selSig = '', tut = null; const deskSeen = new Map();
+let hover = null, selSig = '', tut = null, zsel = null; const deskSeen = new Map();     // zsel: (GC 0.79) the zone picked, by key
 const DESK_OPEN = 20000;   // a request lies open on the desk this long (ms), then folds down to its title until it is tapped
 const TUT_KEY = 'ofgc.guide.base';
 
@@ -160,9 +160,29 @@ const CONDITION = 'Condition: every building wears a little each day, and the up
 function selBar() {
   const el = $('th-sel'), b = sel && sim.byId(sel), t = tool || hover; let html = '';
   if (b) html = `<b>${esc(B[b.type].name)}</b>${statusOf(b).map(([x, tone, tip]) => `<i class="st ${tone}"${tip ? ` title="${esc(tip)}"` : ''}>${esc(x)}</i>`).join('')}${b.type === 'hq' ? supplyRow() : ''}${b.type === 'silo' ? siloRow(b) : ''}<span class="grow"></span>${workRow(b)}${b.type === 'hq' ? '' : '<button class="plate btn sm" data-bd="1">DEMOLISH</button>'}<button class="plate btn sm" data-bx="1">×</button><span class="dim desc">${esc(B[b.type].desc || B[b.type].why || '')}</span>`;
+  else if (t && isZone(t) && ZONES[t.slice(5)]) html = zoneCard(t.slice(5), false);
+  else if (!t && zsel && ZONES[zsel]) html = zoneCard(zsel, true);
   else if (t && (B[t] || ROADS[t] || (isZone(t) && ZONES[t.slice(5)]))) { const d = B[t] || ROADS[t] || ZONES[t.slice(5)]; html = `<b>${esc(d.name)}</b><span class="grow dim">${esc(words(d.desc || d.why || ''))}</span>`; }
   el.classList.toggle('hidden', !html);
   if (html !== selSig) { selSig = html; el.innerHTML = html; }
+}
+// (GC 0.79) A zone's card: how much of it is painted and, for the zones that grow by themselves, what is going up there or why
+// nothing is (the reason the simulation keeps in growNote), with what the base is short of.
+const ZWANT = { life: ['bunks', 'seats', 'latrines'], logi: ['storage'], comm: ['shops'] };
+const DNAME = { bunks: 'bunks', seats: 'mess seats', latrines: 'latrines', storage: 'storage', shops: 'shops' };
+function zoneCard(zk, picked) {
+  const z = ZONES[zk], n = sim.zoneCount(zk), grows = !!ZWANT[zk];
+  let st = '', tone = 'ok';
+  if (grows) {
+    const note = (sim.growNote || {})[zk] || (n ? 'waiting for the next hour' : 'no zone painted');
+    const up = sim.b.find((b) => b.grown === zk && !b.done);
+    if (note === 'building') st = up ? `A ${B[up.type].name} is going up` : 'Growing';
+    else if (note === 'nothing needed') st = 'Nothing needed now: it grows when the base runs short';
+    else { st = note.charAt(0).toUpperCase() + note.slice(1); tone = 'warn'; }
+  }
+  const d = sim.dem || {}, short = grows ? ZWANT[zk].filter((k) => d[k] > 0).map((k) => `${DNAME[k]} ${d[k]}`).join(', ') : '';
+  return `<b>${esc(z.name)}</b><i class="st ${n ? 'ok' : 'warn'}">${n ? `${n} tiles painted` : 'none painted yet'}</i>${st ? `<i class="st ${tone}">${esc(st)}</i>` : ''}`
+    + `${short ? `<i class="st warn">The base needs: ${esc(short)}</i>` : ''}<span class="grow"></span>${picked ? '<button class="plate btn sm" data-bx="1">×</button>' : ''}<span class="dim desc">${esc(words(z.desc))}</span>`;
 }
 function desk() {
   const now = performance.now(), live = sim.desk.slice(0, innerWidth < 640 ? 1 : 2), hr = C.WEEK / 24;
@@ -183,7 +203,7 @@ const TUT = [
   { t: 'WHAT MATTERS', x: 'Keep morale up and the books in profit: troops need beds, food, water and power, and every charter you earn makes the base worth more. Drag to move, right-drag or Q and E to turn, wheel or pinch to zoom. <b>II</b> pauses and <b>1×</b> speeds time up. Requests land on your desk at the side: answer them or they are filed without you. A supply dropship lands every watch, six times a day, and bills you for what it brings: tap the command post to choose what it buys and how much it may spend.', last: true },
 ];
 function setTool(t) {
-  tool = tool === t ? null : t; sel = 0; view.select(null); selBar();
+  tool = tool === t ? null : t; sel = 0; zsel = null; view.select(null); selBar();
   view.setGhost(null); view.showLine(null); view.showPlots(isZone(tool) || (tool && !isRoad(tool) && !LOOSE.has(tool)) ? sim.plotTiles() : null);
   audio.click(); bar(true); stats();
 }
@@ -264,7 +284,7 @@ function bind(canvasOnly = false) {     // (GC 0.78: canvasOnly, for a view buil
     }
     if (pinch) { if (ptrs.size < 2) pinch = null; drag = null; return; }
     const d = drag; drag = null; if (!d || d.moved) return;
-    if (d.btn === 2) { if (tool) setTool(tool); else { sel = 0; view.select(null); selBar(); } return; }
+    if (d.btn === 2) { if (tool) setTool(tool); else { sel = 0; zsel = null; view.select(null); selBar(); } return; }
     if (tool) {
       const t = tileAt(e), sp = specOf(tool), ok = sim.canPlace(tool, t.tx, t.tz, t.rot, sp);
       if (!ok.ok) { audio.deny(); app.toast(ok.why || 'It cannot go there.'); return; }
@@ -272,7 +292,9 @@ function bind(canvasOnly = false) {     // (GC 0.78: canvasOnly, for a view buil
       if (!LOOSE.has(tool) && !e.shiftKey) setTool(tool);
       return;
     }
-    const p = view.pick(e.clientX, e.clientY); sel = p.bid || 0; view.select(sel ? sim.byId(sel) : null); if (sel) audio.click(); selBar();
+    const p = view.pick(e.clientX, e.clientY); sel = p.bid || 0; view.select(sel ? sim.byId(sel) : null);
+    zsel = sel ? null : sim.zoneKey(sim.zoneAt(Math.floor(p.x), Math.floor(p.z)));     // (GC 0.79) open ground in a zone: the zone's card
+    if (sel || zsel) audio.click(); selBar();
   };
   canvas.addEventListener('pointerup', up);
   canvas.addEventListener('pointercancel', (e) => { ptrs.delete(e.pointerId); drag = null; pinch = null; roadDrag = null; zoneDrag = null; });
@@ -284,9 +306,9 @@ function bind(canvasOnly = false) {     // (GC 0.78: canvasOnly, for a view buil
     const d = t.dataset;
     if (d.bg) { group = d.bg; if (tool) setTool(tool); audio.click(); tabs(); bar(true); }
     else if (d.bt != null) setTool(d.bt);
-    else if (d.ba != null) { const ok = sim.decide(+t.closest('.req').dataset.id, +d.ba); if (ok) audio.click(); else audio.deny(); deskSig = ''; desk(); }
+    else if (d.ba != null) { const ok = sim.decide(+t.closest('.req').dataset.id, +d.ba); if (ok) audio.click(); else audio.deny(); deskSig = null; desk(); }     // (GC 0.79: null, so an empty desk is drawn again and the answered card goes)
     else if (d.bd) { const r = sim.demolish(sel); if (r === false || (r && r.ok === false)) { audio.deny(); if (r && r.why) app.toast(r.why); } else { audio.baseDown(); sel = 0; view.select(null); selBar(); } }
-    else if (d.bx) { sel = 0; view.select(null); selBar(); }
+    else if (d.bx) { sel = 0; zsel = null; view.select(null); selBar(); }
     else if (d.so || d.sc) { if (sim.setSupplyPlan(d.so ? 'mode' : 'cap', d.so || +d.sc)) audio.click(); selSig = ''; selBar(); }
     else if (d.bo) { deskSeen.set(+d.bo, performance.now()); audio.click(); desk(); }
     else if (d.nk) { if (sim.shipNuke(+d.nk)) audio.click(); else audio.deny(); selSig = ''; selBar(); }
@@ -329,13 +351,13 @@ const mode = {
     view.lookAt(hq ? hq.x + hq.w / 2 : sim.N / 2, hq ? hq.z + hq.d / 2 : sim.N / 2);
     view.zoomT = view.zoom = 16;
     view.resize();
-    acc = 0; tool = null; sel = 0; hover = null; barSig = ''; deskSig = ''; selSig = ''; deskSeen.clear(); thumbs = {}; saveT = 25; group = 'roads'; ui.speeds = [1, 2, 4];
+    acc = 0; tool = null; sel = 0; zsel = null; hover = null; barSig = ''; deskSig = ''; selSig = ''; deskSeen.clear(); thumbs = {}; saveT = 25; group = 'roads'; ui.speeds = [1, 2, 4];
     tut = app.tutorial || (!loaded && app.settings.hints && !guideSeen(TUT_KEY)) ? makeGuide(TUT, { key: TUT_KEY, tutorial: app.tutorial, words, audio, exit: () => app.leavePost() }) : null;
     $('th-where').textContent = sim.faction.base;
     tabs(); bar(true); stats(); desk(); selBar(); if (tut) tut.tick(); else { const co = $('th-coach'); if (co) co.hidden = true; }
     if (!loaded) { const gr = app.grant('b_grant'); if (gr) sim.supplies += gr; }
     if (!loaded) { ui.message('A NEW BASE', 2600); ui.feed('BASE: The command post is down. Draw a road from it, then zone along the road.', 'radio'); }
-    else ui.feed(`BASE: Welcome back, Commander. Day ${Math.floor((sim.time || { day: 1 }).day)}.`, 'radio');
+    else ui.feed(`BASE: Welcome back, Commander. Day ${(sim.time && sim.time.cday) || 1}.`, 'radio');     // (GC 0.79: the day the top bar shows)
   },
   store() { if (sim && args) { try { app.siteSave('base', args.system.id, sim.save()); } catch (err) { console.error(err); } } },
   report() { const s = sim.stage || 0, r = sim.rates(), net = r.crNet + r.supNet; return { air: Math.min(5, sim.b.filter((b) => b.done && !b.off && SHOWS.has(b.type)).length), profit: sim.flow.days.length > 0 && net > 0, net, level: Math.min(4, s + 1), charter: C.STAGES[s].name, troops: sim.troops.length }; },

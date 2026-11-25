@@ -2093,7 +2093,7 @@ export function fillDebrief(info, res, session, block = '', startCr = null) {
   const ta = $('d-text'); ta.value = block; ta.rows = Math.min(15, block.split('\n').length);
   $('d-msg').textContent = '';
 }
-// (0.44) END OPERATION: what ending pays under it (an challenge coin), and TAP AGAIN TO END after the first tap.
+// (0.44) END OPERATION: what ending pays under it (a challenge coin), and TAP AGAIN TO END after the first tap.
 export function endBtn(b, armed, sub) {
   if (!b) return;
   b.classList.add('endop'); b.classList.toggle('armed', !!armed);

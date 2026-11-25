@@ -1,6 +1,6 @@
 # Orbital Fury: Galactic Command
 
-**Prototype 0.78.0.** One war, run from four posts, in one game.
+**Prototype 0.79.0.** One war, run from four posts, in one game.
 
 You found a command (a name, a livery: emblem and colours) and hold the centre of the galaxy against three enemies. Everything in
 the war is yours to run, and each part changes the others:
@@ -13,6 +13,21 @@ the war is yours to run, and each part changes the others:
 | **The base** | Found a base on the system's key world: roads, zones, and buildings that grow along them. | +35% output from the system for each charter. |
 
 A system that falls takes its station and its base with it.
+
+## What's new in 0.79: fixes from a play test
+
+- **FOB Commander, the zone card.** Click open ground in a zone: how many tiles are painted, what is going up, or why nothing
+  is (no room for the building it wants, waiting for supplies, or what that building still needs), and what the base is
+  short of. js/base/zones.js `growNote` now gives the reason the player can act on first.
+- **FOB Commander, the desk.** Answering the only request on the desk clears its card (the empty desk's signature matched
+  the reset one). The welcome back line gives the day the top bar shows.
+- **A post played on its own keeps its world's name** when a new war gives the command a new capital (`ofgc.solo.meta`
+  keeps `home`).
+- **War.** A defence on the ground is briefed as a defence (`sit.1def`, `sit.1atk`; the war sends `side` and `place`). A
+  fight's material stops at the stores' cap like other income (`_addLoot`). A hint that rings a system brings it into
+  view. "Expected next round" instead of "1 round(s)".
+- **Orbital Commander.** The NEXT line keeps clear of the comms panel; the commander channel's list is sticky.
+- "a challenge coin", not "an".
 
 ## What's new in 0.78: FOB Commander, from players' feedback
 

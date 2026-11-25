@@ -351,8 +351,16 @@ function tutorial() {
     if ((fresh && st.skipIf && st.skipIf(g, ui)) || (st.done && st.done(g, ui))) { ui.tut++; continue; }
     if (fresh) { tutStep = ui.tut; if (st.tab && g.ready()) { ui.tab = st.tab; ui.open = true; } else if (st.shut) ui.open = false; }
     ui.hint = st.hint ? st.hint(g, ui) : null;
+    if (fresh && ui.hint != null) bringIn(ui.hint);
     return;
   }
+}
+// (GC 0.79) A hint that rings a system brings it into view when it is off the edge or under the bars: headquarters started
+// half hidden under the hint bar.
+function bringIn(pid) {
+  const p = g && g.P[pid]; if (!p || !view.w) return;
+  const [x, y] = view.xy(p), m = 90;
+  if (!(x > m && x < view.w - m && y > m && y < view.h - m)) view.pan(view.w / 2 - x, view.h * 0.5 - y);
 }
 // On a mouse it is a click, on a touch screen a tap.
 const FINE = typeof matchMedia === 'function' && matchMedia('(pointer: fine)').matches;

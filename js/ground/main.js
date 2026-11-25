@@ -119,7 +119,7 @@ function gcStart() {
   if (GCX.support) { C.vanguards.bonus = GCX.support.lives | 0; if (GCX.support.garrison > 0) { C.infantry.defendChance = 1; C.infantry.defendN += GCX.support.garrison | 0; } }
   session = S.newSession(GCX.callsign, GCX.level, GCX.op);
   session.kit = GCX.kit; session.wallet = GCX.wallet; session.noSave = true; session.feed = 3; session.difficulty = clampLevel(GCX.level);
-  session.next = { op: GCX.op, faction: GCX.faction, biome: GCX.biome, seed: GCX.seed, obj: GCX.obj, bump: 0 };
+  session.next = { op: GCX.op, faction: GCX.faction, biome: GCX.biome, seed: GCX.seed, obj: GCX.obj, bump: 0, side: GCX.side || null, place: GCX.place || '' };
   lastRes = null;
   goShop();
 }
@@ -154,7 +154,7 @@ let paused = false;
 let soft = false;             // a soft pause: the game is frozen (paused is true too) but the menu stays shut, so the player can look around
 let startSnap = null;         // the session as it was at the drop, for RETRY MISSION (same map, credits as they were)
 let retryArm = false;         // RETRY MISSION asks for a second tap
-let coinMode = false;         // (0.44) the armory: the next thing picked is paid with an challenge coin
+let coinMode = false;         // (0.44) the armory: the next thing picked is paid with a challenge coin
 let endArmed = null, endT = 0;     // (0.44) END OPERATION asks for a second tap (the button's id)
 let menuSoft = false;         // the HUD menu stopped the game (closing it, or a panel opened from it, plays on)
 let speed = 1;                // game speed: 1, or 0.5 (half speed: everything still works, only slower)
@@ -1156,7 +1156,7 @@ function drawShop(note, focus = false) {
     onCoin: () => { coinMode = !coinMode; audio.click(); drawShop(coinMode ? t('arm.coinPickNote', { v: S.fmtNum(S.coinVals()[0] || 0) }) : undefined); },     // (0.44) SPEND A COIN / CANCEL
     onBuy: (id) => {
       const nm = (r) => String(r.item.name).toUpperCase();
-      if (coinMode && !session.tutorial && S.getCoins() > 0) {      // (0.50) an challenge coin: its credits paid toward the item
+      if (coinMode && !session.tutorial && S.getCoins() > 0) {      // (0.50) a challenge coin: its credits paid toward the item
         const r = payToward(session.kit, session.wallet, id, S.coinVals()[0], false, tierNow(), true);
         if (!r.ok) { audio.deny(); drawShop(deny(r.reason)); return; }
         S.spendCoin(); coinMode = false;
@@ -1195,7 +1195,7 @@ function goBrief(again = false) {
   const back = !keep && held && held.n === session.missions.length + 1 ? held.info : null;     // CANCEL (or MAIN MENU) left this one waiting
   session.held = null;
   const nx = !keep && !back && session.next ? session.next : null;     // (0.51) the offer picked after the last mission
-  info = keep ? { op: keep.op, faction: keep.faction, biome: keep.biome, seed: keep.seed, tod: keep.tod, bump: keep.bump } : back ? { ...back } : nx ? { op: nx.op, faction: nx.faction, biome: nx.biome, seed: nx.seed, obj: nx.obj, bump: nx.bump } : S.rollMission(prev, Math.random, settings.enemy);   // (the enemy picked on the title screen or in Settings)
+  info = keep ? { op: keep.op, faction: keep.faction, biome: keep.biome, seed: keep.seed, tod: keep.tod, bump: keep.bump, side: keep.side || null, place: keep.place || '' } : back ? { ...back } : nx ? { op: nx.op, faction: nx.faction, biome: nx.biome, seed: nx.seed, obj: nx.obj, bump: nx.bump, side: nx.side || null, place: nx.place || '' } : S.rollMission(prev, Math.random, settings.enemy);   // (the enemy picked on the title screen or in Settings)
   if (!keep && !back) info.op = S.opOf(session);     // (0.37) one operation a session: every mission flies under its name
   if (!keep && !back && session.missions.length === 0) { // URL overrides for testing: ?seed= ?faction= ?biome= (first mission only)
     if (qs.get('seed')) info.seed = Number(qs.get('seed')) >>> 0;
@@ -1220,7 +1220,7 @@ function goBrief(again = false) {
     pre: { objectives: pre.objectives.map((o) => o.type), defenders: pre.defenders, teams: pre.teams, ao: Math.round(pre.ao.size), difficulty: pre.difficulty, start: session.difficulty, lives: pre.vg.max, opBonus: pre.opBonus, opDone: pre.opDone },
     onReveal: () => audio.chirp(),
     onContinue: () => { briefCtl = null; audio.click(); deploy(); },
-    onEnd: (stop) => endTap('btn-end', () => { stop(); briefCtl = null; endSession(true); }),     // (0.44: a second tap; ending by choice pays an challenge coin)
+    onEnd: (stop) => endTap('btn-end', () => { stop(); briefCtl = null; endSession(true); }),     // (0.44: a second tap; ending by choice pays a challenge coin)
     // CANCEL: back to the armory. The mission keeps its map, enemy and hour for when you deploy again.
     onCancel: () => { briefCtl = null; audio.click(); holdMission(); persist(); goShop(); },
     onMenu: () => { audio.unlock(); audio.click(); outMenu(true); },
@@ -1525,7 +1525,7 @@ function retryMission() {
 }
 
 // (0.44) END OPERATION: in the armory, the briefing (from the second mission) and the debrief after a mission that carried on. It
-// takes a second tap, and ending by choice pays an challenge coin (session.js earnCoin) for a later operation's armory.
+// takes a second tap, and ending by choice pays a challenge coin (session.js earnCoin) for a later operation's armory.
 function coinNow() { const last = session && session.missions[session.missions.length - 1]; return !session || session.tutorial || !last || !S.carriesOn(last.outcome) ? null : S.coinPreview(session); }
 function endLabels() {
   if (!session) return;
@@ -1544,7 +1544,7 @@ function endTap(id, go) {
 function endSession(byChoice = false) {
   if (GCX) return gcDone();
   state = 'final'; audio.humStop(); endArmed = null; coinMode = false;
-  const coin = byChoice && coinNow() ? S.earnCoin(session) : null;      // (0.44) an challenge coin for ending it by choice
+  const coin = byChoice && coinNow() ? S.earnCoin(session) : null;      // (0.44) a challenge coin for ending it by choice
   const fin = S.finalise(session);
   const block = aarSession(session, fin);      // (0.27: the after action report, ready for Discord)
   if (session.feed !== 3 && !BOT) { session.feed = 3; feedEnd(session, fin, settings); }     // (0.43) the community feed: the score, and how far it got

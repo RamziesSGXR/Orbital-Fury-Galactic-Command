@@ -158,16 +158,18 @@ export const Zones = {
       if (!this.zoneCount(zk)) { this.growNote[zk] = 'no zone painted'; continue; }
       const want = this.wantFor(zk, d); if (!want) { this.growNote[zk] = 'nothing needed'; continue; }
       if (this.b.some(b => b.grown === zk && (!b.done || b.clr?.length))) { this.growNote[zk] = 'building'; continue; }
-      let placed = false, why = 'no free plot: paint more along a road';   // the reasons are shown on the zone's card
+      // the reasons are shown on the zone's card (js/modes/base.js). (GC 0.79) The one the player can act on wins: a building that
+      // could go up but finds no room says so, before supplies, before what is still locked.
+      let placed = false, noPlot = false, poor = '', lock = '';
       for (const t of want) {
-        const lk = this.locked(t); if (lk) { why = lk.some(x => /foundation/.test(x)) ? 'waits for the foundation' : `${B[t].name} needs ${lk.join(' and ')}`; continue; }
+        const lk = this.locked(t); if (lk) { lock = lock || `${B[t].name} needs ${lk.join(' and ')}`; continue; }
         const cost = this.costOf(t, { std: this.std, grow: true });
-        if (this.supplies < cost + GROW.reserve) { why = `waiting for supplies (keeps ${GROW.reserve} in reserve)`; continue; }
-        const p = this.zonePlot(t, zk); if (!p) continue;
+        if (this.supplies < cost + GROW.reserve) { poor = poor || `waiting for supplies: a ${B[t].name} costs ${cost}, and ${GROW.reserve} are kept in reserve`; continue; }
+        const p = this.zonePlot(t, zk); if (!p) { noPlot = noPlot || B[t].name; continue; }
         const b = this.place(t, p.x, p.z, p.rot, false, { std: this.std, grow: true });
         if (b) { b.grown = zk; placed = true; this.stats.grown = (this.stats.grown || 0) + 1; this.events.push({ t: 'grown', id: b.id }); break; }
       }
-      this.growNote[zk] = placed ? 'building' : why;
+      this.growNote[zk] = placed ? 'building' : noPlot ? `no room for a ${noPlot}: paint more of this zone along a road` : poor || lock || 'no free plot: paint more along a road';
     }
   },
   demandText(d = this.dem) {
