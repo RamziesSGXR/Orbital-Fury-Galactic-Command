@@ -19,6 +19,10 @@ export class Ground3D {
     this.cv = document.createElement('canvas');
     this.r = new THREE.WebGLRenderer({ canvas: this.cv, antialias: true, alpha: false, powerPreference: 'high-performance' });
     this.r.setClearColor(0x000000, 1);
+    // (GC 0.80.1) the draw calls are counted over the whole frame (the shadow, the scene and the copy to the screen): three.js
+    // counts each render() on its own, so the readout only ever saw the last one, the screen copy: "calls 1"
+    this.r.info.autoReset = false;
+    this.tm = { build: 0, send: 0, draw: 0, gpu: -1 };     // (GC 0.80.1) where the 3D part's time goes, for the F3 readout
     this.scene = new THREE.Scene();
     this.cam = new THREE.PerspectiveCamera(V3.fov, 1, 5, 6000);
     // (0.37) less light from everywhere and more from the sun, which stands lower: a slope turned to it is bright and one
@@ -119,6 +123,7 @@ export class Ground3D {
   //   W, H: the screen, in the same pixels; fy: how far down the screen the camera's point sits (0 to 1); yaw: how far round
   //   the gunship has flown; sun: { lx, ly } the way the light falls on the map, if the hour has a sun
   frame(o) {
+    const T0 = performance.now(); this.r.info.reset();
     const { sheet, S, scale, camX, camY, yaw, W, H, fy, sun } = o; this.h = o.height; this._level(o.props); this.dents = o.dents && o.dents.length ? o.dents : null;     // (GC 0.80) [x, y, r, depth] for each crater near the view
     if (this.W !== W || this.H !== H) { this.W = W; this.H = H; this.r.setSize(W, H, false); }
     // (0.49.1) The sheet's canvas changes size (the window, the zoom, or the quality stepping down) while staying the same canvas.
@@ -199,19 +204,41 @@ export class Ground3D {
     // the ship's gun hangs under the gunship, off to the right of the sight: its shells come in from the edge of the picture
     let fxErr = null;     // (0.49.1) a fault in the effects must not stop the picture being drawn: it is kept, the frame is drawn, then it is passed on to the report
     if (this.fx) { const e = C.matrixWorld.elements; this.gun.set(C.position.x + e[0] * d * 0.5 - e[4] * d * 0.22, C.position.y + e[1] * d * 0.5 - e[5] * d * 0.22, C.position.z + e[2] * d * 0.5 - e[6] * d * 0.22); try { this.fx.frame({ gunUp: o.gunUp, drops: o.drops, shells: o.shells, strobes: o.strobes, blasts: o.blasts, bolts: o.bolts, orbs: o.orbs, domes: o.domes, puffs: o.puffs, rings: o.rings, eye: this.cam.quaternion, gun: this.gun }, (x, z) => this.y(x, z)); } catch (err) { fxErr = err; } }
+    // (GC 0.80.1) the time to this point is building the frame (the land, the blocks, the models); then the pictures the
+    // frame needs are sent to the graphics card (the sheet every frame), then it is drawn
+    const T1 = performance.now(); this._send(); const T2 = performance.now(); const gq = this._gpuBegin();
+    try { this._render(o, W, H, C); } finally { this._gpuEnd(gq); const T3 = performance.now(), M = this.tm, k = 0.08; M.build += (T1 - T0 - M.build) * k; M.send += (T2 - T1 - M.send) * k; M.draw += (T3 - T2 - M.draw) * k; }
+    this.at = { camX, camY };
+    if (fxErr) throw fxErr;
+  }
+  _render(o, W, H, C) {
     // (0.37) the picture is taken onto a target, and the sight (infrared white-hot, black-hot, or plain colour) is put on as it
     // is copied to the screen: one cheap step on the graphics card, where it used to be a filter on the finished canvas
     // (pixel test) THE PIXEL LOOK: the same 3D picture taken small (about 300 lines), every pixel kept square and hard, its colours
     // cut to a few steps with a fine checker between them, and a dark line round whatever stands in front of something farther off.
     const px = o.pixel ? this._pixel(W, H, o.pixel) : null;
     if (px) { const u = px.mat.uniforms; u.uMode.value = o.sight === 'whot' ? 1 : o.sight === 'bhot' ? 2 : 0; u.uNear.value = C.near; u.uFar.value = C.far; this.sighted = true;
-      this.r.setRenderTarget(px.rt); this.r.render(this.scene, C); this.r.setRenderTarget(null); this.r.render(px.scene, px.cam); this.at = { camX, camY }; if (fxErr) throw fxErr; return; }
+      this.r.setRenderTarget(px.rt); this.r.render(this.scene, C); this.r.setRenderTarget(null); this.r.render(px.scene, px.cam); return; }
     const po = o.post === false ? null : this._post(W, H); this.sighted = !!po;
     if (po) { po.mat.uniforms.uMode.value = o.sight === 'whot' ? 1 : o.sight === 'bhot' ? 2 : 0; this.r.setRenderTarget(po.rt); this.r.render(this.scene, C); this.r.setRenderTarget(null); this.r.render(po.scene, po.cam); }
     else this.r.render(this.scene, C);
-    this.at = { camX, camY };
-    if (fxErr) throw fxErr;
   }
+  // (GC 0.80.1) the pictures sent before drawing, so their time is told apart from the drawing's: the sheet (every frame), the
+  // night's mask (every frame at night), the ground's own picture (when it has changed). A texture not changed is not sent again.
+  _send() { for (const t of [this.tex, this.dtex, this.gtex]) if (t && t.image) try { this.r.initTexture(t); } catch { /* it is sent by the drawing instead */ } }
+  // (GC 0.80.1) THE GRAPHICS CARD'S OWN TIME. Everything else in the readout is the processor's: how long it took to hand the
+  // work over, not to do it. Where the browser offers it (EXT_disjoint_timer_query_webgl2), the card is asked how long the
+  // frame's drawing took; the answer comes back a frame or two later. Where it does not, the readout says so.
+  _gpuBegin() {
+    try {
+      const gl = this.r.getContext(); if (this._tq === undefined) this._tq = gl.getExtension('EXT_disjoint_timer_query_webgl2') || null;
+      const X = this._tq; if (!X) return null; const Q = this._tqs || (this._tqs = []);
+      while (Q.length && gl.getQueryParameter(Q[0], gl.QUERY_RESULT_AVAILABLE)) { const q = Q.shift(), ns = gl.getQueryParameter(q, gl.QUERY_RESULT); gl.deleteQuery(q); if (gl.getParameter(X.GPU_DISJOINT_EXT)) continue; const ms = ns / 1e6; this.tm.gpu = this.tm.gpu < 0 ? ms : this.tm.gpu + (ms - this.tm.gpu) * 0.08; }
+      if (Q.length > 6) return null;
+      const q = gl.createQuery(); gl.beginQuery(X.TIME_ELAPSED_EXT, q); return q;
+    } catch { this._tq = null; return null; }
+  }
+  _gpuEnd(q) { if (!q) return; try { const gl = this.r.getContext(); gl.endQuery(this._tq.TIME_ELAPSED_EXT); this._tqs.push(q); } catch { this._tq = null; } }
   _pixel(W, H, lines) {
     if (this.pix === null) return null;
     const k = Math.max(2, Math.round(H / (lines > 1 ? lines : 300))), w = Math.ceil(W / k), h = Math.ceil(H / k);

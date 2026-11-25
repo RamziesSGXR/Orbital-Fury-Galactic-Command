@@ -1,6 +1,6 @@
 # Orbital Fury: Galactic Command
 
-**Prototype 0.80.0.** One war, run from four posts, in one game.
+**Prototype 0.80.1.** One war, run from four posts, in one game.
 
 You found a command (a name, a livery: emblem and colours) and hold the centre of the galaxy against three enemies. Everything in
 the war is yours to run, and each part changes the others:
@@ -13,6 +13,20 @@ the war is yours to run, and each part changes the others:
 | **The base** | Found a base on the system's key world: roads, zones, and buildings that grow along them. | +35% output from the system for each charter. |
 
 A system that falls takes its station and its base with it.
+
+## What's new in 0.80.1: the F3 readout tells where a frame's time goes
+
+Ramzies' screenshots of 24 November held the first readout from a real graphics card (an RTX 4070 SUPER): 60 frames a
+second throughout, the game's own working-out 0.2 to 0.3 ms a frame, the drawing 5.4 to 6.3 ms, of which the 3D part 4.3 to
+4.7 ms, nearly the same with 32 enemies as with 86. The readout could not say more than that, so it now does:
+
+- **The 3D part in its parts**: build (the land, the blocks, the models), send (the pictures handed to the graphics card,
+  the sheet every frame), draw (the scene, its shadow and the sight), copy (the finished picture onto the screen's canvas).
+- **The card's own time** where the browser offers a timer (`EXT_disjoint_timer_query_webgl2`); "card time n/a" where not.
+  Everything else in the readout is the processor's time.
+- **The real draw calls and triangles** over the whole frame. three.js counts each render on its own, so the readout only
+  ever saw the last one, the copy to the screen: "calls 1".
+- **The frame-rate cap beside the fps**: under the cap, the screen's refresh rate is what holds it.
 
 ## What's new in 0.80: the ground fight's look, from a play of it
 

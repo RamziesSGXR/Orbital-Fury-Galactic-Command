@@ -2281,7 +2281,7 @@ function debugReport() {
   L.push(navigator.userAgent);
   L.push(`screen ${innerWidth}x${innerHeight} @${devicePixelRatio}  layout ${applyLayout.last || '?'}  lang ${settings.lang}`);
   L.push(`settings quality ${settings.quality} fps ${settings.fps || 'auto'} 3d ${settings.relief3d} smooth ${settings.smooth !== false}`);
-  L.push(`fps ${fps.toFixed(0)}  ${gameLine()}`);
+  L.push(`fps ${fps.toFixed(0)} (cap ${fpsCap() || 'none'})  ${gameLine()}`);
   try { L.push(perfLine()); } catch { /* no readout */ }
   L.push(`hold: paused ${paused} soft ${soft} cinema ${!!cinema.on} card ${!!(tut && tut.held)} tac ${tac} speed ${speed}  step faults ${simFails}`);
   if (m) L.push(`enemies ${m.enemies.length} groups ${m.groups.length} allies ${m.alive.length} infantry ${m.infantryAlive.length} squads ${m.infantry.squads.length} posts ${(m.posts || []).length} shells ${m.shells.length} over ${m.over}`);
@@ -2296,7 +2296,13 @@ const perfT = { sim: 0, draw: 0 };
 function perfLine() {
   const g = renderer._g3; let gpu = '';
   try { if (g && !perfLine.gpu) { const gl = g.r.getContext(), e = gl.getExtension('WEBGL_debug_renderer_info'); perfLine.gpu = String(e ? gl.getParameter(e.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)).slice(0, 70); } gpu = perfLine.gpu || ''; } catch { /* not told */ }
-  return `time: game ${perfT.sim.toFixed(1)} ms  drawing ${perfT.draw.toFixed(1)} ms (3D ${(renderer.t3 || 0).toFixed(1)})  picture ${renderer.W}x${renderer.H}  sheet ${renderer._wc ? renderer._wc.width : 0}` + (g ? `  calls ${g.r.info.render.calls}  post ${g.post ? 'on' : 'off'}` : '  3D off') + (gpu ? `\ngpu: ${gpu}` : '');
+  // (GC 0.80.1) the 3D part told in its parts (building the frame, sending the pictures to the graphics card, drawing, copying
+  // the picture onto the screen), the card's own time where the browser will say it, and the draw calls over the whole frame
+  const M = g && g.tm, f1 = (v) => (v || 0).toFixed(1);
+  const parts = M ? `: build ${f1(M.build)} send ${f1(M.send)} draw ${f1(M.draw)} copy ${f1(renderer.t3c)}` : '';
+  const card = !g ? '' : M && M.gpu >= 0 ? `  card ${f1(M.gpu)} ms` : g._tq === null ? '  card time n/a' : '';
+  return `time: game ${f1(perfT.sim)} ms  drawing ${f1(perfT.draw)} ms (3D ${f1(renderer.t3)}${parts})${card}` +
+    `\npicture ${renderer.W}x${renderer.H}  sheet ${renderer._wc ? renderer._wc.width : 0}` + (g ? `  calls ${g.r.info.render.calls}  tris ${Math.round(g.r.info.render.triangles / 1000)}k  post ${g.post ? 'on' : 'off'}` : '  3D off') + (gpu ? `\ngpu: ${gpu}` : '');
 }
 function debugPaint(now) {
   const on = DEBUG || settings.debug || debugBroke, d = $('debug');
@@ -2306,7 +2312,7 @@ function debugPaint(now) {
   const m = mission, last = errLog[errLog.length - 1];
   $('debug-warn').classList.toggle('hidden', !debugBroke);
   if (debugBroke) $('debug-warn').textContent = t('dbg.broke');
-  $('debug-t').textContent = `v${C.share.version}  fps ${fps.toFixed(0)}  ${gameLine()}` +
+  $('debug-t').textContent = `v${C.share.version}  fps ${fps.toFixed(0)} (cap ${fpsCap() || 'none'})  ${gameLine()}` +     // (GC 0.80.1) the cap beside it: under the cap, the screen is what holds it
     `\nhold: ${paused ? (soft ? 'soft pause' : 'pause') : cinema.on ? 'cinematic' : tut && tut.held ? 'tutorial card' : 'none'}  speed ${speed}  faults ${simFails}` +
     '\n' + perfLine() +
     (m ? `\nenemies ${m.enemies.length}  allies ${m.alive.length}  infantry ${m.infantryAlive.length}  posts ${(m.posts || []).length}  P ${m.pressure.toFixed(2)}  fx ${renderer.fx.length}  cr ${m.wallet.bal}` : '') +
