@@ -95,7 +95,7 @@ Next, in this order (agreed after 0.65):
 6. ~~The Store: spending campaign credits on upgrades; the Vanguard roster (roles and personality traits to unlock).~~
    **(0.69: command credits from the career; the roster, roles and personalities on the ground; six upgrades)**
 7. Vanguards in FOB Commander (and the station), with lives and insurance there too; troopers and recruits managed one by
-   one at the base.
+   one at the base. **(a first step, 0.78: CREW FIRST and SWITCH OFF on a building's card, from players' feedback)**
 8. Quick-time events like the demolition charge in FOB Commander and the station: set orders that can be learned, with
    skill bonuses.
 9. Daily challenges (a placeholder on HOME today).

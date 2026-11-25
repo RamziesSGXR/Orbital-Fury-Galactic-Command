@@ -22,9 +22,9 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&l
 const ROADS = { road1: { name: 'Dirt Road', k: 'dirt', sub: 'drag to draw', desc: 'One tile wide and cheap. People and vehicles move faster on it than over open ground, and every building needs a road at its door.' },
   road2: { name: 'Paved Road', k: 'paved', sub: 'two tiles wide', desc: 'Two tiles wide, two lanes. Trucks run fastest here and do not queue behind each other. Needs a Concrete Plant.' },
   path: { name: 'Footpath', k: 'path', sub: 'for boots', desc: 'A paved walk one tile wide. People keep to it; vehicles do not use it.' },
-  wire: { name: 'Barbed Wire', k: 'wire', sub: 'slows raiders', desc: 'Razor wire on steel stakes, the same as on the ground. Lay it outside the wall: every tile adds to the strength the base puts against a raid (2 supplies a tile). Nobody walks through it; a road through it leaves a gap.' },
-  bags: { name: 'Sandbags', k: 'bags', sub: 'cover for the wall', desc: 'A chest-high line of sandbags, the ground fight\'s bastions. The most raid strength a tile of any field work (3 supplies a tile). Field works add up to 20 between them.' },
-  trench: { name: 'Trench', k: 'trench', sub: 'cheap, dug in', desc: 'A fighting trench between banks of sandbags, as on the ground. Cheap, and a little raid strength a tile (2 supplies a tile).' },
+  wire: { name: 'Barbed Wire', k: 'wire', sub: 'slows raiders', desc: 'Razor wire on steel stakes, the same as on the ground. Lay it outside the wall, or draw it along the wall itself and it runs along the top. Every tile adds to the strength the base puts against a raid (2 supplies a tile). Nobody walks through it; a road through it leaves a gap.' },
+  bags: { name: 'Sandbags', k: 'bags', sub: 'cover for the wall', desc: 'A chest-high line of sandbags, the ground fight\'s bastions. Lay them in front of a wall, not along it. The most raid strength a tile of any field work (3 supplies a tile). Field works add up to 20 between them.' },
+  trench: { name: 'Trench', k: 'trench', sub: 'cheap, dug in', desc: 'A fighting trench between banks of sandbags, as on the ground. Dug in front of a wall, not under it. Cheap, and a little raid strength a tile (2 supplies a tile).' },
   wall: { name: 'Wall', k: 'wall', sub: 'close it for a bonus', desc: 'Draw it all the way round and the base is closed: better morale, and raiders have to come through a gate. A road through a wall makes a gate.' },
   unroad: { name: 'Bulldoze', k: null, sub: words('tap a road or wall'), desc: 'Tap a stretch of road or wall to take it out. Half its cost comes back.' } };
 const TABS = GROUPS.filter((g) => g[0] !== 'landscape');
@@ -89,6 +89,12 @@ function report() {
   const W = sim.walks(), R = C.TIDY, mm = (m) => m == null ? '—' : `${m} m`;   // (0.68) the layout
   h += `<h3>LAYOUT · ${W.all == null ? 'NOTHING TO WALK TO YET' : W.all < 5 ? 'ALL UNDER ONE ROOF' : `${W.all} M ON AVERAGE`}</h3><p class="dim">How far troopers walk, on the routes they take, from their bunks. The daily efficiency review wants ${R.walk} m or less on average: put bunks near the mess, the latrines and the work.</p>`;
   h += `<ul class="ck"><li>${tick((W.work ?? 0) <= R.walk)} To work: ${mm(W.work)}${W.far ? ` · longest: ${esc(W.far.name)}, ${W.far.m} m` : ''}</li><li>${tick((W.mess ?? 0) <= R.walk)} To the mess: ${mm(W.mess)}</li><li>${tick((W.latrine ?? 0) <= R.walk)} To a latrine: ${mm(W.latrine)}</li></ul>`;
+  { // (GC 0.78) condition, explained: what wears a building, what mends it, what a worn one costs
+    const bs = sim.b.filter((b) => b.done && b.type !== 'hq'), avg = bs.length ? Math.round(bs.reduce((a, b) => a + b.cond, 0) / bs.length) : 100;
+    const low = bs.filter((b) => b.cond < 70), worst = [...low].sort((p, q) => p.cond - q.cond).slice(0, 3), short = bs.filter((b) => (b.unpaid || 0) >= 2).length;
+    h += `<h3>CONDITION · ${avg}% ON AVERAGE</h3><p class="dim">${esc(CONDITION)} Tents wear faster than upkeep mends them; prefabs and permanent buildings do not.</p>`;
+    h += `<ul class="ck"><li>${tick(!low.length)} Buildings under 70%: ${low.length}${worst.length ? ` · ${worst.map((b) => `${esc(B[b.type].name)} ${Math.round(b.cond)}%`).join(', ')}` : ''}</li><li>${tick(!short)} Upkeep paid on every building today${short ? `: ${short} missed it (keep supplies in hand)` : ''}</li></ul>`;
+  }
   h += `<h3>DEFENCE · ${f.closed ? `${f.score}/100` : 'NO CLOSED WALL'}</h3>`;
   h += `<ul class="ck"><li>${tick(f.closed)} A wall all the way round, with a gate${f.closed ? '' : ' (until it closes, the base scores 0 and raiders walk in)'}</li>`;
   if (f.closed) h += `<li>${tick(f.cover >= 0.9)} Wall watched by a lookout or tower: ${pct(f.cover)}</li>
@@ -106,7 +112,7 @@ function statusOf(b) {
   const d = B[b.type], out = [], u = sim.util || sim.utilities(), nb = (n) => `${n} building${n === 1 ? '' : 's'}`;
   if (!b.done) return [[`Under construction: ${Math.round((b.prog || 0) * 100)}%`, '']];
   if (b.off) out.push(['Switched off', 'r']);
-  if (d.crew) out.push([`Crew ${b.crew || 0} of ${d.crew}`, (b.crew || 0) >= d.crew ? 'g' : 'r']);
+  if (d.crew) out.push([`Crew ${b.crew || 0} of ${d.crew}${(b.crew || 0) < d.crew && !b.off && !sim.freeHands ? ' · every trooper is busy: more recruits, or switch something off' : ''}`, (b.crew || 0) >= d.crew ? 'g' : 'r']);     // (GC 0.78: why a crew is short)
   if (d.staff) out.push([`${d.staff} colonist staff`, '']);
   if (d.pw < 0) out.push(b.dark ? ['No power: outside every power circle', 'r'] : sim.power.ratio < 1 ? [`Power short: ${Math.round(sim.power.ratio * 100)}%`, 'r'] : ['Powered', 'g']);
   else if (d.pw > 0) out.push([`Makes ${d.pw} power · serves ${nb(sim.servedBy(b, 'pw'))}`, '']);
@@ -122,7 +128,7 @@ function statusOf(b) {
   if (d.eat) out.push([`${sim.cap(b, 'eat')} seats`, '']);
   if (d.potty) out.push([`Clean ${Math.round(b.clean ?? 100)}%`, (b.clean ?? 100) < 25 ? 'r' : '']);
   const st = Object.keys(GOODS).filter((g) => (b.stock?.[g] || 0) >= 1).map((g) => `${GOODS[g].short} ${Math.round(b.stock[g])}`); if (st.length) out.push([st.join(' · '), '']);
-  if (b.cond < 70) out.push([`Condition ${Math.round(b.cond)}%`, b.cond < 40 ? 'r' : '']);
+  if (b.type !== 'hq') out.push([`Condition ${Math.round(b.cond)}%${b.cond < 40 ? ': works at half, lowers morale' : b.cond < 70 ? ': works at 85%' : ''}${b.unpaid >= 2 ? ' · upkeep unpaid' : ''}`, b.cond < 70 ? 'r' : '', CONDITION]);     // (GC 0.78: always shown, and what it costs)
   if (b.type === 'hq' && sim.bill) {   // (0.58) the morning dropship's receipt
     const L = sim.bill, got = Object.keys(GOODS).filter((g) => L.order[g]).map((g) => `${L.order[g]} ${GOODS[g].short}`);
     out.push([`Day ${Math.floor((L.day - 1) * C.DAY / C.WEEK) + 1}, ${String(Math.floor(L.hour ?? 0)).padStart(2, '0')}:00 delivery: ${got.length ? got.join(' · ') + ` · billed ${Math.round(L.cost)} SUP` : 'nothing bought'}${L.capped ? ' (capped)' : ''}`, L.capped ? 'r' : '']);
@@ -140,9 +146,20 @@ function siloRow(b) {
   const S = C.SILO, n = b.nukes || 0;
   return `<span class="so"><i class="st ${n ? 'g' : ''}">WARHEADS ${n} OF ${S.max}</i>${n < S.max ? `<i class="st">NEXT ${Math.round((b.nukeT || 0) * 100)}%</i>` : ''}<button class="plate btn sm" data-nk="${b.id}" ${n ? '' : 'disabled'} title="Credits and Defence standing; the warhead is no longer here for a raid.">SHIP ONE TO THE FRONT · +${S.cr} CR</button></span>`;
 }
+// (GC 0.78) the building card's own controls: crew it before the rest, switch it off (its crew and power go elsewhere), and
+// repair it (condition back to 100% at once, for supplies)
+function workRow(b) {
+  if (!b.done) return '';
+  const d = B[b.type]; let h = '';
+  if (d.crew) h += `<button class="plate btn sm${b.first ? ' on' : ''}" data-bf="1" title="Crew this before anything else, taking hands from the least needed if nobody is free">CREW FIRST</button>`;
+  if (d.crew || d.pw < 0) h += `<button class="plate btn sm${b.off ? ' on' : ''}" data-bs="1" title="${b.off ? 'Back to work' : 'Stop it: its crew and its power go to the rest of the base'}">${b.off ? 'SWITCH ON' : 'SWITCH OFF'}</button>`;
+  if (b.cond < 100 && b.type !== 'hq') { const c = sim.repairCost(b); h += `<button class="plate btn sm" data-br="1" title="${esc(CONDITION)}"${sim.supplies < c ? ' disabled' : ''}>REPAIR · ${c} SUP</button>`; }
+  return h;
+}
+const CONDITION = 'Condition: every building wears a little each day, and the upkeep you pay mends it (more than it wears, unless it is a tent). Upkeep unpaid for most of a day costs 22%. Below 70% it works at 85%, below 40% at half and it lowers morale. REPAIR puts it back to 100% at once.';
 function selBar() {
   const el = $('th-sel'), b = sel && sim.byId(sel), t = tool || hover; let html = '';
-  if (b) html = `<b>${esc(B[b.type].name)}</b>${statusOf(b).map(([x, tone]) => `<i class="st ${tone}">${esc(x)}</i>`).join('')}${b.type === 'hq' ? supplyRow() : ''}${b.type === 'silo' ? siloRow(b) : ''}<span class="grow"></span>${b.type === 'hq' ? '' : '<button class="plate btn sm" data-bd="1">DEMOLISH</button>'}<button class="plate btn sm" data-bx="1">×</button><span class="dim desc">${esc(B[b.type].desc || B[b.type].why || '')}</span>`;
+  if (b) html = `<b>${esc(B[b.type].name)}</b>${statusOf(b).map(([x, tone, tip]) => `<i class="st ${tone}"${tip ? ` title="${esc(tip)}"` : ''}>${esc(x)}</i>`).join('')}${b.type === 'hq' ? supplyRow() : ''}${b.type === 'silo' ? siloRow(b) : ''}<span class="grow"></span>${workRow(b)}${b.type === 'hq' ? '' : '<button class="plate btn sm" data-bd="1">DEMOLISH</button>'}<button class="plate btn sm" data-bx="1">×</button><span class="dim desc">${esc(B[b.type].desc || B[b.type].why || '')}</span>`;
   else if (t && (B[t] || ROADS[t] || (isZone(t) && ZONES[t.slice(5)]))) { const d = B[t] || ROADS[t] || ZONES[t.slice(5)]; html = `<b>${esc(d.name)}</b><span class="grow dim">${esc(words(d.desc || d.why || ''))}</span>`; }
   el.classList.toggle('hidden', !html);
   if (html !== selSig) { selSig = html; el.innerHTML = html; }
@@ -162,7 +179,7 @@ const TUT = [
   { t: 'ROADS FIRST', x: 'Everything is built along a road. Pick <b>DIRT ROAD</b> below and drag from the command post across open ground.', done: () => sim.net.segs.some((g) => !['wall', 'wire', 'bags', 'trench'].includes(g.k)) },
   { t: 'ZONE THE ROADSIDE', x: 'Open <b>ZONES</b>, pick <b>Life Support</b> and tap beside your road. Bunks, mess halls and latrines grow there by themselves as the base needs them.', done: () => sim.zone.some((v) => v) },
   { t: 'POWER, WATER, SEWAGE', x: 'Open <b>UTILITIES</b> and place a <b>Biofuel Generator</b> by the road. Each utility covers a circle round it: keep the bunks inside, and keep wells away from a sewage lagoon.', done: () => sim.b.some((b) => B[b.type].group === 'power') },
-  { t: 'CHECK ON A BUILDING', x: 'With no tool in hand, tap any building: its card shows its crew, whether it has power, water and sewage, and what is wrong with it.', done: () => !!sel },
+  { t: 'CHECK ON A BUILDING', x: 'With no tool in hand, tap any building: its card shows its crew, whether it has power, water and sewage, its condition and what is wrong with it. <b>CREW FIRST</b> staffs it before the rest; <b>REPAIR</b> puts a worn one back to 100%.', done: () => !!sel },
   { t: 'WHAT MATTERS', x: 'Keep morale up and the books in profit: troops need beds, food, water and power, and every charter you earn makes the base worth more. Drag to move, right-drag or Q and E to turn, wheel or pinch to zoom. <b>II</b> pauses and <b>1×</b> speeds time up. Requests land on your desk at the side: answer them or they are filed without you. A supply dropship lands every watch, six times a day, and bills you for what it brings: tap the command post to choose what it buys and how much it may spend.', last: true },
 ];
 function setTool(t) {
@@ -182,7 +199,33 @@ function tileAt(e) {
 }
 const lineEnd = (e) => { const p = view.pick(e.clientX, e.clientY); return sim.snapLine({ x: p.x, z: p.z }, e.shiftKey ? 'free' : '45', ROADS[tool].k || 'dirt', roadDrag); };   // on the tiles, straight or diagonal; Shift draws free
 const zoneRect = (a, b) => { const out = []; for (let z = Math.min(a[1], b[1]); z <= Math.max(a[1], b[1]); z++) for (let x = Math.min(a[0], b[0]); x <= Math.max(a[0], b[0]); x++) out.push([x, z, 1]); return out; };
-function bind() {
+// (GC 0.78) a graphics driver can drop the 3D view, most often while the browser tab is in the background: the HUD keeps
+// working over a black screen. The browser is asked for the view back; if it has not given it back in a few seconds, the
+// view is built again on a fresh canvas, where it was looking. Coming back to the tab, the view is sized and checked again.
+let lostT = 0;
+function watchView() {
+  view.onLost = (lost) => {
+    clearTimeout(lostT);
+    if (!lost) { view.resize(); view.r.shadowMap.needsUpdate = true; return; }
+    if (!mode.off) ui.message('THE 3D VIEW DROPPED OUT · BRINGING IT BACK', 2600);
+    lostT = setTimeout(() => { if (view.lost) rebuildView(); }, 3000);
+  };
+}
+function rebuildView() {
+  const old = view, fresh = canvas.cloneNode(false);     // the same id and classes; no context yet
+  canvas.replaceWith(fresh); canvas = fresh;
+  view = new View(canvas); bind(true); watchView();
+  view.setQuality(app.settings.quality || 'auto');
+  if (sim) { view.attach(sim, life); view.target.copy(old.target); view.zoom = view.zoomT = old.zoomT; view.yaw = view.yawT = old.yawT; view.resize(); }
+  try { old.r.dispose(); } catch { /* the old context is gone already */ }
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden || !view || mode.off) return;
+  const gl = view.r.getContext();
+  if (gl && gl.isContextLost && gl.isContextLost() && !view.lost) { view.lost = true; view.onLost(true); }     // a loss the page was not told about
+  else if (!view.lost) { view.resize(); view.r.shadowMap.needsUpdate = true; }
+});
+function bind(canvasOnly = false) {     // (GC 0.78: canvasOnly, for a view built again on a fresh canvas)
   canvas.addEventListener('contextmenu', (e) => e.preventDefault());
   canvas.addEventListener('pointerdown', (e) => {
     if (mode.off) return;
@@ -234,9 +277,10 @@ function bind() {
   canvas.addEventListener('pointerup', up);
   canvas.addEventListener('pointercancel', (e) => { ptrs.delete(e.pointerId); drag = null; pinch = null; roadDrag = null; zoneDrag = null; });
   canvas.addEventListener('wheel', (e) => { e.preventDefault(); view.zoomBy(Math.exp(e.deltaY * 0.0012)); }, { passive: false });
+  if (canvasOnly) return;
   $('s-theatre').addEventListener('click', (e) => {
     if (mode.off) return;
-    const t = e.target.closest('[data-bg],[data-bt],[data-ba],[data-bd],[data-bx],[data-bo],[data-so],[data-sc],[data-nk]'); if (!t) return;
+    const t = e.target.closest('[data-bg],[data-bt],[data-ba],[data-bd],[data-bx],[data-bo],[data-so],[data-sc],[data-nk],[data-bf],[data-bs],[data-br]'); if (!t) return;
     const d = t.dataset;
     if (d.bg) { group = d.bg; if (tool) setTool(tool); audio.click(); tabs(); bar(true); }
     else if (d.bt != null) setTool(d.bt);
@@ -246,6 +290,9 @@ function bind() {
     else if (d.so || d.sc) { if (sim.setSupplyPlan(d.so ? 'mode' : 'cap', d.so || +d.sc)) audio.click(); selSig = ''; selBar(); }
     else if (d.bo) { deskSeen.set(+d.bo, performance.now()); audio.click(); desk(); }
     else if (d.nk) { if (sim.shipNuke(+d.nk)) audio.click(); else audio.deny(); selSig = ''; selBar(); }
+    else if (d.bf) { if (sim.crewFirst(sel)) audio.click(); selSig = ''; selBar(); }     // (GC 0.78)
+    else if (d.bs) { sim.toggle(sel); audio.click(); selSig = ''; selBar(); }
+    else if (d.br) { if (sim.repair(sel)) { audio.click(); app.toast('Repaired: back to 100%'); } else audio.deny(); selSig = ''; selBar(); stats(); }
   });
   $('th-stats').addEventListener('click', (e) => { if (mode.off || !e.target.closest('[data-act=report]')) return; audio.click(); report(); });
   // with a mouse, resting on a tool shows what it is before it is picked
@@ -275,7 +322,7 @@ const mode = {
     if (!loaded && !app.tutorial) { const n = upgrade('seed'); sim.credits += n * 200; sim.supplies += n * 600; }     // (GC 0.69) the STORE's seed money
     sim.faction = { ...sim.faction, ...f };
     await ensureLogo(sim.faction.logo);
-    if (!view) { view = new View(canvas); bind(); }
+    if (!view) { view = new View(canvas); bind(); watchView(); }
     view.setQuality(app.settings.quality || 'auto');     // (GC 0.75) GRAPHICS, in OPTIONS
     life = new Life(sim); view.attach(sim, life);
     const hq = sim.b.find((b) => b.type === 'hq');

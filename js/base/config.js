@@ -331,7 +331,9 @@ export const B = {
 };
 
 // Crew is filled in this order when there aren't enough troops for everything.
-export const CREW_ORDER = ['gen', 'motorpool', 'factory', 'extractor', 'mine', 'mess', 'range', 'patrol', 'medbay', 'lookout', 'turret', 'flood', 'command', 'warroom', 'eob', 'cryo', 'brig', 'vault', 'lab', 'vbay', 'armory', 'lecture', 'truth', 'hdbarracks', 'dome'];
+// (GC 0.78) the water purifier, the treatment plant, the Concrete Batch Plant and the Missile Silo were missing here, so they were
+// never crewed: no water, no sewage treated, no warheads. Anything crewed and not named here is crewed last (sim.js recalc)
+export const CREW_ORDER = ['gen', 'rowpu', 'treatment', 'motorpool', 'batch', 'factory', 'extractor', 'mine', 'mess', 'range', 'patrol', 'medbay', 'lookout', 'turret', 'flood', 'silo', 'command', 'warroom', 'eob', 'cryo', 'brig', 'vault', 'lab', 'vbay', 'armory', 'lecture', 'truth', 'hdbarracks', 'dome'];
 
 // Patrol missions the Operations Office offers. diff 1-5.
 export const MISSIONS = [

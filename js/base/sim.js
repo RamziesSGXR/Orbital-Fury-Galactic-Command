@@ -235,6 +235,9 @@ export class Sim {
     if (len < 0.9) return { ok: false, why: 'Too short', cost };
     if (a.x < 0 || a.z < 0 || b.x < 0 || b.z < 0 || a.x > this.N || a.z > this.N || b.x > this.N || b.z > this.N) return { ok: false, why: 'Off the map', cost };
     for (const [x, z] of lineTiles(this.N, a.x, a.z, b.x, b.z, KINDS[k].w)) if (this.occ[z * this.N + x]) return { ok: false, why: 'A building is in the way', cost };
+    // (GC 0.78) sandbags and trenches go in front of a wall, not inside it; barbed wire may run along a wall's top
+    if (k === 'bags' || k === 'trench') { for (const [x, z] of tiles) { const w = this.walls?.[z * this.N + x]; if (w === 1 || w === 2) return { ok: false, why: `${k === 'bags' ? 'Sandbags go' : 'A trench goes'} in front of a wall, not inside it (barbed wire can run along its top)`, cost }; } }
+    if (k === 'wall') { const dug = this.worksTiles(['bags', 'trench']); for (const [x, z] of tiles) if (dug.has(z * this.N + x)) return { ok: false, why: 'Sandbags or a trench in the way: clear them first (DEMOLISH), or run barbed wire along the wall\'s top', cost }; }
     if (cost > 0 && this.supplies < cost) return { ok: false, why: 'Not enough supplies', cost };
     return { ok: true, cost };
   }
@@ -323,6 +326,12 @@ export class Sim {
       this.hgt[k] += (target - this.hgt[k]) * (d <= r0 ? 1 : (r1 - d) / (r1 - r0) * 0.7);
     }
     this.reclassify(x0 - 1, z0 - 1, x1 + 1, z1 + 1);
+  }
+  // (GC 0.78) the tiles under field works of these kinds
+  worksTiles(kinds) {
+    const out = new Set(), nd = (id) => this.net.nodes.find((n) => n.id === id);
+    for (const sg of this.net.segs) if (kinds.includes(sg.k)) { const a = nd(sg.a), b = nd(sg.b); for (const [x, z] of lineTiles(this.N, a.x, a.z, b.x, b.z, sg.w)) out.add(z * this.N + x); }
+    return out;
   }
   removeLine(x, z) {
     const s = nearestSeg(this.net, x, z); if (!s) return null;
@@ -488,7 +497,9 @@ export class Sim {
     const c = this.repairCost(b); if (this.supplies < c) return false;
     this.spend('repair', c); b.cond = 100; return true;
   }
-  toggle(id) { const b = this.byId(id); if (b && (B[b.type].crew || B[b.type].pw < 0)) b.off = !b.off; }
+  toggle(id) { const b = this.byId(id); if (b && (B[b.type].crew || B[b.type].pw < 0)) { b.off = !b.off; this.recalc(); } }
+  // (GC 0.78) CREW FIRST: this building is crewed before the rest, taking hands from the least needed if it must
+  crewFirst(id) { const b = this.byId(id); if (!b || !B[b.type].crew) return false; b.first = !b.first; this.recalc(); return true; }
   // (GC 0.64) a warhead from the Missile Silo shipped to the front: credits and Defence standing
   shipNuke(id) {
     const b = this.byId(id), S = C.SILO; if (!b || b.type !== 'silo' || !(b.nukes > 0)) return false;
@@ -590,10 +601,19 @@ export class Sim {
       else t.job = null;
     }
     const free = home.filter(t => !t.job).sort((a, b) => b.train - a.train);
-    for (const type of CREW_ORDER) for (const b of done) {
-      if (b.type !== type) continue;
-      while (need.get(b.id) > 0 && free.length) { const t = free.shift(); t.job = b.id; b.crew++; need.set(b.id, need.get(b.id) - 1); }
-    }
+    // (GC 0.78) the order crews are filled in: buildings marked CREW FIRST, then CREW_ORDER, then anything crewed it leaves out.
+    // A building short of hands when nobody is free takes them from the last building after it in the order that has any
+    const crewed = done.filter(b => need.has(b.id)), rank = (b) => b.first ? -1 : CREW_ORDER.includes(b.type) ? CREW_ORDER.indexOf(b.type) : CREW_ORDER.length;
+    const order = crewed.map((b, i) => [b, i]).sort((p, q) => rank(p[0]) - rank(q[0]) || p[1] - q[1]).map(([b]) => b);
+    order.forEach((b, at) => {
+      while (need.get(b.id) > 0) {
+        let t = free.shift();
+        if (!t) { for (let j = order.length - 1; j > at && !t; j--) { const o = order[j]; if (o.crew > 0) { t = home.find(x => x.job === o.id); o.crew--; need.set(o.id, need.get(o.id) + 1); } } }
+        if (!t) break;
+        t.job = b.id; b.crew++; need.set(b.id, need.get(b.id) - 1);
+      }
+    });
+    this.freeHands = free.length;     // (GC 0.78) troopers left with no job: the building card says why a crew is short
     for (const t of home) { t.state = t.job ? 'job' : 'idle'; if (t.job) t.at = null; }
     // every gate wants a trained trooper on it
     const gN = (this.gates || []).length, taken = new Set();

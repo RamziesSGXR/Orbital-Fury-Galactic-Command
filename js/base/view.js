@@ -541,12 +541,13 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
       for (const sg of net.segs) {
         if (sg.k !== k) continue;
         const a = nd(sg.a), b = nd(sg.b), L = Math.hypot(b.x - a.x, b.z - a.z), n = Math.max(1, Math.round(L)), ang = -Math.atan2(b.z - a.z, b.x - a.x);
-        for (let i = 0; i < n; i++) { const t = (i + 0.5) / n, x = a.x + (b.x - a.x) * t, z = a.z + (b.z - a.z) * t, tx = Math.floor(x), tz = Math.floor(z); if (s.roads[tz * N + tx]) continue; runs.push([x, z, ang, L / n]); }
+        // (GC 0.78) on a wall: barbed wire runs along its top; sandbags or a trench laid there before are inside it and not drawn
+        for (let i = 0; i < n; i++) { const t = (i + 0.5) / n, x = a.x + (b.x - a.x) * t, z = a.z + (b.z - a.z) * t, tx = Math.floor(x), tz = Math.floor(z), i0 = tz * N + tx; if (s.roads[i0]) continue; const on = s.walls[i0] === 1; if (on && k !== 'wire') continue; runs.push([x, z, ang, L / n, on]); }
       }
       if (!runs.length) continue;
       this.m.model ||= new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0.04, side: THREE.DoubleSide });
       const im = new THREE.InstancedMesh(wg, this.m.model, runs.length), M = new THREE.Matrix4(), Q = new THREE.Quaternion(), P = new THREE.Vector3(), S = new THREE.Vector3(), Y = new THREE.Vector3(0, 1, 0);
-      runs.forEach(([x, z, ang, l], i) => { P.set(this.wx(x), 0, this.wx(z)); Q.setFromAxisAngle(Y, ang); S.set(l / W.len, W.h, W.d); im.setMatrixAt(i, M.compose(P, Q, S)); });
+      runs.forEach(([x, z, ang, l, on], i) => { P.set(this.wx(x), on ? 1.15 : 0, this.wx(z)); Q.setFromAxisAngle(Y, ang); S.set(l / W.len, on ? W.h * 0.8 : W.h, on ? W.d * 0.8 : W.d); im.setMatrixAt(i, M.compose(P, Q, S)); });
       im.castShadow = true; im.receiveShadow = true; this.roadG.add(im);
     }
     for (const [id, angs] of turns) {

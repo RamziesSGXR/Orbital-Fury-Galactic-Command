@@ -1,6 +1,6 @@
 # Orbital Fury: Galactic Command
 
-**Prototype 0.77.0.** One war, run from four posts, in one game.
+**Prototype 0.78.0.** One war, run from four posts, in one game.
 
 You found a command (a name, a livery: emblem and colours) and hold the centre of the galaxy against three enemies. Everything in
 the war is yours to run, and each part changes the others:
@@ -13,6 +13,25 @@ the war is yours to run, and each part changes the others:
 | **The base** | Found a base on the system's key world: roads, zones, and buildings that grow along them. | +35% output from the system for each charter. |
 
 A system that falls takes its station and its base with it.
+
+## What's new in 0.78: FOB Commander, from players' feedback
+
+- **Walls and field works**: barbed wire drawn along a wall now runs along its top. Sandbags and trenches go in front of a
+  wall, not inside it, and a wall can't be drawn through them; ones laid inside a wall before are no longer drawn.
+- **The numbers at the top right** stay after going to the main menu and back. They were drawn only when they changed, so
+  a base reopened just as it was left showed none (js/main.js `frameUi.reset`).
+- **A black screen after switching tabs**: when the graphics driver drops the 3D view (most often while the tab is in the
+  background), the base says so and asks for it back; if the browser doesn't give it back in three seconds, the view is
+  built again on a fresh canvas, where it was looking. Coming back to the tab, the view is sized and checked again.
+- **Crews**: the Water Purification Unit, the Treatment Plant, the Concrete Batch Plant and the Missile Silo were never
+  crewed (missing from the crew order), so they made no water, treated no sewage and built no warheads. They are now,
+  and anything crewed that the order leaves out is crewed last. A building short of hands takes them from the least
+  needed when nobody is free.
+- **Your say in who works where**, a first step: on a building's card, **CREW FIRST** staffs it before the rest, and
+  **SWITCH OFF** stops it so its crew and power go elsewhere. The card says when every trooper is busy.
+- **Condition, explained**: every building's card shows its condition and what it costs (below 70% it works at 85%,
+  below 40% at half and it lowers morale), with how it wears and mends on hover, and **REPAIR** puts it back to 100% for
+  supplies. The base report has a CONDITION section.
 
 ## What's new in 0.77: our own names, everywhere
 
@@ -310,6 +329,7 @@ come back to them.
 - `python3 test/map.py` checks the map's desk controls.
 - `python3 test/fleets.py` checks the opening choices and the Fleet Office.
 - `python3 test/armoury.py` checks the armoury, the chest and that they survive a reload (needs `npm start`).
+- `python3 test/base_fixes.py` checks FOB Commander's feedback fixes: wire on walls, the numbers after the main menu, a dropped 3D view coming back, crews, and a building's card.
 - `python3 test/roster.py` checks the STORE: credits from the career, buying roles, personalities and an upgrade, giving them to the Vanguards, and a fight on the ground where they carry them.
 - `python3 test/base_ui.py` checks the base's controls: dragging the ground, roads keeping to the tiles and joining where they cross, a building's status card, requests folding away, and the guide.
 
