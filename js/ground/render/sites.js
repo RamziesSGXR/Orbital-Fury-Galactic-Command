@@ -136,6 +136,16 @@ export function drawCrash(ctx, x, y, id, now, px) {
   ctx.restore();
   void px;
 }
+// (GC 0.80) the uplink tower from above, where it is drawn flat: its footing, the square of its mast, the dish turned up, the
+// terminal at its foot; lit while the intel uploads
+export function drawUplink(ctx, x, y, lit, now, px) {
+  ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.beginPath(); ctx.arc(x, y, 6.6, 0, TAU); ctx.fill();
+  ctx.fillStyle = 'rgba(120,124,122,0.85)'; ctx.beginPath(); for (let i = 0; i < 8; i++) { const a = (i + 0.5) / 8 * TAU; ctx.lineTo(x + Math.cos(a) * 6, y + Math.sin(a) * 6); } ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = '#1e2226'; ctx.lineWidth = 0.6; ctx.strokeRect(x - 2.2, y - 2.2, 4.4, 4.4); ctx.beginPath(); ctx.moveTo(x - 2.2, y - 2.2); ctx.lineTo(x + 2.2, y + 2.2); ctx.moveTo(x + 2.2, y - 2.2); ctx.lineTo(x - 2.2, y + 2.2); ctx.stroke();
+  ctx.fillStyle = 'rgba(214,220,222,0.95)'; ctx.beginPath(); ctx.ellipse(x, y - 3, 3.8, 2.4, 0, 0, TAU); ctx.fill();
+  ctx.fillStyle = lit && Math.floor(now * 4) % 2 ? '#7fe9e0' : 'rgba(127,233,224,0.5)'; ctx.beginPath(); ctx.arc(x, y - 3, Math.max(0.5, px(1.6)), 0, TAU); ctx.fill();
+  ctx.fillStyle = '#2a2f34'; ctx.fillRect(x - 1, y + 4.2, 2, 1.1);
+}
 export function drawPad(ctx, x, y, lit, now, px) {
   ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.beginPath(); ctx.arc(x, y, 12.5, 0, TAU); ctx.fill();
   ctx.fillStyle = 'rgba(170,172,165,0.8)'; ctx.beginPath(); ctx.arc(x, y, 11, 0, TAU); ctx.fill();

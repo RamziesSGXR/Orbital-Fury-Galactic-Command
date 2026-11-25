@@ -2,14 +2,14 @@
 // enemy breaches, UAV circles and Vanguard pings. (Infantry squads and the dropship are in squads.js.)
 // Every function draws in world space (meters). px(n) converts screen pixels to meters at the current zoom.
 import { jellyModel, drawJelly, drawJellyShadow, jellyFoot } from './jelly.js';
-import { VIEW, trueR } from './view.js';
+import { VIEW, trueR, airBolt } from './view.js';
 import { raise } from './relief.js';
 import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
 import { CALLINS } from '../data/callin.js';
 import { infantryTargets } from './squads.js';
 import { TEAM_COLOR } from '../data/names.js';
-import { drawPoiArt, drawNukeSite, drawCrash, drawPad, drawLootArt, drawOilSite, drawDome, drawDomeHit, drawDemoCharge } from './sites.js';
+import { drawPoiArt, drawNukeSite, drawCrash, drawPad, drawUplink, drawLootArt, drawOilSite, drawDome, drawDomeHit, drawDemoCharge } from './sites.js';
 import { dshipBody, dshipDetail } from './squads.js';
 import { autoturretArt } from './posts.js';
 import { drawDamage, drawWreckCrater } from './sideart.js';
@@ -319,7 +319,18 @@ export function drawObjectives(ctx, m, now, px, labels, scale, pal) {
     } else if (o.type === 'vip') {
       const v = o.vip;
       if (!(VIEW.p3 && VIEW.m3.has('site_crash'))) raise(ctx, o, o.x, o.y, 14, 1.3, (c) => drawCrash(c, o.x, o.y, (o.x * 7 + o.y) | 0, now, px), RAISE_L);
-      if (!(VIEW.p3 && VIEW.m3.has('site_pad'))) drawPad(ctx, o.dx, o.dy, o.state === 'carry' || o.state === 'deliver', now, px);
+      // (GC 0.80, Ramzies: "VIP should change to be strategic intel, and just have a tower for uploading that intel") the uplink
+      // tower stands where the pickup pad was; while the intel uploads, light goes up from its dish to the ship, in pulses
+      if (!(VIEW.p3 && VIEW.m3.has('site_uplink'))) drawUplink(ctx, o.dx, o.dy, o.state === 'deliver', now, px);
+      if (VIEW.fx3) {
+        const F = VIEW.fx3, top = VIEW.ts ? 21 : 36, sk = VIEW.sky, up = (o.state === 'deliver' && !o.done) || (o.done && m.t - (o.doneAt ?? m.t) < 6);
+        if (up) {
+          const f = o.done ? 1 : o.delT / O.vip.deliverSec, lean = 0.36 * 680, gx = o.dx + sk.x * lean, gy = o.dy + sk.y * lean, pl = 0.75 + 0.25 * Math.sin(now * 9);
+          F.bolts.push({ x: o.dx, y: o.dy, x2: gx, y2: gy, up: top, up2: 700, w: o.done ? 1.4 : 0.25 + 0.35 * f, col: '#7fe9e0', k: (o.done ? 1 : 0.55) * pl });
+          for (let i = 0; i < 4; i++) { const q = (now * 0.6 + i / 4) % 1; F.orbs.push({ x: o.dx + (gx - o.dx) * q * 0.25, y: o.dy + (gy - o.dy) * q * 0.25, up: top + (700 - top) * q * 0.25, r: 0.45, col: '#c8fff8', k: 1 - q }); }
+        }
+        if (!o.done && v.state !== 'safe') F.orbs.push({ x: v.x, y: v.y, up: v.state === 'carried' ? (VIEW.ts ? 2.5 : 6) : 0.7, r: v.state === 'carried' ? 0.2 : 0.3, col: '#ffe600', k: 0.6 + 0.4 * Math.sin(now * 6) });     // the data core: carried, or blinking in the wreck
+      }
       if (!o.done) {
         // crash site (until picked up) and the pickup point
         if (v.state !== 'carried') {
@@ -533,9 +544,13 @@ export function drawEnemyExtras(ctx, m, now, px, labels, scale, pal, vb = null) 
       const c = e.ch, p = Math.max(0, Math.min(1, (t - c.t0) / c.dur)), pr = C.combat.atk.lizards.H;
       const dx = c.tx - e.x, dy = c.ty - e.y, d = Math.hypot(dx, dy) || 1, L = Math.max(pr.range, d);
       const locked = t >= c.t0 + c.dur - pr.lock;
+      // (GC 0.80) in 3D the aim is a thin line of light from the crystal on its back to its mark, and the crystal glows brighter as it charges
+      if (VIEW.fx3) { const hi = VIEW.ts ? 2.6 : 7, lo = VIEW.ts ? 1.1 : 3; airBolt(e.x, e.y, hi, e.x + (dx / d) * L, e.y + (dy / d) * L, lo, locked ? Math.max(pr.width * 0.12, 0.2) : 0.05 + 0.08 * p, locked ? '#ffffff' : col, locked ? 1 : 0.35 + 0.5 * p); VIEW.fx3.orbs.push({ x: e.x, y: e.y, up: hi, r: 0.25 + 0.55 * p, col, k: 0.5 + 0.5 * p }); }
+      else {
       ctx.strokeStyle = locked ? 'rgba(255,255,255,0.95)' : rgba(col, 0.35 + 0.5 * p); ctx.lineWidth = locked ? Math.max(pr.width * 0.5, px(2)) : px(1 + 1.5 * p);
       ctx.setLineDash(locked ? [] : [px(5), px(4)]);
       ctx.beginPath(); ctx.moveTo(e.x, e.y); ctx.lineTo(e.x + (dx / d) * L, e.y + (dy / d) * L); ctx.stroke(); ctx.setLineDash([]);
+      }
       ctx.strokeStyle = rgba(col, 0.9); ctx.lineWidth = px(2); ring(ctx, e.x, e.y, r * (1.8 - 0.8 * p)); ctx.stroke();
     }
     if (fac.id === 'bots' && e.tgt && !e.tgt.dead) {
@@ -611,8 +626,9 @@ function drawBossExtras(ctx, m, e, now, px, labels, scale, col) {
     // (0.55) the thunder lizard charging: a line to its target, and a ring where the beam will come down that tightens as it charges
     const c = e.ch, f = Math.max(0, Math.min(1, (t - c.t0) / c.dur)), B = D.walk, locked = t >= c.t0 + c.dur - B.lock;
     const dx = c.tx - e.x, dy = c.ty - e.y, d = Math.hypot(dx, dy) || 1, k = Math.max(0, d - B.lead) / d, gx = e.x + dx * k, gy = e.y + dy * k;
-    ctx.strokeStyle = rgba(col, 0.3 + 0.5 * f); ctx.lineWidth = px(1.2 + 2 * f); ctx.setLineDash([px(6), px(4)]);
-    ctx.beginPath(); ctx.moveTo(e.x, e.y); ctx.lineTo(c.tx, c.ty); ctx.stroke(); ctx.setLineDash([]);
+    if (VIEW.fx3) airBolt(e.x, e.y, (VIEW.ts ? 0.55 : 1.4) * e.r, c.tx, c.ty, VIEW.ts ? 1.1 : 3, 0.08 + 0.14 * f, col, 0.35 + 0.5 * f);     // (GC 0.80) in 3D: a line of light from its mouth
+    else { ctx.strokeStyle = rgba(col, 0.3 + 0.5 * f); ctx.lineWidth = px(1.2 + 2 * f); ctx.setLineDash([px(6), px(4)]);
+    ctx.beginPath(); ctx.moveTo(e.x, e.y); ctx.lineTo(c.tx, c.ty); ctx.stroke(); ctx.setLineDash([]); }
     ctx.strokeStyle = locked ? 'rgba(255,255,255,0.95)' : `rgba(255,120,220,${0.4 + 0.5 * f})`; ctx.lineWidth = px(2);
     if (SHOW_BLASTS) { ring(ctx, gx, gy, B.width / 2 + (1 - f) * 10); ctx.stroke(); }
   }
@@ -627,8 +643,11 @@ function drawBossExtras(ctx, m, e, now, px, labels, scale, col) {
       ctx.strokeStyle = 'rgba(255,120,220,0.35)'; ctx.lineWidth = B.width * 0.25; ctx.stroke();
     }
     const fa = e.face || 0, sx = e.x + Math.cos(fa) * e.r * 0.2, sy = e.y + Math.sin(fa) * e.r * 0.2;
+    if (VIEW.fx3) { const hi = (VIEW.ts ? 0.55 : 1.4) * e.r; airBolt(sx, sy, hi, W.x, W.y, 0.1, B.width * 0.8 * fl, '#dc78ff', 0.75 * life); airBolt(sx, sy, hi, W.x, W.y, 0.1, B.width * 0.25 * fl, '#ffffff', life); }     // (GC 0.80) in 3D: from its mouth down to the ground
+    else {
     ctx.strokeStyle = `rgba(220,120,255,${0.55 * life})`; ctx.lineWidth = B.width * 1.1 * fl; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(W.x, W.y); ctx.stroke();
     ctx.strokeStyle = `rgba(255,255,255,${0.9 * life})`; ctx.lineWidth = B.width * 0.35 * fl; ctx.stroke();
+    }
     const gr = ctx.createRadialGradient(W.x, W.y, 0, W.x, W.y, B.width * 1.6);
     gr.addColorStop(0, `rgba(255,255,255,${life})`); gr.addColorStop(0.4, `rgba(255,140,230,${0.75 * life})`); gr.addColorStop(1, 'rgba(180,60,255,0)');
     ctx.fillStyle = gr; ring(ctx, W.x, W.y, B.width * 1.6); ctx.fill();

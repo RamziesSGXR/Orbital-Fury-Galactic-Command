@@ -485,6 +485,11 @@ def p_run(ph, armed):
 def p_look(): p_stand('ready'); turn('head', x=-0.32)
 def p_drink(): free(); turn('head', x=-0.15); hand('R', 'head', (-0.02, -0.13, 0.11), (-1, 0.1, -0.5))
 def p_salute(): free(); hand('R', 'head', (-0.1, -0.1, 0.2), (-1, 0.25, -0.15))
+# (GC 0.80, Ramzies: "Seaf units just appear, they should parachute down") hanging under a canopy: the rifle slung, both hands up
+# on the risers above the shoulders, the elbows out; legs together and a little bent, ready for the ground
+def p_hang():
+    free(); turn('hip.L', x=-0.2, y=0.02); turn('knee.L', x=0.34); turn('hip.R', x=-0.2, y=-0.02); turn('knee.R', x=0.34)
+    hand('R', 'torso', (-0.27, 0.03, 0.86), (-1, 0, 0.1)); hand('L', 'torso', (0.27, 0.03, 0.86), (1, 0, 0.1))
 def p_heart(): free(); hand('R', 'torso', (0.07, -0.17, 0.33), (-0.7, -0.2, -1))
 def p_mourn(): free(); turn('head', x=0.45); turn('torso', x=0.06); hand('R', 'pelvis', (-0.03, -0.17, 0.0), (-1, 0.2, 0)); hand('L', 'pelvis', (0.03, -0.17, 0.0), (1, 0.2, 0))
 def p_work(i):
@@ -500,6 +505,7 @@ def frames(armed):
         F['fire'] = p_fire; F['kfire'] = p_kfire; F['duck'] = p_duck; F['peek'] = lambda: p_duck(1.0)     # (GC 0.50)
         F['sit'] = p_sit     # (GC 0.72)
         F['throw0'] = lambda: p_throw(0); F['throw1'] = lambda: p_throw(1)
+        F['hang'] = p_hang     # (GC 0.80) under a parachute
         for i in range(8): F['a%d' % i] = (lambda i=i: p_walk(i / 8 * 2 * math.pi, 'aim', True))
         for i in range(8): F['m%d' % i] = (lambda i=i: p_drill(i / 8 * 2 * math.pi))
     for i in range(8): F['r%d' % i] = (lambda i=i: p_run(i / 8 * 2 * math.pi, armed))

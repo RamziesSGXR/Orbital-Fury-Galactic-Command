@@ -313,7 +313,7 @@ function updateVip(m, o, dt) {
 
 export function completeObjective(m, o) {
   if (o.done) return;
-  o.done = true; o.state = 'done';
+  o.done = true; o.state = 'done'; o.doneAt = m.t;     // (GC 0.80: when, for the intel's last burst up from the tower)
   m.sc.objective += C.score.objective;
   m.stats.objectives++;
   m.earn('objective', C.credits.objective, o.x, o.y);

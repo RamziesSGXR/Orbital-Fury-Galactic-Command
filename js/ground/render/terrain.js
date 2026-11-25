@@ -78,7 +78,10 @@ function hyps(h, out) {
 
 // relief: true draws the height and depth overlay (false colour, strong contours, hatching on slow ground).
 // sun: where the light comes from at the hour of the drop ({ lx, ly, lz }, see sky.js); north-west light when it is not given.
-export function buildTerrain(biomeId, seed, { polarity = 'white', quality = 1, relief = false, sun = null } = {}) {
+// (GC 0.80, Ramzies: "some visual glitches with shadows") land3: the land stands up in 3D and its own slopes take the sun, so its
+// picture is not shaded a second time: no terraces (they drew stripes across every slope, steps of shade that were not there)
+// and the slopes' painted light at a third of its strength (the 3D light does the rest).
+export function buildTerrain(biomeId, seed, { polarity = 'white', quality = 1, relief = false, sun = null, land3 = false } = {}) {
   const SIZE = C.world.size, W = Math.round(SIZE * quality), G = Math.round(800 * quality);
   const n = new Noise(seed ^ 0x5bd1e995);
   const T = getTerrain(biomeId, seed);
@@ -149,7 +152,7 @@ export function buildTerrain(biomeId, seed, { polarity = 'white', quality = 1, r
   // Light from the north west. Slopes are in metres of rise per metre along the ground.
   const REL = kd.relief, lx = sun ? sun.lx : -0.5, ly = sun ? sun.ly : -0.5, lz = sun ? sun.lz : 0.72, ln = Math.hypot(lx, ly, lz);
   const flat = lz / ln, per = 1 / (2 * step), tint = [0, 0, 0];
-  const TB = C.elev && C.elev.terrace && C.elev.terrace.bands ? C.elev.terrace : null;
+  const TB = !land3 && C.elev && C.elev.terrace && C.elev.terrace.bands ? C.elev.terrace : null, LIT = land3 ? 0.5 : 1.5;
   const tmp = document.createElement('canvas');
   tmp.width = tmp.height = G;
   const tctx = tmp.getContext('2d');
@@ -166,7 +169,7 @@ export function buildTerrain(biomeId, seed, { polarity = 'white', quality = 1, r
       lit = lit < -0.2 ? -0.2 : lit > 0.2 ? 0.2 : lit;      // steep faces never go black or white
       // a rough shoreline: the picture's water edge wobbles a little, never more than the cell it is built from
       const wd = D[o] + (n.v(x / 9, y / 9) - 0.5) * 0.05;
-      let g = shade(n, x, y) + lit * 1.5 + (h - 0.5) * 0.22;
+      let g = shade(n, x, y) + lit * LIT + (h - 0.5) * 0.22;
       // (0.62.10) terraces: the height cut into steps for the eye. A pixel with a higher step between it and the light lies in
       // that step's shade; one at the foot of a step that faces the light catches it. Two pixels deep for the shade, one for the light.
       if (TB && D[o] <= kd.wet) {

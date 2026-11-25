@@ -1,6 +1,6 @@
 # Orbital Fury: Galactic Command
 
-**Prototype 0.79.0.** One war, run from four posts, in one game.
+**Prototype 0.80.0.** One war, run from four posts, in one game.
 
 You found a command (a name, a livery: emblem and colours) and hold the centre of the galaxy against three enemies. Everything in
 the war is yours to run, and each part changes the others:
@@ -13,6 +13,26 @@ the war is yours to run, and each part changes the others:
 | **The base** | Found a base on the system's key world: roads, zones, and buildings that grow along them. | +35% output from the system for each charter. |
 
 A system that falls takes its station and its base with it.
+
+## What's new in 0.80: the ground fight's look, from a play of it
+
+- **Shadows**: the ground's picture no longer has terraces painted on it in 3D (they drew stripes of shade across every
+  slope) and its painted slope light is softer, since the land is lit in 3D. The land takes the shadows of what stands on it
+  but throws none of its own (its facets striped the slopes).
+- **Craters** are dug into the land itself, on the slope where they are, with a lip of thrown-up earth; everything stands in
+  them. A blast in an old crater deepens it instead of putting a new one on top. (They were ring models, level, half buried.)
+- **The supply canister**: the supply pod has our own name. LOAD CANISTER answers a supply request.
+- **Strategic intel** in place of the VIP: pull the data core out of a courier's wreck, carry it to the **uplink tower**
+  (`site_uplink`, a new model) and hold it while the intel goes up. The objective's id is still `vip`.
+- **The dropship** is made over so every part is fixed to another: the wing runs into the lift fans, the boom and fins, the
+  skids on struts, the ramp hanging from the sill, the chin gun in its ball.
+- **Infantry parachute in**: an Infantry drop holds about 50 m up and its troopers jump and come down under canopies (a
+  new `hang` pose); they are on the ground and in the fight when they land.
+- **The war beast** lumbers in on what it fights between beams (to 16 m) and gores whoever gets close; its beam, its aim
+  line and its crystal are drawn in 3D; its model's frill sits off its shoulders so its legs no longer pass through it.
+- **Down from the ship, in 3D**: the ship gun's rounds, the lance and the precision strike, the targeting laser, the ship's
+  beam, the airburst, the smoke columns, the nuke's flight, flares and the extraction beacon come out of the sky. They were
+  drawn on the ground's own picture and lay flat along it.
 
 ## What's new in 0.79: fixes from a play test
 

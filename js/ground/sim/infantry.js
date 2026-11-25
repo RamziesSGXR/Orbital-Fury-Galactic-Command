@@ -162,8 +162,8 @@ export function dropSquad(m, x = null, y = null) {
   }
   return best;
 }
-function pendingFor(m, i) { let n = 0; for (const p of m.dships) if (p.squad === i) n += p.roles.length - p.dropped; return n; }
-export function pendingTroops(m) { let n = 0; for (const p of m.dships) n += p.roles.length - p.dropped; return n; }
+function pendingFor(m, i) { let n = 0; for (const p of m.dships) if (p.squad === i) n += p.roles.length - p.dropped; for (const c of m.chutes || []) if (c.ship.squad === i) n++; return n; }     // (GC 0.80: and those still under their canopies)
+export function pendingTroops(m) { let n = (m.chutes || []).length; for (const p of m.dships) n += p.roles.length - p.dropped; return n; }
 
 // ---------------------------------------------------------------- orders
 // (0.54) an order of any kind, or this, counts as the squad being directed (the test bot uses it to stay sharp).
@@ -368,9 +368,42 @@ export function dshipGun(m, p, dt) {
   fireShot(m, p, e, { dmg: P.gunDmg * m.kitDmg, acc: P.gunAcc, splash: P.gunSplash, mult: PEL_MULT }, 'squad', 'a', 'dship');
 }
 
+// (GC 0.80) whether a dropship's load comes down by parachute: an Infantry drop (not a crate, not a pickup)
+const jumps = (p) => !!(p.roles.length && !p.cargo && !p.pick);
+// (GC 0.80) A trooper under his canopy: where he is at time t (x, y, metres up) and how open the canopy is (0 to 1). He falls free
+// for the first sixth of the time, losing a third of his height, then the canopy opens and lets him down the rest at a walk's pace.
+export function chuteAt(c, t) {
+  const u = Math.max(0, Math.min(1, (t - c.t0) / c.dur)), h = u < 0.16 ? c.h0 * (1 - 0.34 * (u / 0.16) ** 2) : c.h0 * 0.66 * (1 - (u - 0.16) / 0.84);
+  return { x: c.x0 + (c.x - c.x0) * u, y: c.y0 + (c.y - c.y0) * u, h, open: Math.max(0, Math.min(1, (u - 0.12) / 0.1)), u };
+}
+// they land: each becomes a trooper on the ground; when the last of a dropship's load is down, the squad is told and takes its orders
+function updateChutes(m) {
+  const L = m.chutes; if (!L || !L.length) return;
+  for (let i = L.length - 1; i >= 0; i--) {
+    const c = L[i]; if (m.t < c.t0 + c.dur) continue;
+    L.splice(i, 1);
+    const p = c.ship, a = m.addAlly('S', c.x, c.y, { role: c.role }); a.sq = p.squad; a.face = c.face;
+    m.emit('dship_drop', { x: a.x, y: a.y, role: c.role });
+    if (p.dropped >= p.roles.length && !L.some((q) => q.ship === p)) landed(m, p);
+  }
+}
+function landed(m, p) {
+  m._refreshAlive();
+  const n = p.roles.length, c = (r) => p.roles.filter((q) => q === r).length;
+  const extra = [c('spec') ? tr('n.pSpec') : '', c('medic') ? tr('n.pMedic') : ''].filter(Boolean).join(' ');
+  m.notice(tr('n.infantryDown', { n, extra: extra ? ' ' + extra : '', sq: p.squad + 1 }), 'info');
+  m.radio(COMMS.infantryLanded, 'land', 0);
+  // (0.62.8) only if the player has not ordered the squad somewhere since the Dropship was called: the landing order used
+  // to replace his, so a squad told to move while its last troopers were still coming down set off and then stopped
+  if (p.hold && m.infantry.squads[p.squad] && (!p.holdOrder || m.infantry.squads[p.squad].order === p.holdOrder)) dropHold(m, m.infantry.squads[p.squad], p.tx, p.ty);
+  const s = m.infantryAlive.filter((a) => a.sq === p.squad).pop();
+  if (s) bark(m, s, 'land', '');
+}
+
 export function updateDropships(m, dt) {
   const P = C.dship, ps = m.dships;
   cargoNext(m);
+  updateChutes(m);
   for (let i = ps.length - 1; i >= 0; i--) {
     const p = ps[i];
     if (p.state === 'in') {
@@ -378,9 +411,10 @@ export function updateDropships(m, dt) {
       const k = Math.min(1, (m.t - (p.t0 ?? m.t)) / P.inSec), e = 1 - (1 - k) ** 3;
       p.x = (p.sx ?? p.x) + (p.tx - (p.sx ?? p.x)) * e; p.y = (p.sy ?? p.y) + (p.ty - (p.sy ?? p.y)) * e;
       if (p.sx === undefined) { p.sx = p.x; p.sy = p.y; }
-      p.alt = 0.3 + 1.3 * (1 - k) ** 2;
+      const A = jumps(p) ? P.jumpAlt : 0.3;     // (GC 0.80) an Infantry drop stays high: they jump
+      p.alt = A + 1.3 * (1 - k) ** 2;
       if (k >= 1) {
-        p.state = 'hover'; p.x = p.tx; p.y = p.ty; p.alt = 0.3; p.hoverT = P.workSec;
+        p.state = 'hover'; p.x = p.tx; p.y = p.ty; p.alt = A; p.hoverT = P.workSec;
         const n = p.roles.length;
         p.dropT = p.cargo ? P.workSec * 0.45 : p.pick ? 0.25 : 0.3; p.dropEvery = n ? (P.workSec * 0.8) / n : 0.3;
         m.emit('dship_arrive', { x: p.x, y: p.y, evac: !!p.evac, pick: !!p.pick });
@@ -398,26 +432,14 @@ export function updateDropships(m, dt) {
         if (p.cargo.landed && p.hoverT <= 0) { p.state = 'out'; p.outT = 0; }
         continue;
       }
-      // (0.46) the whole load gets off at once (it used to be one trooper at a time over the dship's work time)
+      // (0.46) the whole load gets off at once (it used to be one trooper at a time over the dship's work time). (GC 0.80) They
+      // jump, one after another, and come down under canopies (updateChutes): a trooper is on the ground when he lands
       while (p.dropped < p.roles.length && p.dropT <= 0) {
-        const role = p.roles[p.dropped++], ang = m.rng.angle(), d = m.rng.range(4, 12);
-        const a = m.addAlly('S', p.x + Math.cos(ang) * d, p.y + Math.sin(ang) * d, { role });
-        a.sq = p.squad;
-        m.emit('dship_drop', { x: a.x, y: a.y, role });
+        const i = p.dropped, role = p.roles[p.dropped++], ang = m.rng.angle(), d = m.rng.range(4, 12);
+        const lz = m.terrain.nearestLand(p.x + Math.cos(ang) * d, p.y + Math.sin(ang) * d);
+        (m.chutes ||= []).push({ role, ship: p, x0: p.x + m.rng.range(-1.5, 1.5), y0: p.y + m.rng.range(-1.5, 1.5), x: lz.x, y: lz.y, t0: m.t + i * P.jumpGap, dur: P.chuteSec, h0: 6 + p.alt * 46 - 3, face: m.rng.angle() });
       }
-      if (p.dropped >= p.roles.length && p.hoverT <= 0) {
-        p.state = 'out'; p.outT = 0;
-        m._refreshAlive();
-        const n = p.roles.length, c = (r) => p.roles.filter((q) => q === r).length;
-        const extra = [c('spec') ? tr('n.pSpec') : '', c('medic') ? tr('n.pMedic') : ''].filter(Boolean).join(' ');
-        m.notice(tr('n.infantryDown', { n, extra: extra ? ' ' + extra : '', sq: p.squad + 1 }), 'info');
-        m.radio(COMMS.infantryLanded, 'land', 0);
-        // (0.62.8) only if the player has not ordered the squad somewhere since the Dropship was called: the landing order used
-        // to replace his, so a squad told to move while its last troopers were still coming down set off and then stopped
-        if (p.hold && m.infantry.squads[p.squad] && (!p.holdOrder || m.infantry.squads[p.squad].order === p.holdOrder)) dropHold(m, m.infantry.squads[p.squad], p.tx, p.ty);
-        const s = m.infantryAlive.filter((a) => a.sq === p.squad).pop();
-        if (s) bark(m, s, 'land', '');
-      }
+      if (p.dropped >= p.roles.length && p.hoverT <= 0) { p.state = 'out'; p.outT = 0; }
     } else {
       p.outT += dt;
       const sp = P.speed * (0.5 + 0.9 * Math.min(1, p.outT / 2));

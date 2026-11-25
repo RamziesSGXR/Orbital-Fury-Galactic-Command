@@ -183,7 +183,7 @@ const ART = {
 const TABS = [['home', 'HOME'], ['play', 'PLAY'], ['collection', 'COLLECTION'], ['career', 'CAREER'], ['store', 'STORE'], ['options', 'OPTIONS']];
 const tabName = (k) => (TABS.find((x) => x[0] === k) || [k, k === 'livery' ? 'YOUR LIVERY' : k.toUpperCase()])[1];
 let tab = 'home', optTab = 'play', playGame = null;     // playGame: the game whose saves the PLAY tab is showing
-const NEWS = { title: 'Fixes from a play test', lines: ['FOB Commander: click a zone to see how much is painted, what is going up there, or why nothing is: no room, waiting for supplies, or what it still needs. What the base is short of is on the card too.', 'FOB Commander: answering the last request on your desk clears it at once. A post played on its own keeps its name when you start a new war.', 'War: a defence fought on the ground is briefed as one (\u201cThe Molt have landed on Calis I, one of ours\u201d). A fight\u2019s spoils stop at what the stores hold. The hints bring the system they ring into view.', 'Orbital Commander: the NEXT line keeps clear of the comms panel, and the commander\u2019s list stays in sight while the accounts scroll.', 'Earlier, 0.78: FOB Commander, from your feedback.'] };
+const NEWS = { title: 'The ground fight, from your play of it', lines: ['Shadows without stripes, and craters dug into the land where they fall: no more rings piling up.', 'Strategic intel in place of the VIP: pull the data core from a wreck and upload it at a new uplink tower.', 'Infantry parachute down from their dropship, and the dropship is all of a piece.', 'The war beast closes in and gores, and its beam is in 3D; the ship gun and the orbitals come down out of the sky.', 'The supply pod is the supply canister now.', 'Earlier, 0.79: FOB Commander\'s zones explain themselves, and fixes from a play test.'] };
 // (GC 0.73) what is done with the mouse and Esc (fixed); every key below them can be changed (js/core/keys-ui.js)
 const KEYS = {
   war: [['Click a system', 'Select it; click another to send a fleet'], ['Drag, mouse wheel', 'Move and zoom the map'], ['END ROUND', 'Play out the round'], ['Esc', 'The menu']],
@@ -284,7 +284,7 @@ const optAudio = () => `<div class="oset">${orow('SOUND', seg('muted', [[false, 
   + vol('sfx', 'EFFECTS', 'Guns and blasts, alarms, buildings going up, ships docking.')
   + vol('amb', 'AMBIENCE', 'The field around you on the ground: packs, squads, fights, and the hum of the ship.')
   + vol('voice', 'VOICES', 'Your Vanguards, your Infantry and the radio.')
-  + vol('ui', 'INTERFACE', 'Clicks, the armoury\'s coins, the supply pod\'s keys.')
+  + vol('ui', 'INTERFACE', 'Clicks, the armoury\'s coins, the supply canister\'s keys.')
   + vol('music', 'MUSIC', 'The score is still being written.', true)
   + orow('IN THE BACKGROUND', seg('bgMute', [[false, 'KEEP PLAYING'], [true, 'GO QUIET']]), 'When the game is hidden or another tab is on top.')}</div>`;
 const optKeys = (k) => keysPanel(k, KEYS[k] || []);     // (GC 0.73: the keys can be changed here; controller support is still to come)

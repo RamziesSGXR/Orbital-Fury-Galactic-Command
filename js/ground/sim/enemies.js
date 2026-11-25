@@ -270,7 +270,18 @@ function segDist(px, py, x1, y1, x2, y2) {
 }
 
 // War Beast (lizard heavy): picks a target, charges for a couple of seconds with a visible line, then fires a beam.
+// (GC 0.80) and up close it gores: whoever is within reach of its horns is hit, whether or not the beam is ready
 function lizardHeavy(m, e, p, t) {
+  const G = p.gore;
+  if (G && !e.ch && t >= (e.goreAt ?? -9) + G.every) {
+    let best = null, bd = Infinity;
+    for (const a of m.alive) { if (a.dead || a.mounted || a.inside) continue; const d = Math.hypot(a.x - e.x, a.y - e.y) - (a.r || 1); if (d <= G.range && d < bd) { bd = d; best = a; } }
+    if (best) {
+      e.goreAt = t; e.aimA = Math.atan2(best.y - e.y, best.x - e.x); e.aimUntil = t + 0.6;
+      m.emit('tracer', { x: e.x, y: e.y, tx: best.x, ty: best.y, s: 'e', f: m.faction.id, k: 'H', hit: true, melee: true, snd: m.faction.id + 'H' });
+      hurtTarget(m, best, G.dmg * m.dmgMul, 'enemy', 'H', e.x, e.y);
+    }
+  }
   if (e.ch) {
     const c = e.ch;
     if (!c.tgt || c.tgt.dead) c.tgt = nearestTarget(m, e.x, e.y, Math.min(p.range, m.faction.sight * m.biome.ping));
@@ -727,6 +738,11 @@ function schoolTo(m, g, e, dt, size) {
 function ringMove(m, g, e, tgt, dt, size, atk, engaged) {
   const R = C.enemies.tactics.ring;
   if (!tgt || e.kind === 'H') {
+    // (GC 0.80) a war beast fighting does not stand off at the beam's reach: it lumbers in on what it is fighting (or the party's
+    // quarry) to `press` metres, and gores what it reaches; it stands only while it charges the beam (the update above)
+    const PB = e.kind === 'H' && !e.sub && !e.boss && C.combat.atk.lizards.H.press;
+    if (PB) { const q = e.tgt && !e.tgt.dead ? e.tgt : engaged && tgt ? tgt : null;
+      if (q) { if ((q.x - e.x) ** 2 + (q.y - e.y) ** 2 > (PB + (q.r || 0)) ** 2) moveToward(e, q.x, q.y, e.speed, dt, size); else { e.vx = 0; e.vy = 0; } return; } }
     if (e.tgt && holdHere(e)) { e.vx = 0; e.vy = 0; return; }
     if (e.tgt) { moveToward(e, e.tgt.x, e.tgt.y, e.speed, dt, size); return; }     // (0.62.2) walking into the gun it is shooting
     if (e.kind === 'H' && engaged && tgt) { moveToward(e, tgt.x, tgt.y, e.speed, dt, size); return; }

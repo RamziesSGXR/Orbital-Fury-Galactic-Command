@@ -8,9 +8,10 @@ import { drawSquadOrders, drawInfantryMark, drawStroke, drawDropships, drawMiniI
 
 import { slotStats } from '../sim/player.js';
 import { drawAllyBody, drawEnemyBody, enemyR, drawBossBody, bossR, drawTurretArt, setRelief } from './units.js';
-import { VIEW, TRUE, trueR, quietDashes } from './view.js';
+import { VIEW, TRUE, trueR, quietDashes, skyBolt, airBolt } from './view.js';
 import { drawDamage } from './sideart.js';
 import { inCover } from '../sim/cover.js';
+import { chuteAt } from '../sim/infantry.js';
 import { Ground3D } from './ground3d.js';
 import { liftUnit, dropUnit, unitShadow, shadeHex, raise, raiseUnit, setFlat, isFlat, reliefFrame, reliefClear, setElev, elevK } from './relief.js';
 import { Launch } from './launch.js';
@@ -254,7 +255,14 @@ export class Renderer {
         if (ev.r >= 3.5) fx.push({ k: 'ring', x: ev.x, y: ev.y, r: ev.r * 1.4, t0: now, life: 0.55, a: flash, col: ecol });
         if (ev.r >= 2.5) this._scorch(ev.x, ev.y, ev.r * (ev.r >= 6 ? 1 : 0.7), black);
         // (0.58) a crater. (0.62.10) It stays for the mission, as damage to the ground (the oldest go when there are more than craters.max); never in water
-        if (ev.r >= ((C.elev && C.elev.craters.minR) || 4) && !ev.acid && !(m && m.terrain && m.terrain.blocked(ev.x, ev.y))) { const cr = this.craters, mx = (C.elev && C.elev.craters.max) || 220; cr.push({ x: ev.x, y: ev.y, r: Math.min(14, ev.r * 0.5), t0: now }); if (cr.length > mx) cr.splice(0, cr.length - mx); }
+        // (GC 0.80, Ramzies: "craters ... pile needlessly up") a blast in an old crater deepens that one (a little wider, up to the
+        // largest) rather than putting a new rim on top of it: a barrage leaves a few craters, not a heap of rings
+        if (ev.r >= ((C.elev && C.elev.craters.minR) || 4) && !ev.acid && !(m && m.terrain && m.terrain.blocked(ev.x, ev.y))) {
+          const cr = this.craters, mx = (C.elev && C.elev.craters.max) || 220, r = Math.min(14, ev.r * 0.5);
+          let old = null; for (let i = cr.length - 1; i >= 0; i--) { const c = cr[i]; if ((c.x - ev.x) ** 2 + (c.y - ev.y) ** 2 < (Math.max(c.r, r) * 0.95) ** 2) { old = c; break; } }
+          if (old) old.r = Math.min(14, Math.max(old.r, r) * 1.04, Math.max(old.r, r) + 0.6);
+          else { cr.push({ x: ev.x, y: ev.y, r, t0: now }); if (cr.length > mx) cr.splice(0, cr.length - mx); }
+        }
         if (ev.r >= 10) this.shake = Math.min(12, this.shake + ev.r * 0.35);
         if (ev.sid || ev.mine) this._strikeFx(ev, now, flash);     // (0.23) each call-in looks like what it is
         break;
@@ -319,10 +327,10 @@ export class Renderer {
           // (0.61.4) more to see: each round a long bright streak down out of the sky (leaning as the shells do), and two more
           // tracers beside it that strike the ground round the mark (for show: the hit is the round's)
           const h0 = 150 + Math.random() * 70;
-          fx.push({ k: 'trc', kind: 'streak', x: gx + h0 * 0.18 + (Math.random() - 0.5) * 6, y: gy - h0, x2: gx, y2: gy, t0: now, fl: 0.09, life: 0.26, col: '#ffe9a8', w: 2.2, len: 46, hit: true, big: false, side: 'p', imp: false, d: h0 });
+          fx.push({ k: 'trc', kind: 'streak', sky: true, x: gx + h0 * 0.18 + (Math.random() - 0.5) * 6, y: gy - h0, x2: gx, y2: gy, t0: now, fl: 0.09, life: 0.26, col: '#ffe9a8', w: 2.2, len: 46, hit: true, big: false, side: 'p', imp: false, d: h0 });
           if (fx.length < 420) for (let j = 0; j < 2; j++) {
             const ox = (Math.random() - 0.5) * 7, oy = (Math.random() - 0.5) * 7, h1 = 140 + Math.random() * 90, dl = 0.02 + Math.random() * 0.05;
-            fx.push({ k: 'trc', kind: 'streak', x: gx + ox + h1 * 0.18 + (Math.random() - 0.5) * 8, y: gy + oy - h1, x2: gx + ox, y2: gy + oy, t0: now + dl, fl: 0.09, life: 0.24, col: '#ffd27a', w: 1.4, len: 38, hit: false, big: false, side: 'p', imp: false, d: h1 });
+            fx.push({ k: 'trc', kind: 'streak', sky: true, x: gx + ox + h1 * 0.18 + (Math.random() - 0.5) * 8, y: gy + oy - h1, x2: gx + ox, y2: gy + oy, t0: now + dl, fl: 0.09, life: 0.24, col: '#ffd27a', w: 1.4, len: 38, hit: false, big: false, side: 'p', imp: false, d: h1 });
           }
           if (Math.random() < 0.18) this._mark(gx, gy, 0.5, black);
         }
@@ -514,7 +522,7 @@ export class Renderer {
       if (this._g3 && this._g3.props) this._g3.props.setAccent(pal.enemy);
       for (const o of m.objectives || []) {
         if (o.type === 'nuke') put('site_silo', o.x, o.y, 14, turn(o));     // (0.52) the launch site at its true size: an apron 28 m across, not four fifths of the ground to be held (72 m, with a missile 17 m thick that hid whoever held it)
-        else if (o.type === 'vip') { if (!o.picked) put('site_crash', o.x, o.y, 7.5, ((o.x * 7 + o.y) | 0) % 6.28); put('site_pad', o.dx, o.dy, 11.5, 0); }     // (0.52: the wreck is the size of the shuttle that flies, 16 m)
+        else if (o.type === 'vip') { if (!o.picked) put('site_crash', o.x, o.y, 7.5, ((o.x * 7 + o.y) | 0) % 6.28); put('site_uplink', o.dx, o.dy, 11, Math.atan2(o.x - o.dx, o.y - o.dy)); }     // (0.52: the wreck is the size of the shuttle that flies, 16 m) (GC 0.80: the intel's uplink tower, 22 m to the top of its aerial, its terminal toward the wreck)
         else if (o.type === 'evac' && o.hx != null) {     // (GC 0.64) the shelter and the hangar are FOB Commander's own: the Emergency Operations Bunker, its door to the hangar, and a Vehicle Bay open toward it
           const a = Math.atan2(o.hy - o.sy, o.hx - o.sx), ux = Math.cos(a), uy = Math.sin(a);
           if (Math.abs(o.sx - cx) < half + 30 && Math.abs(o.sy - cy) < half + 30) out.push({ k: 'bld:eob', key: 'evac-s', x: o.sx, y: o.sy, s: 4.2, rot: Math.PI / 2 - a });
@@ -570,7 +578,8 @@ export class Renderer {
     for (const a of m.assets || []) if (a.kind === 'turret' && !a.dead && near(a)) out.push({ k: 'aturret', x: a.x, y: a.y, s: 1.5, rot: face(a.face), tint: hit(a), flash: fl(a) });
     // (0.72) a burrow heaving up out of the ground and open, and the earth thrown up round every crater: models, not paint
     if (VIEW.m3.has('prop_bughole')) for (const b of m.breaches) if (!b.dead && b.kind === 'hole' && near(b)) { const w = t < b.warnUntil ? Math.max(0, 1 - (b.warnUntil - t) / C.reinf.bugs.warnSec) : 1; out.push({ k: 'bughole', x: b.x, y: b.y, s: b.r * (0.35 + 0.65 * w), h: b.r * 0.9 * w + 0.05, rot: (b.id || 1) * 1.7, tint: hit(b), flash: fl(b) }); }
-    if (VIEW.m3.has('prop_crater')) { const ct = EARTH[m.biome.id] || EARTH.grass; for (const c of this.craters) if (c.r > 0.8 && near(c)) out.push({ k: 'crater', x: c.x, y: c.y, s: c.r * 1.02, h: c.r * 0.4, rot: c.x * 0.37, tint: ct, dim: 0.8 }); }     // (the earth thrown up, not rock)
+    // (GC 0.80) no rim models for craters any more: a crater is dug into the land itself (ground3d.js y(), from _dents) and its
+    // scorched bowl and lit lip are painted on the sheet over it, so it lies on the slope where it is
     // (0.72) the enemy capital's curtain walls, keep to each outer base (they were lines painted on the ground): in two lengths
     // with a gap in the middle to go through, standing while both ends do and thrown down to a low heap once either falls
     if (VIEW.m3.has('prop_fortwall')) {
@@ -628,6 +637,7 @@ export class Renderer {
     // (GC 0.18) the land in 3D, when the camera asks for it and the machine can do it; without it, the turned sheet of 0.16
     if (cam.g3d && this._g3 === undefined) { try { this._g3 = new Ground3D(cam.livery); } catch (err) { console.warn('3D ground unavailable', err); this._g3 = null; } }
     const g3 = cam.g3d ? this._g3 : null; this._g3on = false; VIEW.p3 = !!(g3 && g3.props); { const RL = this._rl || (this._rl = []); RL.length = 0; this._rings = g3 && g3.fx ? RL : null; } VIEW.sh = !!(g3 && g3.units);     // (0.52) in 3D the sun's own shadows, always: at low quality their map is smaller, but the old drawn shadows never come back beside models     // (GC 0.38) sh: the sun throws real shadows this frame
+    if (g3 && g3.gun && g3.at) { const dx = g3.gun.x - g3.at.camX, dy = g3.gun.z - g3.at.camY, l = Math.hypot(dx, dy); if (l > 1) { VIEW.sky.x = dx / l; VIEW.sky.y = dy / l; } }     // (GC 0.80) which way the ship hangs, for what comes down from it
     const U3 = this._u3 || (this._u3 = []); U3.length = 0; const u3 = g3 && g3.units ? U3 : null;
     const D3 = this._d3 || (this._d3 = []), S3 = this._s3l || (this._s3l = []), B3 = this._b3 || (this._b3 = []); D3.length = S3.length = B3.length = 0; this._s3 = u3 ? S3 : null; const X3 = this._x3l || (this._x3l = []); X3.length = 0; this._x3 = u3 && g3.fx ? X3 : null; VIEW.air = u3; VIEW.drops = u3 ? D3 : null; const T3 = this._t3l || (this._t3l = []), O3 = this._o3l || (this._o3l = []), DM3 = this._dm3l || (this._dm3l = []); T3.length = O3.length = DM3.length = 0; this._t3 = this._x3 ? T3 : null; this._o3 = this._x3 ? O3 : null; this._dm3 = this._x3 ? DM3 : null; const SM3 = this._sm3l || (this._sm3l = []); SM3.length = 0; this._sm3 = this._x3 ? SM3 : null; VIEW.fx3 = this._x3 ? { orbs: O3, bolts: T3, puffs: SM3 } : null;     // (GC 0.25) the troops' fire, what is lobbed, the shields     // (GC 0.22) what falls, the ship's shells, the strobes     // (GC 0.20) who stands up in 3D this frame, and is not drawn on the sheet
     let real = null;
@@ -771,12 +781,12 @@ export class Renderer {
     { const l0 = VIEW.loud; VIEW.loud = true; drawMarkers(ctx, m, now, px, labels, scale, outl); VIEW.loud = l0; }     // (the player's own strikes and pods coming down)
     for (const bm of m.beams) {
       if (t < bm.start) continue;
+      if (skyBolt(bm.cx, bm.cy, 700, bm.width * 0.9, '#ffb040', 0.7)) { skyBolt(bm.cx, bm.cy, 700, Math.max(0.4, bm.width * 0.25), '#ffffff', 1); VIEW.fx3.orbs.push({ x: bm.cx, y: bm.cy, up: 0.4, r: bm.width * 0.6, col: '#fff0a0', k: 0.9 }); }     // (GC 0.80) in 3D the ship's beam stands up into the sky
       const r = Math.max(bm.width / 2, px(5));
       const g = ctx.createRadialGradient(bm.cx, bm.cy, 0, bm.cx, bm.cy, r * 3);
       g.addColorStop(0, 'rgba(255,255,255,0.95)'); g.addColorStop(0.35, 'rgba(255,240,150,0.7)'); g.addColorStop(1, 'rgba(255,120,0,0)');
       ctx.fillStyle = g; ctx.beginPath(); ctx.arc(bm.cx, bm.cy, r * 3, 0, TAU); ctx.fill();
-      ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = px(2);
-      ctx.beginPath(); ctx.moveTo(bm.cx, bm.cy); ctx.lineTo(bm.cx, bm.cy - px(H)); ctx.stroke();
+      if (!VIEW.fx3) { ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = px(2); ctx.beginPath(); ctx.moveTo(bm.cx, bm.cy); ctx.lineTo(bm.cx, bm.cy - px(H)); ctx.stroke(); }
     }
 
     // Enemies: what the squad can see (full) or the player can see a little beyond that (fainter). A dark halo keeps
@@ -877,6 +887,15 @@ export class Renderer {
     drawRevealed(ctx, m, now, px, pal.enemy);
     drawFlares(ctx, m, now, px, labels, scale, pal);
 
+    // (GC 0.80, Ramzies: "Seaf units just appear, they should parachute down") Infantry coming down under their canopies: in 3D each
+    // hangs from his risers under an open canopy; flat, a canopy seen from above with him a dot under it
+    for (const c of m.chutes || []) {
+      if (t < c.t0) continue; const q = chuteAt(c, t); if (!onScr(q.x, q.y, 12)) continue;
+      if (u3) { const r3 = VIEW.ts ? TRUE.man : Math.max(1.9, px(5)) * 1.1; u3.push({ k: 'inf', x: q.x, y: q.y, r: r3, face: c.face + Math.sin(t * 0.9 + c.face) * 0.4, tint: null, lod: false, pose: 'hang', up: q.h }); if (VIEW.drops) VIEW.drops.push({ x: q.x, y: q.y, man: true, h: q.h, open: q.open, tint: '#c9c3ad' }); continue; }
+      ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.beginPath(); ctx.arc(q.x + q.h * 0.2, q.y + q.h * 0.15, 1.2 + 2 * q.open, 0, TAU); ctx.fill();
+      if (q.open > 0) { ctx.fillStyle = 'rgba(214,208,186,0.92)'; ctx.beginPath(); ctx.arc(q.x, q.y - q.h * 0.3, Math.max(px(4), 3.2) * q.open, 0, TAU); ctx.fill(); ctx.strokeStyle = 'rgba(60,60,52,0.8)'; ctx.lineWidth = px(1); ctx.stroke(); }
+      ctx.fillStyle = pal.ally; ctx.beginPath(); ctx.arc(q.x, q.y - q.h * 0.3 + px(5), Math.max(px(2.2), 0.9), 0, TAU); ctx.fill();
+    }
     // Allies: blue infrared strobes. Vanguards wear a ring in their group's color; Infantry wear their squad's color and a role mark.
     const infantryMulti = squadsInUse(m) > 1 || m.infantry.sel >= 0;
     for (const a of m.alive) {
@@ -1003,7 +1022,7 @@ export class Renderer {
     if (real) {     // lay the turned world on the screen
       const wc = this._wc, S = this.W; this.ctx = real.ctx; this.W = real.W; this.H = real.H; this.focusY = real.focusY; this._real = null; ctx = this.ctx; W = this.W; H = this.H;
       ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
-      if (g3) { const t0 = performance.now(); g3.frame({ sheet: wc, S, scale, camX: v.camX, camY: v.camY, yaw: cam.yaw, tilt: cam.tilt || cam.passTilt, W, H, fy: this.focusY || 0.5, sun: this._sun, hue: this._hue, height: (x, y) => m.terrain.height(x, y), blocks: this._blocks(m, v.camX, v.camY, S / scale / 2), props: VIEW.p3 ? this._props(m, v.camX, v.camY, S / scale / 2, pal) : null, lit: 1, dark: this._dark > 0.005 ? this.light.mask : this.fog, haze: this._dark > 0.005 ? null : HAZE.map((c) => (c / 255) ** 2.2), /* (0.52) the models take the night from the same mask as the ground, light by light: not one dimmer for all of them */ units: U3, drops: D3, shells: S3, strobes: B3, blasts: X3, bolts: T3, orbs: O3, domes: DM3, puffs: SM3, hot: cam.sight === 'whot' || cam.sight === 'bhot', pixel: cam.pixel || 0, gunUp: VIEW.ts ? 1.4 : 3.6, rings: this._rings, sight: cam.sight, topo: !!cam.topo, det: ({ ice: 0.45, city: 0.6, desert: 0.8, moon: 0.85 })[m.biome.id] ?? 1, ground: this.groundCv, groundRev: this.groundRev || 0, size: SIZE, post: !(this.quality === 'low' || this.perf.low), shadows: VIEW.sh, shadowRes: this.quality === 'low' || this.perf.low ? 1024 : (this.perf.tier || 0) >= 1 ? 2048 : 4096 });
+      if (g3) { const t0 = performance.now(); g3.frame({ sheet: wc, S, scale, camX: v.camX, camY: v.camY, yaw: cam.yaw, tilt: cam.tilt || cam.passTilt, W, H, fy: this.focusY || 0.5, sun: this._sun, hue: this._hue, height: (x, y) => m.terrain.height(x, y), blocks: this._blocks(m, v.camX, v.camY, S / scale / 2), props: VIEW.p3 ? this._props(m, v.camX, v.camY, S / scale / 2, pal) : null, lit: 1, dark: this._dark > 0.005 ? this.light.mask : this.fog, haze: this._dark > 0.005 ? null : HAZE.map((c) => (c / 255) ** 2.2), /* (0.52) the models take the night from the same mask as the ground, light by light: not one dimmer for all of them */ dents: this._dents(v.camX, v.camY, S / scale / 2 + 20), units: U3, drops: D3, shells: S3, strobes: B3, blasts: X3, bolts: T3, orbs: O3, domes: DM3, puffs: SM3, hot: cam.sight === 'whot' || cam.sight === 'bhot', pixel: cam.pixel || 0, gunUp: VIEW.ts ? 1.4 : 3.6, rings: this._rings, sight: cam.sight, topo: !!cam.topo, det: ({ ice: 0.45, city: 0.6, desert: 0.8, moon: 0.85 })[m.biome.id] ?? 1, ground: this.groundCv, groundRev: this.groundRev || 0, size: SIZE, post: !(this.quality === 'low' || this.perf.low), shadows: VIEW.sh, shadowRes: this.quality === 'low' || this.perf.low ? 1024 : (this.perf.tier || 0) >= 1 ? 2048 : 4096 });
         if (!g3.sighted) ctx.filter = cam.sight === 'whot' ? 'grayscale(1) brightness(1.3) contrast(1.15)' : cam.sight === 'bhot' ? 'grayscale(1) brightness(1.3) invert(1) contrast(1.12)' : 'none';     // (only where the graphics card could not put the sight on itself)
         ctx.drawImage(g3.cv, 0, 0); ctx.filter = 'none'; this._g3on = true; this.t3 = (this.t3 || 0) + (performance.now() - t0 - (this.t3 || 0)) * 0.08; }     // (the sight: infrared white-hot, black-hot, or plain colour)
       else { ctx.translate(v.px, v.py); ctx.rotate(cam.yaw); ctx.drawImage(wc, -S / 2, -S / 2); }
@@ -1433,6 +1452,7 @@ export class Renderer {
       case 'column': {
         // a column of smoke climbing out of a big blast
         const a = p < 0.2 ? p / 0.2 : (1 - p), lift = f.r * 4 * p;
+        if (this._sm3) { for (let k = 0; k < 4; k++) this._sm3.push({ x: f.x, y: f.y, r: f.r * (0.7 + 0.5 * p + 0.25 * k) * 0.8, up: lift * (k / 3), p: Math.min(0.98, 0.25 + p * 0.75), col: '#302a26' }); return true; }     // (GC 0.80) in 3D: smoke that climbs, not a smear to the north
         for (let k = 0; k < 4; k++) {
           const yk = f.y - lift * (k / 3), R = f.r * (0.7 + 0.5 * p + 0.25 * k);
           const g = ctx.createRadialGradient(f.x, yk, 0, f.x, yk, R);
@@ -1444,6 +1464,7 @@ export class Renderer {
       case 'skybeam': {
         // a streak from high above onto the spot (a lance round, a precision shell)
         const top = 700, x0 = f.x + top * 0.18, y0 = f.y - top, a = (f.a ?? 1) * (1 - p), w = Math.max(f.r, px(2));
+        if (skyBolt(f.x, f.y, top, Math.min(4, f.r * 1.1), `rgb(${f.col})`, 0.6 * a)) { skyBolt(f.x, f.y, top, Math.min(1.2, f.r * 0.3), '#ffffff', a); return true; }     // (GC 0.80) in 3D: down out of the sky, not along the ground
         ctx.lineCap = 'round';
         ctx.strokeStyle = `rgba(${f.col},${0.35 * a})`; ctx.lineWidth = w * 2.6; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(f.x, f.y); ctx.stroke();
         ctx.strokeStyle = `rgba(255,255,255,${0.95 * a})`; ctx.lineWidth = w * 0.8; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(f.x, f.y); ctx.stroke();
@@ -1453,6 +1474,7 @@ export class Renderer {
       case 'flak': {
         // a burst above the ground: a flash, then a dark puff that hangs
         const a = f.a ?? 1;
+        if (VIEW.fx3) { const up = 7 + f.r * 0.9; if (p < 0.25) VIEW.fx3.orbs.push({ x: f.x, y: f.y + f.r * 0.6, up, r: f.r * 0.45 * (1 - p * 2), col: '#ffe8b0', k: a }); if (this._sm3) this._sm3.push({ x: f.x, y: f.y + f.r * 0.6, r: f.r * (0.6 + 0.6 * p) * 0.7, up: up - f.r * 0.3, p: Math.min(0.98, 0.2 + p * 0.8), col: '#2a2624' }); return true; }     // (GC 0.80) in 3D: in the air over the spot (y was moved up the screen to look high)
         if (p < 0.25) { const g = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, f.r); g.addColorStop(0, `rgba(255,240,200,${0.95 * a})`); g.addColorStop(1, 'rgba(255,150,40,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, TAU); ctx.fill(); }
         const R = f.r * (0.6 + 0.6 * p); ctx.fillStyle = `rgba(40,36,34,${0.5 * (1 - p)})`; ctx.beginPath(); ctx.arc(f.x, f.y, R, 0, TAU); ctx.fill();
         return true;
@@ -1500,11 +1522,17 @@ export class Renderer {
   // (0.58) What is left on the ground: a crater where each big blast landed (a dark bowl, its rim lit on one side), fading over
   // its life; and footprints where anyone in sight walks, a print every stride, fading in FP_LIFE seconds. Bugs leave rows of
   // little claw dots, bots square treads, lizards three-toed prints, ours boot prints.
+  // (GC 0.80) the craters near the view, for the land to be dug: [x, y, radius, depth] in a row, each growing to its depth as it is made
+  _dents(cx, cy, half) {
+    const out = this._dl || (this._dl = []); out.length = 0; const now = this._now ?? 0;
+    for (let i = this.craters.length - 1; i >= 0 && out.length < 200; i--) { const c = this.craters[i]; if (Math.abs(c.x - cx) > half + c.r * 1.6 || Math.abs(c.y - cy) > half + c.r * 1.6) continue; out.push(c.x, c.y, c.r, c.r * 0.17 * Math.min(1, Math.max(0.2, (now - c.t0) * 4))); }
+    return out;
+  }
   _prints(ctx, m, now, px, onScr) {
     // (0.62.10) Craters are lit the way the ground is: by the hour's sun, in the biome's own light and dark. A bowl: its wall
     // on the sun's side is in shade and the far wall catches the light; the lip thrown up round it is the other way about,
     // and throws a little shadow beyond. Laid over the ground see-through, so the hour's tint shows in them too.
-    const cr = this.craters;
+    const cr = this.craters; this._now = now;
     if (cr.length) {
       const K = (C.elev && C.elev.craters) || { rim: 0.5, depth: 0.55 }, S = this._sun || { lx: -0.55, ly: -0.4, k: 1 };
       const th = Math.atan2(S.ly, S.lx), ux = Math.cos(th), uy = Math.sin(th), pc = propCols(m.biome.id);
@@ -1516,7 +1544,7 @@ export class Renderer {
         const g = ctx.createRadialGradient(c.x + ux * r * 0.22, c.y + uy * r * 0.22, 0, c.x, c.y, r);
         g.addColorStop(0, `rgba(${dk},${0.8 * d})`); g.addColorStop(0.65, `rgba(${dk},${0.5 * d})`); g.addColorStop(1, `rgba(${dk},0)`);
         ctx.fillStyle = g; ctx.beginPath(); ctx.arc(c.x, c.y, r, 0, TAU); ctx.fill();
-        if (r < px(3) || (VIEW.p3 && VIEW.m3.has('prop_crater') && r > 0.8)) continue;     // too small on screen for more than the bowl (0.72: in 3D the rim is a model)
+        if (r < px(3)) continue;     // too small on screen for more than the bowl (GC 0.80: in 3D too: the bowl and its lip lie on the dug ground)
         // the wall: one ring, shaded on the sun's side and lit on the far side; the lip: a thinner ring the other way about
         const wx = ux * r, wy = uy * r;
         let lg = ctx.createLinearGradient(c.x + wx, c.y + wy, c.x - wx, c.y - wy);
@@ -1650,6 +1678,9 @@ export class Renderer {
         ctx.strokeStyle = `rgba(215,225,218,${0.5 * (1 - p)})`; ctx.lineWidth = px(1.2);
         ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (0.3 + p), 0, TAU); ctx.stroke();
       } else if (f.k === 'beam') {
+        // (GC 0.80, Ramzies: "war beast weapons appears only in 2d") in 3D the beam goes from the crystal on its back, over the ground, to
+        // where it struck: a coloured glow round a white core
+        if (VIEW.fx3) { const hi = VIEW.ts ? 2.6 : 7, lo = VIEW.ts ? 1.1 : 3; airBolt(f.x, f.y, hi, f.x2, f.y2, lo, f.w * (0.6 - p * 0.3), f.col, 0.9 * (1 - p)); airBolt(f.x, f.y, hi, f.x2, f.y2, lo, f.w * 0.18 * (1 - p * 0.6), '#ffffff', 1 - p); VIEW.fx3.orbs.push({ x: f.x2, y: f.y2, up: lo, r: f.w * 0.4 * (1 - p), col: f.col, k: 1 - p }); continue; }
         const wd = Math.max(f.w * (1 - p * 0.6), px(2));
         ctx.lineCap = 'round';
         ctx.strokeStyle = this._rgba(f.col, 0.35 * (1 - p)); ctx.lineWidth = wd * 2.2; ctx.beginPath(); ctx.moveTo(f.x, f.y); ctx.lineTo(f.x2, f.y2); ctx.stroke();
@@ -1659,10 +1690,12 @@ export class Renderer {
         // a column of light out of the sky (leaning, as from a ship far off), white at the core, the host's violet round it; a hot
         // orange disc where it lands, fading to a glow
         const on = p < 0.55 ? 1 : (1 - p) / 0.45, top = 900, x0 = f.x + top * f.lean, y0 = f.y - top, w = f.r * (0.55 + 0.2 * Math.sin(now * 40));
+        if (!(skyBolt(f.x, f.y, top, w * 1.6, '#b478ff', 0.7 * on) && skyBolt(f.x, f.y, top, w * 0.5, '#fff8ff', on))) {     // (GC 0.80) in 3D: down out of the sky
         ctx.lineCap = 'round';
         ctx.strokeStyle = `rgba(180,120,255,${0.32 * on})`; ctx.lineWidth = w * 2.4; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(f.x, f.y); ctx.stroke();
         ctx.strokeStyle = `rgba(255,248,255,${0.9 * on})`; ctx.lineWidth = w * 0.7; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(f.x, f.y); ctx.stroke();
         ctx.lineCap = 'butt';
+        }
         const R = f.r * (1.2 + 1.3 * p), g = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, R);
         g.addColorStop(0, `rgba(255,250,230,${0.95 * on})`); g.addColorStop(0.4, `rgba(255,170,70,${0.75 * (1 - p)})`); g.addColorStop(1, 'rgba(255,90,20,0)');
         ctx.fillStyle = g; ctx.beginPath(); ctx.arc(f.x, f.y, R, 0, TAU); ctx.fill();
@@ -1697,6 +1730,7 @@ export class Renderer {
       } else if (f.k === 'paint') {
         // the targeting laser: a flickering line from high above down onto the mark, and a hot dot where it lands
         const on = p < 0.75 ? 1 : (1 - p) / 0.25, fl = 0.7 + 0.3 * Math.sin(now * 60), top = 240;
+        if (skyBolt(f.x, f.y, top, 0.14, '#ff4630', 0.9 * on * fl * (f.a ?? 1))) { VIEW.fx3.orbs.push({ x: f.x, y: f.y, up: 0.15, r: 0.35, col: '#ff5a46', k: on * fl }); continue; }     // (GC 0.80) in 3D: the laser comes down from the ship
         const g = ctx.createLinearGradient(f.x, f.y - top, f.x, f.y);
         g.addColorStop(0, 'rgba(255,60,40,0)'); g.addColorStop(1, `rgba(255,70,50,${0.85 * on * fl * (f.a ?? 1)})`);
         ctx.strokeStyle = g; ctx.lineWidth = px(2.2); ctx.beginPath(); ctx.moveTo(f.x + top * 0.18, f.y - top); ctx.lineTo(f.x, f.y); ctx.stroke();
@@ -1761,6 +1795,12 @@ export class Renderer {
       const T = sh.at - sh.t0, u = Math.max(0, Math.min(1, (t - sh.t0) / T));
       if (u >= 1) continue;
       const dx = sh.x - sh.sx, dy = sh.y - sh.sy, d = Math.hypot(dx, dy), H = Math.max(240, d * 0.55);
+      if (VIEW.fx3) {     // (GC 0.80) in 3D: the missile up in the air on its arc, its trail of smoke hanging behind it
+        const pt = (v) => { const g = v * v * (1.6 - 0.6 * v); return { x: sh.sx + dx * g, y: sh.sy + dy * g, h: H * Math.sin(Math.PI * Math.min(1, v)) }; }, P0 = pt(u), fl = 0.8 + 0.2 * Math.sin(now * 40);
+        VIEW.fx3.orbs.push({ x: P0.x, y: P0.y, up: P0.h + 1, r: 1.6, col: '#fff6e0' }, { x: P0.x, y: P0.y, up: P0.h + 1, r: 4 * fl, col: '#ff9a40', k: 0.55 });
+        if (this._sm3) for (let i = 0; i < 16; i++) { const v = Math.max(0, u - 0.45 + (0.45 * i) / 16), q = pt(v), age = 1 - i / 16; this._sm3.push({ x: q.x, y: q.y, r: 3 + 7 * age, up: q.h, p: Math.min(0.95, 0.15 + 0.75 * age), col: '#d8d4cc' }); }
+        continue;
+      }
       // along the ground it starts slow and ends fast (boost, then the dive); up, a high arc
       const at = (v) => { const g = v * v * (1.6 - 0.6 * v), h = H * Math.sin(Math.PI * Math.min(1, v)); return { x: sh.sx + dx * g + h * 0.18, y: sh.sy + dy * g - h, h }; };
       // the launch: smoke round the pad, thinning out over the flight
@@ -1821,9 +1861,9 @@ export class Renderer {
 
   _drawTracer(ctx, f, now, px) {
     const tt = now - f.t0, hp = Math.min(1, tt / Math.max(0.001, f.fl)), black = this.settings.polarity === 'black';
-    const dx = f.x2 - f.x, dy = f.y2 - f.y, d = f.d;
+    const dx = f.x2 - f.x, dy = f.y2 - f.y, d = f.d, sky = f.sky && this._s3;     // (GC 0.80) sky: a ship gun round, in 3D falling from the ship
     // (0.38) the muzzle flash: a star at the gun for a few frames, pointing where it fired (a bug's spit has none)
-    if (tt < 0.06 && f.kind !== 'slash' && f.kind !== 'glob' && f.kind !== 'zap') {
+    if (tt < 0.06 && !sky && f.kind !== 'slash' && f.kind !== 'glob' && f.kind !== 'zap') {
       const q = 1 - tt / 0.06, s = Math.max(f.big ? 4.2 : 2.4, px(f.big ? 9 : 5)) * (0.7 + 0.3 * q), ang = Math.atan2(dy, dx);
       const core = f.side === 'e' ? f.col : '#ffe9b0';
       if (this._o3) { const fd = f.tall ? 2.8 : VIEW.ts ? 0.75 : 1.6; this._o3.push({ x: f.x + dx / (d || 1) * fd, y: f.y + dy / (d || 1) * fd, up: f.tall ? (VIEW.ts ? 3.2 : 7) : VIEW.ts ? 1.32 : 4.6, r: (f.big || f.tall ? 0.2 : 0.09) * (0.5 + 0.5 * q) * (VIEW.ts ? 1 : 2.4), col: f.side === 'e' ? core : '#ffc070' }); }     /* (0.72: at the muzzle, small and brief and warm; it was a white ball the size of the man's head in front of his face) */     // (GC 0.27) in 3D the flash is at the muzzle, not on the ground. (0.72) A flash, not a glowing ball a metre across
@@ -1854,6 +1894,7 @@ export class Renderer {
       }
       else { this.fx.push({ k: 'puff', x: f.x2, y: f.y2, r: f.big ? 5 : 2.4, t0: now, life: 0.3 }); this._mark(f.x2, f.y2, f.big ? 1.1 : 0.55, black); }
     }
+    if (sky) { const after = tt - f.fl; if (after < 0.1) this._s3.push({ x: f.x2, y: f.y2, q: Math.min(1, hp), gun: true, col: f.col, tl: 110 * (after > 0 ? 1 - after / 0.1 : 1) }); return; }     // (GC 0.80) down from the ship, as the shells come: a long streak that runs into the ground
     if (f.kind === 'slash') {
       const q = Math.min(1, tt / 0.2), r = Math.max(3, px(7));
       ctx.strokeStyle = this._rgba(f.col, 0.95 * (1 - q)); ctx.lineWidth = px(f.w);

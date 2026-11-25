@@ -120,7 +120,11 @@ export const CONFIG = {
   // them from boardR. (0.40) The zone is more than twice as big (9 m before), and a pickup takes everyone standing in it, however
   // many (not just a drop's load); troops sent to it stand on its lzSlots places, in three rings.
   dship:  { speed: 92, approach: 330, inSec: 5, workSec: 3, climb: 4.5, gunRange: 66, gunEvery: 0.3, gunDmg: 30, gunSplash: 2.4, gunAcc: 0.85,
-              pickR: 20, boardR: 23, lzSlots: 24 },
+              pickR: 20, boardR: 23, lzSlots: 24,
+              // (GC 0.80, Ramzies: "Seaf units just appear, they should parachute down") an Infantry drop holds jumpAlt up (about 50 m:
+              // the dropship's height is 6 + alt x 46) and its troopers jump one after another, jumpGap seconds apart, and come down
+              // under canopies in chuteSec: a short fall first, then the canopy opens. They are on the ground (and in the fight) when they land.
+              jumpAlt: 0.95, jumpGap: 0.28, chuteSec: 4.4 },
   // Infantry specialists. A medic patches up anyone near it.
   // (0.26) a Medic heals anyone hurt within 20 m with the stim pistol (a full stim when close), and revives downed Infantry: a trooper
   // who falls with a Medic in reach goes down instead, for downSec, and is back up reviveSec after the Medic gets to work.
@@ -270,7 +274,11 @@ export const CONFIG = {
                 H: { range: 58, dmg: 50, every: 1.6, acc: 0.75, speed: 3.2, splash: 3.5 } },   // medium range cannon
       lizards: { L: { range: 30, dmg: 6,  every: 0.9, acc: 0.7 },
                 M: { range: 36, dmg: 9,  every: 0.5, acc: 0.75 },     // (0.40) an warchief's rifle: quick shots (0.53.8: 7 -> 9)
-                H: { range: 62, dmg: 120, every: 6, acc: 0.85, speed: 2.4, charge: 2.6, lock: 0.7, width: 3.2 } }, // the longest reach of any enemy: a charged beam (0.53.8: every 7 -> 6)
+                H: { range: 62, dmg: 120, every: 6, acc: 0.85, speed: 2.4, charge: 2.6, lock: 0.7, width: 3.2,     // the longest reach of any enemy: a charged beam (0.53.8: every 7 -> 6)
+                     // (GC 0.80, Ramzies: "war beast doesn't get closer to allies when fighting") it no longer stands off at the beam's
+                     // reach: between beams it lumbers in to `press` metres of what it fights, and anyone who lets it get to `gore.range`
+                     // is tossed on its horns
+                     press: 16, gore: { range: 5, dmg: 34, every: 2.4 } } },     // (gore.range: metres from its middle to the near side of whoever it gores)
     },
   },
 

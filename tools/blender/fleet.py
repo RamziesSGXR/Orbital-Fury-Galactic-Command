@@ -15,6 +15,7 @@
 #   prop_wire          barbed wire on steel posts, along a line (the ground fight's wire; FOB Commander's wire)
 #   prop_post_sam      the SAM Site;  prop_post_tower  the Propaganda Tower (ground fight)
 #   site_silo          (sites.py) the launch silo: the ground fight's nuke objective, and FOB Commander's Missile Silo
+#   site_uplink        (GC 0.80) the uplink tower where the ground fight's strategic intel is uploaded
 # ONLY (a tuple of function names) builds just those.
 import math, os, shutil
 from mathutils import Vector
@@ -251,7 +252,53 @@ def wire():
             box('tip%d%d' % (k, s), (0.07, 0.07, 0.07), (x, -s * 0.5, 1.0), m=hazard)
         box('tag%d' % k, (0.02, 0.1, 0.05), (x, 0, 0.53), m=glow if k == 1 else armor_d)
 
-BUILD = [post_arty, post_mg, post_mggun, post_lookout, site_pad, post_sam, post_tower, wire]
+# ---------------------------------------------------------------- the uplink tower (GC 0.80)
+def site_uplink():
+    # (GC 0.80, Ramzies: "VIP should change to be strategic intel, and just have a tower for uploading that intel") where the
+    # strategic intel goes up to the ship: a tapering lattice mast on an eight-sided concrete footing, a great dish near its top
+    # tipped at the sky with its feed horn on three struts, an aerial over it, cyan strips up two legs; at its foot the upload
+    # terminal (a console with a lit slot for the data core) in a crescent of barrier blocks, a cable to the mast.
+    # (one unit = about 7 m: the mast stands about three)
+    start('site_uplink')
+    o = disc('foot', 0.95, 0.06, 0, conc_d, 8); o.rotation_euler = (0, 0, R(22.5))
+    o = disc('deck', 0.5, 0.03, 0.06, armor, 8); o.rotation_euler = (0, 0, R(22.5)); chevrons('chev', 0.52, 0.06, 12, h=0.012, w=0.1)
+    H = 2.55; pts = [(-1, -1), (1, -1), (1, 1), (-1, 1)]
+    rr = lambda z: 0.36 - 0.22 * z / H
+    for k, (sx, sy) in enumerate(pts):
+        cyl('leg%d' % k, (sx * 0.36, sy * 0.36, 0.06), (sx * rr(H), sy * rr(H), H), 0.04, m=armor_d, sides=4)
+        box('shoe%d' % k, (0.14, 0.14, 0.08), (sx * 0.36, sy * 0.36, 0.1), m=armor, bevel=0.01)
+    for z0, z1 in ((0.1, 0.75), (0.75, 1.35), (1.35, 1.9), (1.9, 2.4)):
+        for i in range(4):
+            (ax, ay), (bx, by) = pts[i], pts[(i + 1) % 4]
+            cyl('x%d%d' % (z0 * 10, i), (ax * rr(z0), ay * rr(z0), z0), (bx * rr(z1), by * rr(z1), z1), 0.012, m=black, sides=4)
+            cyl('h%d%d' % (z0 * 10, i), (ax * rr(z1), ay * rr(z1), z1), (bx * rr(z1), by * rr(z1), z1), 0.016, m=armor, sides=4)
+    for k in (0, 2):
+        sx, sy = pts[k]
+        cyl('lit%d' % k, (sx * rr(0.3) * 1.04, sy * rr(0.3) * 1.04, 0.3), (sx * rr(2.3) * 1.04, sy * rr(2.3) * 1.04, 2.3), 0.012, m=glow, sides=4)
+    disc('cap', 0.2, 0.08, H, armor, 8); disc('platf', 0.3, 0.03, 2.2, plate, 8)
+    # the dish: a bowl turned up 55 degrees toward -Y, hung off the mast's top by a yoke
+    el = R(55); d = V(0, -math.cos(el), math.sin(el)); c = V(0, -0.22, H + 0.32)
+    cyl('yoke', (0, 0, H + 0.05), tuple(c - d * 0.1), 0.05, m=armor_d, sides=6)
+    loft('dish', [(tuple(c - d * 0.05), 0.06, 0.06), (tuple(c + d * 0.08), 0.34, 0.34), (tuple(c + d * 0.16), 0.56, 0.56), (tuple(c + d * 0.2), 0.62, 0.62)], sides=16, m=pale)
+    loft('dishin', [(tuple(c + d * 0.17), 0.52, 0.52), (tuple(c + d * 0.205), 0.58, 0.58)], sides=16, m=white)
+    disc_c = c + d * 0.21
+    for i in range(3):
+        a = i / 3 * TAU; side = V(math.cos(a), 0, 0) + V(0, math.sin(el), math.cos(el)) * math.sin(a)
+        cyl('strut%d' % i, tuple(disc_c + side * 0.55), tuple(disc_c + d * 0.5), 0.012, m=black, sides=4)
+    cyl('horn', tuple(disc_c + d * 0.42), tuple(disc_c + d * 0.6), 0.05, m=armor_d, sides=8, r2=0.03); ball('hornl', tuple(disc_c + d * 0.61), glow, 0.035)
+    cyl('ant', (0.12, 0.1, H + 0.05), (0.12, 0.1, H + 0.95), 0.012, m=black, sides=4); ball('anttip', (0.12, 0.1, H + 0.96), red, 0.03)
+    # the upload terminal at its foot, in front (toward -Y), and its blocks
+    ty = -0.78
+    box('tpad', (0.6, 0.4, 0.02), (0, ty, 0.07), m=armor_d)
+    box('term', (0.3, 0.16, 0.34), (0, ty, 0.24), m=armor, bevel=0.012); box('tface', (0.26, 0.02, 0.16), (0, ty - 0.085, 0.3), m=armor_d)
+    box('tscreen', (0.2, 0.012, 0.1), (0, ty - 0.096, 0.32), m=glow); box('tslot', (0.12, 0.03, 0.03), (0, ty - 0.08, 0.17), m=hazard)
+    cyl('tcable', (0, ty + 0.08, 0.075), (0, -0.3, 0.075), 0.018, m=black, sides=5)
+    for i in range(3):     # a short bow of barrier blocks in front of the terminal, on the footing's rim
+        a = R(-90) + R(26) * (i - 1); cc, ss = math.cos(a), math.sin(a)
+        box('blk%d' % i, (0.26, 0.11, 0.24), (cc * 1.02, ss * 1.02, 0.12), m=conc, bevel=0.012, rot=(0, 0, a + math.pi / 2), taper=0.86)
+        box('blkb%d' % i, (0.265, 0.115, 0.03), (cc * 1.02, ss * 1.02, 0.17), m=hazard if i % 2 == 0 else black, rot=(0, 0, a + math.pi / 2))
+
+BUILD = [post_arty, post_mg, post_mggun, post_lookout, site_pad, post_sam, post_tower, wire, site_uplink]
 OUT = {}
 for fn in BUILD:
     if 'ONLY' in globals() and ONLY and fn.__name__ not in ONLY: continue

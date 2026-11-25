@@ -7,7 +7,7 @@
 // (GC 0.50) fx3: the lists of light and smoke drawn in the air in 3D ({ orbs, bolts, puffs }; null when the picture is flat), for what flies.
 // (GC 0.51) ts: true scale. 0: people and creatures drawn far larger than life and never smaller than a few pixels (as before);
 // 1: everything at its own size (TRUE, below), shrinking with distance like the land it stands on.
-export const VIEW = { quiet: false, squad: false, loud: false, p3: false, air: null, drops: null, fx3: null, ts: 0, bars: false, m3: new Set(), sh: false };     // (GC 0.38) m3: the objectives and side sites whose models have come, so their flat drawings are left out
+export const VIEW = { quiet: false, squad: false, loud: false, p3: false, air: null, drops: null, fx3: null, ts: 0, bars: false, m3: new Set(), sh: false, sky: { x: 0.6, y: -0.8 } };     // (GC 0.38) m3: the objectives and side sites whose models have come, so their flat drawings are left out
 
 // (GC 0.51) TRUE SIZES. With VIEW.ts on, each thing is the size it would be beside a two-metre soldier, not a mark big enough
 // to pick out from orbit. `r` is half its longest side in metres (half its height, for a person).
@@ -24,6 +24,22 @@ export const TRUE = {
   prop: { crate: [0, 0.8], mine: [0, 0.3], shieldgen: [0, 1.6], aturret: [0, 0.9], 'post:mg': [0, 2.0], 'post:mggun': [0, 2.0], 'post:lookout': [0, 1.6], 'post:sam': [0.8], 'post:arty': [0.85], 'post:tower': [0.85], turret: [0.8], prop_post_arty: [0.6], site_charge: [0, 1.0] },     // [a share of its size] or [0, metres]
 };
 export const trueR = (k, r) => (VIEW.ts && TRUE.air[k] ? TRUE.air[k] : r);
+
+// (GC 0.80, Ramzies: "orbitals and ship gun can still go back to shooting as if it's a 2d plane") in 3D, a streak or a beam from
+// the ship high overhead down onto (x, y), leaning off the way the gunship hangs (VIEW.sky, a unit vector on the map, the
+// same way the shells come in): it was drawn on the ground's own sheet, so it lay flat along the land toward the north.
+// top: metres up; w: metres across; k: how bright (it fades as k goes to 0). False when the picture is not in 3D.
+export function skyBolt(x, y, top, w, col, k = 1) {
+  const F = VIEW.fx3; if (!F) return false; const d = VIEW.sky, lean = top * 0.36;
+  F.bolts.push({ x: x + d.x * lean, y: y + d.y * lean, x2: x, y2: y, up: top, up2: 0.05, w, col, k });
+  return true;
+}
+// and a beam between two things above the ground (a war beast's, or a charge line): from (x, y) up metres to (x2, y2) up2
+export function airBolt(x, y, up, x2, y2, up2, w, col, k = 1) {
+  const F = VIEW.fx3; if (!F) return false;
+  F.bolts.push({ x, y, x2, y2, up, up2, w, col, k });
+  return true;
+}
 
 // (0.52, from Orbital Fury 0.62.24/25) DASHED LINES ARE THE PLAYER'S OWN MARKS. Most dashed rings were standing information (an
 // objective's ring, a base's, a side site's, a building's reach) and with a dozen on screen they shouted over the fight. Every

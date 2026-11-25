@@ -1663,6 +1663,9 @@ body.rts #hud .hud-tr { display: flex; position: absolute; top: var(--T); right:
 body.rts #hud .hud-tr #mbox, body.rts #hud .hud-tr #objective { position: static; width: auto; left: auto; right: auto; top: auto; max-width: none; margin: 0; }
 body.rts #hud #callouts { position: static !important; display: flex; flex-direction: column; align-items: stretch; gap: 5px; margin: 0; pointer-events: none; }
 body.rts #hud #callouts .callout { pointer-events: auto; max-width: none; } body.rts #hud #callouts .callout .co-t { white-space: normal; }
+/* (GC 0.80) LOAD CANISTER is longer than LOAD POD was: a supply request's words take a line of their own and the buttons go under
+   them when the panel is narrow, rather than the words being squeezed to "SUPPL..." */
+body.rts #hud #callouts .callout.sup { flex-wrap: wrap; row-gap: 4px; } body.rts #hud #callouts .callout.sup .co-t { flex: 1 1 130px; min-width: 0; }
 /* top centre: the big alerts, in red */
 body.rts #hud #center-msg { left: var(--mL, calc(var(--L) + 300px)); right: var(--mR, calc(var(--R) + 290px)); top: var(--T); padding: 5px 12px; font-size: clamp(13px, 1.5vw, 18px); letter-spacing: 0.12em;
   color: #ffd9d4; background: rgba(150, 20, 10, 0.72); border: 1px solid rgba(255, 90, 60, 0.85); border-radius: 4px; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8); width: auto; margin: 0 auto; max-width: 640px; }

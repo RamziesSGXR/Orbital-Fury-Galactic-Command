@@ -29,7 +29,7 @@
 <script type="module">
 import { newKit, newWallet } from './js/ground/data/kit.js';
 const q = new URLSearchParams(location.search), $ = (id) => document.getElementById(id);
-const OBJ = [['fortress', 'ASSAULT A FORTRESS'], ['nuke', 'LAUNCH SITE'], ['evac', 'EVACUATION'], ['vip', 'PICK UP A VIP']];
+const OBJ = [['fortress', 'ASSAULT A FORTRESS'], ['nuke', 'LAUNCH SITE'], ['evac', 'EVACUATION'], ['vip', 'RECOVER STRATEGIC INTEL']];
 const livery = { name: 'Test Command', primary: '#2f8f9c', secondary: '#f2efe4', logo: { shape: 'shield', bg: '#2f8f9c', sym: 'star', fg: '#f2efe4' } };
 let frame = null;
 function done(text) { if (frame) { frame.remove(); frame = null; } window.gcGround = null; $('start').style.display = 'flex'; $('last').textContent = text; }

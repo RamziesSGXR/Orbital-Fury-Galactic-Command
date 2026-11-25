@@ -47,7 +47,7 @@ const WORLDS = [
 ];
 const OBJS = [
   ['nuke', 'Launch the nuke', 'Hold the launch site until the missile is armed, then fire it anywhere. It flattens a huge area, allies too.', 'site_silo'],
-  ['vip', 'Rescue the VIP', 'Find the VIP and carry them to the landing point. Whoever carries them moves slower: clear the road ahead.', 'site_crash'],
+  ['vip', 'Recover strategic intel', 'Pull the data core out of a courier\'s wreck and carry it to the uplink tower, then hold the tower while it uploads. Whoever carries it moves slower: clear the road ahead.', 'site_crash'],     // (GC 0.80: was the VIP)
   ['fortress', 'Destroy the citadel', 'A cluster of bases round a keep, guarded by a super heavy. Bases close together help each other: take them one at a time.', 'prop_fab'],
   ['evac', 'Evacuate civilians', 'Civilians walk from the shelter to the hangar in the open. Keep the strikes off them and the enemy away.', 'veh_shuttle'],
   ['oil', 'Pump the oil', 'The Molt\'s operation. Keep the enemy off the pump, or the tank barely fills. Build in front of it while it is quiet.', 'site_derrick'],

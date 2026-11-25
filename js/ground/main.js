@@ -234,7 +234,7 @@ function terrainQuality() { return settings.quality === 'low' || renderer.perf.l
 function buildFor(biome, seed, keepDecals = false) {
   terrainKey = `${biome}|${seed}`;
   const sun = info && info.tod !== undefined ? sunAt(info.tod) : null;   // lit from where the sun (or the moon) is at the hour of the drop
-  renderer.setTerrain(buildTerrain(biome, seed, { polarity: settings.polarity, quality: terrainQuality(), relief: !!settings.relief, sun }), keepDecals);
+  renderer.setTerrain(buildTerrain(biome, seed, { polarity: settings.polarity, quality: terrainQuality(), relief: !!settings.relief, sun, land3: !!cam.g3d }), keepDecals);     // (GC 0.80: land3, the land is drawn in 3D)
 }
 
 function onSettingChange(key, fromGc = false) {

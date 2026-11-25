@@ -29,17 +29,47 @@ def wheel(name, x, y, r=0.42, w=0.3, z=None):
     cyl(name, (x - s * w / 2, y, z), (x + s * w / 2, y, z), r, m=black, sides=10); cyl(name + 'h', (x + s * w / 2, y, z), (x + s * (w / 2 + 0.03), y, z), r * 0.5, m=steel, sides=6)
 
 # ---------------------------------------------------------------- aircraft
-def dropship():     # the troop carrier: a box body between two lift engines, a ramp at the back
+def dropship():     # the troop carrier: a hull with a shoulder wing, a ducted lift fan at each wing tip, a tail boom, a ramp at the back
+    # (GC 0.80, Ramzies: "drop ship model has unconnected parts") made over so every part is fixed to another: the wing grows out
+    # of the hull's shoulders into the fans' housings; the tail boom rises out of the hull's back with the fins on it; the ramp
+    # hangs from the hull's rear sill; the skids stand on struts from the belly; the chin gun sits in a ball under the nose; the
+    # stripes are bands round the hull and the doors lie on its sides (the old roof slab, loose stripes, door boxes, a ramp lying
+    # on the ground behind it and a gun barrel in the air are gone)
     start('veh_dropship')
-    yl('body', [(-2.3, 0.22, 0.2, 0.86), (-1.7, 0.62, 0.46, 0.86), (-0.3, 0.78, 0.58, 0.84), (1.3, 0.74, 0.55, 0.86), (2.1, 0.5, 0.34, 1.0)], 8, uni)
-    box('glass', (0.7, 0.5, 0.26), (0, -1.72, 1.2), m=glass, bevel=0.06, rot=(R(-24), 0, 0)); box('roof', (0.9, 2.2, 0.14), (0, 0.2, 1.42), m=uni_d, bevel=0.03)
-    box('wing', (3.6, 1.0, 0.14), (0, 0.15, 1.36), m=uni_d, bevel=0.03)
+    S = [(-2.3, 0.22, 0.2, 0.86), (-1.7, 0.62, 0.46, 0.86), (-0.3, 0.78, 0.58, 0.84), (1.3, 0.74, 0.55, 0.86), (2.1, 0.5, 0.34, 1.0)]
+    def at(y):     # the hull's section at y, from the stations above
+        for a, b in zip(S, S[1:]):
+            if a[0] <= y <= b[0]: t = (y - a[0]) / (b[0] - a[0]); return tuple(a[k] + (b[k] - a[k]) * t for k in range(4))
+        return S[0] if y < S[0][0] else S[-1]
+    yl('body', S, 8, uni)
+    for k, (y0, y1) in enumerate(((-1.05, -0.85), (1.0, 1.2))):     # two bands round the hull
+        a, b = at(y0), at(y1); loft('band%d' % k, [((0, y0, a[3]), a[1] + 0.012, a[2] + 0.012), ((0, y1, b[3]), b[1] + 0.012, b[2] + 0.012)], sides=8, m=band)
+    box('glass', (0.66, 0.5, 0.24), (0, -1.74, 1.13), m=glass, bevel=0.06, rot=(R(-24), 0, 0))
+    loft('spine', [((0, -0.9, 1.4), 0.16, 0.05), ((0, -0.4, 1.43), 0.3, 0.09), ((0, 1.2, 1.42), 0.3, 0.09), ((0, 1.6, 1.38), 0.2, 0.05)], sides=6, m=uni_d)
     for s in (-1, 1):
-        disc('pod%d' % s, 0.46, 0.62, 1.02, kit, 10, r2=0.4, at=(s * 1.72, 0.15)); disc('fan%d' % s, 0.36, 0.04, 1.0, lit_b, 10, at=(s * 1.72, 0.15)); disc('cap%d' % s, 0.3, 0.1, 1.64, steel_d, 8, at=(s * 1.72, 0.15))
-        box('stripe%d' % s, (0.04, 2.2, 0.2), (s * 0.77, -0.1, 0.9), m=band); box('door%d' % s, (0.05, 0.9, 0.62), (s * 0.78, 0.2, 0.74), m=uni_d)
-        box('fin%d' % s, (0.07, 0.7, 0.62), (s * 0.4, 2.0, 1.5), m=trim, bevel=0.015, taper=0.6, rot=(0, s * R(14), 0)); cyl('skid%d' % s, (s * 0.6, -1.0, 0.3), (s * 0.66, -1.0, 0.0), 0.05, m=steel_d, sides=5); cyl('skidb%d' % s, (s * 0.6, 1.0, 0.3), (s * 0.66, 1.0, 0.0), 0.05, m=steel_d, sides=5)
-    box('ramp', (1.0, 0.9, 0.07), (0, 2.3, 0.44), m=uni_d, rot=(R(28), 0, 0)); box('boom', (0.4, 0.8, 0.3), (0, 2.0, 1.2), m=uni, bevel=0.04); ball('nav', (0, -2.28, 0.9), lit_r, 0.07)
-    cyl('gun', (0, -1.9, 0.5), (0, -2.5, 0.46), 0.05, m=black, sides=6)
+        # the wing, from inside the hull's shoulder out into the fan housing
+        loft('wing%d' % s, [((s * 0.4, 0.15, 1.18), 0.6, 0.09), ((s * 1.2, 0.18, 1.2), 0.5, 0.075), ((s * 1.9, 0.2, 1.22), 0.42, 0.065)], sides=6, m=uni_d)
+        x = s * 2.08
+        disc('pod%d' % s, 0.44, 0.66, 0.92, kit, 12, r2=0.4, at=(x, 0.2)); disc('fan%d' % s, 0.36, 0.03, 0.9, lit_b, 12, at=(x, 0.2)); disc('cap%d' % s, 0.3, 0.08, 1.58, steel_d, 8, at=(x, 0.2))
+        disc('lip%d' % s, 0.46, 0.06, 1.26, uni, 12, at=(x, 0.2))
+        # a door on each side, lying on the hull
+        c = at(0.25); box('door%d' % s, (0.05, 0.9, 0.24), (s * (c[1] - 0.045), 0.25, c[3] - 0.02), m=uni_d)
+        # the skids: a rail each side on two struts from the belly
+        for y in (-1.0, 1.0):
+            c = at(y); cyl('strut%d%d' % (s, y > 0), (s * 0.32, y, c[3] - c[2] + 0.06), (s * 0.62, y, 0.07), 0.04, m=steel_d, sides=5)
+        cyl('skid%d' % s, (s * 0.62, -1.35, 0.06), (s * 0.62, 1.3, 0.06), 0.045, m=steel_d, sides=6)
+        o = loft('skidtip%d' % s, [((s * 0.62, -1.35, 0.06), 0.045, 0.045), ((s * 0.62, -1.5, 0.14), 0.04, 0.04)], sides=6, m=steel_d)
+        # the fins, standing on the end of the boom
+        box('fin%d' % s, (0.07, 0.62, 0.62), (s * 0.2, 2.45, 1.62), m=trim, bevel=0.015, taper=0.6, rot=(0, s * R(14), 0))
+    # the tail boom out of the hull's back
+    loft('boom', [((0, 1.35, 1.2), 0.3, 0.2), ((0, 2.1, 1.3), 0.24, 0.17), ((0, 2.7, 1.36), 0.17, 0.13)], sides=8, m=uni)
+    # the ramp, let down from the rear sill
+    c = at(2.0); hinge = Vector((0, 2.0, c[3] - c[2] + 0.04)); d = Vector((0, math.cos(R(28)), -math.sin(R(28))))
+    box('ramp', (0.9, 0.9, 0.07), tuple(hinge + d * 0.42), m=uni_d, rot=(R(-28), 0, 0))
+    ball('nav', (0, -2.31, 0.86), lit_r, 0.07)
+    # the chin gun in its ball under the nose
+    c = at(-1.85); ball('turret', (0, -1.85, c[3] - c[2] - 0.02), steel_d, 0.14)
+    cyl('gun', (0, -1.92, c[3] - c[2] - 0.05), (0, -2.5, c[3] - c[2] - 0.09), 0.045, m=black, sides=6)
 def striker():      # the strike fighter: a dart with swept wings, twin fins, bombs under them
     start('veh_striker')
     yl('fuse', [(-2.6, 0.03, 0.03, 0.5), (-1.8, 0.26, 0.2, 0.5), (-0.4, 0.4, 0.3, 0.52), (1.2, 0.38, 0.28, 0.52), (2.2, 0.26, 0.2, 0.52)], 8, uni)

@@ -71,7 +71,10 @@ export class Ground3D {
         diffuseColor.rgb *= gcLin(clamp(gr * (1.0 - ov.a) + ov.rgb, 0.0, 1.0));`);
     }; return mat; };
     this.mat = noSurf(two(new THREE.MeshLambertMaterial({ color: 0xffffff })));     /* (GC 0.70) the land wears its own drawn picture: no surface detail */
-    this.mesh = new THREE.Mesh(g, this.mat); this.mesh.frustumCulled = false; this.mesh.receiveShadow = true; this.mesh.castShadow = true; this.scene.add(this.mesh);
+    // (GC 0.80, Ramzies: "some visual glitches with shadows") the land takes the shadows of what stands on it but throws none of its own:
+    // its few-metre facets shadowing each other drew stripes down every slope turned from the sun, and dark smears on the flat
+    // below a dune. Its hills are already shaded by their own slope (and the map's own shading); what stands on them still throws its shadow.
+    this.mesh = new THREE.Mesh(g, this.mat); this.mesh.frustumCulled = false; this.mesh.receiveShadow = true; this.mesh.castShadow = false; this.scene.add(this.mesh);
     // THE THINGS THAT STAND UP (GC 0.19): rocks, trees, buildings, guns. Each is a block risen out of the sheet: its roof is the
     // very patch of the sheet it stands on (so it wears its own top-down drawing, lit and fogged like everything else) and
     // its walls take the colours at its edge, darker. Built afresh each frame from what is in view.
@@ -95,6 +98,16 @@ export class Ground3D {
       const dx = x - P[i], dz = z - P[i + 1], r = P[i + 2], R = r * 1.9, d2 = dx * dx + dz * dz; if (d2 >= R * R) continue;
       const d = Math.sqrt(d2), t = d <= r ? 1 : 1 - (d - r) / (R - r); h += (P[i + 3] - h) * t * t * (3 - 2 * t);
     }
+    // (GC 0.80, Ramzies: "craters look awful and don't conform to terrain") A CRATER IS DUG INTO THE LAND: a bowl depth metres deep
+    // at its middle, a lip of thrown-up earth at its edge falling away to nothing at 1.6 times its radius, all of it on the slope
+    // where it is. Everything that stands on the land stands in it. (It was a ring model set level, half buried on a hillside.)
+    const D = this.dents;
+    if (D) for (let i = 0; i < D.length; i += 4) {
+      const r = D[i + 2], R = r * 1.6, dx = x - D[i], dz = z - D[i + 1]; if (dx > R || dx < -R || dz > R || dz < -R) continue;
+      const u2 = (dx * dx + dz * dz) / (r * r); if (u2 >= 2.56) continue;
+      const dep = D[i + 3], lip = dep * 0.3;
+      if (u2 < 1) h += -dep * (1 - u2) * (1 - 0.35 * u2) + lip * u2 * u2 * u2; else { const q = 1 - (Math.sqrt(u2) - 1) / 0.6; h += lip * q * q; }
+    }
     return h;
   }
   _level(list) {
@@ -106,7 +119,7 @@ export class Ground3D {
   //   W, H: the screen, in the same pixels; fy: how far down the screen the camera's point sits (0 to 1); yaw: how far round
   //   the gunship has flown; sun: { lx, ly } the way the light falls on the map, if the hour has a sun
   frame(o) {
-    const { sheet, S, scale, camX, camY, yaw, W, H, fy, sun } = o; this.h = o.height; this._level(o.props);
+    const { sheet, S, scale, camX, camY, yaw, W, H, fy, sun } = o; this.h = o.height; this._level(o.props); this.dents = o.dents && o.dents.length ? o.dents : null;     // (GC 0.80) [x, y, r, depth] for each crater near the view
     if (this.W !== W || this.H !== H) { this.W = W; this.H = H; this.r.setSize(W, H, false); }
     // (0.49.1) The sheet's canvas changes size (the window, the zoom, or the quality stepping down) while staying the same canvas.
     // The graphics card keeps a texture at the size it was first sent, so a resized sheet went into a corner of the old one: the

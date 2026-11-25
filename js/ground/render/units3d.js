@@ -232,7 +232,7 @@ export class Fx3D {
     this.canopy = inst(dome, new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide }), 64);
     this.load = inst(new THREE.BoxGeometry(1, 1, 1), lit('#4a4f44'), 64);
     this.cord = inst(new THREE.CylinderGeometry(0.03, 0.03, 1, 4), lit('#1a1c18'), 256);
-    this.shell = inst(new THREE.BoxGeometry(1, 1, 1), glow('#fff2d0'), 128);
+    this.shell = inst(new THREE.BoxGeometry(1, 1, 1), glow('#ffffff'), 256);     // (GC 0.80) each its own colour: an orbital shell, or a round of the ship gun
     this.strobe = inst(new THREE.SphereGeometry(1, 8, 6), glow('#ffffff'), 256);
     // a blast: a ball of fire that swells and climbs, white at first, then orange, then gone (it adds its light to the picture, so as it darkens it fades)
     // the troops' own fire: a streak of light from tail to head at gun height; a glowing ball for what is lobbed or spat; a shield as a dome of light
@@ -271,7 +271,18 @@ export class Fx3D {
   frame(o, ground) {
     let n = 0, c = 0;
     for (const d of o.drops || []) {
-      if (n >= 64) break; const gy = ground(d.x, d.y), h = d.f * d.f * 150 + (d.f > 0 ? 2 : 0), sway = Math.sin(d.x * 0.7 + d.f * 9) * 3 * d.f, x = d.x + sway + d.f * 18, z = d.y + d.f * 10, R = d.big ? 5.5 : 4, top = gy + h + 9;
+      if (n >= 64) break;
+      if (d.man) {     // (GC 0.80) a trooper's canopy: over his head, opening as he falls; four lines down to his shoulders, no load
+        const gy = ground(d.x, d.y), op = d.open ?? 1, R = 2.5 * (0.25 + 0.75 * op), top = gy + d.h + 2.2 + 3.4 * op, sh = gy + d.h + 1.6;
+        Q.identity(); P.set(d.x, top, d.y); S.set(R, R * (0.45 + 0.15 * op), R); this.canopy.setMatrixAt(n, M4.compose(P, Q, S)); COL.set(d.tint || '#c9c3ad'); this.canopy.setColorAt(n, COL);
+        S.set(0, 0, 0); this.load.setMatrixAt(n, M4.compose(P, Q, S));
+        for (let i = 0; i < 4 && c < 256; i++) {
+          const a = i * 1.5708 + 0.785; this.a.set(d.x + Math.cos(a) * R * 0.9, top, d.y + Math.sin(a) * R * 0.9); this.b.set(d.x + Math.cos(a) * 0.22, sh, d.y + Math.sin(a) * 0.22);
+          this.dir.subVectors(this.b, this.a); const len = this.dir.length(); Q.setFromUnitVectors(this.yv, this.dir.normalize()); P.addVectors(this.a, this.b).multiplyScalar(0.5); S.set(0.6, len, 0.6); this.cord.setMatrixAt(c++, M4.compose(P, Q, S));
+        }
+        n++; continue;
+      }
+      const gy = ground(d.x, d.y), h = d.f * d.f * 150 + (d.f > 0 ? 2 : 0), sway = Math.sin(d.x * 0.7 + d.f * 9) * 3 * d.f, x = d.x + sway + d.f * 18, z = d.y + d.f * 10, R = d.big ? 5.5 : 4, top = gy + h + 9;
       Q.identity(); P.set(x, top, z); S.set(R, R * 0.6, R); this.canopy.setMatrixAt(n, M4.compose(P, Q, S)); COL.set(d.tint || '#d8d2c0'); this.canopy.setColorAt(n, COL);
       const L = d.big ? 2.6 : 1.8; P.set(x, gy + h + L / 2, z); S.set(L, L, L); this.load.setMatrixAt(n, M4.compose(P, Q, S));
       for (let i = 0; i < 4 && c < 256; i++) {     // four cords from the rim of the canopy to the load
@@ -286,13 +297,15 @@ export class Fx3D {
     if (o.gun) for (const s of o.shells || []) {
       // (0.72, Ramzies: "allied orbitals seem to shoot in over a 2d plane") a shell falls from the ship high overhead, 700 m up and
       // off toward the side the gunship hangs (where the camera has it), steeply onto its mark; it was fired from beside the camera
-      if (k >= 128) break; this.b.set(s.x, ground(s.x, s.y), s.y);
+      if (k >= 256) break; this.b.set(s.x, ground(s.x, s.y), s.y);
       this.a.set(o.gun.x - s.x, 0, o.gun.z - s.y); const hl = this.a.length() || 1; this.a.multiplyScalar(250 / hl); this.a.y = 700; this.a.add(this.b);
       this.dir.subVectors(this.b, this.a); const len = this.dir.length(); this.dir.normalize();
-      const head = s.q * len, tail = Math.max(0, head - (s.big ? 60 : 40)), w = s.big ? 0.6 : 0.36;
-      Q.setFromUnitVectors(this.z, this.dir); P.copy(this.a).addScaledVector(this.dir, (head + tail) / 2); S.set(w, w, Math.max(1, head - tail)); this.shell.setMatrixAt(k++, M4.compose(P, Q, S));
+      // (GC 0.80, Ramzies: "orbitals and ship gun can still go back to shooting as if it's a 2d plane") the ship gun's rounds come
+      // the same way, thinner and shorter: they were tracers laid flat along the ground from a point off to the north
+      const head = s.q * len, tail = Math.max(0, head - (s.tl ?? (s.gun ? 26 : s.big ? 60 : 40))), w = s.gun ? 0.2 : s.big ? 0.6 : 0.36;
+      Q.setFromUnitVectors(this.z, this.dir); P.copy(this.a).addScaledVector(this.dir, (head + tail) / 2); S.set(w, w, Math.max(1, head - tail)); this.shell.setMatrixAt(k, M4.compose(P, Q, S)); COL.set(s.col || '#fff2d0'); this.shell.setColorAt(k++, COL);
     }
-    this.shell.count = k; if (k) this.shell.instanceMatrix.needsUpdate = true;
+    this.shell.count = k; if (k) { this.shell.instanceMatrix.needsUpdate = true; if (this.shell.instanceColor) this.shell.instanceColor.needsUpdate = true; }
     let j = 0;
     for (const s of o.strobes || []) { if (j >= 256) break; Q.identity(); P.set(s.x, ground(s.x, s.y) + s.h, s.y); S.setScalar(s.r || 0.7); this.strobe.setMatrixAt(j++, M4.compose(P, Q, S)); }
     this.strobe.count = j; if (j) this.strobe.instanceMatrix.needsUpdate = true;
@@ -311,11 +324,11 @@ export class Fx3D {
     for (const s of o.bolts || []) {
       if (bn >= 600) break; const gu = o.gunUp ?? 3.6; this.a.set(s.x, ground(s.x, s.y) + (s.up ?? gu), s.y); this.b.set(s.x2, ground(s.x2, s.y2) + (s.up2 ?? s.up ?? gu), s.y2);     // (figures are drawn large to be seen from the air: their guns are about this high)
       this.dir.subVectors(this.b, this.a); const len = this.dir.length(); if (len < 0.05) continue; Q.setFromUnitVectors(this.z, this.dir.normalize());
-      P.addVectors(this.a, this.b).multiplyScalar(0.5); S.set(s.w, s.w, len); this.bolt.setMatrixAt(bn, M4.compose(P, Q, S)); COL.set(s.col || '#ffe9b0'); this.bolt.setColorAt(bn++, COL);
+      P.addVectors(this.a, this.b).multiplyScalar(0.5); S.set(s.w, s.w, len); this.bolt.setMatrixAt(bn, M4.compose(P, Q, S)); COL.set(s.col || '#ffe9b0'); if (s.k != null) COL.multiplyScalar(Math.max(0, s.k)); this.bolt.setColorAt(bn++, COL);     // (GC 0.80) k: how bright, as a beam fades
     }
     this.bolt.count = bn; if (bn) { this.bolt.instanceMatrix.needsUpdate = true; if (this.bolt.instanceColor) this.bolt.instanceColor.needsUpdate = true; }
     let on = 0;
-    for (const s of o.orbs || []) { if (on >= 160) break; Q.identity(); P.set(s.x, ground(s.x, s.y) + (s.up ?? 3.6), s.y); S.setScalar(s.r); this.orb.setMatrixAt(on, M4.compose(P, Q, S)); COL.set(s.col || '#ffffff'); this.orb.setColorAt(on++, COL); }
+    for (const s of o.orbs || []) { if (on >= 160) break; Q.identity(); P.set(s.x, ground(s.x, s.y) + (s.up ?? 3.6), s.y); S.setScalar(s.r); this.orb.setMatrixAt(on, M4.compose(P, Q, S)); COL.set(s.col || '#ffffff'); if (s.k != null) COL.multiplyScalar(Math.max(0, s.k)); this.orb.setColorAt(on++, COL); }
     this.orb.count = on; if (on) { this.orb.instanceMatrix.needsUpdate = true; if (this.orb.instanceColor) this.orb.instanceColor.needsUpdate = true; }
     let dn = 0;
     for (const s of o.domes || []) { if (dn >= 48) break; Q.identity(); P.set(s.x, ground(s.x, s.y) - 0.5, s.y); S.setScalar(s.r); this.dome.setMatrixAt(dn, M4.compose(P, Q, S)); COL.setRGB(0.3 * s.k, 0.42 * s.k, 0.55 * s.k); this.dome.setColorAt(dn++, COL); }

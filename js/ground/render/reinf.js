@@ -29,12 +29,17 @@ export function drawFlares(ctx, m, now, px, labels, scale, pal) {
     const f = g.flare;
     if (!f || f.caller.dead || f.caller.vis <= 0) continue;
     const e = f.caller, p = Math.min(1, (t - f.start) / (f.at - f.start)), h = 14 + 46 * p;
+    if (VIEW.fx3) {     // (GC 0.80) in 3D the flare climbs into the air over the one who fired it, with its smoke under it
+      const fl = 0.7 + 0.3 * Math.sin(now * 25), hu = (VIEW.ts ? 0.55 : 1) * h; VIEW.fx3.orbs.push({ x: e.x, y: e.y, up: hu, r: 0.5, col: '#fff0e0', k: fl }, { x: e.x, y: e.y, up: hu, r: 1.6 * fl, col: '#ff5032', k: 0.7 });
+      VIEW.fx3.bolts.push({ x: e.x, y: e.y + 0.001, x2: e.x, y2: e.y, up: 1.5, up2: hu, w: 0.18, col: '#ff6a4a', k: 0.5 });
+    } else {
     ctx.strokeStyle = 'rgba(255,90,60,0.85)'; ctx.lineWidth = px(1.6); ctx.setLineDash([px(3), px(3)]);
     ctx.beginPath(); ctx.moveTo(e.x, e.y); ctx.lineTo(e.x + 4, e.y - h); ctx.stroke(); ctx.setLineDash([]);
     const fl = 0.7 + 0.3 * Math.sin(now * 25);
     const gr = ctx.createRadialGradient(e.x + 4, e.y - h, 0, e.x + 4, e.y - h, Math.max(5, px(14)));
     gr.addColorStop(0, `rgba(255,240,220,${fl})`); gr.addColorStop(0.4, `rgba(255,80,50,${0.7 * fl})`); gr.addColorStop(1, 'rgba(255,40,20,0)');
     ctx.fillStyle = gr; ring(ctx, e.x + 4, e.y - h, Math.max(5, px(14))); ctx.fill();
+    }
     ctx.strokeStyle = `rgba(255,90,60,${0.6 + 0.4 * Math.sin(now * 10)})`; ctx.lineWidth = px(2);
     ring(ctx, e.x, e.y, Math.max(e.r * 2, px(12))); ctx.stroke();
     labels.push({ x: e.x, y: e.y, dy: -Math.max(e.r * 2 * scale, 12) - 8, text: tr('lab.flare', { n: Math.max(0, Math.ceil(f.at - t)) }), col: '#ff6a4a', pri: 3 });
@@ -317,11 +322,14 @@ export function drawExtraction(ctx, m, now, px, labels, scale) {
     const bx = ex.x + 8, by = ex.y - 8, k = Math.min(1, (t - ex.beaconAt) / C.extract.beaconSec);
     if (k < 1) {
       const h = (1 - k) * (1 - k) * 90;
+      if (VIEW.fx3) { VIEW.fx3.orbs.push({ x: bx, y: by, up: h + 0.4, r: 0.45, col: '#78c8ff' }); VIEW.fx3.bolts.push({ x: bx, y: by + 0.001, x2: bx, y2: by, up: h + 18, up2: h + 0.4, w: 0.3, col: '#5ab4ff', k: 0.8 }); }     // (GC 0.80) in 3D: falling out of the sky onto the pad
+      else {
       ctx.fillStyle = `rgba(0,0,0,${0.15 + 0.4 * k})`; ring(ctx, bx, by, 1.2 + (1 - k) * 4); ctx.fill();
       const g = ctx.createLinearGradient(bx, by - h - 26, bx, by - h);
       g.addColorStop(0, 'rgba(90,180,255,0)'); g.addColorStop(1, 'rgba(120,200,255,0.9)');
       ctx.strokeStyle = g; ctx.lineWidth = Math.max(px(3), 1); ctx.beginPath(); ctx.moveTo(bx, by - h - 26); ctx.lineTo(bx, by - h); ctx.stroke();
       ctx.fillStyle = '#3da9ff'; ring(ctx, bx, by - h, Math.max(px(4), 1.6)); ctx.fill();
+      }
       text = tr('lab.beaconFalling');
     } else {
       const land = t - ex.beaconAt - C.extract.beaconSec, burst = Math.max(0, 1 - land / 0.6);

@@ -107,7 +107,9 @@ PRE = 'wb_'; CUR = coll('talon_H_war_beast')
 root = joint('root'); body = joint('body', (0, 0, 1.56), root)
 loft('wb_barrel', [((0, -1.15, 0.0), 0.42, 0.46), ((0, -0.7, 0.05), 0.78, 0.82), ((0, 0.1, 0.08), 0.88, 0.9), ((0, 0.9, 0.02), 0.68, 0.7), ((0, 1.35, -0.05), 0.34, 0.34)], sides=10, m=[hide, dark, hide2], seg_mats=[0, 2, 1, 0], parent=body, rough=0.06, seed=7)
 loft('wb_underside', [((0, -0.9, -0.5), 0.4, 0.2), ((0, 0.1, -0.6), 0.55, 0.26), ((0, 1.0, -0.45), 0.36, 0.18)], sides=8, m=belly, parent=body)
-for tg, hp in (('F', (0.5, -0.72, -0.42)), ('B', (0.52, 0.82, -0.4))):
+# (GC 0.80, Ramzies: "warbeast model clips through itself when moving") the front legs set a little back and the frill raised off
+# the shoulders, so a leg swinging forward no longer passes through the frill; the frill's studs sit on it (they floated in front)
+for tg, hp in (('F', (0.5, -0.6, -0.42)), ('B', (0.52, 0.82, -0.4))):
     bleg(body, hp, 0.5, 0.5, 0.2, hide, dark, (0.38, 0.44, 0.14), black, sides=7, tag=tg)
     for sd in ('L', 'R'):
         for i in range(3): spike('wb_toe', ((i - 1) * 0.12, -0.22, -0.6), ((i - 1) * 0.13, -0.36, -0.63), 0.05, sides=4, m=bone, parent=J('knee%s.%s' % (tg, sd)))
@@ -125,8 +127,8 @@ loft('wb_crystal', [((0, 0, -0.1), 0.004, 0.004), ((0, 0, 0.12), 0.17, 0.17), ((
 for i in range(3): spike('wb_shard%d' % i, (math.cos(i * 2.1) * 0.12, math.sin(i * 2.1) * 0.12, 0.0), (math.cos(i * 2.1) * 0.3, math.sin(i * 2.1) * 0.3, 0.32), 0.05, sides=4, m=cyan, parent=emit)
 head = joint('head', (0, -1.1, 0.02), body)
 loft('wb_skull', [((0, 0.12, 0.02), 0.4, 0.4), ((0, -0.2, 0.0), 0.38, 0.34), ((0, -0.6, -0.1), 0.24, 0.2), ((0, -0.92, -0.2), 0.1, 0.1), ((0, -1.04, -0.3), 0.01, 0.01)], sides=8, m=[hide, hide2, dark], seg_mats=[0, 1, 2, 2], parent=head)
-loft('wb_frill', [((0, 0.26, 0.0), 0.3, 0.3), ((0, 0.22, 0.25), 0.84, 0.72), ((0, 0.12, 0.42), 0.9, 0.78), ((0, 0.06, 0.44), 0.3, 0.3)], sides=9, m=bone, parent=head)
-for i in range(5): a = (i - 2) * 0.62; blob('wb_stud%d' % i, 0.08, (1, 0.6, 1), (math.sin(a) * 0.72, 0.02, 0.44 + math.cos(a) * 0.6), sub=1, m=lime, parent=head)
+loft('wb_frill', [((0, 0.26, 0.22), 0.3, 0.2), ((0, 0.22, 0.5), 0.84, 0.48), ((0, 0.12, 0.64), 0.9, 0.54), ((0, 0.06, 0.66), 0.3, 0.2)], sides=9, m=bone, parent=head)
+for i in range(5): a = (i - 2) * 0.62; blob('wb_stud%d' % i, 0.08, (1, 0.6, 1), (math.sin(a) * 0.7, 0.08, 0.64 + math.cos(a) * 0.4), sub=1, m=lime, parent=head)
 for s in (1, -1):
     loft('wb_brow', [((s * 0.22, -0.2, 0.26), 0.09, 0.09), ((s * 0.3, -0.6, 0.5), 0.07, 0.07), ((s * 0.34, -1.05, 0.62), 0.04, 0.04), ((s * 0.32, -1.3, 0.8), 0.004, 0.004)], sides=5, m=bone, parent=head)
     blob('wb_eye', 0.05, (1, 1.2, 1), (s * 0.3, -0.36, 0.1), sub=1, m=cyan, parent=head)
@@ -139,9 +141,9 @@ def wb_walk(ph):
     for tg, off in (('F', 0.0), ('B', math.pi)):
         for s, sd in ((1, 'L'), (-1, 'R')):
             a = ph + off + (0 if s > 0 else math.pi)
-            turn('hip%s.%s' % (tg, sd), x=-0.38 * math.sin(a)); turn('knee%s.%s' % (tg, sd), x=0.5 * max(0.0, math.cos(a)) + 0.05)
+            turn('hip%s.%s' % (tg, sd), x=-(0.3 if tg == 'F' else 0.36) * math.sin(a)); turn('knee%s.%s' % (tg, sd), x=0.5 * max(0.0, math.cos(a)) + 0.05)
     shift('body', z=0.03 * math.sin(2 * ph)); turn('body', y=0.03 * math.sin(ph)); wag(3, ph, 0.14, 0.7); turn('head', z=-0.06 * math.sin(ph), x=0.05 * math.sin(2 * ph)); turn('emitter', z=ph)
-def wb_atk(): zero(J('root')); turn('head', x=0.4); turn('jaw', x=0.3); shift('body', y=-0.15); turn('body', x=0.06); wag(3, 1.4, 0.3)
+def wb_atk(): zero(J('root')); turn('head', x=0.24); turn('jaw', x=0.3); shift('body', y=-0.15); turn('body', x=0.06); wag(3, 1.4, 0.3)     # (GC 0.80: a smaller nod: the horns and the frill went into the legs)
 F = {'stand': lambda: zero(J('root')), 'atk': wb_atk}
 for i in range(8): F['w%d' % i] = (lambda i=i: wb_walk(i / 8 * 2 * math.pi))
 F['dead'] = dead('body', seed=7); OUT['talon_H'] = export('talon_H', CUR, F, {'fit': 4.7}); zero(root); R3 = root
