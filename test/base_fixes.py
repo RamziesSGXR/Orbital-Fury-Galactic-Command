@@ -25,12 +25,12 @@ with sync_playwright() as pw:
         if st == 'found': pg.click('#f-go'); pg.wait_for_timeout(300)
         elif st == 'title': pg.click('[data-act=slot][data-g=base][data-n="0"]')
         pg.wait_for_function("gc.state === 'base' && document.getElementById('trans').hidden", timeout=90000); pg.wait_for_timeout(1500)
-    nums = lambda: pg.evaluate("document.querySelectorAll('#th-stats > div').length")
+    nums = lambda: pg.evaluate("document.querySelectorAll('#th-stats .fbig b, #th-stats .fres .ri b').length - [...document.querySelectorAll('#th-stats .fbig b, #th-stats .fres .ri b')].filter((b) => !b.textContent).length")
     # --- the numbers at the top right, three visits running, the game paused as it is left
     for k in range(3):
         play(); n = nums(); print('visit', k + 1, 'numbers at the top right:', n)
-        assert n >= 7, f'visit {k + 1}: the numbers at the top right are missing ({n})'
-        if k < 2: pg.click('#th-pause'); pg.wait_for_timeout(200); leave()
+        assert n >= 10, f'visit {k + 1}: the numbers at the top are missing ({n})'
+        if k < 2: pg.click('#fb-clock [data-fb=pause]'); pg.wait_for_timeout(200); leave()
     # --- walls and field works
     r = pg.evaluate("""(() => { const s = gc.mode.sim, hq = s.b.find(b => b.type === 'hq'); s.supplies += 9000;
       const x0 = hq.x + 8.5, z0 = hq.z - 3.5, o = {};
@@ -65,16 +65,16 @@ with sync_playwright() as pw:
     assert len(c['crew']) == 4 and all(n > 0 for _, n, _ in c['crew']), f"a crewed building gets no crew: {c['crew']}"
     pg.wait_for_timeout(1200)
     p = pg.evaluate(f"gc.mode.view.toScreen({c['x']}, {c['z']})"); pg.mouse.click(p[0], p[1]); pg.wait_for_timeout(500)
-    card = pg.evaluate("document.getElementById('th-sel').innerText"); print(card.replace('\n', ' | '))
-    assert 'Condition 55%: works at 85%' in card and 'REPAIR' in card and 'CREW FIRST' in card and 'SWITCH OFF' in card, 'the card does not show condition and its controls'
-    assert pg.evaluate("document.querySelector('#th-sel .st[title]').title.includes('upkeep you pay mends it')"), 'condition is not explained on the card'
+    card = pg.evaluate("document.getElementById('fb-selp').innerText"); print(card.replace('\n', ' | '))
+    assert '55% · works at 85%' in card and 'REPAIR' in card and 'CREW FIRST' in card and 'SWITCH OFF' in card, 'the card does not show condition and its controls'
+    assert pg.evaluate("document.querySelector('#fb-selp .kv[title]').title.includes('upkeep you pay mends it')"), 'condition is not explained on the card'
     pg.screenshot(path=f'{out}/fix-2-card.png')
-    pg.click('[data-br]'); pg.wait_for_timeout(300)
+    pg.evaluate("document.querySelector('#fb-selp [data-fb=rep]').click()"); pg.wait_for_timeout(300)
     fixed = pg.evaluate(f"{c['ids']}.filter(id => gc.mode.sim.byId(id).cond === 100)"); assert len(fixed) == 1, f'REPAIR: {fixed}'
     c['id'] = fixed[0]     # the one on the card
-    pg.click('[data-bf]'); pg.wait_for_timeout(300); assert pg.evaluate(f"gc.mode.sim.byId({c['id']}).first") is True, 'CREW FIRST'
-    pg.click('[data-bs]'); pg.wait_for_timeout(300); assert pg.evaluate(f"[gc.mode.sim.byId({c['id']}).off, gc.mode.sim.byId({c['id']}).crew]") == [True, 0], 'SWITCH OFF frees its crew'
-    pg.click('#th-stats [data-act=report]'); pg.wait_for_timeout(500)
+    pg.evaluate("document.querySelector('#fb-selp [data-fb=first]').click()"); pg.wait_for_timeout(300); assert pg.evaluate(f"gc.mode.sim.byId({c['id']}).first") is True, 'CREW FIRST'
+    pg.evaluate("document.querySelector('#fb-selp [data-fb=off]').click()"); pg.wait_for_timeout(300); assert pg.evaluate(f"[gc.mode.sim.byId({c['id']}).off, gc.mode.sim.byId({c['id']}).crew]") == [True, 0], 'SWITCH OFF frees its crew'
+    pg.click('#fb-dock [data-fb=report]'); pg.wait_for_timeout(500)
     assert any(h.startswith('CONDITION') for h in pg.evaluate("[...document.querySelectorAll('#modal h3')].map(h => h.textContent)")), 'the report has no CONDITION'
     br.close()
 assert not errs, errs

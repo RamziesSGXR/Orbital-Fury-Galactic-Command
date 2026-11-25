@@ -3,73 +3,36 @@
 // tool bar, requests on the shared desk, and its charter reported back to the map (the system pays more into the war).
 import { C, B, GROUPS, ZONES, GOODS, SUPPLY_MODES, SUPPLY_CAPS, MIN } from '../base/config.js';
 import { modal } from '../galaxy/screen.js';
-import { makeGuide, guideSeen } from './guide.js';
+import { makeGuide } from './guide.js';
 import { Sim, LOOSE } from '../base/sim.js';
 import { Life } from '../base/life.js';
 import { View } from '../base/view.js';
-import { REQUESTS } from '../base/desk.js';
 import { ensureLogo } from '../base/logo.js';
 import { words } from '../core/words.js';
 import { note } from '../core/career.js';
 import { upgrade } from '../core/roster.js';
 import { binds } from '../core/binds.js';
+import { makeHud, LINES, CONDITION } from './base-hud.js';     // (GC 0.81) the standalone game's interface
 const KB = binds('base');     // (GC 0.73) the player's own keys
 // (0.46) what a base puts on air: every parade ground, speaker, billboard, banner, flag and monument standing is footage for the war's ratings
 const SHOWS = new Set(['parade', 'speaker', 'billboard', 'banner', 'hdbanner', 'flag', 'seflag', 'statue', 'monument', 'memorial', 'lecture', 'truth', 'plaque']);
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
-const ROADS = { road1: { name: 'Dirt Road', k: 'dirt', sub: 'drag to draw', desc: 'One tile wide and cheap. People and vehicles move faster on it than over open ground, and every building needs a road at its door.' },
-  road2: { name: 'Paved Road', k: 'paved', sub: 'two tiles wide', desc: 'Two tiles wide, two lanes. Trucks run fastest here and do not queue behind each other. Needs a Concrete Plant.' },
-  path: { name: 'Footpath', k: 'path', sub: 'for boots', desc: 'A paved walk one tile wide. People keep to it; vehicles do not use it.' },
-  wire: { name: 'Barbed Wire', k: 'wire', sub: 'slows raiders', desc: 'Razor wire on steel stakes, the same as on the ground. Lay it outside the wall, or draw it along the wall itself and it runs along the top. Every tile adds to the strength the base puts against a raid (2 supplies a tile). Nobody walks through it; a road through it leaves a gap.' },
-  bags: { name: 'Sandbags', k: 'bags', sub: 'cover for the wall', desc: 'A chest-high line of sandbags, the ground fight\'s bastions. Lay them in front of a wall, not along it. The most raid strength a tile of any field work (3 supplies a tile). Field works add up to 20 between them.' },
-  trench: { name: 'Trench', k: 'trench', sub: 'cheap, dug in', desc: 'A fighting trench between banks of sandbags, as on the ground. Dug in front of a wall, not under it. Cheap, and a little raid strength a tile (2 supplies a tile).' },
-  wall: { name: 'Wall', k: 'wall', sub: 'close it for a bonus', desc: 'Draw it all the way round and the base is closed: better morale, and raiders have to come through a gate. A road through a wall makes a gate.' },
-  unroad: { name: 'Bulldoze', k: null, sub: words('tap a road or wall'), desc: 'Tap a stretch of road or wall to take it out. Half its cost comes back.' } };
-const TABS = GROUPS.filter((g) => g[0] !== 'landscape');
+const ROADS = LINES;     // (GC 0.81) the line tools: roads, walls and field works, with the standalone game's cards (base-hud.js)
 const isZone = (t) => !!t && t.startsWith('zone:'), isRoad = (t) => !!ROADS[t];
 
 let app, ui, audio, canvas, view = null, sim = null, life = null, args = null;
-let acc = 0, group = 'roads', tool = null, rot = 0, sel = 0, barSig = '', deskSig = '', hudT = 0, saveT = 25, thumbs = {};
+let acc = 0, tool = null, rot = 0, sel = 0, hudT = 0, saveT = 25;
 let roadDrag = null, zoneDrag = null, drag = null, pinch = null; const ptrs = new Map(), held = new Set();
-let hover = null, selSig = '', tut = null, zsel = null; const deskSeen = new Map();     // zsel: (GC 0.79) the zone picked, by key
-const DESK_OPEN = 20000;   // a request lies open on the desk this long (ms), then folds down to its title until it is tapped
+let hover = null, tut = null, zsel = null, hud = null;     // zsel: (GC 0.79) the zone picked, by key
 const TUT_KEY = 'ofgc.guide.base';
 
 const baseFaction = (sys) => ({ ...structuredClone(app.faction), base: `Fort ${sys.worlds[sys.key].name}`, diff: 'recruit' });
 
-// ---------------------------------------------------------------- the shared frame
-function tabs() { $('th-tabs').innerHTML = TABS.map((g) => `<button data-bg="${g[0]}" class="${g[0] === group ? 'on' : ''}">${g[1]}</button>`).join(''); }
-function thumb(t) { if (!(t in thumbs)) { try { thumbs[t] = view.thumb(t, sim.std ?? 0) || ''; } catch { thumbs[t] = ''; } } return thumbs[t]; }
-function bar(force) {
-  let html = '';
-  if (group === 'roads') html = Object.entries(ROADS).map(([k, r]) => `<button class="plate btn tool${tool === k ? ' on' : ''}" data-bt="${k}" title="${esc(words(r.desc))}"><b>${r.name}</b><span>${r.sub}</span></button>`).join('');
-  else if (group === 'zones') html = Object.entries(ZONES).map(([k, z]) => `<button class="plate btn tool${tool === 'zone:' + k ? ' on' : ''}" data-bt="zone:${k}" title="${esc(z.desc)}" style="border-color:${z.col}"><b style="color:${z.col}">${z.name}</b><span>tap a road, or drag</span></button>`).join('') +
-    `<button class="plate btn tool${tool === 'zone:' ? ' on' : ''}" data-bt="zone:"><b>Unzone</b><span>clear a zone</span></button>`;
-  else {
-    const g = TABS.find((x) => x[0] === group) || TABS[0];
-    html = g[3].filter((t) => B[t]).map((t) => {
-      const lk = sim.locked(t), cost = sim.costOf(t, specOf(t)), c = typeof cost === 'object' ? cost.sup ?? cost.cost ?? 0 : cost, pic = thumb(t);
-      return `<button class="plate btn tool pic${tool === t ? ' on' : ''}" data-bt="${t}" title="${esc(B[t].desc || '')}" ${lk ? 'disabled' : ''}>${pic ? `<img src="${pic}" alt="">` : ''}<div><b>${esc(B[t].name)}</b><span>${lk ? 'needs ' + esc(lk[0]) : Math.round(c) + ' SUP'}</span></div></button>`;
-    }).join('') || '<span class="dim" style="align-self:center">Nothing to place by hand here yet. These grow in their zone.</span>';
-  }
-  if (force || html !== barSig) { barSig = html; $('th-bar').innerHTML = html; }
-}
+// ---------------------------------------------------------------- the shared frame: the readouts, the build bar, the desk and the
+// building card are FOB Commander's own now (base-hud.js); the frame keeps the top bar's name, MENU and TO THE MAP
 const specOf = (k) => (sim.designable(k) ? { design: 0, parts: [] } : sim.hasStd(k) ? { std: sim.std } : null);
-function stats() {
-  const T = sim.time || { day: 1, hour: 8 }, mo = Math.round(sim.morale), S = C.STAGES[sim.stage || 0];
-  ui.stats([{ k: 'SUPPLIES', v: Math.round(sim.supplies).toLocaleString('en-US'), tone: sim.supplies < 100 ? 'r' : 'a' }, { k: 'CREDITS', v: Math.round(sim.credits).toLocaleString('en-US') }, { k: 'TROOPS', v: sim.troops.length },
-    { k: 'MORALE', v: mo, tone: mo < 35 ? 'r' : '' }, { k: `DAY ${T.cday || 1}`, v: `${String(Math.floor(T.hour)).padStart(2, '0')}:00` },
-    ...(innerWidth < 640 ? [{ k: `CHARTER · ${ord(sim.ranking() + 1)}`, v: (S.short || S.name).toUpperCase(), act: 'report', title: 'The charter, your standing and your defences' }]   // a phone: one tile for both
-      : [{ k: 'STANDING', v: `${ord(sim.ranking() + 1)} OF ${sim.rivals.length + 1}`, act: 'report', title: 'Your standing with the Head Office against the other outfits, and your defences' }, { k: 'CHARTER', v: (S.short || S.name).toUpperCase(), act: 'report', title: 'What the next charter needs' }])]);
-  let tip = '';
-  if (isRoad(tool)) tip = tool === 'unroad' ? words('Tap a road or a wall to take it out.') : `${ROADS[tool].name}: drag across the ground to draw it. It keeps to the tiles${matchMedia('(pointer: fine)').matches ? '; hold Shift to draw free' : ''}.`;
-  else if (isZone(tool)) tip = words('Tap beside a road to zone its block, or drag a rectangle.');
-  else if (tool) tip = words(`${B[tool].name}: it snaps to a plot along a road. Tap to place.`);
-  else { const nx = C.STAGES[(sim.stage || 0) + 1], ck = sim.stageCheck(); if (nx && ck) { const met = ck.filter((c) => c.ok).length; tip = `NEXT CHARTER · ${(nx.short || nx.name).toUpperCase()}: ${met} of ${ck.length} terms met` + (met === ck.length ? ' · granted within the hour' : ` · still: ${ck.find((c) => !c.ok).text.replace(/ \(.*\)$/, '')}`) + ' · tap CHARTER for the list'; } }
-  ui.tip(tip);
-}
 const ord = (n) => n + (n % 10 === 1 && n % 100 !== 11 ? 'ST' : n % 10 === 2 && n % 100 !== 12 ? 'ND' : n % 10 === 3 && n % 100 !== 13 ? 'RD' : 'TH');
 // (0.63) THE BASE REPORT: the numbers behind the base that had no place on screen. The charter's terms, the three standings
 // and where they put you against the other outfits (which sets the weekly allocation), and how defensible the base is.
@@ -108,71 +71,25 @@ function report() {
   $('modal').querySelector('[data-x=close]').onclick = () => { $('modal').hidden = true; audio.click(); };
 }
 // what a standing building is doing right now, as short labels: [text, tone] with tone 'g' good, 'r' trouble, '' plain
-function statusOf(b) {
-  const d = B[b.type], out = [], u = sim.util || sim.utilities(), nb = (n) => `${n} building${n === 1 ? '' : 's'}`;
-  if (!b.done) return [[`Under construction: ${Math.round((b.prog || 0) * 100)}%`, '']];
-  if (b.off) out.push(['Switched off', 'r']);
-  if (d.crew) out.push([`Crew ${b.crew || 0} of ${d.crew}${(b.crew || 0) < d.crew && !b.off && !sim.freeHands ? ' · every trooper is busy: more recruits, or switch something off' : ''}`, (b.crew || 0) >= d.crew ? 'g' : 'r']);     // (GC 0.78: why a crew is short)
-  if (d.staff) out.push([`${d.staff} colonist staff`, '']);
-  if (d.pw < 0) out.push(b.dark ? ['No power: outside every power circle', 'r'] : sim.power.ratio < 1 ? [`Power short: ${Math.round(sim.power.ratio * 100)}%`, 'r'] : ['Powered', 'g']);
-  else if (d.pw > 0) out.push([`Makes ${d.pw} power · serves ${nb(sim.servedBy(b, 'pw'))}`, '']);
-  else if (d.cover?.pw) out.push([`Carries power to ${nb(sim.servedBy(b, 'pw'))}`, '']);
-  if (sim.needsWater(b)) out.push(b.dry ? ['No water in reach', 'r'] : ['Water', 'g']);
-  if (sim.needsSewer(b)) out.push(b.foul ? ['No sewage in reach', 'r'] : ['Sewage', 'g']);
-  if (b.bad) out.push(['Contaminated: a sewage lagoon is too close', 'r']);
-  if (b.smelly) out.push(['Smells the lagoon', 'r']);
-  if (d.water || d.relay === 'wa' || b.type === 'hq') { const n = sim.servedBy(b, 'wa'); out.push([`Water to ${nb(n)} · base ${u.water.use} of ${u.water.made} a day`, u.water.ratio < 1 ? 'r' : '']); }
-  if (d.sewer || b.type === 'hq') { const n = sim.servedBy(b, 'se'); out.push([n || b.type === 'hq' ? `Takes the waste of ${nb(n)} · base ${u.sewer.use} of ${u.sewer.cap} a day` : 'Nothing in reach to serve: bunks and mess halls must stand inside its circle', n || b.type === 'hq' ? (u.sewer.ratio < 1 ? 'r' : '') : 'r']); }
-  if (d.cover?.fu) out.push([`Pipes fuel to ${nb(sim.servedBy(b, 'fu'))}`, '']);
-  if (d.beds) out.push([`${sim.cap(b, 'beds')} beds`, '']);
-  if (d.eat) out.push([`${sim.cap(b, 'eat')} seats`, '']);
-  if (d.potty) out.push([`Clean ${Math.round(b.clean ?? 100)}%`, (b.clean ?? 100) < 25 ? 'r' : '']);
-  const st = Object.keys(GOODS).filter((g) => (b.stock?.[g] || 0) >= 1).map((g) => `${GOODS[g].short} ${Math.round(b.stock[g])}`); if (st.length) out.push([st.join(' · '), '']);
-  if (b.type !== 'hq') out.push([`Condition ${Math.round(b.cond)}%${b.cond < 40 ? ': works at half, lowers morale' : b.cond < 70 ? ': works at 85%' : ''}${b.unpaid >= 2 ? ' · upkeep unpaid' : ''}`, b.cond < 70 ? 'r' : '', CONDITION]);     // (GC 0.78: always shown, and what it costs)
-  if (b.type === 'hq' && sim.bill) {   // (0.58) the morning dropship's receipt
-    const L = sim.bill, got = Object.keys(GOODS).filter((g) => L.order[g]).map((g) => `${L.order[g]} ${GOODS[g].short}`);
-    out.push([`Day ${Math.floor((L.day - 1) * C.DAY / C.WEEK) + 1}, ${String(Math.floor(L.hour ?? 0)).padStart(2, '0')}:00 delivery: ${got.length ? got.join(' · ') + ` · billed ${Math.round(L.cost)} SUP` : 'nothing bought'}${L.capped ? ' (capped)' : ''}`, L.capped ? 'r' : '']);
-  }
-  return out;
-}
 // (0.58) the standing supply order, on the command post's card: what each watch's dropship may buy, and the most it may spend
 function supplyRow() {
-  const P = sim.supplyPlan || { mode: 'needs', cap: 0.5 };
-  return `<span class="so"><i class="st">DROPSHIP BUYS</i>${Object.entries(SUPPLY_MODES).map(([k, m]) => `<button class="plate btn sm${P.mode === k ? ' on' : ''}" data-so="${k}" title="${esc(m.desc)}">${m.short}</button>`).join('')}` +
-    `<i class="st">SPENDS AT MOST</i>${SUPPLY_CAPS.map((c) => `<button class="plate btn sm${P.cap === c ? ' on' : ''}" data-sc="${c}" title="${c >= 1 ? 'No cap: it may spend every supply the base has.' : `It never spends more than ${Math.round(c * 100)}% of the base's supplies in one morning.`}">${c >= 1 ? 'ALL' : Math.round(c * 100) + '%'}</button>`).join('')}</span>`;
+  const P = sim.supplyPlan || { mode: 'needs', cap: 0.5 }, L = sim.bill;
+  const bill = L ? (() => { const got = Object.keys(GOODS).filter((g) => L.order[g]).map((g) => `${L.order[g]} ${GOODS[g].short}`); return `<div class="kv"><span>LAST DELIVERY</span><b class="${L.capped ? 'warn' : ''}">day ${Math.floor((L.day - 1) * C.DAY / C.WEEK) + 1}, ${String(Math.floor(L.hour ?? 0)).padStart(2, '0')}:00 · ${got.length ? got.join(' · ') + ` · billed ${Math.round(L.cost)} SUP` : 'nothing bought'}${L.capped ? ' (capped)' : ''}</b></div>`; })() : '';
+  return `<div class="so"><i>DROPSHIP BUYS</i>${Object.entries(SUPPLY_MODES).map(([k, m]) => `<button class="plate btn sm${P.mode === k ? ' on' : ''}" data-so="${k}" title="${esc(m.desc)}">${m.short}</button>`).join('')}</div>` +
+    `<div class="so"><i>SPENDS AT MOST</i>${SUPPLY_CAPS.map((c) => `<button class="plate btn sm${P.cap === c ? ' on' : ''}" data-sc="${c}" title="${c >= 1 ? 'No cap: it may spend every supply the base has.' : `It never spends more than ${Math.round(c * 100)}% of the base's supplies in one morning.`}">${c >= 1 ? 'ALL' : Math.round(c * 100) + '%'}</button>`).join('')}</div>` + bill;
 }
 // (GC 0.64) the Missile Silo: its warheads, and shipping one to the front
 function siloRow(b) {
   const S = C.SILO, n = b.nukes || 0;
-  return `<span class="so"><i class="st ${n ? 'g' : ''}">WARHEADS ${n} OF ${S.max}</i>${n < S.max ? `<i class="st">NEXT ${Math.round((b.nukeT || 0) * 100)}%</i>` : ''}<button class="plate btn sm" data-nk="${b.id}" ${n ? '' : 'disabled'} title="Credits and Defence standing; the warhead is no longer here for a raid.">SHIP ONE TO THE FRONT · +${S.cr} CR</button></span>`;
-}
-// (GC 0.78) the building card's own controls: crew it before the rest, switch it off (its crew and power go elsewhere), and
-// repair it (condition back to 100% at once, for supplies)
-function workRow(b) {
-  if (!b.done) return '';
-  const d = B[b.type]; let h = '';
-  if (d.crew) h += `<button class="plate btn sm${b.first ? ' on' : ''}" data-bf="1" title="Crew this before anything else, taking hands from the least needed if nobody is free">CREW FIRST</button>`;
-  if (d.crew || d.pw < 0) h += `<button class="plate btn sm${b.off ? ' on' : ''}" data-bs="1" title="${b.off ? 'Back to work' : 'Stop it: its crew and its power go to the rest of the base'}">${b.off ? 'SWITCH ON' : 'SWITCH OFF'}</button>`;
-  if (b.cond < 100 && b.type !== 'hq') { const c = sim.repairCost(b); h += `<button class="plate btn sm" data-br="1" title="${esc(CONDITION)}"${sim.supplies < c ? ' disabled' : ''}>REPAIR · ${c} SUP</button>`; }
-  return h;
-}
-const CONDITION = 'Condition: every building wears a little each day, and the upkeep you pay mends it (more than it wears, unless it is a tent). Upkeep unpaid for most of a day costs 22%. Below 70% it works at 85%, below 40% at half and it lowers morale. REPAIR puts it back to 100% at once.';
-function selBar() {
-  const el = $('th-sel'), b = sel && sim.byId(sel), t = tool || hover; let html = '';
-  if (b) html = `<b>${esc(B[b.type].name)}</b>${statusOf(b).map(([x, tone, tip]) => `<i class="st ${tone}"${tip ? ` title="${esc(tip)}"` : ''}>${esc(x)}</i>`).join('')}${b.type === 'hq' ? supplyRow() : ''}${b.type === 'silo' ? siloRow(b) : ''}<span class="grow"></span>${workRow(b)}${b.type === 'hq' ? '' : '<button class="plate btn sm" data-bd="1">DEMOLISH</button>'}<button class="plate btn sm" data-bx="1">×</button><span class="dim desc">${esc(B[b.type].desc || B[b.type].why || '')}</span>`;
-  else if (t && isZone(t) && ZONES[t.slice(5)]) html = zoneCard(t.slice(5), false);
-  else if (!t && zsel && ZONES[zsel]) html = zoneCard(zsel, true);
-  else if (t && (B[t] || ROADS[t] || (isZone(t) && ZONES[t.slice(5)]))) { const d = B[t] || ROADS[t] || ZONES[t.slice(5)]; html = `<b>${esc(d.name)}</b><span class="grow dim">${esc(words(d.desc || d.why || ''))}</span>`; }
-  el.classList.toggle('hidden', !html);
-  if (html !== selSig) { selSig = html; el.innerHTML = html; }
+  return `<div class="kv"><span>WARHEADS</span><b class="${n ? 'up' : ''}">${n} of ${S.max}${n < S.max ? ` · next ${Math.round((b.nukeT || 0) * 100)}%` : ''}</b></div><div class="so"><button class="plate btn sm" data-nk="${b.id}" ${n ? '' : 'disabled'} title="Credits and Defence standing; the warhead is no longer here for a raid.">SHIP ONE TO THE FRONT · +${S.cr} CR</button></div>`;
 }
 // (GC 0.79) A zone's card: how much of it is painted and, for the zones that grow by themselves, what is going up there or why
 // nothing is (the reason the simulation keeps in growNote), with what the base is short of.
 const ZWANT = { life: ['bunks', 'seats', 'latrines'], logi: ['storage'], comm: ['shops'] };
 const DNAME = { bunks: 'bunks', seats: 'mess seats', latrines: 'latrines', storage: 'storage', shops: 'shops' };
-function zoneCard(zk, picked) {
+function zoneCard(zk) {
   const z = ZONES[zk], n = sim.zoneCount(zk), grows = !!ZWANT[zk];
-  let st = '', tone = 'ok';
+  let st = n ? `${n} tiles painted` : 'None painted yet', tone = n ? 'ok' : 'warn';
   if (grows) {
     const note = (sim.growNote || {})[zk] || (n ? 'waiting for the next hour' : 'no zone painted');
     const up = sim.b.find((b) => b.grown === zk && !b.done);
@@ -181,18 +98,8 @@ function zoneCard(zk, picked) {
     else { st = note.charAt(0).toUpperCase() + note.slice(1); tone = 'warn'; }
   }
   const d = sim.dem || {}, short = grows ? ZWANT[zk].filter((k) => d[k] > 0).map((k) => `${DNAME[k]} ${d[k]}`).join(', ') : '';
-  return `<b>${esc(z.name)}</b><i class="st ${n ? 'ok' : 'warn'}">${n ? `${n} tiles painted` : 'none painted yet'}</i>${st ? `<i class="st ${tone}">${esc(st)}</i>` : ''}`
-    + `${short ? `<i class="st warn">The base needs: ${esc(short)}</i>` : ''}<span class="grow"></span>${picked ? '<button class="plate btn sm" data-bx="1">×</button>' : ''}<span class="dim desc">${esc(words(z.desc))}</span>`;
-}
-function desk() {
-  const now = performance.now(), live = sim.desk.slice(0, innerWidth < 640 ? 1 : 2), hr = C.WEEK / 24;
-  for (const r of live) if (!deskSeen.has(r.id)) deskSeen.set(r.id, now);
-  const left = (r) => Math.max(1, Math.ceil((r.due - sim.t) / hr)), folded = (r) => now - deskSeen.get(r.id) > DESK_OPEN;
-  const sig = live.map((r) => `${r.id}${folded(r) ? 'f' : ''}${left(r)}`).join(',');
-  if (sig === deskSig) return; deskSig = sig;
-  $('th-desk').innerHTML = live.map((r) => { const q = REQUESTS[r.k], due = `${left(r)} h to answer`;
-    if (folded(r)) return `<button class="plate amber req fold" data-bo="${r.id}"><b>${esc(q.title.toUpperCase())}</b><span>${due} · ${words('tap to read')}</span></button>`;
-    return `<div class="plate amber req" data-id="${r.id}"><b>${esc(q.title.toUpperCase())}</b>${esc(q.text.replaceAll('NAME', r.name))}<small>${due}, then it is filed without you.</small><div class="row">${q.opts.map((o, i) => `<button class="plate btn sm" data-ba="${i}" ${sim.canDecide(r, i) ? '' : 'disabled'}>${esc(o.label)}</button>`).join('')}</div></div>`; }).join('');
+  return `<div class="fph"><span style="color:${z.col}">${esc(z.name.toUpperCase())}</span><button class="fx" data-fb="close" aria-label="Close">×</button></div><div class="sp-status ${tone}">${esc(st)}</div><div class="sp-body"><div class="kv"><span>PAINTED</span><b>${n} tiles</b></div>`
+    + `${short ? `<div class="kv"><span>THE BASE NEEDS</span><b class="warn">${esc(short)}</b></div>` : ''}<p>${esc(words(z.desc))}</p></div>`;
 }
 // ---------------------------------------------------------------- the guide: how a base is played (js/modes/guide.js)
 const TUT = [
@@ -203,10 +110,12 @@ const TUT = [
   { t: 'WHAT MATTERS', x: 'Keep morale up and the books in profit: troops need beds, food, water and power, and every charter you earn makes the base worth more. Drag to move, right-drag or Q and E to turn, wheel or pinch to zoom. <b>II</b> pauses and <b>1×</b> speeds time up. Requests land on your desk at the side: answer them or they are filed without you. A supply dropship lands every watch, six times a day, and bills you for what it brings: tap the command post to choose what it buys and how much it may spend.', last: true },
 ];
 function setTool(t) {
-  tool = tool === t ? null : t; sel = 0; zsel = null; view.select(null); selBar();
+  tool = tool === t ? null : t; sel = 0; zsel = null; view.select(null);
   view.setGhost(null); view.showLine(null); view.showPlots(isZone(tool) || (tool && !isRoad(tool) && !LOOSE.has(tool)) ? sim.plotTiles() : null);
-  audio.click(); bar(true); stats();
+  audio.click(); hud.buildBar(true); hud.selPanel();
 }
+const clearSel = () => { sel = 0; zsel = null; view.select(null); hud.selPanel(); };
+function demolish() { const r = sim.demolish(sel); if (r === false || (r && r.ok === false)) { audio.deny(); if (r && r.why) app.toast(r.why); } else { audio.baseDown(); clearSel(); } }
 
 // ---------------------------------------------------------------- pointing: roads, zones, buildings, the camera
 const tileOf = (e) => { const p = view.pick(e.clientX, e.clientY); return [Math.floor(p.x), Math.floor(p.z)]; };
@@ -217,7 +126,7 @@ function tileAt(e) {
   const d = B[tool], w = rot % 2 ? d.d : d.w, dd = rot % 2 ? d.w : d.d;
   return { ...p, tx: Math.round(p.x - w / 2), tz: Math.round(p.z - dd / 2), rot };
 }
-const lineEnd = (e) => { const p = view.pick(e.clientX, e.clientY); return sim.snapLine({ x: p.x, z: p.z }, e.shiftKey ? 'free' : '45', ROADS[tool].k || 'dirt', roadDrag); };   // on the tiles, straight or diagonal; Shift draws free
+const lineEnd = (e) => { const p = view.pick(e.clientX, e.clientY); return sim.snapLine({ x: p.x, z: p.z }, e.shiftKey ? 'free' : hud.snap(), ROADS[tool].k || 'dirt', roadDrag); };   // SNAP on the ROADS tab (G); Shift draws free
 const zoneRect = (a, b) => { const out = []; for (let z = Math.min(a[1], b[1]); z <= Math.max(a[1], b[1]); z++) for (let x = Math.min(a[0], b[0]); x <= Math.max(a[0], b[0]); x++) out.push([x, z, 1]); return out; };
 // (GC 0.78) a graphics driver can drop the 3D view, most often while the browser tab is in the background: the HUD keeps
 // working over a black screen. The browser is asked for the view back; if it has not given it back in a few seconds, the
@@ -280,51 +189,32 @@ function bind(canvasOnly = false) {     // (GC 0.78: canvasOnly, for a view buil
       let ok;
       if (tool === 'unroad') { const p = view.pick(e.clientX, e.clientY); ok = sim.removeLine(p.x, p.z); }
       else { const end = lineEnd(e), c = sim.checkLine(roadDrag, end, ROADS[tool].k); ok = c.ok && sim.drawLine(roadDrag, end, ROADS[tool].k); if (!ok && c.why && c.why !== 'Too short') app.toast(c.why); }
-      roadDrag = null; view.showLine(null); if (ok) audio.podLand(); else audio.deny(); barSig = ''; return;
+      roadDrag = null; view.showLine(null); if (ok) audio.podLand(); else audio.deny(); hud.buildBar(); return;
     }
     if (pinch) { if (ptrs.size < 2) pinch = null; drag = null; return; }
     const d = drag; drag = null; if (!d || d.moved) return;
-    if (d.btn === 2) { if (tool) setTool(tool); else { sel = 0; zsel = null; view.select(null); selBar(); } return; }
+    if (d.btn === 2) { if (tool) setTool(tool); else clearSel(); return; }
     if (tool) {
       const t = tileAt(e), sp = specOf(tool), ok = sim.canPlace(tool, t.tx, t.tz, t.rot, sp);
       if (!ok.ok) { audio.deny(); app.toast(ok.why || 'It cannot go there.'); return; }
-      sim.place(tool, t.tx, t.tz, t.rot, false, sp); audio.podLand(); barSig = '';
+      sim.place(tool, t.tx, t.tz, t.rot, false, sp); audio.podLand(); hud.buildBar();
       if (!LOOSE.has(tool) && !e.shiftKey) setTool(tool);
       return;
     }
     const p = view.pick(e.clientX, e.clientY); sel = p.bid || 0; view.select(sel ? sim.byId(sel) : null);
     zsel = sel ? null : sim.zoneKey(sim.zoneAt(Math.floor(p.x), Math.floor(p.z)));     // (GC 0.79) open ground in a zone: the zone's card
-    if (sel || zsel) audio.click(); selBar();
+    if (sel || zsel) audio.click(); hud.selPanel();
   };
   canvas.addEventListener('pointerup', up);
   canvas.addEventListener('pointercancel', (e) => { ptrs.delete(e.pointerId); drag = null; pinch = null; roadDrag = null; zoneDrag = null; });
   canvas.addEventListener('wheel', (e) => { e.preventDefault(); view.zoomBy(Math.exp(e.deltaY * 0.0012)); }, { passive: false });
   if (canvasOnly) return;
-  $('s-theatre').addEventListener('click', (e) => {
-    if (mode.off) return;
-    const t = e.target.closest('[data-bg],[data-bt],[data-ba],[data-bd],[data-bx],[data-bo],[data-so],[data-sc],[data-nk],[data-bf],[data-bs],[data-br]'); if (!t) return;
-    const d = t.dataset;
-    if (d.bg) { group = d.bg; if (tool) setTool(tool); audio.click(); tabs(); bar(true); }
-    else if (d.bt != null) setTool(d.bt);
-    else if (d.ba != null) { const ok = sim.decide(+t.closest('.req').dataset.id, +d.ba); if (ok) audio.click(); else audio.deny(); deskSig = null; desk(); }     // (GC 0.79: null, so an empty desk is drawn again and the answered card goes)
-    else if (d.bd) { const r = sim.demolish(sel); if (r === false || (r && r.ok === false)) { audio.deny(); if (r && r.why) app.toast(r.why); } else { audio.baseDown(); sel = 0; view.select(null); selBar(); } }
-    else if (d.bx) { sel = 0; zsel = null; view.select(null); selBar(); }
-    else if (d.so || d.sc) { if (sim.setSupplyPlan(d.so ? 'mode' : 'cap', d.so || +d.sc)) audio.click(); selSig = ''; selBar(); }
-    else if (d.bo) { deskSeen.set(+d.bo, performance.now()); audio.click(); desk(); }
-    else if (d.nk) { if (sim.shipNuke(+d.nk)) audio.click(); else audio.deny(); selSig = ''; selBar(); }
-    else if (d.bf) { if (sim.crewFirst(sel)) audio.click(); selSig = ''; selBar(); }     // (GC 0.78)
-    else if (d.bs) { sim.toggle(sel); audio.click(); selSig = ''; selBar(); }
-    else if (d.br) { if (sim.repair(sel)) { audio.click(); app.toast('Repaired: back to 100%'); } else audio.deny(); selSig = ''; selBar(); stats(); }
-  });
-  $('th-stats').addEventListener('click', (e) => { if (mode.off || !e.target.closest('[data-act=report]')) return; audio.click(); report(); });
-  // with a mouse, resting on a tool shows what it is before it is picked
-  $('th-bar').addEventListener('pointerover', (e) => { if (mode.off || e.pointerType !== 'mouse') return; const t = e.target.closest('[data-bt]'); hover = t ? t.dataset.bt : null; selBar(); });
-  $('th-bar').addEventListener('pointerleave', () => { if (hover) { hover = null; if (!mode.off) selBar(); } });
   window.addEventListener('keydown', (e) => {
     if (mode.off || e.target.tagName === 'INPUT') return;
     held.add(e.code); const a = KB.actionOf(e.code);     // (GC 0.73) the player's own keys (js/core/binds.js)
     if (a === 'rotate') rot = (rot + 1) % 4; else if (a === 'turnLeft') view.spin(-0.3); else if (a === 'turnRight') view.spin(0.3);
     else if (e.code === 'Escape' && tool) { e.stopImmediatePropagation(); setTool(tool); } else if (a === 'pause') { e.preventDefault(); $('th-pause').click(); }
+    else if (a === 'snap') hud.cycleSnap(); else if (a === 'slower' || a === 'faster') { const b = document.querySelector(`#fob [data-fb="${a === 'slower' ? 'slow' : 'fast'}"]`); if (b) b.click(); }     // (GC 0.81)
   }, true);
   window.addEventListener('keyup', (e) => held.delete(e.code));
   window.addEventListener('blur', () => held.clear());
@@ -351,17 +241,19 @@ const mode = {
     view.lookAt(hq ? hq.x + hq.w / 2 : sim.N / 2, hq ? hq.z + hq.d / 2 : sim.N / 2);
     view.zoomT = view.zoom = 16;
     view.resize();
-    acc = 0; tool = null; sel = 0; zsel = null; hover = null; barSig = ''; deskSig = ''; selSig = ''; deskSeen.clear(); thumbs = {}; saveT = 25; group = 'roads'; ui.speeds = [1, 2, 4];
-    tut = app.tutorial || (!loaded && app.settings.hints && !guideSeen(TUT_KEY)) ? makeGuide(TUT, { key: TUT_KEY, tutorial: app.tutorial, words, audio, exit: () => app.leavePost() }) : null;
+    acc = 0; tool = null; sel = 0; zsel = null; hover = null; saveT = 25; ui.speeds = [1, 2, 4];
+    if (!hud) { hud = makeHud({ app, ui, audio, sim: () => sim, view: () => view, tool: () => tool, setTool, sel: () => sel, zsel: () => zsel, clearSel, demolish, specOf, supplyRow, siloRow, zoneCard, report, toast: (t) => app.toast(t) }); hud.mount(); }
+    hud.show(true);
+    tut = app.tutorial ? makeGuide(TUT, { key: TUT_KEY, tutorial: app.tutorial, words, audio, exit: () => app.leavePost() }) : null;     // (GC 0.81) outside the tutorial, the task board's ORDERS teach the base
     $('th-where').textContent = sim.faction.base;
-    tabs(); bar(true); stats(); desk(); selBar(); if (tut) tut.tick(); else { const co = $('th-coach'); if (co) co.hidden = true; }
+    hud.reset(); if (tut) tut.tick(); else { const co = $('th-coach'); if (co) co.hidden = true; }
     if (!loaded) { const gr = app.grant('b_grant'); if (gr) sim.supplies += gr; }
     if (!loaded) { ui.message('A NEW BASE', 2600); ui.feed('BASE: The command post is down. Draw a road from it, then zone along the road.', 'radio'); }
     else ui.feed(`BASE: Welcome back, Commander. Day ${(sim.time && sim.time.cday) || 1}.`, 'radio');     // (GC 0.79: the day the top bar shows)
   },
   store() { if (sim && args) { try { app.siteSave('base', args.system.id, sim.save()); } catch (err) { console.error(err); } } },
   report() { const s = sim.stage || 0, r = sim.rates(), net = r.crNet + r.supNet; return { air: Math.min(5, sim.b.filter((b) => b.done && !b.off && SHOWS.has(b.type)).length), profit: sim.flow.days.length > 0 && net > 0, net, level: Math.min(4, s + 1), charter: C.STAGES[s].name, troops: sim.troops.length }; },
-  leave() { mode.store(); mode.off = true; held.clear(); if (tut) tut.hide(); tut = null; if (view) { view.setGhost(null); view.showLine(null); view.showPlots(null); } },
+  leave() { mode.store(); mode.off = true; held.clear(); if (hud) hud.show(false); if (tut) tut.hide(); tut = null; if (view) { view.setGhost(null); view.showLine(null); view.showPlots(null); } },
   frame(dt, now, real) {
     if (!sim) return;
     const fx = (KB.held('panRight', held) ? 1 : 0) - (KB.held('panLeft', held) ? 1 : 0), fz = (KB.held('panUp', held) ? 1 : 0) - (KB.held('panDown', held) ? 1 : 0);
@@ -373,8 +265,8 @@ const mode = {
       for (const ev of sim.drain()) {
         life.event(ev);
         if (ev.t === 'say') ui.feed(`${String(ev.ch || 'base').toUpperCase()}: ${ev.text}`, 'radio');
-        else if (ev.t === 'built') { audio.ready(); barSig = ''; const b = sim.b.find((o) => o.id === ev.id); if (b && !ev.refit) note(app.tutorial ? {} : { built: 1 }, [['building', b.type]]); }
-        else if (ev.t === 'week') { audio.objective(); barSig = ''; if (!app.tutorial) note({ baseDays: 1, baseFirst: ev.rank === 0 ? 1 : 0, baseReview: ev.review || 0 }); }
+        else if (ev.t === 'built') { audio.ready(); hud.buildBar(); const b = sim.b.find((o) => o.id === ev.id); if (b && !ev.refit) note(app.tutorial ? {} : { built: 1 }, [['building', b.type]]); }
+        else if (ev.t === 'week') { audio.objective(); hud.buildBar(); if (!app.tutorial) note({ baseDays: 1, baseFirst: ev.rank === 0 ? 1 : 0, baseReview: ev.review || 0 }); }
         else if (ev.t === 'desk') audio.chirp();
         else if (ev.t === 'raidAlarm') { audio.siren(); ui.message('MOVEMENT AT THE WIRE', 3000); }
       }
@@ -382,7 +274,8 @@ const mode = {
     }
     if (sim.time) view.setTime(sim.time.hour);
     if (!view.lost) view.frame(real);
-    if ((hudT -= real) <= 0) { hudT = 0.3; bar(); stats(); desk(); selBar(); if (tut) tut.tick(); }
+    hud.layout(real);
+    if ((hudT -= real) <= 0) { hudT = 0.3; hud.tick(); if (tut) tut.tick(); }
     if ((saveT -= real) <= 0) { saveT = 25; mode.store(); }
   },
   // for the browser checks: put down the start of a base and run a few days

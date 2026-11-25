@@ -1,6 +1,6 @@
 # Orbital Fury: Galactic Command
 
-**Prototype 0.80.1.** One war, run from four posts, in one game.
+**Prototype 0.81.0.** One war, run from four posts, in one game.
 
 You found a command (a name, a livery: emblem and colours) and hold the centre of the galaxy against three enemies. Everything in
 the war is yours to run, and each part changes the others:
@@ -13,6 +13,30 @@ the war is yours to run, and each part changes the others:
 | **The base** | Found a base on the system's key world: roads, zones, and buildings that grow along them. | +35% output from the system for each charter. |
 
 A system that falls takes its station and its base with it.
+
+## What's new in 0.81: FOB Commander gets the standalone game's interface back
+
+Ramzies: the Galactic Command FOB Commander "UI just isn't as good as the Helldivers themed one". Its simulation and 3D
+came over from FOB Super Commander whole; its interface (about 2,000 lines) had been replaced by a thin wrapper, so a
+player could build and answer the desk but could not see what the base earned, what it was short of or what the Offices
+wanted. The first part of that interface is back, in this game's look and words (`js/modes/base-hud.js`):
+
+- **The top bar**: SUPPLIES, CREDITS and OWED in big numbers with their change a watch; troops (home, in all, bunks),
+  morale and where it is heading, power, rations, fuel, ammo and READY; BUY SUPPLIES; the day, with the allocation bar,
+  the inspection mark and your rank. Hover any of them for where it comes from.
+- **The task board** (ORDERS & DESK, top left): the next three of 21 orders that teach the base, then everything
+  waiting: the Offices' calls (set aside what they ask for, or decline), requests, offers from the other bases, and what
+  needs fixing (short of power, water, bunks or a good; a raid coming). The calls and offers were never shown before.
+- **The build bar**: tabs by purpose with icons and their zone's colour; a card for everything, with a picture, what it
+  is for, its cost, upkeep and power; BUILD AS a standard; the zones with the base's demand, the franchise and GROW AS;
+  the engineer crews at work; SNAP for road ends (G). Click a tab again to fold the bar away.
+- **The building card** (right): how it is doing in a line, its upkeep and what it earns a watch, standard, services,
+  condition, crew, power, stocks and needs as bars, who is on duty; REPAIR, CREW FIRST, SWITCH OFF, UPGRADE to the next
+  standard, DEMOLISH with the refund. The command post's card keeps the dropship's orders; the silo's, its warheads.
+- **The status bar**: the clock (slower, pause, faster; [ and ]), the day, the time and what the base is doing at that
+  hour, the next charter's term, and STANDING, CHARTER and DEFENCE.
+- Outside the tutorial, the task board's orders replace the five-card guide. Next: the Offices' windows (the economy
+  with the market and loans, the ledger, research, intelligence), then the minimap and the map views.
 
 ## What's new in 0.80.1: the F3 readout tells where a frame's time goes
 
@@ -380,7 +404,7 @@ come back to them.
 - `python3 test/armoury.py` checks the armoury, the chest and that they survive a reload (needs `npm start`).
 - `python3 test/base_fixes.py` checks FOB Commander's feedback fixes: wire on walls, the numbers after the main menu, a dropped 3D view coming back, crews, and a building's card.
 - `python3 test/roster.py` checks the STORE: credits from the career, buying roles, personalities and an upgrade, giving them to the Vanguards, and a fight on the ground where they carry them.
-- `python3 test/base_ui.py` checks the base's controls: dragging the ground, roads keeping to the tiles and joining where they cross, a building's status card, requests folding away, and the guide.
+- `python3 test/base_ui.py` checks the base's controls: dragging the ground, roads keeping to the tiles and joining where they cross, the task board's orders, the build bar's cards, the readouts' breakdowns, the building card and the command post's orders, a request answered from the task board, and the clock.
 
 ## Not in this version
 
