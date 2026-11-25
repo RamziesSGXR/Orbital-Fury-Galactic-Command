@@ -13,7 +13,7 @@
 //   - the status bar: the clock (slower, pause, faster), the day, the time and what the base is doing at that hour, and
 //     (GC 0.82) the dock: a button for each of the Offices' windows (base-offices.js), with how that Office is doing.
 // Ministries are Offices here, votes are troops, the pelican a dropship.
-import { C, B, GROUPS, ZONES, ZKEYS, GOODS, GKEYS, STD, TRAIN, TECH, VEHICLES, LOANS, CHAINS, GROW, SUPPLY_MODES, SUPPLY_CAPS, COMMIT, MARKET, FOUNDATION } from '../base/config.js';
+import { C, B, GROUPS, ZONES, ZKEYS, GOODS, GKEYS, STD, TRAIN, TECH, VEHICLES, LOANS, CHAINS, GROW, SUPPLY_MODES, SUPPLY_CAPS, COMMIT, MARKET, FOUNDATION, MIN } from '../base/config.js';
 import { MKEYS, rankOf, LOOSE } from '../base/sim.js';
 import { REQUESTS, CALLS, GRADES, fileOf } from '../base/desk.js';
 import { words } from '../core/words.js';
@@ -38,7 +38,11 @@ export const ICON = {
   training: 'M12 3a9 9 0 1 0 0 18 9 9 0 1 0 0-18M12 8a4 4 0 1 0 0 8 4 4 0 1 0 0-8M12 11.5v1', living: 'M3 11l9-7 9 7M5 10v10h14V10M10 20v-5h4v5',
   income: 'M4 20h16M7 17v-4M12 17V9M17 17V5', industry: 'M3 21V11l6 4v-4l6 4V5h4v16zM7 21v-3M12 21v-3', power: 'M13 2 5 14h6l-1 8 8-12h-6z', defence: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z',
   truth: 'M3 10v4h3l7 4V6l-7 4zM16 9c1.5 1.5 1.5 4.5 0 6M19 7c3 3 3 7 0 10', command: 'M12 21V9M8 21h8M5 7c4-4 10-4 14 0M8 10c2-2 6-2 8 0M12 9V3',
-  zones: 'M3 3h8v8H3zM13 13h8v8h-8zM13 3h8v8M3 13h8v8', beauty: 'M12 22v-7M12 15c-4 0-7-2.6-7-6s3-6 7-6 7 2.6 7 6-3 6-7 6zM8 22h8',     // (GC 0.84: a tree) wire: 'M2 12c2-3 4 3 6 0s4 3 6 0 4 3 6 0 2 1 2 1M4 6v12M12 6v12M20 6v12',
+  zones: 'M3 3h8v8H3zM13 13h8v8h-8zM13 3h8v8M3 13h8v8', beauty: 'M12 22v-7M12 15c-4 0-7-2.6-7-6s3-6 7-6 7 2.6 7 6-3 6-7 6zM8 22h8',     // (GC 0.84: a tree)
+  // (GC 0.85) for the lenses, the status marks over buildings and the board
+  people: 'M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM2 21c0-4 3-6.5 7-6.5s7 2.5 7 6.5M16 4.5a3.2 3.2 0 0 1 0 6.2M18 14.8c2.4.7 4 2.9 4 6.2', smile: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM8 14c1 1.6 2.4 2.4 4 2.4s3-.8 4-2.4M9 9.5v1M15 9.5v1',
+  drop: 'M12 3c3 4 6 7.5 6 11a6 6 0 0 1-12 0c0-3.5 3-7 6-11z', potty: 'M7 3h10v7H7zM5 10h14l-2 6H7zM9 16l-1 5h8l-1-5', wrench: 'M15 4a5 5 0 0 0-5 6.5L3.5 17l3.5 3.5 6.5-6.5A5 5 0 0 0 20 9l-3 3-3-1-1-3z',
+  star: 'M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z', off: 'M12 3v8M6.4 6.6a8 8 0 1 0 11.2 0', person: 'M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21c0-4.4 3.6-7 8-7s8 2.6 8 7', noise: 'M3 10v4h3l7 4V6l-7 4zM16 9c1.5 1.5 1.5 4.5 0 6M19 7c3 3 3 7 0 10', box: 'M3 8l9-5 9 5v8l-9 5-9-5zM3 8l9 5 9-5M12 13v8', coin: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM14.5 8.5h-3.5a1.75 1.75 0 0 0 0 3.5h2a1.75 1.75 0 0 1 0 3.5h-3.5M12 7v2M12 15v2', wire: 'M2 12c2-3 4 3 6 0s4 3 6 0 4 3 6 0 2 1 2 1M4 6v12M12 6v12M20 6v12',
   bags: 'M3 17c0-2 2-3 4.5-3S12 15 12 17M12 17c0-2 2-3 4.5-3S21 15 21 17M3 17h18M7.5 14c0-2 2-3 4.5-3s4.5 1 4.5 3', trench: 'M2 9h5l2 8h6l2-8h5M9 17h6',
 };
 export const icon = (k) => `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="${ICON[k] || ''}"/></svg>`;
@@ -68,28 +72,30 @@ export const LINES = {
 export const CONDITION = 'Condition: every building wears a little each day, and the upkeep you pay mends it (more than it wears, unless it is a tent). Upkeep unpaid for most of a day costs 22%. Below 70% it works at 85%, below 40% at half and it lowers morale. REPAIR puts it back to 100% at once.';
 
 // The orders: what to do next, in the order a base is built. Each is done when its test passes.
+// (GC 0.85) [a short line for the board, the whole of it for its tip, the test]
 const ORDERS = [
-  ['Draw a road from the command post (ROADS, drag)', (s) => s.net.segs.some((q) => !['wall', 'wire', 'bags', 'trench'].includes(q.k))],
-  ['Paint a Life Support zone and a Logistics zone along the road (ZONES: tap beside a road to fill a block): barracks, a mess, latrines and a depot grow there', (s) => s.zoneCount('life') > 0 && s.zoneCount('logi') > 0],
-  ['Lay the foundation: place a Firing Range (TRAINING); the zones grow the Supply Depot, Barracks and Mess Hall', (s) => s.founded()],
-  ['Power the base: a Biofuel Generator by the road (UTILITIES). Every utility covers a circle round it', (s) => s.b.some((b) => b.done && B[b.type].pw > 0 && b.type !== 'hq')],
-  ['Wall the base in and put up a Lookout Tower (DEFENCE): inside a closed wall everything produces 5% more and morale is +3; with a tower, 10% and +6', (s) => s.wallBonus().tower],
-  ['Build an Engineer Yard (INDUSTRY): a third engineer crew means three jobs at once', (s) => s.crews.some((c) => c.yard)],
-  ['Paint a Civic and Commerce zone and pick a franchise: shops grow as the base fills up', (s) => s.zoneCount('comm') > 0],
-  ['Give the bunks water and sewage beyond the command post: a Water Well and a Sewage Lagoon (UTILITIES). Keep the well away from the lagoon', (s) => s.has('well') && s.has('lagoon')],
-  ['Carry the power further with a Substation, so nothing goes dark (UTILITIES)', (s) => s.has('substation')],
-  ['Upgrade a tent to a prefab: tap it and press UPGRADE', (s) => s.b.some((b) => b.done && s.hasStd(b.type) && b.type !== 'hq' && s.stdOf(b) >= 1)],
-  ['Ship trained troopers to the front: transports leave the landing pad at 16:00', (s) => s.stats.deployed > 0],
-  ['Deal with the desk: answer a request', (s) => (s.stats.desk || 0) + (s.stats.graded || 0) > 0],
-  ['Answer an Office call: set aside what they ask for', (s) => (s.stats.calls || 0) > 0],
-  ['Take an offer from another base, or trade on the market', (s) => (s.stats.trades || 0) + (s.stats.mkt || 0) > 0],
-  ['Keep supplies and credits rising: the change a watch is under each, at the top', (s) => { const r = s.rates(); return s.week >= 2 && r.supNet >= 0 && r.crNet >= 0; }],
-  ['Build a Patrol Office for standing patrols (OPERATIONS)', (s) => s.has('patrol')],
-  ['Be granted a Forward Operating Base charter (STANDING, then the charter\'s terms)', (s) => s.stage >= 1],
-  ['Be granted a Fort: more land, permanent buildings', (s) => s.stage >= 2],
-  ['Be granted a Major Base', (s) => s.stage >= 3],
-  ['Score 60 or more in a Publicity Office inspection', (s) => s.inspection && s.inspection.score >= 60],
-  ['Reach 1st place in the standings', (s) => s.rank === 0],
+  ['Draw a road from the command post', 'Draw a road from the command post (ROADS, drag)', (s) => s.net.segs.some((q) => !['wall', 'wire', 'bags', 'trench'].includes(q.k))],
+  ['Zone Life Support and Logistics', 'Paint a Life Support zone and a Logistics zone along the road (ZONES: tap beside a road to fill a block): barracks, a mess, latrines and a depot grow there', (s) => s.zoneCount('life') > 0 && s.zoneCount('logi') > 0],
+  ['Lay the foundation: a Firing Range', 'Lay the foundation: place a Firing Range (TRAINING); the zones grow the Supply Depot, Barracks and Mess Hall', (s) => s.founded()],
+  ['Power the base: a generator', 'Power the base: a Biofuel Generator by the road (UTILITIES). Every utility covers a circle round it', (s) => s.b.some((b) => b.done && B[b.type].pw > 0 && b.type !== 'hq')],
+  ['Wall the base in, with a Lookout', 'Wall the base in and put up a Lookout Tower (DEFENCE): inside a closed wall everything produces 5% more and morale is +3; with a tower, 10% and +6', (s) => s.wallBonus().tower],
+  ['Build an Engineer Yard', 'Build an Engineer Yard (INDUSTRY): a third engineer crew means three jobs at once', (s) => s.crews.some((c) => c.yard)],
+  ['Plant something by the bunks (BEAUTY)', 'Trees, planters, gardens and the rest lift morale where the bunks can see them (BEAUTY)', (s) => (s.look || 0) > 0],
+  ['Zone Civic and pick a franchise', 'Paint a Civic and Commerce zone and pick a franchise: shops grow as the base fills up', (s) => s.zoneCount('comm') > 0],
+  ['Water and sewage: a well and a lagoon', 'Give the bunks water and sewage beyond the command post: a Water Well and a Sewage Lagoon (UTILITIES). Keep the well away from the lagoon', (s) => s.has('well') && s.has('lagoon')],
+  ['Carry power further: a Substation', 'Carry the power further with a Substation, so nothing goes dark (UTILITIES)', (s) => s.has('substation')],
+  ['Upgrade a tent to a prefab', 'Upgrade a tent to a prefab: tap it and press UPGRADE', (s) => s.b.some((b) => b.done && s.hasStd(b.type) && b.type !== 'hq' && s.stdOf(b) >= 1)],
+  ['Ship troopers to the front', 'Ship trained troopers to the front: transports leave the landing pad at 16:00', (s) => s.stats.deployed > 0],
+  ['Answer a request', 'Deal with the desk: answer a request', (s) => (s.stats.desk || 0) + (s.stats.graded || 0) > 0],
+  ['Answer an Office call', 'Answer an Office call: set aside what they ask for', (s) => (s.stats.calls || 0) > 0],
+  ['Trade: take an offer or use the market', 'Take an offer from another base, or trade on the market', (s) => (s.stats.trades || 0) + (s.stats.mkt || 0) > 0],
+  ['Keep supplies and credits rising', 'Keep supplies and credits rising: the change a watch is under each, at the top', (s) => { const r = s.rates(); return s.week >= 2 && r.supNet >= 0 && r.crNet >= 0; }],
+  ['Build a Patrol Office', 'Build a Patrol Office for standing patrols (OPERATIONS)', (s) => s.has('patrol')],
+  ['Reach the FOB charter', 'Be granted a Forward Operating Base charter (STANDING, then the charter\'s terms)', (s) => s.stage >= 1],
+  ['Reach the Fort charter', 'Be granted a Fort: more land, permanent buildings', (s) => s.stage >= 2],
+  ['Reach a Major Base', 'Be granted a Major Base', (s) => s.stage >= 3],
+  ['Score 60 in an inspection', 'Score 60 or more in a Publicity Office inspection', (s) => s.inspection && s.inspection.score >= 60],
+  ['Reach 1st place', 'Reach 1st place in the standings', (s) => s.rank === 0],
 ];
 
 // a panel under the pointer keeps still: redrawing it would pull the button out from under a click (the numbers catch up a moment later)
@@ -104,16 +110,16 @@ export function makeHud(o) {
   function mount() {
     if (root) return;
     root = document.createElement('div'); root.id = 'fob';
-    root.innerHTML = `<aside id="fb-orders" class="fpan"><div class="fph"><span>ORDERS &amp; DESK</span><b id="fb-n"></b><button class="fx" data-fb="fold" title="Fold away" aria-label="Fold away">–</button></div><div id="fb-body"></div></aside>
+    root.innerHTML = `<div id="fb-marks"></div><div id="fb-floats"></div><aside id="fb-orders" class="fpan"><div class="fph"><span>ORDERS &amp; DESK</span><b id="fb-n"></b><button class="fx" data-fb="fold" title="Fold away" aria-label="Fold away">–</button></div><div id="fb-body"></div></aside>
       <div id="fb-selp" class="fpan" hidden></div>
       <div id="fb-build"><div id="fb-items"></div><div id="fb-groups" role="toolbar" aria-label="Build"></div></div>
       <div id="fb-status"><div id="fb-clock"><button class="plate btn sm" data-fb="slow" title="Slower ( [ )">◀</button><button class="plate btn sm" data-fb="pause" title="Pause (Space)" id="fb-pause">II</button><button class="plate btn sm" data-fb="fast" title="Faster ( ] )">▶</button><b id="fb-speed">1×</b>
         <span class="ck"><b id="fb-day">DAY 1</b> <b id="fb-time">06:00</b> <span id="fb-phase"></span></span></div>
-        <div id="fb-dock"><span id="fb-next"></span>${OTABS.map(([k, n, c]) => `<button class="md" data-mt="${k}" title="${n[0] + n.slice(1).toLowerCase()} (O opens the Offices)"><b class="${c}">${n}</b><span id="md-${k}"></span><i class="mdm"><u id="mdb-${k}"></u></i></button>`).join('')}</div></div>
-      <div id="fb-mins" class="fpan" hidden><div class="fph"><span>THE OFFICES</span><div id="fb-mi-tabs" role="tablist"></div><button class="fx" data-fb="mclose" title="Close (Esc)" aria-label="Close">×</button></div><div id="fb-mi-body"></div></div>
+        <div id="fb-dock"><span id="fb-next"></span>${OTABS.map(([k, n, ic, c]) => `<button class="md" data-mt="${k}" title="${n[0] + n.slice(1).toLowerCase()}: the base shows it (O)"><b class="${c}">${icon(ic)}${n}</b><span id="md-${k}"></span><i class="mdm"><u id="mdb-${k}"></u></i></button>`).join('')}</div></div>
+      <div id="fb-mins" class="fpan" hidden><div class="fph"><span id="fb-mi-name"></span><div id="fb-mi-tabs" role="tablist"></div><button class="fx" data-fb="mclose" title="Close (Esc)" aria-label="Close">×</button></div><div id="fb-mi-body"></div></div>
       <div id="fb-tip" hidden></div>`;
     $('th-stage').appendChild(root);
-    offices = makeOffices(o, { fmt, esc, dur, calDay, OFFICE, CAT, MOR, CONDITION, warns: () => lastWarn, flash, refresh: () => { boardSig = ''; board(); readouts(); } });
+    offices = makeOffices(o, { fmt, esc, dur, calDay, OFFICE, CAT, MOR, CONDITION, warns: () => lastWarn, flash, refresh: () => { boardSig = ''; board(); readouts(); }, icon, thumb, lens: setLens, floatAt });
     root.addEventListener('click', onClick);
     root.addEventListener('change', (e) => { if (e.target.id === 'fb-chain') { sim().setChain(e.target.value || null); sim().growStep(); buildBar(true); audio.click(); } });
     $('fb-items').addEventListener('pointermove', itemTip);
@@ -128,7 +134,7 @@ export function makeHud(o) {
     document.addEventListener('pointerout', (e) => { if (e.target.closest && e.target.closest('[data-info]') && !(e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest('[data-info]')) && flashT <= 0) hideTip(); });
     $('th-stats').addEventListener('click', (e) => { if (!root || root.hidden) return; const b = e.target.closest('[data-fb],[data-info]'); if (b) onClick(e); });
   }
-  function show(on) { if (root) root.hidden = !on; $('s-theatre').classList.toggle('fob', on); if (!on) hideTip(); }
+  function show(on) { if (root) root.hidden = !on; $('s-theatre').classList.toggle('fob', on); if (!on) { hideTip(); setLens(null); for (const [, el] of markEls) el.remove(); markEls.clear(); for (const f of floats) f.el.remove(); floats.length = 0; } }
   function reset() {
     group = 'roads'; buildOpen = true; thumbs = {}; itemsSig = ''; groupsSig = ''; boardSig = ''; selSig = ''; lastWarn = [];
     $('fb-orders').classList.remove('min'); offices.reset();
@@ -140,7 +146,7 @@ export function makeHud(o) {
     $('th-stats').innerHTML = `<div class="fb-top">
       <button class="fbig sup" data-info="sup" data-fb="o:bud:budget"><b id="fr-sup">0</b><span>SUPPLIES</span><i id="fr-sup-d"></i></button>
       <button class="fbig cr" data-info="cr" data-fb="o:bud:budget"><b id="fr-cr">0</b><span>CREDITS</span><i id="fr-cr-d"></i></button>
-      <button class="fbig debt" data-info="debt" data-fb="o:bud:trade"><b id="fr-debt">0</b><span>OWED</span><i id="fr-debt-d"></i></button>
+      <button class="fbig debt" data-info="debt" data-fb="o:bud:loans"><b id="fr-debt">0</b><span>OWED</span><i id="fr-debt-d"></i></button>
       <div class="fres">${[['troops', 'TROOPS', 'trp', 'pop'], ['morale', 'MORALE', 'mrl', 'hap'], ['power', 'POWER', 'pw', 'eff'], ['rations', 'RAT', 'rations', 'bud:trade'], ['fuel', 'FUEL', 'fuel', 'bud:trade'], ['ammo', 'AMMO', 'ammo', 'bud:trade'], ['ready', 'READY', 'ready', 'ops']].map(([k, n, id, t]) => `<span class="ri${t ? ' go' : ''}" data-info="${k}"${t ? ` data-fb="o:${t}"` : ''}><i>${n}</i><b id="fr-${id}"></b></span>`).join('')}</div>
       <button class="plate btn sm" id="fr-buy" data-fb="buy" title="Buy 100 supplies on the planet market with credits">BUY SUPPLIES</button>
       <button class="fweek" data-info="week" data-fb="o:bud:budget"><b id="fw-title">DAY 1</b><span class="wbar"><span id="fw-fill"></span><span id="fw-insp" title="The Publicity Office's inspection"></span></span><span id="fw-rank"></span></button></div>`;
@@ -205,43 +211,44 @@ export function makeHud(o) {
 
   // ---------------------------------------------------------------- the task board
   function board() {
-    const s = sim(), items = [], done = ORDERS.map((q) => { try { return !!q[1](s); } catch { return false; } }), todo = ORDERS.map((_, i) => i).filter((i) => !done[i]);
+    const s = sim(), items = [], done = ORDERS.map((q) => { try { return !!q[2](s); } catch { return false; } }), nd = done.filter(Boolean).length, next = done.indexOf(false);
     let h = '';
-    if (todo.length) h += `<div class="tb-sec">ORDERS · ${done.filter(Boolean).length} OF ${ORDERS.length} DONE</div>` + todo.slice(0, 3).map((i, n) => `<div class="tb-o${n === 0 ? ' next' : ''}"><i>${i + 1}</i>${esc(words(ORDERS[i][0]))}</div>`).join('');
+    if (next >= 0) h += `<div class="tb-next" title="${esc(words(ORDERS[next][1]))}"><i>${nd + 1}/${ORDERS.length}</i><b>${esc(ORDERS[next][0])}</b><span class="tb-prog"><u style="width:${nd / ORDERS.length * 100}%"></u></span></div>`;
     // the Offices' calls: set aside what they ask for by a day, or pay for ignoring them
     for (const c of s.calls.filter((x) => !x.acc)) {
       const q = CALLS[c.k], have = s.have(c.g);
-      items.push(`<div class="tb-i call"><em class="c-${q.m}">${OFFICE[q.m]} · DUE DAY ${calDay(c.due)}</em><b>${esc(q.title)}: ${fmt(c.n)} ${c.g.toUpperCase()}</b><span class="${have < c.n ? 'warn' : 'up'}">You have ${fmt(have)}</span><div class="tb-b"><button class="plate btn sm" data-call="${c.id}:1">SET ASIDE</button><button class="plate btn sm" data-call="${c.id}:0">DECLINE</button></div></div>`);
+      items.push(`<div class="tb-i call" title="${esc(`${OFFICE[q.m]}, due day ${calDay(c.due)}. ${q.text}`)}"><b>${esc(q.title)}</b><span><em class="c-${q.m}">${fmt(c.n)} ${c.g.toUpperCase()}</em> · <span class="${have < c.n ? 'warn' : 'up'}">have ${fmt(have)}</span></span><div class="tb-b"><button class="plate btn sm" data-call="${c.id}:1">SET ASIDE</button><button class="plate btn sm" data-call="${c.id}:0">DECLINE</button></div></div>`);
     }
     // requests
     for (const r of s.desk) {
       const q = REQUESTS[r.k];
-      items.push(`<div class="tb-i"><em>${esc(q.from.toUpperCase())} · ${dur(Math.max(0, r.due - s.t)).toUpperCase()} LEFT</em><b>${esc(q.title)}</b><span class="tb-txt">${esc(q.text.replaceAll('NAME', r.name))}</span><div class="tb-b">${q.opts.map((op, i) => `<button class="plate btn sm" data-dec="${r.id}:${i}" ${s.canDecide(r, i) ? '' : 'disabled'}>${esc(op.label)}</button>`).join('')}</div></div>`);
+      items.push(`<div class="tb-i" title="${esc(`${q.from}, ${dur(Math.max(0, r.due - s.t))} left. ${q.text.replaceAll('NAME', r.name)}`)}"><b>${esc(q.title)}</b><div class="tb-b">${q.opts.map((op, i) => `<button class="plate btn sm" data-dec="${r.id}:${i}" ${s.canDecide(r, i) ? '' : 'disabled'}>${esc(op.label)}</button>`).join('')}</div></div>`);
     }
-    // (GC 0.83) the roster review: one trooper's file at a time, from the Offices' DESK page that was
+    // the roster review: one trooper's file at a time
     { const files = s.toReview(), left = s.reviewsLeft();
       if (files.length && left > 0) { const t = files[0], f = fileOf(t);
-        items.push(`<div class="tb-i file"><em>ROSTER REVIEW · ${files.length} FILE${files.length > 1 ? 'S' : ''} · ${left} MORE THIS WATCH</em><b>${rankOf(t.missions)} ${esc(t.name)}${t.grade ? ` <small>last graded ${t.grade}</small>` : ''}</b><span>Range ${f.range} · course ${f.course} · ${f.missions} mission${f.missions === 1 ? '' : 's'}${f.medals ? ` · ${f.medals} medal${f.medals > 1 ? 's' : ''}` : ''}. ${esc(f.conduct)}</span><div class="tb-b">${GRADES.map((g) => `<button class="plate btn sm" data-grade="${t.id}:${g}" title="${GTIP[g]}">${g}</button>`).join('')}</div></div>`); } }
+        items.push(`<div class="tb-i file" title="${esc(`Roster review: ${files.length} file${files.length > 1 ? 's' : ''}, ${left} more this watch. Conduct: ${f.conduct} Next of kin: ${f.kin}`)}"><b>${rankOf(t.missions)} ${esc(t.name)}</b><span class="tb-chips"><em title="Range">${icon('training')}${f.range.replace(' of 10 targets', '/10')}</em><em title="Course">${icon('roads')}${f.course}</em><em title="Missions">${icon('star')}${f.missions}</em>${f.medals ? `<em title="Medals">★${f.medals}</em>` : ''}</span><div class="tb-b">${GRADES.map((g) => `<button class="plate btn sm" data-grade="${t.id}:${g}" title="${GTIP[g]}">${g}</button>`).join('')}</div></div>`); } }
     // offers from the other bases
     for (const of of s.market.offers) {
-      const M = MARKET.goods[of.g], mk = (of.buys ? s.sellAt(of.g) : s.buyAt(of.g)) * 10, ok = s.canTakeOffer(of);
-      items.push(`<div class="tb-i offer"><em>${esc(of.from.toUpperCase())} · UNTIL DAY ${calDay(of.until)}</em><b>${of.buys ? 'WANTS' : 'SELLS'} ${of.n} ${M.short} at ${(of.p * 10).toFixed(1)} CR per 10</b><span>The market ${of.buys ? 'pays' : 'charges'} ${mk.toFixed(1)}.${of.buys ? ` You hold ${Math.floor(s.holding(of.g))}.` : ''}</span><div class="tb-b"><button class="plate btn sm" data-offer="${of.id}" ${ok.ok ? '' : 'disabled'} title="${esc(ok.ok ? '' : ok.why || '')}">${of.buys ? 'SELL' : 'BUY'} · ${of.buys ? '+' : '−'}${Math.round(of.n * of.p)} CR</button></div></div>`);
+      const M = MARKET.goods[of.g], mk = (of.buys ? s.sellAt(of.g) : s.buyAt(of.g)) * 10, ok = s.canTakeOffer(of), better = of.buys ? of.p * 10 > mk : of.p * 10 < mk;
+      items.push(`<div class="tb-i offer" title="${esc(`${of.from}, until day ${calDay(of.until)}. The market ${of.buys ? 'pays' : 'charges'} ${mk.toFixed(1)} per 10.${ok.ok ? '' : ' ' + (ok.why || '')}`)}"><b>${of.buys ? 'WANTS' : 'SELLS'} ${of.n} ${M.short} <span class="${better ? 'up' : 'down'}">${(of.p * 10).toFixed(1)}/10</span></b><div class="tb-b"><button class="plate btn sm" data-offer="${of.id}" ${ok.ok ? '' : 'disabled'}>${of.buys ? 'SELL' : 'BUY'}</button></div></div>`);
     }
-    // what needs fixing
+    // what needs fixing: an icon and a few words; the why in the tip; a click opens the lens that shows it on the map
     lastWarn = [];
-    const warn = (title, why) => { lastWarn.push({ t: title, why }); items.push(`<div class="tb-i alert"><b>${esc(title)}</b><span>${esc(words(why))}</span></div>`); };
-    { const ri = s.raidInfo(); if (ri.known) warn(ri.alarm ? 'RAID AT THE WIRE' : 'Raid expected', `${ri.what}${ri.dir ? ' from the ' + ri.dir : ''}, ${ri.when}.`); }
+    const fixes = [];
+    const warn = (title, why, ic = 'star', lens = 'eff') => { lastWarn.push({ t: title, why }); fixes.push(`<button class="tb-w" data-lens="${lens}" title="${esc(words(why))}">${icon(ic)}<span>${esc(title)}</span></button>`); };
+    { const ri = s.raidInfo(); if (ri.known) warn(ri.alarm ? 'RAID AT THE WIRE' : 'Raid coming', `${ri.what}${ri.dir ? ' from the ' + ri.dir : ''}, ${ri.when}.`, 'defence', 'ops'); }
     const use = s.usage();
-    for (const g of GKEYS) if (use[g] > 0 && s.amount(g) < use[g] * 0.5) warn(`${GOODS[g].name} running low`, `${Math.floor(s.amount(g))} left, ${Math.round(use[g])} used a watch. More storage brings bigger deliveries; or take an offer.`);
-    for (const m of MKEYS) if ((s.commit?.[m] || 0) && (s.commitLast?.[m] ?? 1) < 0.6) warn(`${COMMIT[m].dept}: commitment short`, `Only ${Math.round(s.commitLast[m] * 100)}% paid last watch: short of what it costs (ECONOMY, COMMITMENTS).`);
-    { const u = s.util; if (u && !s.graceOn()) { if (u.dark) warn('Buildings dark', `${u.dark} building${u.dark > 1 ? 's are' : ' is'} outside power coverage. Build a Substation near ${u.dark > 1 ? 'them' : 'it'} (UTILITIES).`); if (s.waterEff() < 0.75) warn('Short of water', 'Bunks without water lose morale and fall sick. Wells, a purification unit, or a tower to carry it (UTILITIES).'); if (s.sewerEff() < 0.75) warn('Short of sewage', 'Bunks with nowhere for their waste lose morale and fall sick. A lagoon or a treatment plant (UTILITIES).'); } }
-    if (s.power.ratio < 1) warn('Short of power', `${s.power.made} made, ${s.power.used} wanted: buildings run slow. Build a Generator or a Solar Array.`);
-    if (s.hunger > 0.15) warn('Troops going hungry', 'Not enough seats at meals, or not enough rations. A Mess Hall feeds 24.');
-    if (s.troops.length > s.beds) warn('Not enough bunks', `${s.troops.length} troops, ${s.beds} bunks. Zone more Life Support, or build a Barracks or a Prefab Hab.`);
-    if (s.credits < -s.OD) warn('Past the overdraft', 'Wages go unpaid and franchises stop. Take an offer that pays, or sell supplies.');
-    if (s.nextStage() && s.stageCheck().every((c) => c.ok)) warn('A bigger charter is on its way', 'Every term is met: it is granted within the hour.');
-    if (items.length) h += `<div class="tb-sec">ON THE DESK · ${items.length}</div>` + items.join('');
-    else if (!todo.length) h += '<p class="fine">Nothing waiting. The base runs itself; the desk fills up during duty hours.</p>';
+    for (const g of GKEYS) if (use[g] > 0 && s.amount(g) < use[g] * 0.5) warn(`${GOODS[g].short} low`, `${Math.floor(s.amount(g))} left, ${Math.round(use[g])} used a watch. More storage brings bigger deliveries; or buy some (BUDGET, TRADE).`, 'box', 'bud');
+    for (const m of MKEYS) if ((s.commit?.[m] || 0) && (s.commitLast?.[m] ?? 1) < 0.6) warn(`${MIN[m].short} commitment short`, `Only ${Math.round(s.commitLast[m] * 100)}% paid last watch: the stores ran short.`, 'coin', 'bud');
+    { const u = s.util; if (u && !s.graceOn()) { if (u.dark) warn(`${u.dark} dark`, `${u.dark} building${u.dark > 1 ? 's are' : ' is'} outside power coverage. A Substation near ${u.dark > 1 ? 'them' : 'it'} (UTILITIES).`, 'power'); if (s.waterEff() < 0.75) warn('Water short', 'Bunks without water lose morale and fall sick. Wells, a purification unit, or a tower (UTILITIES).', 'drop'); if (s.sewerEff() < 0.75) warn('Sewage short', 'Bunks with nowhere for their waste lose morale and fall sick. A lagoon or a treatment plant (UTILITIES).', 'potty'); } }
+    if (s.power.ratio < 1) warn('Power short', `${s.power.made} made, ${s.power.used} wanted: buildings run slow. A Generator or a Solar Array (UTILITIES).`, 'power');
+    if (s.hunger > 0.15) warn('Hungry', 'Not enough seats at meals, or not enough rations. A Mess Hall feeds 24.', 'living', 'pop');
+    if (s.troops.length > s.beds) warn('Bunks short', `${s.troops.length} troops, ${s.beds} bunks. Zone more Life Support.`, 'living', 'pop');
+    if (s.credits < -s.OD) warn('Overdrawn', 'Wages go unpaid and franchises stop. Take an offer that pays, or sell supplies.', 'coin', 'bud');
+    if (s.nextStage() && s.stageCheck().every((c) => c.ok)) warn('Charter coming', 'Every term is met: it is granted within the hour.', 'star', 'pop');
+    if (fixes.length) h += `<div class="tb-fix">${fixes.join('')}</div>`;
+    if (items.length) h += items.join('');
     $('fb-n').textContent = items.length || '';
     const el = $('fb-body');
     if (h !== boardSig && !held(el)) { boardSig = h; el.innerHTML = h; }
@@ -294,7 +301,7 @@ export function makeHud(o) {
       const u = s.util, utilLine = group === 'power' && u ? `<span class="bi-crews">POWER ${s.power.made}/${s.power.used} · WATER ${u.water.made}/${u.water.use} · SEWAGE ${u.sewer.cap}/${u.sewer.use} A DAY${u.dark ? ` · ${u.dark} DARK` : ''}</span>` : '';
       const cs = s.crews || [], busy = cs.filter((c) => c.job != null && !c.wait).length, q = s.jobQueue().length;
       const crews = `<span class="bi-crews${q > cs.length + 2 ? ' bad' : ''}" title="Engineer crews do every building job, one each. An Engineer Yard (INDUSTRY) trains another.">CREWS ${busy}/${cs.length} AT WORK · ${q} JOB${q === 1 ? '' : 'S'} OPEN${!s.secure() ? ' · SWEEP UNDER WAY' : ''}</span>`;
-      const head = `<div class="bi-head"><b>${G[1]}</b><span class="bi-desc" title="${esc(words(G[2]))}">${group === 'power' ? '' : esc(words(G[2]))}</span>${utilLine}${crews}${stdRow}${!found && group !== 'roads' ? `<em>Foundation first: ${fm.map((t) => B[t].name).join(', ')}. These bring the money in.</em>` : ''}</div>`;
+      const head = `<div class="bi-head"><b>${G[1]}</b><span class="bi-desc"></span>${utilLine}${crews}${stdRow}${!found && group !== 'roads' ? `<em>Foundation first: ${fm.map((t) => B[t].name).join(', ')}. These bring the money in.</em>` : ''}</div>`;
       let cards = '';
       if (group === 'roads' || group === 'defence') {
         const lines = group === 'roads' ? ['road1', 'road2', 'path', 'unroad'] : ['wall', 'wire', 'bags', 'trench', 'unroad'];
@@ -420,6 +427,8 @@ export function makeHud(o) {
   function onClick(e) {
     const s = sim();
     if (offices.click(e)) return;     // (GC 0.82) the Offices' window and the dock
+    { const mk = e.target.closest('[data-mk]'); if (mk) { o.select(+mk.dataset.mk); return; } }     // (GC 0.85) a mark over a building: its card
+    { const ln = e.target.closest('[data-lens]'); if (ln) { offices.open(ln.dataset.lens); audio.click(); return; } }     // a fix on the board: the lens that shows it
     const g = e.target.closest('[data-g]'); if (g && root.contains(g)) { const k = g.dataset.g; buildOpen = k === group ? !buildOpen : true; group = k; if (o.tool()) o.setTool(o.tool()); audio.click(); buildBar(true); return; }
     const sd = e.target.closest('[data-std]'); if (sd) { const k = +sd.dataset.std, lk = s.stdLock(k); if (lk) { flash(lk + '.'); audio.deny(); return; } s.setStd(k); thumbs = {}; audio.click(); buildBar(true); return; }
     if (e.target.closest('[data-snap]')) { snapMode = SNAPS[(SNAPS.indexOf(snapMode) + 1) % SNAPS.length]; audio.click(); buildBar(true); return; }
@@ -448,6 +457,110 @@ export function makeHud(o) {
     selSig = ''; selPanel(); readouts();
   }
 
+  // ---------------------------------------------------------------- (GC 0.85) SHOW, DON'T TELL
+  // THE LENS: an Offices page colours the base for what it is about, and draws on the ground what explains it
+  let lensKey = null, lensT = 0;
+  const mixc = (a, b, t) => { const p = (x) => [1, 3, 5].map((i) => parseInt(x.slice(i, i + 2), 16)), A = p(a), Bc = p(b), k = Math.max(0, Math.min(1, t)); return '#' + A.map((v, i) => Math.round(v + (Bc[i] - v) * k).toString(16).padStart(2, '0')).join(''); };
+  const GREY = '#59605c';
+  function lensColor(s, b, k) {
+    const d = B[b.type];
+    if (k === 'pop') { if (d.beds) return '#4fb4ff'; if (d.slots) return '#f5d547'; if (d.crew && b.done) return b.off ? GREY : b.crew >= d.crew ? '#3fe07a' : b.crew > 0 ? '#ffb648' : '#ff4d3a'; return GREY; }
+    if (k === 'bud') { if (!b.done) return GREY; const v = moneyOf(b); return v >= 0 ? mixc(GREY, '#3fe07a', 0.25 + v / 25) : mixc(GREY, '#ff4d3a', 0.25 - v / 25); }
+    if (k === 'eff') { if (!b.done) return GREY; if (b.dark) return '#ff4d3a'; if (b.dry || b.foul || (d.crew && b.crew < d.crew && !b.off)) return '#ffb648'; if (s.coverOf && Object.keys(s.coverOf(b)).length) return '#ffffff'; return d.pw < 0 || s.needsWater(b) || d.crew ? '#3fe07a' : GREY; }
+    if (k === 'hap') { if (d.look) return b.seen ? '#7cf07a' : '#d8e07a'; if (d.beds) return b.noisy || b.hazard || b.dry || b.foul || b.smelly ? '#ff4d3a' : '#4fb4ff'; if (d.prop || d.mor) return '#c98bff'; return GREY; }
+    if (k === 'ops') { if (d.watch || d.guns || d.squads) return '#ff6a4d'; if (d.slots || d.pad) return '#f5d547'; return GREY; }
+    return GREY;
+  }
+  function coverList(s) { const out = [], col = { pw: '#ffd23a', wa: '#4fb4ff', se: '#b08a4a', fu: '#c98bff' }; for (const b of s.b) if (b.done && !b.off) for (const [k, r] of Object.entries(s.coverOf(b))) out.push({ x: b.x + b.w / 2, z: b.z + b.d / 2, r, col: col[k] || '#ffffff' }); return out; }
+  function reachList(s) { return s.b.filter((b) => b.done && B[b.type].beds).map((b) => ({ x: b.x + b.w / 2, z: b.z + b.d / 2, r: 10 + b.w / 2, col: '#7cf07a' })); }     // where beauty counts in full
+  function routesNow(s) {     // the routes goods take: pad to storage, storage to the buildings that use them, and the runs on now
+    const done = s.b.filter((b) => b.done), mid = (b) => [b.x + b.w / 2, b.z + b.d / 2], out = new Map();
+    const nearest = (b, list) => list.filter((x) => x !== b).sort((p, q) => Math.hypot(p.x - b.x, p.z - b.z) - Math.hypot(q.x - b.x, q.z - b.z))[0];
+    const add = (a, b, g, live) => { const k = `${a.id}>${b.id}:${g}`, r = out.get(k); if (r) { r.live ||= live; return; } out.set(k, { a: mid(a), b: mid(b), col: GOODS[g].color, live, g }); };
+    const pads = done.filter((b) => B[b.type].pad);
+    for (const g of GKEYS) {
+      const stores = done.filter((b) => s.storeCap(b, g) && !B[b.type].pump);
+      for (const p of pads) { const d = nearest(p, stores); if (d) add(p, d, g); }
+      for (const b of done) if (s.needCap(b, g)) { const src = nearest(b, stores.length ? stores : pads); if (src) add(src, b, g); }
+    }
+    for (const v of s.veh) if (v.job && v.job.g) { const a = s.byId(v.job.src), b = s.byId(v.job.dst); if (a && b) add(a, b, v.job.g, true); }
+    return [...out.values()];
+  }
+  function applyLens() {
+    const v = view(), s = sim(); if (!v || !s) return; const k = lensKey;
+    try {
+      if (!k) { v.setInfo(null); v.setCover(null); v.setRoutes(null); return; }
+      v.setInfo(new Map(s.b.map((b) => [b.id, lensColor(s, b, k)])), false);
+      v.setCover(k === 'eff' ? coverList(s) : k === 'hap' ? reachList(s) : null);
+      v.setRoutes(k === 'eff' ? routesNow(s) : null);
+    } catch (err) { console.error(err); }
+  }
+  let foldedFor = null;     // the build bar's cards fold while a lens is open, so the base can be seen; they come back after
+  function setLens(k) {
+    lensKey = k || null; lensT = 0; applyLens(); $('s-theatre').classList.toggle('lens', !!lensKey);
+    if (lensKey && foldedFor == null && !o.tool()) { foldedFor = buildOpen; buildOpen = false; buildBar(true); }
+    else if (!lensKey && foldedFor != null) { buildOpen = foldedFor; foldedFor = null; buildBar(true); }
+  }
+  // THE MARKS: what is wrong with a building, as an icon over it. A click opens its card
+  const MK = { dark: ['power', 'r', 'Dark: outside power coverage. A Substation (UTILITIES).'], crew0: ['person', 'r', 'No crew'], crew: ['person', 'a', 'Short of crew'], stock: ['box', 'r', 'Out of '], dry: ['drop', 'a', 'No water'], foul: ['potty', 'a', 'No sewage'], worn: ['wrench', 'r', 'Falling apart: tap it and REPAIR'], noise: ['noise', 'a', 'Noise or fuel next to the bunks'], off: ['off', 'g', 'Switched off'] };
+  const markEls = new Map();
+  function markOf(s, b) {
+    const d = B[b.type]; if (!b.done) return null;
+    if (b.off) return ['off'];
+    if (b.dark) return ['dark'];
+    if (d.crew && b.crew < 1) return ['crew0'];
+    const out = d.need && Object.keys(d.need).find((g) => (b.stock[g] || 0) < 0.5); if (out) return ['stock', GOODS[out].name.toLowerCase()];
+    if (s.needsWater(b) && b.dry) return ['dry'];
+    if (s.needsSewer(b) && b.foul) return ['foul'];
+    if (b.cond < 40 && b.type !== 'hq') return ['worn'];
+    if (d.crew && b.crew < d.crew) return ['crew'];
+    if (d.beds && (b.noisy || b.hazard)) return ['noise'];
+    return null;
+  }
+  function marks() {
+    const s = sim(), box = $('fb-marks'); if (!s || !box) return;
+    const want = new Map(); for (const b of s.b) { const m = markOf(s, b); if (m) want.set(b.id, m); }
+    for (const [id, el] of markEls) if (!want.has(id)) { el.remove(); markEls.delete(id); }
+    for (const [id, [k, x]] of want) {
+      let el = markEls.get(id); if (!el) { el = document.createElement('button'); el.dataset.mk = id; box.appendChild(el); markEls.set(id, el); }
+      const sig = k + (x || ''); if (el._sig !== sig) { el._sig = sig; el.className = 'mk ' + MK[k][1]; el.innerHTML = icon(MK[k][0]); el.title = MK[k][2] + (x || ''); }
+    }
+  }
+  function placeMarks() {
+    const v = view(), s = sim(); if (!v || !s || !markEls.size) return;
+    const st = $('th-stage').getBoundingClientRect(), far = v.zoom > 80;
+    for (const [id, el] of markEls) {
+      const b = s.byId(id), g = v.bm && v.bm.get(id), p = b && !far ? v.toScreen(b.x + b.w / 2, b.z + b.d / 2, (g?.userData.top || 1) + 0.5) : null;
+      if (!p) { if (el.style.display !== 'none') el.style.display = 'none'; continue; }
+      el.style.display = ''; el.style.transform = `translate(${Math.round(p[0] - st.left)}px, ${Math.round(p[1] - st.top)}px)`;
+    }
+  }
+  // THE FLOATS: money made or spent rises off where it happened, and fades
+  const floats = [];
+  function addFloat(text, cls, at) {
+    const box = $('fb-floats'); if (!box || !text) return;
+    const el = document.createElement('div'); el.className = 'fl ' + (cls || ''); el.textContent = text; box.appendChild(el);
+    floats.push({ el, t: 0, ...at }); while (floats.length > 30) floats.shift().el.remove();
+  }
+  function floatWorld(x, z, y, text, cls) { addFloat(text, cls, { x, z, y }); }
+  function floatAt(target, text, cls) { const r = target.getBoundingClientRect(), st = $('th-stage').getBoundingClientRect(); addFloat(text, cls, { sx: r.left + r.width / 2 - st.left, sy: r.top - st.top }); }
+  function cash(ev) {
+    const s = sim(), b = s.byId(ev.id); if (!b) return;
+    const parts = []; if (ev.sup) parts.push(`${ev.sup > 0 ? '+' : '−'}${fmt(Math.abs(ev.sup))} SUP`); if (ev.cr) parts.push(`${ev.cr > 0 ? '+' : '−'}${fmt(Math.abs(ev.cr))} CR`);
+    const g = view()?.bm?.get(b.id); floatWorld(b.x + b.w / 2, b.z + b.d / 2, (g?.userData.top || 1) + 0.8, parts.join('  '), (ev.sup || 0) + (ev.cr || 0) >= 0 ? 'up' : 'down');
+  }
+  function placeFloats(dt) {
+    if (!floats.length) return;
+    const v = view(), st = $('th-stage').getBoundingClientRect(), LIFE = 2.4;
+    for (let i = floats.length - 1; i >= 0; i--) {
+      const f = floats[i]; f.t += dt;
+      if (f.t > LIFE) { f.el.remove(); floats.splice(i, 1); continue; }
+      let px, py;
+      if (f.sx != null) { px = f.sx; py = f.sy; } else { const p = v && v.toScreen(f.x, f.z, f.y); if (!p) { f.el.style.opacity = 0; continue; } px = p[0] - st.left; py = p[1] - st.top; }
+      f.el.style.transform = `translate(${Math.round(px)}px, ${Math.round(py - f.t * 26)}px) translate(-50%, -100%)`; f.el.style.opacity = Math.min(1, (LIFE - f.t) / 0.6);
+    }
+  }
+
   // ---------------------------------------------------------------- the tip and the flash
   function tip(html, x, y, above) {
     const t = $('fb-tip'); t.innerHTML = html; t.hidden = false;
@@ -465,21 +578,24 @@ export function makeHud(o) {
   function layout(dt) {
     if (!root || root.hidden) return;
     if (flashT > 0 && (flashT -= dt) <= 0) hideTip();
+    placeMarks(); placeFloats(dt);
     const st = $('th-stage').getBoundingClientRect(), bar = $('fb-build').getBoundingClientRect(), barTop = bar.top - st.top;
     $('th-stage').style.setProperty('--fb-bottom', (st.height - barTop + 8) + 'px');     // the guide sits on the build bar
     const co = $('th-coach'), coTop = co && !co.hidden ? co.getBoundingClientRect().top - st.top : barTop;
     const or = $('fb-orders'); or.style.maxHeight = Math.max(60, Math.min(barTop, coTop) - 16) + 'px';     // the task board stops above them
     const sp = $('fb-selp'); if (!sp.hidden) sp.style.maxHeight = Math.max(140, barTop - 16) + 'px';
+    const mi = $('fb-mins'); if (mi && !mi.hidden) mi.style.maxHeight = Math.max(200, barTop - 16) + 'px';     // (GC 0.85) the lens panel stops above the build bar
   }
 
   // every 0.3 s
   function tick() {
     if (!root || root.hidden) return;
-    readouts(); board(); selPanel(); offices.render();
+    readouts(); board(); selPanel(); offices.render(); marks();
+    if (lensKey && (lensT += 1) % 5 === 0) applyLens();
     if (group === 'zones' && (ivT = (ivT + 1) % 10) === 0) buildBar();
     else buildBar();
     view().zoneStrong = !!(o.tool() && o.tool().startsWith('zone:')) || (buildOpen && group === 'zones');
   }
 
-  return { mount, show, reset, tick, layout, buildBar, selPanel, board, flash, pointerTip, offices: () => offices, snap: () => snapMode, cycleSnap: () => { snapMode = SNAPS[(SNAPS.indexOf(snapMode) + 1) % SNAPS.length]; buildBar(true); }, group: () => group };
+  return { mount, show, reset, tick, layout, buildBar, selPanel, board, flash, pointerTip, cash, floatWorld, offices: () => offices, snap: () => snapMode, cycleSnap: () => { snapMode = SNAPS[(SNAPS.indexOf(snapMode) + 1) % SNAPS.length]; buildBar(true); }, group: () => group };
 }

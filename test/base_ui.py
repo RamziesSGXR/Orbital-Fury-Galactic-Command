@@ -18,7 +18,7 @@ with sync_playwright() as pw:
     pg.wait_for_function("gc.state === 'base' && document.getElementById('trans').hidden", timeout=120000)
     pg.wait_for_timeout(3000)
     # the task board's orders on a first base, and the readouts at the top
-    assert pg.evaluate("document.querySelector('#fb-body .tb-o.next').textContent.includes('Draw a road from the command post')"), 'no first order on the task board'
+    assert pg.evaluate("document.querySelector('#fb-body .tb-next').textContent.includes('Draw a road from the command post')"), 'no first order on the task board'
     assert pg.evaluate("document.getElementById('fr-sup').textContent.replace(',', '') === String(Math.round(gc.mode.sim.supplies))"), 'the supplies readout is wrong'
     assert pg.evaluate("document.querySelectorAll('#fb-groups .bg').length") >= 10 and pg.evaluate("document.querySelectorAll('#fb-items .bi').length") >= 5, 'the build bar has no tabs or cards'
     pg.hover('.fbig.sup'); pg.wait_for_timeout(300)
@@ -60,7 +60,7 @@ with sync_playwright() as pw:
     pg.click('#fb-items [data-b=road1]'); pg.wait_for_timeout(1500)
     pg.evaluate(f"(() => {{ const v = gc.mode.view; v.lookAt({dx + ox * 6 + 0.5}, {dz + oz * 6 + 0.5}); v.zoom = v.zoomT = 6; }})()"); pg.wait_for_timeout(1200)
     pg.screenshot(path=f'{out}/ui-2-crossing.png')
-    assert pg.evaluate("document.querySelector('#fb-body .tb-o.next').textContent.includes('Paint a Life Support zone')"), 'the orders did not move on after the first road'
+    assert pg.evaluate("document.querySelector('#fb-body .tb-next').textContent.includes('Zone Life Support and Logistics')"), 'the orders did not move on after the first road'
 
     # --- a building's card
     pg.evaluate("(() => { const s = gc.mode.sim, v = gc.mode.view, hq = s.b.find(b => b.type === 'hq'); v.lookAt(hq.x + 1.5, hq.z + 1.5); v.zoom = v.zoomT = 10; })()"); pg.wait_for_timeout(800)

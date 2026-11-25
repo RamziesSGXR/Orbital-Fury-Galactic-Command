@@ -745,7 +745,7 @@ export class Sim {
     if (h === C.DEPLOY_AT) this.deployRun();
     if (h === 0) { this.checkOrders(); this.dayClose(); this.utilDay(); }
     if (this.nextStage()) this.promote();   // (GC 0.63) the Bureau grants the next charter by itself, within the hour every term is met (nothing called promote before)
-    if (h === 20 && !this.unpaidDays) { let cr = 0; for (const b of this.b) if (b.done && !b.off) cr += (C.SALES[b.type] || 0) * this.capF(b) + this.stat(b, 'sales'); if (cr) this.earn('sales', 0, cr); }
+    if (h === 20 && !this.unpaidDays) { let cr = 0; for (const b of this.b) if (b.done && !b.off) { const v = (C.SALES[b.type] || 0) * this.capF(b) + this.stat(b, 'sales'); cr += v; this.cash(b.id, 0, v); } if (cr) this.earn('sales', 0, cr); }
     this.mood *= 0.985;
     this.deskHour(h);
     if (h === 10) this.callDay();
@@ -999,7 +999,7 @@ export class Sim {
     const ids = go.map(t => t.id);
     this.troops = this.troops.filter(t => !ids.includes(t.id));
     o.sent += go.length; this.stats.deployed += go.length;
-    const pay = go.length * C.DEPLOY_PAY, cr = Math.round(go.reduce((a, t) => a + C.DEPLOY_CR * (t.grade === 'A' ? 1.5 : 1), 0) * (1 + 0.05 * this.commitF('def'))); this.earn('deploy', pay, cr);
+    const pay = go.length * C.DEPLOY_PAY, cr = Math.round(go.reduce((a, t) => a + C.DEPLOY_CR * (t.grade === 'A' ? 1.5 : 1), 0) * (1 + 0.05 * this.commitF('def'))); this.earn('deploy', pay, cr); this.cash(pads[0]?.id, pay, cr);
     this.events.push({ t: 'deploy', ids, names: go.map(t => t.name), pads: this.byPad(pads, ids) });
     this.say('def', `${go.length} trooper${go.length > 1 ? 's' : ''} shipped to the front (${o.sent} of ${o.n}). +${pay} supplies, +${cr} credits.`);
     if (o.sent >= o.n) {
@@ -1228,7 +1228,7 @@ export class Sim {
     for (const t of back) { t.state = t.hurt > 0 ? 'hurt' : 'idle'; t.missions++; }
     const quiet = !!p.office;   // standing patrols only report when something happens
     if (win) {
-      this.gain('def', p.def); this.earn('ops', p.sup, p.office ? 0 : p.diff * 10); this.stats.patrolsWon++;
+      this.gain('def', p.def); this.earn('ops', p.sup, p.office ? 0 : p.diff * 10); this.cash(p.at ?? this.hqId(), p.sup, p.office ? 0 : p.diff * 10); this.stats.patrolsWon++;
       if (this.rng.chance((quiet ? 0.08 : 0.35) + 0.08 * p.diff)) {
         hero = this.rng.pick(back.filter(t => !(t.hurt > 0)).length ? back.filter(t => !(t.hurt > 0)) : back); hero.medals++; this.pride += 5;
         this.honours.push({ name: hero.name, rank: rankOf(hero.missions), op: p.op, week: this.week });
@@ -1354,7 +1354,7 @@ export class Sim {
     const R = C.TIDY; if (this.week < R.from) return 0;
     const checks = this.reviewChecks();
     const ok = checks.filter(c => c[1]).length, pay = ok * R.per + (ok === checks.length ? R.all : 0);
-    if (pay) this.earn('review', pay);
+    if (pay) { this.earn('review', pay); this.cash(this.hqId(), pay); }
     const miss = checks.filter(c => !c[1]).map(c => c[2]);
     this.say('base', ok === checks.length ? `Efficiency review: latrines, mess, bunks, crews, power and short walks all in order. +${pay} supplies.`
       : `Efficiency review: ${ok} of ${checks.length} in order${pay ? `, +${pay} supplies` : ''}. Marked down for ${miss.join(', ')}.`);
@@ -1368,7 +1368,7 @@ export class Sim {
     this.updateRivals();
     const prev = this.rank, rank = this.ranking();
     const amt = Math.round(C.ALLOC.base * C.ALLOC.mult[rank] * (1 + (C.STAGES[this.stage || 0].alloc || 0)));
-    this.closeFlow(); this.earn('alloc', amt, 0); this.lastAlloc = amt;
+    this.closeFlow(); this.earn('alloc', amt, 0); this.cash(this.hqId(), amt); this.lastAlloc = amt;
     const gross = Math.round(amt / 0.82), fee = Math.round(gross * 0.11);
     this.ledger = { week: this.week, gross, fee, consult: gross - fee - amt, net: amt };
     for (const b of this.b) if (b.done && B[b.type].cryo && !b.off && b.crew > 0 && this.power.ratio >= 1) { this.gain('def', 3); this.say('def', 'Vanguards thawed, briefed and shipped to the front. +3 Defence standing.'); }
@@ -1486,6 +1486,9 @@ export class Sim {
     }
   }
   newFlow() { return { sup: {}, cr: {}, sup0: this.supplies ?? 0, cr0: this.credits ?? 0 }; }
+  // (GC 0.85) money the player should see happen: floated off the building it came from (base-hud.js)
+  cash(id, sup = 0, cr = 0) { if ((sup || cr) && id != null) this.events.push({ t: 'cash', id, sup: Math.round(sup), cr: Math.round(cr) }); }
+  hqId() { return this.b.find(b => b.type === 'hq')?.id ?? null; }
   earn(cat, sup = 0, cr = 0) {
     this.supplies += sup; this.credits += cr;
     for (const f of [this.flow.cur, this.flow.today]) { if (sup) f.sup[cat] = (f.sup[cat] || 0) + sup; if (cr) f.cr[cat] = (f.cr[cat] || 0) + cr; }

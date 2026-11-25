@@ -1,6 +1,6 @@
 # Orbital Fury: Galactic Command
 
-**Prototype 0.84.0.** One war, run from four posts, in one game.
+**Prototype 0.85.0.** One war, run from four posts, in one game.
 
 You found a command (a name, a livery: emblem and colours) and hold the centre of the galaxy against three enemies. Everything in
 the war is yours to run, and each part changes the others:
@@ -13,6 +13,27 @@ the war is yours to run, and each part changes the others:
 | **The base** | Found a base on the system's key world: roads, zones, and buildings that grow along them. | +35% output from the system for each charter. |
 
 A system that falls takes its station and its base with it.
+
+## What's new in 0.85: FOB Commander shows instead of tells
+
+Ramzies: "everything is a lot of text, and feels more like a spreadsheet than a game that can show and not just tell."
+
+- **The Offices are lenses.** POPULATION, BUDGET, EFFICIENCY, HAPPINESS and OPERATIONS (the dock, or O) now open a slim
+  panel on the right and turn the base itself into the picture: where people live, train and work (crewed, short or
+  empty); green buildings earn and red ones cost; served or dark, with every utility's reach drawn on the ground and the
+  supply routes; bunks blue or red by their surroundings, beauty bright where the bunks can see it and green rings where
+  it counts; the defences and the training grounds. The build cards fold away while a lens is open.
+- **The panel is big numbers, bars and pictures**: what the next milestone unlocks as pictures of the buildings, the
+  charter's buildings with a tick, made against lost in one row a currency, the six review checks as icons, defence,
+  housing and looks as three tiles. Every paragraph that was on a page is in a tip: hover it.
+- **Marks over buildings**: an icon over anything that is dark, unmanned, out of a good, dry, without sewage, falling
+  apart, noisy or switched off. Click one for its card.
+- **Money rises off where it was made**: the daily allocation off the command post, troopers' pay off the pad, sales off
+  each shop at 20:00, an operation's reward, the efficiency review; a building's cost where it goes down and the refund
+  where it comes up; trades and loans off the button.
+- **A short task board**: the next order in a line (the whole of it in the tip) with a progress bar; calls, requests,
+  offers and files to grade without their paragraphs; what needs fixing as red chips with an icon, each opening the lens
+  that shows it.
 
 ## What's new in 0.84: milestones instead of research, and beauty
 

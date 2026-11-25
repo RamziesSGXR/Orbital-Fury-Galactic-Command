@@ -1,248 +1,192 @@
-// (GC 0.82) THE OFFICES: FOB Commander's windows, from the standalone game (FOB Super Commander's Ministries): one window
-// over the base, opened from the dock along the bottom, from the numbers at the top, or with O; Esc closes it.
-// (GC 0.83) Rebuilt round the base's goals, each measured with bars rather than tables (Ramzies: "bars that measure,
-// population milestones, budget & trade, efficiency, citizen happiness"):
-//   POPULATION   the milestones: the charters, at 30, 60 and 110 on the base, with the next one's other terms; who is
-//                here; bunks and seats; the Growth Office's daily audit; what the charter gives the war
-//   BUDGET       what the base makes and what it loses, a watch, in supplies and in credits; the allocation by rank and
-//                the three standings that set it, with the commitment that buys each. TRADE & LOANS: the market, offers
-//                from the other bases, debt
-//   EFFICIENCY   how fast people and goods get in, round and out: the daily efficiency review's six checks, the walks
-//                from the bunks, the roads, the pad, the trucks, the transports, crews, power, water and sewage
-//   HAPPINESS    morale and what moves it, in three: defence (the wall, the perimeter, raids), housing (bunks, food,
-//                latrines, noise, water) and looks (propaganda, condition, what is on air)
-//   OPERATIONS   deployment orders, training, special operations (SEND), squads out, the last results
-// (GC 0.84) No SCIENCE: research is gone, and its upgrades come with milestones (POPULATION has the ladder). HAPPINESS's
-// looks take in beauty: trees, planters, gardens, fountains and parks.
-// The calls, requests and files to grade are on the task board. Every page fits a 1280 x 720 screen without scrolling.
-import { C, B, GKEYS, TECH, TRAIN, VEHICLES, LOANS, COMMIT, MARKET, MIN } from '../base/config.js';
+// (GC 0.82) THE OFFICES: FOB Commander's windows, from the standalone game (FOB Super Commander's Ministries).
+// (GC 0.83) Rebuilt round the base's goals, measured with bars. (GC 0.84) No research: milestones.
+// (GC 0.85) SHOW, DON'T TELL (Ramzies: "everything is a lot of text, and feels more like a spreadsheet than a game"). Each
+// page is now a LENS: opening it turns the base itself into the picture (base-hud.js colours every building for it, and
+// draws coverage, reach or the supply routes on the ground), and the page beside it is a slim column of bars, pictures and
+// numbers. What used to be paragraphs is in the tips: hover anything.
+//   POPULATION   the milestone ladder (charters and head counts) with pictures of what the next one unlocks; its terms;
+//                who is here; bunks and seats. The map: where people live, train and work (crewed, short, empty)
+//   BUDGET       made against lost; where it comes from and goes; the allocation by rank and the standings, with the
+//                commitment that buys each. TRADE and LOANS beside it. The map: green earns, red costs
+//   EFFICIENCY   the daily review's six checks; walks; roads; the pad, trucks, transports, crews; services. The map:
+//                served or not, the utilities' reach and the supply routes
+//   HAPPINESS    morale; defence, housing and looks; what moves it most; beauty, propaganda, condition. The map: bunks by
+//                their surroundings, beauty seen or half seen, and where beauty counts round the bunks
+//   OPERATIONS   orders, training, special operations (SEND), squads out. The map: the base's defences and training
+import { C, B, GKEYS, GOODS, TECH, VEHICLES, LOANS, COMMIT, MARKET, MIN } from '../base/config.js';
 import { MKEYS } from '../base/sim.js';
 import { segLen } from '../base/net.js';
 import { logoCanvas } from '../base/logo.js';
 
 const $ = (id) => document.getElementById(id);
-// the pages: key, name, the colour of its label
-export const OTABS = [['pop', 'POPULATION', ''], ['bud', 'BUDGET & TRADE', ''], ['eff', 'EFFICIENCY', ''], ['hap', 'HAPPINESS', ''], ['ops', 'OPERATIONS', 'c-def']];
+// the pages: key, name, icon (base-hud.js ICON), colour class
+export const OTABS = [['pop', 'POPULATION', 'people', ''], ['bud', 'BUDGET', 'income', ''], ['eff', 'EFFICIENCY', 'roads', ''], ['hap', 'HAPPINESS', 'smile', ''], ['ops', 'OPERATIONS', 'defence', 'c-def']];
 const GSHORT = (g) => (g === 'cr' ? 'CR' : g === 'sup' ? 'SUP' : MARKET.goods[g] ? MARKET.goods[g].short : g.toUpperCase());
-const chg = (hist) => { if (!hist || hist.length < 2) return ''; const a = hist.at(-2), b = hist.at(-1), d = (b - a) / (a || 1) * 100; return `<small class="${d > 0.5 ? 'up' : d < -0.5 ? 'down' : ''}">${d > 0 ? '▲' : d < 0 ? '▼' : ''}${Math.abs(d).toFixed(1)}%</small>`; };
 const clamp01 = (v) => Math.max(0, Math.min(1, v || 0));
-// what moves morale, in the three the player can act on (and the rest)
 const HAPPY = { defence: ['wall', 'pride', 'grief'], housing: ['crowd', 'comfort', 'food', 'latrine', 'noise', 'hazard', 'power', 'water', 'sewer', 'smell', 'sick'], looks: ['beauty', 'prop', 'worn', 'commit'] };
-// what moves morale, by name on the HAPPINESS page (the full wording is the hover)
-const CAUSE = { beauty: 'BEAUTY', wall: 'CLOSED, WATCHED WALL', pride: 'MEDALS AND PRIDE', grief: 'GRIEF', crowd: 'NO BUNK', comfort: 'COMFORT', food: 'HUNGER', latrine: 'LATRINES', noise: 'NOISE BY THE BUNKS', hazard: 'FUEL BY THE BUNKS', power: 'POWER CUTS', water: 'WATER', sewer: 'SEWAGE', smell: 'THE LAGOON\'S SMELL', sick: 'SICKNESS', prop: 'PROPAGANDA', worn: 'WORN BUILDINGS', commit: 'PUBLICITY COMMITMENT' };
-const CHECKS = { latrines: 'Clean latrines, no queues', mess: 'A seat at the mess for everyone', bunks: 'A bunk for everyone', crews: 'Every crewed building fully crewed', power: 'Power for everything', walks: 'Short walks' };
+const CAUSE = { beauty: 'BEAUTY', wall: 'CLOSED WALL', pride: 'PRIDE', grief: 'GRIEF', crowd: 'NO BUNK', comfort: 'COMFORT', food: 'HUNGER', latrine: 'LATRINES', noise: 'NOISE', hazard: 'FUEL NEARBY', power: 'POWER CUTS', water: 'WATER', sewer: 'SEWAGE', smell: 'LAGOON SMELL', sick: 'SICKNESS', prop: 'PROPAGANDA', worn: 'WORN BUILDINGS', commit: 'COMMITMENT', mood: 'DESK', unpaid: 'UNPAID WAGES', base: 'BASELINE' };
+const CHECKS = { latrines: ['potty', 'Clean latrines, no queues'], mess: ['living', 'A mess seat for everyone'], bunks: ['living', 'A bunk for everyone'], crews: ['people', 'Every crewed building fully crewed'], power: ['power', 'Power for everything'], walks: ['roads', 'Short walks from the bunks'] };
 
 // h: the interface's helpers (base-hud.js): fmt, esc, dur, calDay, OFFICE, CAT, MOR, CONDITION, warns(), flash(text),
-// refresh(); o.war(): what the war takes from the base (base.js)
+// refresh(), icon(k), thumb(type), lens(k), floatAt(el, text, cls); o.war(): what the war takes from the base (base.js)
 export function makeOffices(o, h) {
-  const { fmt, esc, dur, calDay } = h, sim = () => o.sim(), audio = o.audio;
+  const { fmt, esc, dur, calDay, icon } = h, sim = () => o.sim(), audio = o.audio;
   let tab = 'pop', sub = 'budget', tradeQ = 50, sigT = '', sigB = '';
   const vPick = {}, logos = {};
   const el = () => $('fb-mins');
   const isOpen = () => !!el() && !el().hidden;
-  const sec = (t, extra = '') => `<h3 class="oc-h">${t}${extra}</h3>`;
-  const kv = (k, v, cls = '', tip = '') => `<div class="kv"${tip ? ` title="${esc(tip)}"` : ''}><span>${k}</span><b class="${cls}">${v}</b></div>`;
-  const fine = (t) => `<p class="fine">${t}</p>`;
+  const sec = (t, tip = '') => `<h3 class="oc-h"${tip ? ` title="${esc(tip)}"` : ''}>${t}</h3>`;
   const sg = (v) => (v >= 0 ? '+' : '−') + fmt(Math.abs(v));
   const logo = (lg) => { const k = JSON.stringify(lg || {}); if (!(k in logos)) { try { logos[k] = logoCanvas(lg, 40).toDataURL(); } catch { logos[k] = ''; } } return logos[k] ? `<img src="${logos[k]}" width="16" height="16" alt="">` : ''; };
-  // a measuring bar: a label, the bar (filled to f, 0..1, in a colour: g green, a amber, r red, c cyan), the value;
-  // tick: a mark on the bar (a target or a milestone), 0..1
-  const meter = (label, val, f, col = 'g', x = {}) => `<div class="om${x.big ? ' big' : ''}"${x.tip ? ` title="${esc(x.tip)}"` : ''}><span>${label}</span><i><u class="${col}" style="width:${clamp01(f) * 100}%"></u>${x.tick != null ? `<s style="left:${clamp01(x.tick) * 100}%"></s>` : ''}</i><b class="${x.vc || ''}">${val}</b></div>`;
-  // a bar either side of nought: what lifts morale goes right in green, what holds it down left in red
+  // a measuring bar: a label, the bar (filled to f, 0..1; g green, a amber, r red, c cyan), the value; tick: a mark on it
+  const meter = (label, val, f, col = 'g', x = {}) => `<div class="om${x.big ? ' big' : ''}"${x.tip ? ` title="${esc(x.tip)}"` : ''}><span>${x.ic ? icon(x.ic) : ''}${label}</span><i><u class="${col}" style="width:${clamp01(f) * 100}%"></u>${x.tick != null ? `<s style="left:${clamp01(x.tick) * 100}%"></s>` : ''}</i><b class="${x.vc || ''}">${val}</b></div>`;
   const dmeter = (label, v, scale, tip) => { const w = Math.min(50, Math.abs(v) / scale * 50); return `<div class="om d"${tip ? ` title="${esc(tip)}"` : ''}><span>${label}</span><i><u class="${v < 0 ? 'r' : 'g'}" style="${v < 0 ? 'right' : 'left'}:50%;width:${w}%"></u><s style="left:50%"></s></i><b class="${v < 0 ? 'down' : v > 0 ? 'up' : ''}">${v > 0 ? '+' : ''}${v}</b></div>`; };
-  // a page's headline: its name, a line on what it is, and its measure
-  const headline = (name, line, measure) => `<div class="og"><div class="og-l"><b>${name}</b><span>${line}</span></div><div class="og-m">${measure}</div></div>`;
-  const tick = (ok) => `<b class="${ok ? 'up' : 'warn'}">${ok ? '✓' : '·'}</b>`;
+  // a big number with its name and a gauge under it
+  const big = (name, val, f, col, tip, extra = '') => `<div class="ln-big"${tip ? ` title="${esc(tip)}"` : ''}><span>${name}</span><b class="${col === 'r' ? 'down' : ''}">${val}</b>${extra}<i><u class="${col}" style="width:${clamp01(f) * 100}%"></u></i></div>`;
+  const pic = (type, ok, tip) => { const u = h.thumb(type); return `<span class="ln-pic${ok ? ' ok' : ''}" title="${esc(tip || B[type].name)}">${u ? `<img src="${u}" alt="">` : ''}<em>${esc(B[type].name)}</em></span>`; };
 
-  // ---------------------------------------------------------------- POPULATION: the milestones
-  function pagePop(s) {
-    const heads = s.heads(), st = s.stage || 0, S = C.STAGES, top = S[S.length - 1].troops, nx = s.nextStage(), ck = s.stageCheck() || [];
-    const L = ladder(s), peak = s.peak || heads;
-    const marks = S.map((x, i) => i ? `<s class="${i <= st ? 'on' : ''}" style="left:${x.troops / top * 100}%"><em>${esc((x.short || x.name).toUpperCase())}<br>${x.troops}</em></s>` : '').join('')
-      + L.filter((m) => !m.stage).map((m) => `<s class="mini${peak >= m.pop ? ' on' : ''}" style="left:${m.pop / top * 100}%" title="${m.pop} on the base: ${esc(m.keys.map((k) => TECH[k].name).join(', '))}"></s>`).join('');
-    let x = headline('POPULATION', `${heads} on the base, engineers included. ${nx ? `The next milestone, a ${esc(nx.name)} charter, comes at ${nx.troops}, with the terms below.` : 'Every charter granted.'}`,
-      `<div class="track"><i><u style="width:${clamp01(heads / top) * 100}%"></u>${marks}</i><b>${heads}</b></div>`);
-    // the next charter
-    let c1 = sec(nx ? `NEXT MILESTONE · ${esc(nx.name.toUpperCase())}` : 'THE LAST MILESTONE');
-    if (nx) {
-      const R = (v, need, label, tip) => meter(label, `${fmt(v)} / ${fmt(need)}`, v / need, v >= need ? 'g' : 'a', { vc: v >= need ? 'up' : '', tip });
-      c1 += R(heads, nx.troops, 'ON THE BASE', 'Recruits come in on the morning dropship to fill empty bunks: more bunks, more recruits.') + R(Math.round(s.stand.pro), nx.pro, 'GROWTH STANDING', 'The Growth Office\'s daily audit, and the commitment you pay it (BUDGET).')
-        + R(Math.floor(s.credits), nx.cr, 'CREDITS (THE FEE)') + (nx.sup ? R(Math.floor(s.supplies), nx.sup, 'SUPPLIES (THE WORKS)') : '') + (nx.store ? R(Math.round(s.storeAll()), nx.store, 'STORAGE', 'Rations, fuel and ammo the stores can hold: Logistics zones and depots.') : '');
-      const need = nx.needs || [];
-      if (need.length) c1 += `<div class="oc-needs">${need.map((t) => `<span class="${s.has(t) ? 'up' : 'warn'}">${s.has(t) ? '✓' : '·'} ${esc(B[t].name)}</span>`).join('')}</div>`;
-      c1 += fine(ck.length && ck.every((c) => c.ok) ? '<span class="up">Every term met: the Bureau grants it within the hour.</span>' : `Granted by itself when every term is met: more land (up to ${nx.parcels >= 441 ? 'all 441' : nx.parcels} parcels), a bigger allocation, new buildings.`);
-    } else c1 += fine('The largest charter the Bureau grants.');
-    const w = o.war ? o.war() : null;
-    c1 += sec('FOR THE WAR', ` · CHARTER LEVEL ${st + 1}`) + (w && w.gives && w.gives.length ? `<div class="oc-gives">${w.gives.map((g) => `<span class="${g.wait ? 'wait' : ''}"><b>${g.v != null ? '+' + g.v : ''}</b> ${esc(g.k)}${g.text ? ' ' + esc(g.text.toLowerCase()) : ''}</span>`).join('')}</div>` + fine('Each round. Each charter multiplies the troops, credits and defence; greyed out waits until the base is in profit.')
-      : fine('In a campaign, each charter multiplies the troops, credits and defence a base gives the war each round.'));
-    // who is here
-    const T = s.troops, patrol = T.filter((t) => t.state === 'patrol').length, hurt = T.filter((t) => t.state !== 'patrol' && t.hurt > 0).length, ready = T.filter((t) => t.state !== 'patrol' && !(t.hurt > 0) && t.train >= 100).length, rec = T.length - patrol - hurt - ready, eng = s.engineers();
-    const parts = [['TRAINED', ready, '#8df0a0'], ['RECRUITS', rec, 'var(--amber)'], ['OUT ON OPERATIONS', patrol, 'var(--cyan)'], ['WOUNDED', hurt, '#ff8a7a'], ['ENGINEERS', eng, '#9ab8ff']], all = Math.max(1, heads);
-    let c2 = sec('WHO IS HERE') + `<div class="stack">${parts.map(([n, v, c]) => (v ? `<u style="width:${v / all * 100}%;background:${c}" title="${n}: ${v}"></u>` : '')).join('')}</div><div class="legend">${parts.map(([n, v, c]) => `<span><i style="background:${c}"></i>${n} ${v}</span>`).join('')}</div>`;
-    { const next = L.filter((m) => !m.got).slice(0, 3);
-      c2 += sec('UNLOCKS', ` · ${L.filter((m) => m.got).reduce((a, m) => a + m.keys.length, 0)} OF ${Object.keys(TECH).length}`) + (next.length ? next.map((m) => `<div class="oc-unl"><b>${esc(m.label)}</b><span>${m.keys.map((k) => `<i title="${esc(TECH[k].desc)}">${esc(TECH[k].name)}</i>`).join(', ')}</span></div>`).join('') : fine('Every upgrade unlocked.'))
-        + fine('No research: upgrades come with milestones. Hover one for what it does.'); }
-    const home = T.length - patrol, empty = Math.max(0, s.beds - T.length);
-    c2 += sec('ROOM TO GROW') + meter('BUNKS', `${T.length} / ${s.beds}`, T.length / Math.max(1, s.beds), T.length > s.beds ? 'r' : empty ? 'g' : 'a', { tip: 'Recruits only come to fill empty bunks. Zone more Life Support, or build barracks and habs.' })
-      + meter('MESS SEATS', `${s.seats} / ${home}`, s.seats / Math.max(1, home), s.seats >= home ? 'g' : 'r', { tip: 'A seat at the mess for every trooper at home.' })
-      + fine(empty ? `${empty} empty bunk${empty > 1 ? 's' : ''}: recruits fill them with the morning dropship, more the higher the base ranks.` : '<span class="warn">No empty bunks: no recruits will come. More housing grows on Life Support zones.</span>');
-    // the Growth Office's audit
-    const A = s.audit;
-    let c3 = sec('GROWTH OFFICE AUDIT', A ? ` · DAY ${A.week}` : '') + meter('GROWTH STANDING', Math.round(s.stand.pro), s.stand.pro / 100, 'a', { big: true, tick: nx ? nx.pro / 100 : null, tip: nx ? `The next charter wants ${nx.pro}.` : '' });
-    if (A) c3 += meter('LAST SCORE', `${A.score}/100`, A.score / 100, A.score >= 60 ? 'g' : 'a') + meter('SUPPLY LINES NEVER DRY', A.lines, A.lines / 100, 'c') + meter('TROOPS FED', A.food, A.food / 100, 'c') + meter('A BUNK FOR EVERYONE', A.housing, A.housing / 100, 'c') + meter(`GROWTH (${A.target} EXPECTED)`, A.growth, A.growth / 100, 'c');
-    else c3 += fine('The first audit comes at the end of the day.');
-    c3 += fine('Audited at the end of each day; the score moves Growth standing most of the way to it.');
-    return x + `<div class="oc-3"><div>${c1}</div><div>${c2}</div><div>${c3}</div></div>`;
-  }
-
-  // the milestones' ladder: each upgrade grouped by what unlocks it, in the order a base gets there
+  // ---------------------------------------------------------------- POPULATION
   function ladder(s) {
     const g = new Map();
     for (const [k, t] of Object.entries(TECH)) { if (t.pop == null && t.stage == null) continue; const id = `${t.stage || 0}:${t.pop || 0}`; if (!g.has(id)) g.set(id, { stage: t.stage || 0, pop: t.pop || 0, keys: [] }); g.get(id).keys.push(k); }
     return [...g.values()].map((m) => ({ ...m, at: Math.max(m.pop, m.stage ? C.STAGES[m.stage].troops : 0), got: m.keys.every((k) => s.hasTech(k)),
-      label: (m.stage ? `${(C.STAGES[m.stage].short || C.STAGES[m.stage].name).toUpperCase()} CHARTER` : '') + (m.stage && m.pop ? ' + ' : '') + (m.pop && (!m.stage || m.pop > C.STAGES[m.stage].troops) ? `${m.pop} ON THE BASE` : '') })).sort((a, b) => a.at - b.at || a.stage - b.stage);
+      label: (m.stage ? `${(C.STAGES[m.stage].short || C.STAGES[m.stage].name).toUpperCase()}` : '') + (m.stage && m.pop ? ' + ' : '') + (m.pop && (!m.stage || m.pop > C.STAGES[m.stage].troops) ? `${m.pop} PEOPLE` : '') })).sort((a, b) => a.at - b.at || a.stage - b.stage);
+  }
+  function pagePop(s) {
+    const heads = s.heads(), st = s.stage || 0, S = C.STAGES, top = S[S.length - 1].troops, nx = s.nextStage(), L = ladder(s), peak = s.peak || heads;
+    const marks = S.map((q, i) => (i ? `<s class="${i <= st ? 'on' : ''}${q.troops >= top * 0.9 ? ' end' : ''}" style="left:${q.troops / top * 100}%"><em>${esc((q.short || q.name).toUpperCase())}</em></s>` : '')).join('')
+      + L.filter((m) => !m.stage).map((m) => `<s class="mini${peak >= m.pop ? ' on' : ''}" style="left:${m.pop / top * 100}%" title="${m.pop} people: ${esc(m.keys.map((k) => TECH[k].name).join(', '))}"></s>`).join('');
+    let x = `<div class="ln-big"><span>ON THE BASE</span><b>${heads}</b><em>${nx ? `next: ${esc(nx.short || nx.name)} at ${nx.troops}` : 'every charter held'}</em></div><div class="track"><i><u style="width:${clamp01(heads / top) * 100}%"></u>${marks}</i></div>`;
+    // what the next milestone brings, as pictures
+    const next = L.find((m) => !m.got);
+    if (next) {
+      const bld = Object.keys(B).filter((t) => next.keys.includes(B[t].tech) && !B[t].fixed), perks = next.keys.filter((k) => !bld.some((t) => B[t].tech === k));
+      x += sec(`UNLOCKS AT ${esc(next.label)}`, 'No research: upgrades come with milestones, a head count on the base (the most it has had) or a charter.') + `<div class="ln-pics">${bld.slice(0, 5).map((t) => pic(t, false, `${B[t].name}: ${B[t].desc || ''}`)).join('')}${perks.map((k) => `<span class="ln-pic perk" title="${esc(TECH[k].desc)}">${icon('star')}<em>${esc(TECH[k].name)}</em></span>`).join('')}</div>`;
+    }
+    if (nx) {
+      const R = (v, need, label, ic, tip) => meter(label, `${fmt(v)}/${fmt(need)}`, v / need, v >= need ? 'g' : 'a', { vc: v >= need ? 'up' : '', ic, tip });
+      x += sec(`${esc((nx.short || nx.name).toUpperCase())} CHARTER`, `Granted by itself when every term is met: more land (up to ${nx.parcels >= 441 ? 'all 441' : nx.parcels} parcels), a bigger allocation, new buildings, and in a campaign more for the war.`)
+        + R(heads, nx.troops, 'PEOPLE', 'people') + R(Math.round(s.stand.pro), nx.pro, 'GROWTH', 'income', 'Growth standing: the Growth Office\'s daily audit, and the commitment you pay it (BUDGET).') + R(Math.floor(s.credits), nx.cr, 'FEE', 'income', 'Credits for the charter fee.')
+        + (nx.sup ? R(Math.floor(s.supplies), nx.sup, 'WORKS', 'logistics', 'Supplies for the charter works.') : '') + (nx.store ? R(Math.round(s.storeAll()), nx.store, 'STORAGE', 'logistics', 'Rations, fuel and ammo the stores can hold.') : '');
+      if ((nx.needs || []).length) x += `<div class="ln-pics sm">${nx.needs.map((t) => pic(t, s.has(t), `${B[t].name}${s.has(t) ? ': built' : ': needed'}`)).join('')}</div>`;
+    }
+    // who is here
+    const T = s.troops, patrol = T.filter((t) => t.state === 'patrol').length, hurt = T.filter((t) => t.state !== 'patrol' && t.hurt > 0).length, ready = T.filter((t) => t.state !== 'patrol' && !(t.hurt > 0) && t.train >= 100).length, rec = T.length - patrol - hurt - ready, eng = s.engineers();
+    const parts = [['TRAINED', ready, '#8df0a0'], ['RECRUITS', rec, 'var(--amber)'], ['OUT', patrol, 'var(--cyan)'], ['WOUNDED', hurt, '#ff8a7a'], ['ENGINEERS', eng, '#9ab8ff']], all = Math.max(1, heads);
+    x += sec('WHO IS HERE', 'The map: where they live (blue), train (amber) and work (green crewed, amber short, red empty).') + `<div class="stack">${parts.map(([n, v, c]) => (v ? `<u style="width:${v / all * 100}%;background:${c}" title="${n}: ${v}"></u>` : '')).join('')}</div><div class="legend">${parts.filter(([, v]) => v).map(([n, v, c]) => `<span><i style="background:${c}"></i>${n} ${v}</span>`).join('')}</div>`;
+    const home = T.length - patrol, empty = Math.max(0, s.beds - T.length);
+    x += meter('BUNKS', `${T.length}/${s.beds}`, T.length / Math.max(1, s.beds), T.length > s.beds ? 'r' : empty ? 'g' : 'a', { ic: 'living', tip: empty ? `${empty} empty: recruits fill them each morning.` : 'Full: no recruits will come until there are empty bunks. Zone Life Support.' })
+      + meter('MESS SEATS', `${s.seats}/${home}`, s.seats / Math.max(1, home), s.seats >= home ? 'g' : 'r', { ic: 'living' });
+    const w = o.war ? o.war() : null;
+    if (w && w.gives && w.gives.length) x += `<div class="oc-gives" title="What the base gives the war each round. Greyed out: once it is in profit.">${w.gives.map((g) => `<span class="${g.wait ? 'wait' : ''}"><b>${g.v != null ? '+' + g.v : ''}</b> ${esc(g.k)}</span>`).join('')}</div>`;
+    return x;
   }
 
-  // ---------------------------------------------------------------- BUDGET & TRADE
-  // made against lost, for one currency: two bars on one scale, then every source and cost as its own bar
-  function flows(ob, unit) {
-    const ks = Object.keys(ob).filter((k) => Math.abs(ob[k]) >= 0.5), inc = ks.filter((k) => ob[k] > 0).sort((a, b) => ob[b] - ob[a]), out = ks.filter((k) => ob[k] < 0).sort((a, b) => ob[a] - ob[b]);
-    const made = inc.reduce((a, k) => a + ob[k], 0), lost = -out.reduce((a, k) => a + ob[k], 0), top = Math.max(made, lost, 1), net = made - lost;
-    const big = Math.max(1, ...ks.map((k) => Math.abs(ob[k])));
-    return meter('MADE', `+${fmt(made)}`, made / top, 'g', { big: true, vc: 'up' }) + meter('LOST', `−${fmt(lost)}`, lost / top, 'r', { big: true, vc: 'down' })
-      + `<div class="oc-net2">NET <b class="${net < 0 ? 'down' : 'up'}">${sg(net)}</b> ${unit} A WATCH</div>`
-      + inc.slice(0, 6).map((k) => meter(esc(h.CAT[k] || k), `+${fmt(ob[k])}`, ob[k] / big, 'g', { vc: 'up' })).join('') + (inc.length > 6 ? fine(`and ${inc.length - 6} more`) : '')
-      + out.slice(0, 7).map((k) => meter(esc(h.CAT[k] || k), `−${fmt(-ob[k])}`, -ob[k] / big, 'r', { vc: 'down' })).join('') + (out.length > 7 ? fine(`and ${out.length - 7} more`) : '');
-  }
+  // ---------------------------------------------------------------- BUDGET, TRADE, LOANS
   function pageBud(s) {
     const r = s.rates(), net = r.supNet + r.crNet;
-    let x = `<div class="subtabs">${[['budget', 'BUDGET'], ['trade', 'TRADE & LOANS']].map(([k, n]) => `<button class="plate btn sm${sub === k ? ' on' : ''}" data-et="${k}">${n}</button>`).join('')}<span class="oc-sum">NET A WATCH <b class="${net > 0 ? 'up' : 'down'}">${sg(net)}</b> ${net > 0 ? 'in profit' : '<span class="down">not in profit: the war\'s ratings and credits from this base wait until it is</span>'} · averaged over ${r.days} watch${r.days > 1 ? 'es' : ''}</span></div>`;
+    let x = `<div class="subtabs">${[['budget', 'BUDGET'], ['trade', 'TRADE'], ['loans', 'LOANS']].map(([k, n]) => `<button class="plate btn sm${sub === k ? ' on' : ''}" data-et="${k}">${n}</button>`).join('')}</div>`;
     if (sub === 'budget') {
+      x += big('NET A WATCH', sg(net), 0.5 + Math.max(-0.5, Math.min(0.5, net / 400)), net > 0 ? 'g' : 'r', 'Supplies and credits a watch, together. In profit, the war gets this base\'s ratings and credits. The map: green buildings earn, red cost.', `<em>${net > 0 ? 'in profit' : 'not in profit'}</em>`);
+      // made against lost, one row a currency: the green bar is what came in a watch, the red what went out
+      const pair = (ob, unit) => { let made = 0, lost = 0; for (const v of Object.values(ob)) { if (v > 0) made += v; else lost -= v; } const t = Math.max(made, lost, 1); return `<div class="ln-ml" title="${unit}: +${fmt(made)} made, −${fmt(lost)} lost a watch"><b>${unit}</b><i><u class="g" style="width:${made / t * 100}%"></u></i><span class="up">+${fmt(made)}</span><i><u class="r" style="width:${lost / t * 100}%"></u></i><span class="down">−${fmt(lost)}</span></div>`; };
+      x += `<div class="ln-mlh"><span></span><span>MADE</span><span></span><span>LOST</span></div>` + pair(r.sup, 'SUP') + pair(r.cr, 'CR');
+      // the biggest sources and costs, both currencies, one list each
+      const all = []; for (const [k, v] of Object.entries(r.sup)) all.push([k, v, 'SUP']); for (const [k, v] of Object.entries(r.cr)) all.push([k, v, 'CR']);
+      const inc = all.filter((q) => q[1] >= 0.5).sort((a, b) => b[1] - a[1]).slice(0, 3), out = all.filter((q) => q[1] <= -0.5).sort((a, b) => a[1] - b[1]).slice(0, 3), topv = Math.max(1, ...all.map((q) => Math.abs(q[1])));
+      x += sec('BIGGEST IN') + inc.map(([k, v, u]) => meter(esc((h.CAT[k] || k).toUpperCase()), `+${fmt(v)} ${u}`, v / topv, 'g', { vc: 'up' })).join('')
+        + sec('BIGGEST OUT') + out.map(([k, v, u]) => meter(esc((h.CAT[k] || k).toUpperCase()), `−${fmt(-v)} ${u}`, -v / topv, 'r', { vc: 'down' })).join('');
       const rows = s.table(), S = C.STAGES[s.stage || 0], rank = s.ranking(), alloc = (i) => Math.round(C.ALLOC.base * C.ALLOC.mult[Math.min(i, C.ALLOC.mult.length - 1)] * (1 + (S.alloc || 0)));
-      let c3 = sec('THE ALLOCATION', ` · ${['1ST', '2ND', '3RD', '4TH', '5TH'][rank]} OF ${rows.length}`) + meter('PAID A DAY', `${fmt(alloc(rank))} SUP`, alloc(rank) / alloc(0), 'a', { big: true, tip: 'Paid at the end of each day by rank among the outfits. Rank is the three standings added up.' })
-        + `<div class="oc-ranks">${rows.map((q, i) => `<span class="${q.me ? 'me' : ''}" title="${esc(q.name)}: ${s.total(q.stand)}">${i + 1}. ${logo(q.logo)} ${s.total(q.stand)}</span>`).join('')}</div>`;
+      x += sec(`ALLOCATION · ${['1ST', '2ND', '3RD', '4TH', '5TH'][rank]} · ${fmt(alloc(rank))} A DAY`, 'Paid each day by rank among the outfits; rank is the three standings added up. Each standing drifts back toward ' + C.STAND.rest + ' every day; a commitment buys it every watch.')
+        + `<div class="oc-ranks">${rows.map((q, i) => `<span class="${q.me ? 'me' : ''}" title="${esc(q.name)}">${i + 1} ${logo(q.logo)} ${s.total(q.stand)}</span>`).join('')}</div>`;
       for (const m of MKEYS) {
-        const lvl = s.commit[m] || 0, cost = s.commitCost(m, lvl), paid = s.commitLast?.[m] ?? 1;
-        c3 += meter(esc(MIN[m].name.toUpperCase()), Math.round(s.stand[m]), s.stand[m] / 100, m === 'def' ? 'r' : m === 'pro' ? 'a' : 'c', { tip: MIN[m].wants })
-          + `<div class="oc-cm"><span>COMMIT</span><button class="plate btn sm" data-commit="${m}:${lvl - 1}" ${lvl ? '' : 'disabled'} title="Less">−</button><b>${COMMIT.levels[lvl]}</b><button class="plate btn sm" data-commit="${m}:${lvl + 1}" ${lvl < COMMIT.levels.length - 1 ? '' : 'disabled'} title="More">+</button><i class="${lvl && paid < 0.6 ? 'down' : ''}" title="${esc((lvl ? Object.entries(cost).map(([g, n]) => `${fmt(n)} ${GSHORT(g)}`).join(' + ') + ' a watch. ' : '') + COMMIT[m].perk)}">${lvl ? `${Object.entries(cost).map(([g, n]) => `${fmt(n)} ${GSHORT(g)}`).join(' + ')} a watch, +${s.commitGain(m, lvl).toFixed(1)} standing${paid < 1 ? ` · ${Math.round(paid * 100)}% paid` : ''}` : 'buys no standing'}</i></div>`;
+        const lvl = s.commit[m] || 0, cost = s.commitCost(m, lvl), paid = s.commitLast?.[m] ?? 1, ct = lvl ? `${Object.entries(cost).map(([g, n]) => `${fmt(n)} ${GSHORT(g)}`).join(' + ')} a watch buys +${s.commitGain(m, lvl).toFixed(1)} standing. ` : '';
+        x += `<div class="oc-st"><span title="${esc(MIN[m].name + ': ' + MIN[m].wants)}">${esc(MIN[m].short)}</span><i><u class="${m === 'def' ? 'r' : m === 'pro' ? 'a' : 'c'}" style="width:${clamp01(s.stand[m] / 100) * 100}%"></u></i><b>${Math.round(s.stand[m])}</b>`
+          + `<button class="plate btn sm" data-commit="${m}:${lvl - 1}" ${lvl ? '' : 'disabled'} title="Commit less">−</button><em class="${lvl && paid < 0.6 ? 'down' : ''}" title="${esc(ct + COMMIT[m].perk)}">${COMMIT.levels[lvl]}</em><button class="plate btn sm" data-commit="${m}:${lvl + 1}" ${lvl < COMMIT.levels.length - 1 ? '' : 'disabled'} title="Commit more">+</button></div>`;
       }
-      c3 += fine('A commitment is paid from your stores every watch and buys that Office\'s standing; standings drift back toward ' + C.STAND.rest + ' every day.');
-      x += `<div class="oc-3"><div>${sec('SUPPLIES')}${flows(r.sup, 'SUPPLIES')}</div><div>${sec('CREDITS')}${flows(r.cr, 'CREDITS')}</div><div>${c3}</div></div>`;
-    } else {
-      const M = s.market, debt = s.debt();
-      let c1 = `<div class="qsel"><span>TRADE IN LOTS OF</span>${[10, 50, 100, 250].map((q) => `<button class="plate btn sm${tradeQ === q ? ' on' : ''}" data-tq="${q}">${q}</button>`).join('')}</div>`;
-      c1 += `<table class="mkt"><tr><th>GOOD</th><th>SELL / BUY, PER 10</th><th>HELD</th><th>ROOM</th><th></th></tr>` + Object.keys(MARKET.goods).map((g) => {
-        const G = M.goods[g], d = MARKET.goods[g], buy = s.canTrade(g, tradeQ, true), sell = s.canTrade(g, tradeQ, false), room = s.room(g);
-        return `<tr><td><b>${esc(d.name)}</b></td><td><span class="up">${(s.sellAt(g) * 10).toFixed(1)}</span> / <span class="down">${(s.buyAt(g) * 10).toFixed(1)}</span> ${chg(G.hist)}</td><td>${fmt(s.holding(g))}</td><td>${room === Infinity ? '—' : fmt(room)}</td>
-          <td class="tbtn"><button class="plate btn sm" data-trade="${g}:1" ${buy.ok ? '' : 'disabled'} title="${esc(buy.ok ? `Buy ${tradeQ} for ${fmt(buy.cr)} CR` : buy.why || '')}">BUY −${fmt(s.quote(g, tradeQ, true))}</button><button class="plate btn sm" data-trade="${g}:0" ${sell.ok ? '' : 'disabled'} title="${esc(sell.ok ? `Sell ${tradeQ} for ${fmt(sell.cr)} CR` : sell.why || '')}">SELL +${fmt(s.quote(g, tradeQ, false))}</button></td></tr>`;
-      }).join('') + `</table>`;
-      if (M.shocks.length) c1 += `<p class="warn">${M.shocks.map((q) => `Until day ${calDay(q.until)}: ${esc(q.text)}`).join('<br>')}</p>`;
-      c1 += fine(`Every outfit's base on ${esc(s.planet || 'the planet')} trades here: buy at the higher price, sell at the lower, and the more at once the further it moves against you.`);
-      c1 += sec('OFFERS FROM OTHER BASES') + (M.offers.length ? `<div class="oc-2 tight">${M.offers.slice(0, 4).map((of) => {
+    } else if (sub === 'trade') {
+      const M = s.market;
+      x += `<div class="qsel"><span>LOTS OF</span>${[10, 50, 100, 250].map((q) => `<button class="plate btn sm${tradeQ === q ? ' on' : ''}" data-tq="${q}">${q}</button>`).join('')}</div>`;
+      x += Object.keys(MARKET.goods).map((g) => {
+        const d = MARKET.goods[g], buy = s.canTrade(g, tradeQ, true), sell = s.canTrade(g, tradeQ, false), col = g === 'sup' ? 'var(--amber)' : GOODS[g]?.color || '#ccc';
+        return `<div class="ln-good" title="${esc(`${d.name}: you sell at ${(s.sellAt(g) * 10).toFixed(1)} and buy at ${(s.buyAt(g) * 10).toFixed(1)} credits per 10.`)}"><i style="background:${col}"></i><b>${esc(d.short)}</b><span>${fmt(s.holding(g))}</span>`
+          + `<button class="plate btn sm" data-trade="${g}:1" ${buy.ok ? '' : 'disabled'} title="${esc(buy.ok ? '' : buy.why || '')}">BUY −${fmt(s.quote(g, tradeQ, true))}</button><button class="plate btn sm" data-trade="${g}:0" ${sell.ok ? '' : 'disabled'} title="${esc(sell.ok ? '' : sell.why || '')}">SELL +${fmt(s.quote(g, tradeQ, false))}</button></div>`;
+      }).join('');
+      if (M.shocks.length) x += `<p class="warn sm">${M.shocks.map((q) => esc(q.text)).join(' ')}</p>`;
+      x += sec('OFFERS', 'Other bases post offers at 10:00 and 15:00.') + (M.offers.length ? M.offers.slice(0, 3).map((of) => {
         const d = MARKET.goods[of.g], ok = s.canTakeOffer(of), mk = (of.buys ? s.sellAt(of.g) : s.buyAt(of.g)) * 10, better = of.buys ? of.p * 10 > mk : of.p * 10 < mk;
-        return `<div class="card2"><div class="l"><b>${logo(of.logo)} ${of.buys ? 'WANTS' : 'SELLS'} ${of.n} ${esc(d.short)}</b><span>${esc(of.from)} · ${(of.p * 10).toFixed(1)} per 10 <span class="${better ? 'up' : 'down'}">(market ${mk.toFixed(1)})</span> · until day ${calDay(of.until)}${ok.ok ? '' : ` · <span class="warn">${esc(ok.why || '')}</span>`}</span></div><button class="plate btn sm" data-offer="${of.id}" ${ok.ok ? '' : 'disabled'}>${of.buys ? 'SELL' : 'BUY'}</button></div>`;
-      }).join('')}</div>` : fine('None right now. The other bases post offers at 10:00 and 15:00.'));
-      let c2 = sec('DEBT') + meter('OWED', `${fmt(debt)} CR`, debt / Math.max(1, LOANS.charter.amt), debt > 0 ? 'r' : 'g', { big: true, vc: debt > 0 ? 'warn' : 'up', tip: 'Against the Founding Charter you landed on.' });
-      s.loans.forEach((l, i) => {
-        const L = LOANS[l.k], rate = l.k === 'charter' && s.D && s.D.rate != null ? s.D.rate : L.rate;
-        c2 += `<div class="card2"><div class="l"><b>${esc(L.name.toUpperCase())}</b><span>${fmt(l.bal)} CR · ${Math.round(rate * 1000) / 10}% a day · ${L.pay} a day taken</span></div><div class="oc-btns"><button class="plate btn sm" data-repay="${i}:100" ${s.credits >= 1 ? '' : 'disabled'}>REPAY 100</button><button class="plate btn sm" data-repay="${i}:${Math.ceil(l.bal)}" ${s.credits >= l.bal ? '' : 'disabled'}>ALL</button></div></div>`;
-      });
-      if (s.credits < 0) c2 += `<p class="${s.credits < -s.OD ? 'down' : 'warn'}">Overdrawn by ${fmt(-s.credits)} CR: ${Math.round(C.ODFEE * 100)}% a day. Past ${fmt(s.OD)} CR the colonist staff go unpaid and morale falls.</p>`;
-      c2 += sec('BORROW');
-      for (const k of ['dev', 'quick']) { const L = LOANS[k]; c2 += `<div class="card2"><div class="l"><b>${esc(L.name.toUpperCase())}</b><span>${fmt(L.amt)} CR · ${Math.round(L.rate * 1000) / 10}% a day · ${L.pay} a day</span></div><button class="plate btn sm" data-borrow="${k}" ${s.canBorrow(k) ? '' : 'disabled'} title="${esc(L.desc)}">BORROW</button></div>`; }
-      c2 += fine('Repaying a loan in full earns Growth standing.');
-      x += `<div class="oc-tr"><div>${c1}</div><div>${c2}</div></div>`;
+        return `<div class="ln-offer" title="${esc(`${of.from} · until day ${calDay(of.until)} · market ${mk.toFixed(1)}${ok.ok ? '' : ' · ' + (ok.why || '')}`)}">${logo(of.logo)}<b>${of.buys ? 'WANT' : 'SELL'} ${of.n} ${esc(d.short)}</b><span class="${better ? 'up' : 'down'}">${(of.p * 10).toFixed(1)}/10</span><button class="plate btn sm" data-offer="${of.id}" ${ok.ok ? '' : 'disabled'}>${of.buys ? 'SELL' : 'BUY'}</button></div>`;
+      }).join('') : '<p class="fine">None right now.</p>');
+    } else {
+      const debt = s.debt();
+      x += big('OWED', fmt(debt), debt / Math.max(1, LOANS.charter.amt), debt > 0 ? 'r' : 'g', 'Against the Founding Charter you landed on, and any loans since. The Bureau takes its payments every day.');
+      s.loans.forEach((l, i) => { const L = LOANS[l.k], rate = l.k === 'charter' && s.D && s.D.rate != null ? s.D.rate : L.rate;
+        x += `<div class="ln-offer" title="${esc(`${Math.round(rate * 1000) / 10}% a day; ${L.pay} credits a day taken`)}"><b>${esc(L.name.toUpperCase())}</b><span>${fmt(l.bal)}</span><button class="plate btn sm" data-repay="${i}:100" ${s.credits >= 1 ? '' : 'disabled'}>−100</button><button class="plate btn sm" data-repay="${i}:${Math.ceil(l.bal)}" ${s.credits >= l.bal ? '' : 'disabled'}>ALL</button></div>`; });
+      if (s.credits < 0) x += meter('OVERDRAFT', `${fmt(-s.credits)}/${fmt(s.OD)}`, -s.credits / s.OD, 'r', { tip: `${Math.round(C.ODFEE * 100)}% a day. Past the limit the staff go unpaid and morale falls.` });
+      x += sec('BORROW', 'Repaying a loan in full earns Growth standing.') + ['dev', 'quick'].map((k) => { const L = LOANS[k]; return `<div class="ln-offer" title="${esc(L.desc + ` ${Math.round(L.rate * 1000) / 10}% a day.`)}"><b>${esc(L.name.toUpperCase())}</b><span>${fmt(L.amt)}</span><button class="plate btn sm" data-borrow="${k}" ${s.canBorrow(k) ? '' : 'disabled'}>BORROW</button></div>`; }).join('');
     }
     return x;
   }
 
-  // ---------------------------------------------------------------- EFFICIENCY: getting people and goods in, round and out
+  // ---------------------------------------------------------------- EFFICIENCY
   function pageEff(s) {
     const ch = s.reviewChecks(), ok = ch.filter((c) => c[1]).length, R = C.TIDY, pay = ok * R.per + (ok === ch.length ? R.all : 0);
-    let x = headline('EFFICIENCY', `The daily efficiency review: ${ok} of ${ch.length} in order, worth ${pay} supplies today${ok < ch.length ? ` (${ch.length * R.per + R.all} with all six)` : ''}. Marked down for: ${ok === ch.length ? 'nothing' : ch.filter((c) => !c[1]).map((c) => esc(c[2])).join(', ')}.`,
-      `<div class="segs">${ch.map(([k, good, why]) => `<span class="${good ? 'ok' : 'no'}" title="${esc(good ? CHECKS[k] : why)}">${esc(k.toUpperCase())}</span>`).join('')}</div>`);
-    // the layout: the walks
+    let x = `<div class="ln-big" title="The daily efficiency review pays supplies for each check in order, and a bonus for all six."><span>DAILY REVIEW</span><b>${ok}/${ch.length}</b><em>+${pay} supplies</em></div>`
+      + `<div class="segs">${ch.map(([k, good, why]) => `<span class="${good ? 'ok' : 'no'}" title="${esc(good ? CHECKS[k][1] : why)}">${icon(CHECKS[k][0])}</span>`).join('')}</div>`;
     const W = s.walks(), wm = (label, m, tip) => meter(label, m == null ? '—' : `${m} m`, m == null ? 0 : m / (R.walk * 2), m == null ? 'c' : m <= R.walk ? 'g' : m <= R.walk * 1.4 ? 'a' : 'r', { tick: 0.5, tip });
-    let c1 = sec('LAYOUT · THE WALKS', W.all != null ? ` · ${W.all} M ON AVERAGE` : '') + wm('BUNKS TO WORK', W.work, 'From the bunks to the crewed buildings, on the routes troopers really take.') + wm('BUNKS TO THE MESS', W.mess) + wm('BUNKS TO A LATRINE', W.latrine)
-      + (W.far ? kv('LONGEST', `${esc(W.far.name)}, ${W.far.m} m`, W.far.m > R.walk ? 'warn' : '') : '') + fine(`The mark is ${R.walk} m. Put bunks near the mess, the latrines and the work.`);
-    // the roads
-    const len = { dirt: 0, paved: 0, path: 0 }; for (const g of s.net.segs) if (g.k in len) len[g.k] += segLen(s.net, g);
+    x += sec(`WALKS FROM THE BUNKS · ${W.all == null ? '—' : W.all + ' M'}`, `The mark is ${R.walk} m on average.${W.far ? ` Longest: ${W.far.name}, ${W.far.m} m.` : ''}`) + wm('TO WORK', W.work) + wm('TO THE MESS', W.mess) + wm('TO A LATRINE', W.latrine);
+    const len = { dirt: 0, paved: 0 }; for (const g of s.net.segs) if (g.k in len) len[g.k] += segLen(s.net, g);
     const road = len.dirt + len.paved;
-    c1 += sec('ROADS') + meter('PAVED', road ? `${Math.round(len.paved / road * 100)}%` : '—', road ? len.paved / road : 0, 'c', { tip: 'Trucks go 1.6 times as fast on dirt road and 2.4 times on paved.' })
-      + kv('DIRT · PAVED · FOOTPATH', `${Math.round(len.dirt)} · ${Math.round(len.paved)} · ${Math.round(len.path)} tiles`) + fine('Vehicles go 1.6 times as fast on dirt road, 2.4 on paved; people keep to footpaths. Every building needs a road at its door.');
-    // in and out
+    x += meter('PAVED ROAD', road ? `${Math.round(len.paved / road * 100)}%` : '—', road ? len.paved / road : 0, 'c', { ic: 'roads', tip: 'Trucks go 1.6 times as fast on dirt road and 2.4 times on paved.' });
     const pads = s.b.filter((b) => b.done && B[b.type].pad), onPad = GKEYS.reduce((a, g) => a + s.onPad(g), 0), padCap = Math.max(1, pads.length * s.padLoad());
-    const tr = s.veh.filter((v) => v.kind === 'truck'), li = s.veh.filter((v) => v.kind === 'lift'), busy = (vs) => vs.filter((v) => v.job).length;
-    const ready = s.troops.filter((t) => t.state !== 'patrol' && t.train >= 100 && !t.job).length, seats = s.padSeats() * pads.length, cs = s.crews || [], cb = cs.filter((c) => c.job != null && !c.wait).length, q = s.jobQueue().length;
-    let c2 = sec('IN AND OUT') + meter('WAITING ON THE PAD', `${Math.floor(onPad)} goods`, onPad / padCap, onPad > padCap * 0.6 ? 'a' : 'g', { tip: 'Goods the dropship left that nobody has moved to storage yet. More trucks, forklifts and road.' })
-      + meter('SUPPLY TRUCKS OUT', `${busy(tr)} of ${tr.length}`, tr.length ? busy(tr) / tr.length : 0, busy(tr) === tr.length && tr.length ? 'a' : 'c', { tip: 'All out means goods wait. A Motor Pool adds two.' })
-      + meter('FORKLIFTS OUT', `${busy(li)} of ${li.length}`, li.length ? busy(li) / li.length : 0, 'c')
-      + meter('READY FOR THE TRANSPORT', `${ready} for ${seats}`, seats ? Math.min(ready, seats) / seats : 0, 'g', { tip: `Transports leave the pad at ${C.DEPLOY_AT}:00 with trained troopers who are not crewing a building.` })
-      + meter(`ENGINEER CREWS · ${q} JOB${q === 1 ? '' : 'S'}`, `${cb} of ${cs.length} busy`, cs.length ? cb / cs.length : 0, q > cs.length + 2 ? 'a' : 'c', { tip: 'Every building job takes a crew. An Engineer Yard trains another.' })
-      + fine('How fast goods come off the pad, troopers go out on the transports, and building gets done.');
-    // staff and services
-    const done = s.b.filter((b) => b.done && !b.off), crewed = done.filter((b) => B[b.type].crew), full = crewed.filter((b) => s.crewFrac(b) >= 1).length, u = s.util, P = s.potties || { n: 0, perPotty: 0 };
-    let c3 = sec('STAFF AND SERVICES') + meter('FULLY CREWED', `${full} of ${crewed.length}`, crewed.length ? full / crewed.length : 1, full === crewed.length ? 'g' : 'a', { tip: 'CREW FIRST on a building\'s card puts it ahead; SWITCH OFF frees its crew.' })
-      + meter('POWER', `${s.power.made} / ${s.power.used}`, s.power.used ? s.power.made / s.power.used : 1, s.power.ratio >= 1 ? 'g' : 'r')
-      + (u ? meter('WATER A DAY', `${u.water.made} / ${u.water.use}`, u.water.use ? u.water.made / u.water.use : 1, u.water.ratio >= 1 ? 'g' : 'a') + meter('SEWAGE A DAY', `${u.sewer.cap} / ${u.sewer.use}`, u.sewer.use ? u.sewer.cap / u.sewer.use : 1, u.sewer.ratio >= 1 ? 'g' : 'a') : '')
-      + meter('PER LATRINE', P.n ? `${Math.round(P.perPotty)} troops` : 'none', P.n ? P.perPotty / (R.perPotty * 2) : 1, !P.n || P.perPotty > R.perPotty || P.filthy ? 'r' : 'g', { tick: 0.5, tip: `The review wants ${R.perPotty} or fewer to a latrine, and none filthy.` })
-      + (u && u.dark ? `<p class="warn">${u.dark} building${u.dark > 1 ? 's' : ''} outside power coverage: a Substation (UTILITIES).</p>` : '');
-    return x + `<div class="oc-3"><div>${c1}</div><div>${c2}</div><div>${c3}</div></div>`;
+    const tr = s.veh.filter((v) => v.kind === 'truck'), busy = (vs) => vs.filter((v) => v.job).length, ready = s.troops.filter((t) => t.state !== 'patrol' && t.train >= 100 && !t.job).length, seats = s.padSeats() * pads.length, cs = s.crews || [], cb = cs.filter((c) => c.job != null && !c.wait).length, q = s.jobQueue().length;
+    x += sec('IN AND OUT', 'The map draws the supply routes: brighter, a truck or forklift is on it now.') + meter('ON THE PAD', `${Math.floor(onPad)}`, onPad / padCap, onPad > padCap * 0.6 ? 'a' : 'g', { ic: 'logistics', tip: 'Goods the dropship left that nobody has moved yet.' })
+      + meter('TRUCKS OUT', `${busy(tr)}/${tr.length}`, tr.length ? busy(tr) / tr.length : 0, busy(tr) === tr.length && tr.length ? 'a' : 'c', { ic: 'logistics', tip: 'All out means goods wait. A Motor Pool adds two.' })
+      + meter('TRANSPORT', `${ready}/${seats}`, seats ? Math.min(ready, seats) / seats : 0, 'g', { ic: 'command', tip: `Troopers ready for the ${C.DEPLOY_AT}:00 transport, and its seats.` })
+      + meter(`CREWS · ${q} JOBS`, `${cb}/${cs.length}`, cs.length ? cb / cs.length : 0, q > cs.length + 2 ? 'a' : 'c', { ic: 'industry', tip: 'Engineer crews at work, and the building jobs waiting. An Engineer Yard trains another crew.' });
+    const done = s.b.filter((b) => b.done && !b.off), crewed = done.filter((b) => B[b.type].crew), full = crewed.filter((b) => s.crewFrac(b) >= 1).length, u = s.util;
+    x += sec('SERVICES', 'The map: green served, amber short of water, sewage or crew, red dark. The rings are each utility\'s reach.') + meter('CREWED', `${full}/${crewed.length}`, crewed.length ? full / crewed.length : 1, full === crewed.length ? 'g' : 'a', { ic: 'people' })
+      + meter('POWER', `${s.power.made}/${s.power.used}`, s.power.used ? s.power.made / s.power.used : 1, s.power.ratio >= 1 ? 'g' : 'r', { ic: 'power' })
+      + (u ? meter('WATER', `${u.water.made}/${u.water.use}`, u.water.use ? u.water.made / u.water.use : 1, u.water.ratio >= 1 ? 'g' : 'a', { ic: 'drop' }) + meter('SEWAGE', `${u.sewer.cap}/${u.sewer.use}`, u.sewer.use ? u.sewer.cap / u.sewer.use : 1, u.sewer.ratio >= 1 ? 'g' : 'a', { ic: 'potty' }) : '');
+    return x;
   }
 
-  // ---------------------------------------------------------------- HAPPINESS: morale, and what moves it
+  // ---------------------------------------------------------------- HAPPINESS
   function pageHap(s) {
     const mor = s.mor || {}, tgt = Math.round(s.moraleTarget ?? s.morale), now = Math.round(s.morale), sum = (ks) => ks.reduce((a, k) => a + (mor[k] || 0), 0);
-    const rest = Object.keys(mor).filter((k) => !Object.values(HAPPY).flat().includes(k) && k !== 'base' && mor[k]);
-    let x = headline('HAPPINESS', `Morale ${now}, heading for ${tgt}: a baseline of ${mor.base ?? 45}${rest.map((k) => `, ${esc(h.MOR[k] || k)} ${mor[k] > 0 ? '+' : ''}${mor[k]}`).join('')}, and the three below. It moves slowly toward the target. Under 40, troopers work and train worse.`,
-      `<div class="track mor"><i><u class="${now < 40 ? 'r' : now < 60 ? 'a' : 'g'}" style="width:${now}%"></u><s class="tgt" style="left:${tgt}%"><em>${tgt}</em></s></i><b>${now}</b></div>`);
-    const group = (name, ks, extra) => {
-      const v = sum(ks), on = ks.filter((k) => mor[k] || k === 'wall' || k === 'crowd' || k === 'comfort' || k === 'prop' || k === 'beauty'), scale = Math.max(10, ...on.map((k) => Math.abs(mor[k] || 0)));
-      return sec(name, ` · ${v > 0 ? '+' : ''}${v} MORALE`) + on.map((k) => dmeter(CAUSE[k] || esc(k.toUpperCase()), mor[k] || 0, scale, h.MOR[k])).join('') + '<div class="oc-sep"></div>' + extra;
-    };
-    const f = s.fort || s.fortify(), ri = s.raidInfo(), wb = s.wallBonus();
-    const def = group('DEFENCE', HAPPY.defence, meter('PERIMETER REVIEW', f.closed ? `${f.score}/100` : 'no wall', f.closed ? f.score / 100 : 0, f.closed && f.score >= 45 ? 'g' : 'r', { tick: 0.45, tip: 'Reviewed every day by the Operations Office: a closed wall, watched, armed, guarded gates, the command post and fuel kept back. Above 45 earns standing.' })
-      + meter('RAID THREAT', `${ri.threat} / 100`, ri.threat / 100, ri.threat > 60 ? 'r' : 'a') + meter('BASE STRENGTH', ri.strength, ri.strength / Math.max(60, ri.strength), 'c', { tip: 'Walls, towers, turrets, field works and troopers at the gates.' })
-      + fine(`${wb.tower ? 'A closed wall with a tower: +6 morale and 10% more from every building.' : f.closed ? 'A closed wall: +3. Put up a Lookout Tower for +6 and 10% more from every building.' : 'Close a wall round the base: +3 morale, +6 with a Lookout Tower.'} Troopers lost on operations bring grief; medals bring pride.`));
-    const home = s.troops.filter((t) => t.state !== 'patrol').length;
-    const hou = group('HOUSING', HAPPY.housing, meter('BUNKS', `${s.troops.length} / ${s.beds}`, s.troops.length / Math.max(1, s.beds), s.troops.length > s.beds ? 'r' : 'g') + meter('MESS SEATS', `${s.seats} / ${home}`, s.seats / Math.max(1, home), s.seats >= home ? 'g' : 'r')
-      + fine('Comfort comes from the mess, habs, vending and domes. Keep generators, fuel and Industry away from the bunks.'));
-    const w = o.war ? o.war() : null, low = s.b.filter((b) => b.done && b.type !== 'hq' && b.cond < 70).length, likely = Math.round(0.35 * s.morale + 0.45 * s.prop + 0.2 * s.avgCond);
-    const looks = group('LOOKS', HAPPY.looks, meter('BEAUTY SCORE', s.look || 0, (s.look || 0) / 100, 'g', { tip: 'Trees, planters, gardens, fountains and parks (BEAUTY): in full within ten tiles of the bunks, half further off, nothing in an Industry zone. Each kind counts for less the more of it there is.' })
-      + meter('PROPAGANDA SCORE', s.prop, s.prop / 100, 'c', { tip: 'Each kind counts for less the more of it there is: a flag, banners, a loudspeaker and a statue beat ten banners.' })
-      + meter('CONDITION', `${Math.round(s.avgCond)}%${low ? ` · ${low} worn` : ''}`, s.avgCond / 100, s.avgCond >= 70 ? 'g' : 'a', { tip: h.CONDITION })
-      + meter('ON AIR', `${w ? w.air || 0 : 0} of 5`, (w ? w.air || 0 : 0) / 5, 'c', { tip: 'Parade grounds, speakers, billboards, banners, flags, statues and monuments: footage for the war\'s ratings, in a campaign.' })
-      + meter('INSPECTION', s.inspected && s.inspection ? `${s.inspection.score} today` : `likely ${likely}`, (s.inspected && s.inspection ? s.inspection.score : likely) / 100, 'a', { tip: 'The Publicity Office inspects each day: 35% morale, 45% propaganda, 20% condition. It sets Publicity standing.' }));
-    return x + `<div class="oc-3"><div>${def}</div><div>${hou}</div><div>${looks}</div></div>`;
+    let x = `<div class="ln-big" title="Morale moves slowly toward where it is heading. Under 40, troopers work and train worse."><span>MORALE</span><b class="${now < 40 ? 'down' : ''}">${now}</b><em>${tgt > now + 1 ? `↑ heading for ${tgt}` : tgt < now - 1 ? `↓ heading for ${tgt}` : 'steady'}</em></div>`
+      + `<div class="track mor"><i><u class="${now < 40 ? 'r' : now < 60 ? 'a' : 'g'}" style="width:${now}%"></u><s class="tgt" style="left:${tgt}%"></s></i></div>`;
+    const G = [['DEFENCE', 'defence', HAPPY.defence, 'A closed wall: +3, +6 with a Lookout Tower. Medals bring pride; troopers lost bring grief.'], ['HOUSING', 'living', HAPPY.housing, 'Bunks, comfort (mess, habs, domes), food, latrines, quiet, water and sewage.'], ['LOOKS', 'beauty', HAPPY.looks, 'Beauty near the bunks, propaganda, and the condition of the buildings.']];
+    x += `<div class="ln-groups">${G.map(([n, ic, ks, tip]) => { const v = sum(ks); return `<div class="${v > 0 ? 'pos' : v < 0 ? 'neg' : ''}" title="${esc(tip)}">${icon(ic)}<b>${v > 0 ? '+' : ''}${v}</b><span>${n}</span></div>`; }).join('')}</div>`;
+    const causes = Object.entries(mor).filter(([k, v]) => v && k !== 'base').sort((a, b) => Math.abs(b[1]) - Math.abs(a[1])).slice(0, 7), scale = Math.max(8, ...causes.map(([, v]) => Math.abs(v)));
+    x += sec('WHAT MOVES IT MOST', `A baseline of ${mor.base ?? 45}, then these.`) + causes.map(([k, v]) => dmeter(CAUSE[k] || esc(k.toUpperCase()), v, scale, h.MOR[k])).join('');
+    const w = o.war ? o.war() : null, likely = Math.round(0.35 * s.morale + 0.45 * s.prop + 0.2 * s.avgCond);
+    x += sec('HOW THE BASE LOOKS', 'The map: bunks blue when happy where they stand, red beside noise, fuel or a lagoon; beauty bright where the bunks can see it. The green rings are where beauty counts in full.')
+      + meter('BEAUTY', s.look || 0, (s.look || 0) / 100, 'g', { ic: 'beauty', tip: 'Trees, planters, gardens, fountains and parks (BEAUTY).' })
+      + meter('PROPAGANDA', s.prop, s.prop / 100, 'c', { ic: 'truth', tip: 'Each kind counts for less the more of it there is.' })
+      + meter('CONDITION', `${Math.round(s.avgCond)}%`, s.avgCond / 100, s.avgCond >= 70 ? 'g' : 'a', { ic: 'wrench', tip: h.CONDITION })
+      + meter('ON AIR', `${w ? w.air || 0 : 0}/5`, (w ? w.air || 0 : 0) / 5, 'c', { ic: 'command', tip: 'Gardens, fountains, parks, parades, flags, statues: footage for the war\'s ratings.' })
+      + meter('INSPECTION', s.inspected && s.inspection ? s.inspection.score : `≈${likely}`, (s.inspected && s.inspection ? s.inspection.score : likely) / 100, 'a', { ic: 'star', tip: 'The Publicity Office inspects daily: 35% morale, 45% propaganda, 20% condition.' });
+    return x;
   }
 
   // ---------------------------------------------------------------- OPERATIONS
   function pageOps(s) {
     const home = s.troops.filter((t) => t.state !== 'patrol'), ready = home.filter((t) => t.train >= 100).length, rec = s.troops.filter((t) => t.train < 100), training = rec.filter((t) => t.at).length;
-    const pads = s.b.filter((b) => b.done && B[b.type].pad).length;
-    let c1 = sec('DEPLOYMENT ORDERS');
-    if (!s.orders.length) c1 += fine('No orders open. The next comes with the day.');
-    for (const od of s.orders.slice(0, 2)) c1 += meter(`${od.n} TO THE FRONT BY DAY ${calDay(od.due)}`, `${od.sent} / ${od.n}`, od.sent / od.n, od.sent >= od.n ? 'g' : od.due - s.time.day <= 1 ? 'r' : 'a', { big: true, tip: `+${C.DEPLOY_PAY} supplies each, +${od.def} Operations standing when complete.` });
-    c1 += fine(`Transports leave the landing pad at ${C.DEPLOY_AT}:00 every watch, ${s.padSeats() * pads} seats across your pads, with trained troopers not crewing a building. +${C.DEPLOY_PAY} supplies each.`);
-    c1 += sec('TRAINING') + meter('READY TO SHIP', ready, ready / Math.max(1, s.orders[0] ? s.orders[0].n - s.orders[0].sent : ready || 1), 'g') + meter('RECRUITS TRAINING NOW', `${training} of ${rec.length}`, rec.length ? training / rec.length : 0, 'a', { tip: 'Recruits train 08:00 to 20:00; 100 points makes a trooper.' });
-    { const w = s.troops.filter((t) => t.hurt > 0).length; if (w || s.has('medbay')) c1 += kv('WOUNDED', `${w}${s.wardBeds ? ` · ${s.wardBeds} ward beds` : ' · no Medical Bay'}`, w > s.wardBeds ? 'warn' : ''); }
-    const places = s.b.filter((b) => b.done && B[b.type].slots);
-    c1 += places.length ? places.slice(0, 3).map((b) => { const n = s.troops.filter((t) => t.at === b.id).length, c = s.cap(b, 'slots'); return meter(esc(B[b.type].name.toUpperCase()), `${n}/${c}${TRAIN[B[b.type].train] ? ` · ${TRAIN[B[b.type].train]}/h` : ''}`, n / Math.max(1, c), 'c'); }).join('') : '<p class="warn">Nowhere to train. Build a Firing Range, an Obstacle Course or a Parade Ground (TRAINING).</p>';
-    let c2 = sec('SPECIAL OPERATIONS', ' · OPTIONAL');
-    if (!s.offers.length) c2 += fine('None on offer. New operations come in with the day.');
-    for (const [oi, op] of s.offers.slice(0, 3).entries()) {
+    const od = s.orders[0];
+    let x = od ? `<div class="ln-big" title="${esc(`Transports leave the pad at ${C.DEPLOY_AT}:00 with trained troopers not crewing a building. +${C.DEPLOY_PAY} supplies each; +${od.def} Operations standing when complete.`)}"><span>TO THE FRONT BY DAY ${calDay(od.due)}</span><b>${od.sent}/${od.n}</b><em>${dur(Math.max(0, od.due - s.time.day) * C.DAY)} left</em><i><u class="${od.due - s.time.day <= 1 && od.sent < od.n ? 'r' : 'a'}" style="width:${clamp01(od.sent / od.n) * 100}%"></u></i></div>` : '<div class="ln-big"><span>DEPLOYMENT</span><b>—</b><em>no orders open</em></div>';
+    x += meter('READY TO SHIP', ready, od ? ready / Math.max(1, od.n - od.sent) : ready ? 1 : 0, 'g', { ic: 'people' }) + meter('TRAINING NOW', `${training}/${rec.length}`, rec.length ? training / rec.length : 0, 'a', { ic: 'training', tip: 'Recruits train 08:00 to 20:00; 100 points makes a trooper.' });
+    if (!s.b.some((b) => b.done && B[b.type].slots)) x += '<p class="warn sm">Nowhere to train: TRAINING has the Firing Range.</p>';
+    x += sec('SPECIAL OPERATIONS', 'Optional. Success: standing and supplies. Failure: standing, and troopers can be lost. A rover or tank improves the odds.');
+    if (!s.offers.length) x += '<p class="fine">None on offer today.</p>';
+    for (const op of s.offers.slice(0, 3)) {
       const pick = (vPick[op.id] || []).filter((k) => s.armourFree(k)), ch = s.chance({ ...op, veh: pick }), ok = home.length >= op.size;
-      const vb = ['lrv', 'tank'].filter((k) => s.veh.some((v) => v.kind === k)).map((k) => { const free = s.armourFree(k), on = pick.includes(k); return `<button class="plate btn sm${on ? ' on' : ''}" data-veh="${op.id}:${k}" ${free ? '' : 'disabled'} title="${esc(VEHICLES[k].desc)} Burns ${VEHICLES[k].fuel} fuel.">${on ? '✓ ' : '+ '}${VEHICLES[k].name.toUpperCase()}</button>`; }).join('');
-      const want = op.wants ? ` · <b class="${pick.includes(op.wants) ? 'up' : op.needs ? 'down' : 'warn'}">${op.needs ? 'NEEDS' : 'CALLS FOR'} ${op.wants === 'lrv' ? 'A ROVER' : 'A TANK'}</b>` : '';
-      c2 += `<div class="card2 op"><div class="l"><b><i class="opn">${oi + 1}</i>${esc(op.op)}${op.heavy ? ' <span class="warn">· HEAVY</span>' : ''}</b><span>${esc(op.kind)}${op.place ? `, the ${esc(op.place)}, ${op.km} km ${op.dir}` : ''}${want}</span><span>${'◆'.repeat(op.diff)}${'◇'.repeat(5 - op.diff)} · ${op.size} troopers · ${dur(op.dur * C.PATROL)} · +${op.def} standing, +${op.sup} SUP</span>${vb ? `<div class="oc-veh">${vb}</div>` : ''}</div>
-        <div class="oc-odds"><b class="${ch >= 0.65 ? 'up' : ch < 0.45 ? 'down' : 'warn'}">${ok ? Math.round(ch * 100) + '%' : '—'}</b><button class="plate btn sm" data-send="${op.id}" ${ok ? '' : 'disabled'} title="${ok ? 'The odds are the squad\'s, with what it takes along' : `Needs ${op.size} troopers at home`}">SEND</button></div></div>`;
+      const vb = ['lrv', 'tank'].filter((k) => s.veh.some((v) => v.kind === k)).map((k) => { const free = s.armourFree(k), on = pick.includes(k); return `<button class="plate btn sm${on ? ' on' : ''}" data-veh="${op.id}:${k}" ${free ? '' : 'disabled'} title="${esc(VEHICLES[k].desc)}">${on ? '✓' : '+'}${k === 'lrv' ? 'ROVER' : 'TANK'}</button>`; }).join('');
+      x += `<div class="ln-op" title="${esc(`${op.kind}${op.place ? `, the ${op.place}, ${op.km} km ${op.dir}` : ''}. ${op.size} troopers, ${dur(op.dur * C.PATROL)}. +${op.def} standing, +${op.sup} supplies.${op.wants ? (op.needs ? ' Needs a ' : ' Calls for a ') + (op.wants === 'lrv' ? 'rover.' : 'tank.') : ''}`)}"><div><b>${esc(op.op.replace(/^Operation /, ''))}</b><span>${'◆'.repeat(op.diff)}${'◇'.repeat(5 - op.diff)} · ${op.size}${icon('people')} · +${op.sup}</span>${vb ? `<div class="oc-veh">${vb}</div>` : ''}</div><b class="odds ${ch >= 0.65 ? 'up' : ch < 0.45 ? 'down' : 'warn'}">${ok ? Math.round(ch * 100) + '%' : '—'}</b><button class="plate btn sm" data-send="${op.id}" ${ok ? '' : 'disabled'}>SEND</button></div>`;
     }
-    c2 += fine(s.has('vbay') ? 'A failed operation costs Operations standing, and troopers can be lost.' : 'A failed operation costs standing, and troopers can be lost. With a FOB charter comes the Vehicle Bay: build one to take a rover, later a tank, along, for better odds.');
-    let c3 = sec('IN THE FIELD', s.patrols.length ? ` · ${s.patrols.length}` : '') + (s.patrols.length ? s.patrols.slice(0, 4).map((p) => meter(esc(p.op), `${p.brief > 0 ? 'briefing' : Math.round(p.t / p.dur * 100) + '%'} · odds ${Math.round(p.chance * 100)}%`, p.brief > 0 ? 0 : p.t / p.dur, 'c')).join('') : fine('Nobody out.'));
-    const offices = s.b.filter((b) => b.type === 'patrol' && b.done);
-    c3 += offices.length ? kv('STANDING PATROLS', `${offices.reduce((a, b) => a + (b.squads || 0), 0)} squads, from ${offices.length} Patrol Office${offices.length > 1 ? 's' : ''}`) : fine(`A Patrol Office (OPERATIONS) sends squads of three out every morning at ${C.PATROL_AT}:00 by itself.`);
-    if (s.reports?.length) c3 += sec('LAST RESULTS') + s.reports.slice(-4).reverse().map((r) => kv(esc(r.op), `${r.win ? 'SUCCESS' : 'FAILED'} · ${r.def >= 0 ? '+' : ''}${r.def}`, r.win ? 'up' : 'down', r.lines.join(' '))).join('') + fine('Hover one for its report.');
-    return `<div class="oc-3"><div>${c1}</div><div>${c2}</div><div>${c3}</div></div>`;
+    if (s.patrols.length) x += sec('IN THE FIELD') + s.patrols.slice(0, 3).map((p) => meter(esc(p.op.replace(/^Operation /, '').toUpperCase()), p.brief > 0 ? 'briefing' : `${Math.round(p.chance * 100)}%`, p.brief > 0 ? 0 : p.t / p.dur, 'c')).join('');
+    if (s.reports?.length) x += `<div class="ln-res">${s.reports.slice(-4).reverse().map((r) => `<span class="${r.win ? 'up' : 'down'}" title="${esc(r.op + ': ' + r.lines.join(' '))}">${r.win ? '✓' : '✗'} ${r.def >= 0 ? '+' : ''}${r.def}</span>`).join('')}</div>`;
+    return x;
   }
 
   const PAGES = { pop: pagePop, bud: pageBud, eff: pageEff, hap: pageHap, ops: pageOps };
@@ -250,43 +194,43 @@ export function makeOffices(o, h) {
   function render(force) {
     if (!isOpen()) return;
     const s = sim(), w = el(), tb = $('fb-mi-tabs'), body = $('fb-mi-body');
-    const tabs = OTABS.map(([k, n, c]) => `<button class="plate btn sm${tab === k ? ' on' : ''}" data-mt="${k}"><span class="${c}">${n}</span></button>`).join('');
-    if (tabs !== sigT) { sigT = tabs; tb.innerHTML = tabs; }
+    const tabs = OTABS.map(([k, n, ic, c]) => `<button class="ln-tab${tab === k ? ' on' : ''}" data-mt="${k}" title="${n}"><span class="${c}">${icon(ic)}</span></button>`).join('');
+    if (tabs !== sigT) { sigT = tabs; tb.innerHTML = tabs; $('fb-mi-name').textContent = OTABS.find((q) => q[0] === tab)[1]; }
     let x = '';
     try { x = PAGES[tab](s); } catch (err) { console.error(err); x = `<p class="warn">This page could not be drawn: ${esc(err.message)}</p>`; }
     if (x !== sigB && (force || !w.querySelector('#fb-mi-body button:hover'))) { sigB = x; body.innerHTML = x; }
   }
-  function open(t, sb) { if (t && PAGES[t]) tab = t; if (sb) sub = sb; el().hidden = false; sigB = ''; render(true); dock(); }
-  function close() { if (el()) el().hidden = true; dock(); }
+  function open(t, sb) { if (t && PAGES[t]) tab = t; if (sb) sub = sb; el().hidden = false; sigB = ''; sigT = ''; render(true); dock(); h.lens(tab); }
+  function close() { if (el()) el().hidden = true; dock(); h.lens(null); }
   function toggle(t) { if (isOpen() && (!t || t === tab)) close(); else open(t); audio.click(); }
-  // the dock along the bottom: a button a page, each with its measure as a thin bar and a word on how it stands
+  // the dock along the bottom: a button a page, each with its measure as a thin bar
   function dock() {
     const s = sim(); if (!s || !$('md-pop')) return;
     const set = (k, text, f, col, alert) => { const e = $('md-' + k); if (!e) return; if (e.textContent !== text) e.textContent = text; const b = $('mdb-' + k); if (b) { b.style.width = clamp01(f) * 100 + '%'; b.className = col; } e.parentElement.classList.toggle('alert', !!alert); };
     const nx = s.nextStage(), heads = s.heads(), r = s.rates(), net = r.supNet + r.crNet;
-    set('pop', nx ? `${heads} of ${nx.troops}` : `${heads}`, nx ? heads / nx.troops : 1, 'a');
-    { let made = 0, lost = 0; for (const ob of [r.sup, r.cr]) for (const v of Object.values(ob)) { if (v > 0) made += v; else lost -= v; } set('bud', `${sg(net)}/watch`, made + lost ? made / (made + lost) : 0.5, net > 0 ? 'g' : 'r', net <= 0); }
-    { const ch = s.reviewChecks(), ok = ch.filter((c) => c[1]).length; set('eff', `${ok} of ${ch.length}`, ok / ch.length, ok === ch.length ? 'g' : 'a', ok < ch.length - 2); }
-    set('hap', `morale ${Math.round(s.morale)}`, s.morale / 100, s.morale < 40 ? 'r' : s.morale < 60 ? 'a' : 'g', s.morale < 40);
+    set('pop', nx ? `${heads}/${nx.troops}` : `${heads}`, nx ? heads / nx.troops : 1, 'a');
+    { let made = 0, lost = 0; for (const ob of [r.sup, r.cr]) for (const v of Object.values(ob)) { if (v > 0) made += v; else lost -= v; } set('bud', `${sg(net)}`, made + lost ? made / (made + lost) : 0.5, net > 0 ? 'g' : 'r', net <= 0); }
+    { const ch = s.reviewChecks(), ok = ch.filter((c) => c[1]).length; set('eff', `${ok}/${ch.length}`, ok / ch.length, ok === ch.length ? 'g' : 'a', ok < ch.length - 2); }
+    set('hap', `${Math.round(s.morale)}`, s.morale / 100, s.morale < 40 ? 'r' : s.morale < 60 ? 'a' : 'g', s.morale < 40);
     const od = s.orders[0];
-    set('ops', od ? `${od.sent}/${od.n} shipped` : s.offers.length ? `${s.offers.length} on offer` : `${s.patrols.length} out`, od ? od.sent / od.n : 0, 'a', !!od && od.due - s.time.day <= 1 && od.sent < od.n);
+    set('ops', od ? `${od.sent}/${od.n}` : s.offers.length ? `${s.offers.length} ops` : `${s.patrols.length} out`, od ? od.sent / od.n : 0, 'a', !!od && od.due - s.time.day <= 1 && od.sent < od.n);
     for (const b of document.querySelectorAll('#fb-dock [data-mt]')) b.classList.toggle('on', isOpen() && b.dataset.mt === tab);
   }
 
-  // clicks inside the window and on the dock; true if it was one of ours
+  // clicks inside the panel and on the dock; true if it was one of ours
   function click(e) {
     const s = sim(), t = e.target;
-    const mt = t.closest('[data-mt]'); if (mt) { const k = mt.dataset.mt; if (mt.closest('#fb-mi-tabs')) { tab = k; render(true); dock(); audio.click(); } else toggle(k); return true; }
+    const mt = t.closest('[data-mt]'); if (mt) { const k = mt.dataset.mt; if (mt.closest('#fb-mi-tabs')) { tab = k; sigT = ''; render(true); dock(); h.lens(tab); audio.click(); } else toggle(k); return true; }
     if (t.closest('[data-fb=mclose]')) { close(); audio.click(); return true; }
     if (!t.closest('#fb-mins')) return false;
     const redo = () => { render(true); dock(); h.refresh(); };
     const et = t.closest('[data-et]'); if (et) { sub = et.dataset.et; audio.click(); render(true); return true; }
     const q = t.closest('[data-tq]'); if (q) { tradeQ = +q.dataset.tq; audio.click(); render(true); return true; }
-    const tr = t.closest('[data-trade]'); if (tr) { const [g, b] = tr.dataset.trade.split(':'); const r = s.trade(g, tradeQ, b === '1'); if (r && r.ok) audio.click(); else { h.flash((r && r.why) || 'Not now.'); audio.deny(); } redo(); return true; }
+    const tr = t.closest('[data-trade]'); if (tr) { const [g, b] = tr.dataset.trade.split(':'); const r = s.trade(g, tradeQ, b === '1'); if (r && r.ok) { audio.click(); h.floatAt(tr, `${b === '1' ? '+' : '−'}${tradeQ} ${GSHORT(g)}`, b === '1' ? 'up' : 'down'); } else { h.flash((r && r.why) || 'Not now.'); audio.deny(); } redo(); return true; }
     const cm = t.closest('[data-commit]'); if (cm) { const [m, l] = cm.dataset.commit.split(':'); s.setCommit(m, +l); audio.click(); redo(); return true; }
     const vh = t.closest('[data-veh]'); if (vh) { const [id, k] = vh.dataset.veh.split(':'), cur = vPick[id] || []; vPick[id] = cur.includes(k) ? cur.filter((v) => v !== k) : [...cur, k]; audio.click(); render(true); return true; }
     const sd = t.closest('[data-send]'); if (sd) { if (s.send(+sd.dataset.send, vPick[sd.dataset.send] || [])) { delete vPick[sd.dataset.send]; audio.click(); } else { audio.deny(); h.flash('Not enough troopers at home for that.'); } redo(); return true; }
-    const bo = t.closest('[data-borrow]'); if (bo) { if (s.borrow(bo.dataset.borrow)) audio.click(); else audio.deny(); redo(); return true; }
+    const bo = t.closest('[data-borrow]'); if (bo) { if (s.borrow(bo.dataset.borrow)) { audio.click(); h.floatAt(bo, `+${LOANS[bo.dataset.borrow].amt} CR`, 'up'); } else audio.deny(); redo(); return true; }
     const ry = t.closest('[data-repay]'); if (ry) { const [i, a] = ry.dataset.repay.split(':'); if (s.repay(+i, +a)) audio.click(); else audio.deny(); redo(); return true; }
     return false;
   }

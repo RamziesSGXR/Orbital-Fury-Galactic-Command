@@ -38,13 +38,14 @@ with sync_playwright() as pw:
         st = pg.evaluate(f"""(() => {{ const w = document.getElementById('fb-mins'), b = document.getElementById('fb-mi-body');
           return {{ open: !w.hidden, on: !!document.querySelector('#fb-mi-tabs [data-mt={t}].on'), dock: !!document.querySelector('#fb-dock [data-mt={t}].on'), n: b.textContent.length, sh: b.scrollHeight, ch: b.clientHeight, bottom: w.getBoundingClientRect().bottom, bar: document.getElementById('fb-status').getBoundingClientRect().top }}; }})()""")
         print(t, st)
-        assert st['open'] and st['on'] and st['dock'] and st['n'] > 200, f'{t}: the window did not open on its page'
+        assert st['open'] and st['on'] and st['dock'] and st['n'] > 80, f'{t}: the window did not open on its page'
         assert st['sh'] <= st['ch'] + 1, f'{t}: the page scrolls at 1280 x 720 ({st["sh"]} > {st["ch"]})'
         assert st['bottom'] <= st['bar'] + 1, f'{t}: the window runs under the status bar'
         pg.screenshot(path=f'{out}/offices-{t}.png')
-        if t in ('pop', 'eff', 'hap'): assert pg.evaluate("!!document.querySelector('#fb-mi-body .og .og-m')"), f'{t}: no measure at the head of the page'
+        assert pg.evaluate("!!document.querySelector('#fb-mi-body .ln-big')"), f'{t}: no big measure at the head of the page'
+        assert pg.evaluate("document.getElementById('s-theatre').classList.contains('lens')") and pg.evaluate("!!gc.mode.view.info && gc.mode.view.info.size > 0"), f'{t}: the base does not show the lens'
         if t == 'bud':
-            for sub in ['trade', 'budget']:
+            for sub in ['trade', 'loans', 'budget']:
                 pg.evaluate(f"document.querySelector('#fb-mi-body [data-et={sub}]').click()"); pg.wait_for_timeout(300)
                 sh, ch = pg.evaluate("[document.getElementById('fb-mi-body').scrollHeight, document.getElementById('fb-mi-body').clientHeight]")
                 assert pg.evaluate(f"!!document.querySelector('#fb-mi-body [data-et={sub}].on')"), f'BUDGET {sub} did not open'
@@ -56,13 +57,21 @@ with sync_playwright() as pw:
 
     # --- the readouts open the right page; Esc closes; O opens
     pg.click('.fbig.debt'); pg.wait_for_timeout(300)
-    assert pg.evaluate("!document.getElementById('fb-mins').hidden && !!document.querySelector('#fb-mi-body [data-et=trade].on')"), 'OWED does not open TRADE & LOANS'
+    assert pg.evaluate("!document.getElementById('fb-mins').hidden && !!document.querySelector('#fb-mi-body [data-et=loans].on')"), 'OWED does not open LOANS'
     pg.click('.fweek'); pg.wait_for_timeout(300)
-    assert pg.evaluate("!!document.querySelector('#fb-mi-tabs [data-mt=bud].on') && document.getElementById('fb-mi-body').textContent.includes('THE ALLOCATION')"), 'the day does not open the budget'
+    assert pg.evaluate("!!document.querySelector('#fb-mi-tabs [data-mt=bud].on') && document.getElementById('fb-mi-body').textContent.includes('ALLOCATION')"), 'the day does not open the budget'
     pg.click('#th-stats .ri[data-info=morale]'); pg.wait_for_timeout(300)
     assert pg.evaluate("!!document.querySelector('#fb-mi-tabs [data-mt=hap].on')"), 'MORALE does not open HAPPINESS'
     pg.keyboard.press('Escape'); pg.wait_for_timeout(200)
     assert pg.evaluate("document.getElementById('fb-mins').hidden") and pg.evaluate("gc.state") == 'base', 'Esc does not close the window (or leaves the base)'
+    assert pg.evaluate("!gc.mode.view.info && !document.getElementById('s-theatre').classList.contains('lens')"), 'the lens stays on the base after the panel closes'
+    # (GC 0.85) marks over buildings with something wrong, and money rising off where it was made
+    mk = pg.evaluate("(() => { const s = gc.mode.sim, b = s.b.find(b => b.done && b.type !== 'hq'); b.off = true; return b.id; })()"); pg.wait_for_timeout(900)
+    assert pg.evaluate(f"!!document.querySelector('#fb-marks .mk[data-mk=\"{mk}\"]')"), 'a switched-off building carries no mark'
+    pg.evaluate(f"document.querySelector('#fb-marks .mk[data-mk=\"{mk}\"]').click()"); pg.wait_for_timeout(300)
+    assert not pg.evaluate("document.getElementById('fb-selp').hidden"), 'clicking a mark does not open the building\'s card'
+    pg.evaluate(f"(() => {{ const s = gc.mode.sim, b = s.byId({mk}); b.off = false; s.cash(s.hqId(), 123); }})()"); pg.wait_for_timeout(400)
+    assert pg.evaluate("[...document.querySelectorAll('#fb-floats .fl')].some(f => f.textContent.includes('+123 SUP'))"), 'money made does not rise off the building'
     pg.keyboard.press('KeyO'); pg.wait_for_timeout(300)
     assert not pg.evaluate("document.getElementById('fb-mins').hidden"), 'O does not open the Offices'
 
@@ -80,7 +89,7 @@ with sync_playwright() as pw:
     l0 = S('s.commit.def || 0'); assert js(f'#fb-mi-body [data-commit="def:{l0 + 1}"]') == 'ok', 'COMMIT + is not there'; pg.wait_for_timeout(200)
     assert S('s.commit.def') == l0 + 1, 'the commitment did not go up a level'
     # --- borrow and repay
-    pg.evaluate("document.querySelector('#fb-mi-body [data-et=trade]').click()"); pg.wait_for_timeout(200)
+    pg.evaluate("document.querySelector('#fb-mi-body [data-et=loans]').click()"); pg.wait_for_timeout(200)
     n0 = S('s.loans.length'); assert js('#fb-mi-body [data-borrow=quick]') == 'ok', 'BORROW is not offered'; pg.wait_for_timeout(200)
     assert S('s.loans.length') == n0 + 1 and S('s.loans.some(l => l.k === "quick")'), 'borrowing did nothing'
     i = S('s.loans.findIndex(l => l.k === "quick")'); b0 = S(f's.loans[{i}].bal')

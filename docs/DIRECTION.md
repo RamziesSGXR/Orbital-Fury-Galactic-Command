@@ -108,6 +108,8 @@ FOB Commander's goals (agreed at 0.83 and 0.84, from Ramzies):
     people get in and out, roads and layout), happiness (defence, housing, how good the base looks).~~ **(0.83)**
 15. ~~No research: upgrades come with milestones (head counts and charters); placement rules are the rest. Beauty to
     build: trees, planters, gardens, fountains, parks.~~ **(0.84)**
+17. ~~Show, don't tell: the Offices as lenses on the base itself, marks over buildings, money rising off where it is made,
+    a short task board; paragraphs into tips.~~ **(0.85)**
 16. Active defences and DEFENSIVE WAVES. Watch and act: the enemy comes in from a side in 3D; turrets, artillery, wire and
     troopers fight; you prepare during the warning and, mid-wave, can pause, build, repair or call a strike. Losing costs
     damage and wounds (wrecked buildings left as repairable ruins, troopers wounded, supplies stolen); the base survives.

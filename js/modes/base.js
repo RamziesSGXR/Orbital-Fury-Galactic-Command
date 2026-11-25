@@ -80,7 +80,7 @@ function setTool(t) {
   audio.click(); hud.buildBar(true); hud.selPanel(); hud.pointerTip(null);
 }
 const clearSel = () => { sel = 0; zsel = null; view.select(null); hud.selPanel(); };
-function demolish() { const r = sim.demolish(sel); if (r === false || (r && r.ok === false)) { audio.deny(); if (r && r.why) app.toast(r.why); } else { audio.baseDown(); clearSel(); } }
+function demolish() { const b = sim.byId(sel), s0 = sim.supplies, r = sim.demolish(sel); if (r === false || (r && r.ok === false)) { audio.deny(); if (r && r.why) app.toast(r.why); } else { audio.baseDown(); if (b && sim.supplies > s0) hud.floatWorld(b.x + b.w / 2, b.z + b.d / 2, 1, `+${Math.round(sim.supplies - s0)} SUP`, 'up'); clearSel(); } }     // (GC 0.85: the refund rises off it)
 
 // ---------------------------------------------------------------- pointing: roads, zones, buildings, the camera
 const tileOf = (e) => { const p = view.pick(e.clientX, e.clientY); return [Math.floor(p.x), Math.floor(p.z)]; };
@@ -163,7 +163,8 @@ function bind(canvasOnly = false) {     // (GC 0.78: canvasOnly, for a view buil
     if (tool) {
       const t = tileAt(e), sp = specOf(tool), ok = sim.canPlace(tool, t.tx, t.tz, t.rot, sp);
       if (!ok.ok) { audio.deny(); app.toast(ok.why || 'It cannot go there.'); return; }
-      sim.place(tool, t.tx, t.tz, t.rot, false, sp); audio.podLand(); hud.buildBar();
+      const s0 = sim.supplies, nb = sim.place(tool, t.tx, t.tz, t.rot, false, sp); audio.podLand(); hud.buildBar();
+      if (nb && sim.supplies < s0) hud.floatWorld(nb.x + nb.w / 2, nb.z + nb.d / 2, 1, `−${Math.round(s0 - sim.supplies)} SUP`, 'down');     // (GC 0.85) what it cost, where it went
       if (!LOOSE.has(tool) && !e.shiftKey) setTool(tool);
       return;
     }
@@ -219,7 +220,7 @@ const mode = {
     view.zoomT = view.zoom = 16;
     view.resize();
     acc = 0; tool = null; sel = 0; zsel = null; hover = null; saveT = 25; ui.speeds = [1, 2, 4];
-    if (!hud) { hud = makeHud({ app, ui, audio, sim: () => sim, view: () => view, tool: () => tool, setTool, sel: () => sel, zsel: () => zsel, clearSel, demolish, specOf, supplyRow, siloRow, zoneCard, war: forWar, toast: (t) => app.toast(t) }); hud.mount(); }
+    if (!hud) { hud = makeHud({ app, ui, audio, sim: () => sim, view: () => view, tool: () => tool, setTool, sel: () => sel, zsel: () => zsel, clearSel, demolish, specOf, supplyRow, siloRow, zoneCard, war: forWar, select: (id) => { sel = id; zsel = null; view.select(sim.byId(id)); audio.click(); hud.selPanel(); }, toast: (t) => app.toast(t) }); hud.mount(); }
     hud.show(true);
     tut = app.tutorial ? makeGuide(TUT, { key: TUT_KEY, tutorial: app.tutorial, words, audio, exit: () => app.leavePost() }) : null;     // (GC 0.81) outside the tutorial, the task board's ORDERS teach the base
     $('th-where').textContent = sim.faction.base;
@@ -245,6 +246,7 @@ const mode = {
         else if (ev.t === 'built') { audio.ready(); hud.buildBar(); const b = sim.b.find((o) => o.id === ev.id); if (b && !ev.refit) note(app.tutorial ? {} : { built: 1 }, [['building', b.type]]); }
         else if (ev.t === 'week') { audio.objective(); hud.buildBar(); if (!app.tutorial) note({ baseDays: 1, baseFirst: ev.rank === 0 ? 1 : 0, baseReview: ev.review || 0 }); }
         else if (ev.t === 'desk') audio.chirp();
+        else if (ev.t === 'cash') hud.cash(ev);     // (GC 0.85) money made, rising off where it was made
         else if (ev.t === 'milestone') { audio.objective(); ui.message('MILESTONE', 2400); hud.buildBar(true); }     // (GC 0.84)
         else if (ev.t === 'raidAlarm') { audio.siren(); ui.message('MOVEMENT AT THE WIRE', 3000); }
       }
