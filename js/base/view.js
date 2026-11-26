@@ -10,6 +10,7 @@ import { isLine } from './net.js';
 import { Crowd3D } from '../model3d.js';
 import { surfScale } from '../surface.js';
 import { WL } from './site.js';
+import { HOLO, holoFill, holoEdge, tintHolo, holoize, unholoize, Sparks, domeMat, domeGeo, beamGeo, beamMat, Bloom } from './fx.js';
 
 // ---------------------------------------------------------------- terrain height, in every shader (0.17)
 // Rather than lift every mesh by hand, the vertex stage adds the ground's height under each vertex (in world space) to
@@ -40,6 +41,7 @@ THREE.ShaderChunk.worldpos_vertex = THREE.ShaderChunk.worldpos_vertex.replace('w
 THREE.Material.prototype.onBeforeCompile = function (sh) { if (HG.tex) { sh.uniforms.uHgt = { value: HG.tex }; sh.uniforms.uHgtP = { value: HG.p }; } };
 
 const TAU = Math.PI * 2;
+const COVER_COL = { pw: '#ffd23a', wa: '#4fb4ff', se: '#c9a070', fu: '#c98bff' };     // (GC 0.86) power, water, sewage, fuel
 
 export class View {
   constructor(canvas) {
@@ -52,6 +54,7 @@ export class View {
     this.r.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
     this.r.shadowMap.enabled = true; this.r.shadowMap.type = THREE.PCFShadowMap; this.q = 0; this.qMode = 'auto'; this.qT = 0; this.qN = 0;
     this.r.toneMapping = THREE.ACESFilmicToneMapping; this.r.toneMappingExposure = 1.05;
+    this.r.localClippingEnabled = true; this.bloom = new Bloom(this.r);     // (GC 0.86) buildings rise out of their holograms; lit things glow
     this.scene = new THREE.Scene();
     this.ortho = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 6000);
     this.persp = new THREE.PerspectiveCamera(50, 1, 0.05, 700);   // photo mode: a free camera you can tilt down to ground level
@@ -370,10 +373,14 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
     // selection and range markers
     this.sel = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()]), new THREE.LineBasicMaterial({ color: '#ffe600' }));
     this.sel.visible = false; this.world.add(this.sel);
-    this.range = new THREE.Mesh(new THREE.RingGeometry(0.97, 1, 64), new THREE.MeshBasicMaterial({ color: '#ff4a4a', transparent: true, opacity: 0.55, depthWrite: false, side: THREE.DoubleSide }));
+    this.range = new THREE.Mesh(new THREE.RingGeometry(0.97, 1, 64), new THREE.MeshBasicMaterial({ color: '#ff4a4a', transparent: true, opacity: 0.4, depthWrite: false, side: THREE.DoubleSide }));
     this.range.rotation.x = -Math.PI / 2; this.range.position.y = 0.05; this.range.visible = false; this.world.add(this.range);
     this.foot = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: '#59ff8a', transparent: true, opacity: 0.25, depthWrite: false }));
     this.foot.rotation.x = -Math.PI / 2; this.foot.position.y = 0.04; this.foot.visible = false; this.world.add(this.foot);
+    // (GC 0.86) sparks off what is going up, a dome over the reach of what's selected or being placed, and beams off what it serves
+    this.sparks = new Sparks(this.world);
+    this.dome = new THREE.Mesh(domeGeo(), domeMat()); this.dome.visible = false; this.dome.raycast = () => {}; this.dome.renderOrder = 4; this.world.add(this.dome);
+    this.beams = new THREE.InstancedMesh(beamGeo(), beamMat('#5fe8ff'), 120); this.beams.count = 0; this.beams.frustumCulled = false; this.beams.raycast = () => {}; this.world.add(this.beams);
     this.smokeMat = []; this.smokeGeo = new THREE.SphereGeometry(0.12, 8, 6);
     this.roadMats = { 1: new THREE.MeshStandardMaterial({ color: '#7a6346', roughness: 1 }), 2: new THREE.MeshStandardMaterial({ color: '#3e3f3c', roughness: 0.9 }) };
     this.roadG = new THREE.Group(); this.world.add(this.roadG);
@@ -743,6 +750,7 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
     const ramp = (a, b, v) => Math.max(0, Math.min(1, (v - a) / (b - a)));
     const d = ramp(4, 6, h) * (1 - ramp(18.5, 21, h)), warm = 1 - Math.min(1, Math.abs(h - 12.5) / 6.5);
     this.dayLight = d;
+    if (this.bloom) { this.bloom.strength = 0.18 + 0.4 * (1 - d); this.bloom.threshold = 1.3 - 0.25 * (1 - d); }     // (GC 0.86) the night glows more
     const ang = (h - 12.5) / 12 * Math.PI;
     this.sun.position.set(this.target.x - Math.sin(ang) * 26, 8 + 26 * Math.max(0.15, Math.cos(ang * 0.8)), this.target.z + 12);
     this.sun.intensity = 0.45 + 1.95 * d;   // at night this is moonlight: weaker and blue
@@ -852,28 +860,56 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
 
   // ---------------------------------------------------------------- the build ghost and the selection
   setGhost(type, x, z, rot, ok, spec = null) {
-    if (!type) { if (this.ghostG) this.ghostG.visible = false; this.foot.visible = false; this.range.visible = false; this.grid.visible = false; return; }
+    if (!type) { if (this.ghostG) this.ghostG.visible = false; this.foot.visible = false; this.range.visible = false; this.grid.visible = false; if (this.ghostOn) { this.ghostOn = false; this.dome.visible = false; this.select(this.sim?.byId(this.selId) || null); } return; }
+    this.ghostOn = true;
     const key = type + rot + JSON.stringify(spec);
     if (key !== this.ghostKey) {
       if (this.ghostG) this.world.remove(this.ghostG);
       this.ghostG = buildModel(type, this.m, false, spec && { ...spec, wing: spec.wing ?? (dims(type, 0, spec.design)[0] - B[type].w) / 2 }); this.ghostKey = key;
-      this.ghostMat = new THREE.MeshStandardMaterial({ color: '#59ff8a', transparent: true, opacity: 0.55, depthWrite: false });
+      // (GC 0.86) a blueprint hologram: see-through, scan-lined and outlined, cyan where it can go and red where it can't
+      this.ghostMat ||= holoFill('#5fe8ff', 0.2); this.ghostEdge ||= holoEdge('#5fe8ff');
       this.ghostG.traverse(o => { if (o.isMesh) { o.material = this.ghostMat; o.castShadow = false; } });
+      holoize(this.ghostG, null, this.ghostEdge);
       this.ghostG.rotation.y = rot * Math.PI / 2; this.world.add(this.ghostG);
     }
     const [w, d] = dims(type, rot, spec?.design);
     this.ghostG.visible = true; this.ghostG.position.set(this.wx(x + w / 2), 0, this.wx(z + d / 2));
-    this.ghostMat.color.set(ok ? '#59ff8a' : '#ff4a4a');
-    this.foot.visible = true; this.foot.scale.set(w, d, 1); this.foot.position.set(this.wx(x + w / 2), 0.04, this.wx(z + d / 2)); this.foot.material.color.set(ok ? '#59ff8a' : '#ff4a4a');
+    tintHolo(this.ghostMat, this.ghostEdge, ok ? '#5fe8ff' : '#ff4a4a');
+    this.foot.visible = true; this.foot.scale.set(w, d, 1); this.foot.position.set(this.wx(x + w / 2), 0.04, this.wx(z + d / 2)); this.foot.material.color.set(ok ? '#5fe8ff' : '#ff4a4a');
     this.grid.visible = true;
     const cv = { ...(B[type].cover || {}) }; if (UTIL.powCover[type]) cv.pw = UTIL.powCover[type];
     const nr = B[type].noise || Math.max(0, ...Object.values(cv)); this.range.visible = !!nr;
     this.range.material.color.set(B[type].noise ? '#ff4a4a' : cv.pw ? '#ffd23a' : cv.wa ? '#4fb4ff' : cv.se ? '#b08a4a' : '#c98bff');
     if (nr) { this.range.scale.setScalar(nr); this.range.position.set(this.wx(x + w / 2), 0.05, this.wx(z + d / 2)); }
+    const ck = ['pw', 'wa', 'se', 'fu'].find(k => cv[k]); this.beams.count = 0;
+    if (ck) this.showDome(x + w / 2, z + d / 2, cv[ck], ok ? COVER_COL[ck] : '#ff4a4a'); else this.dome.visible = false;
+  }
+  // (GC 0.86) a dome over how far a service reaches, standing on the ground at its middle
+  showDome(cx, cz, r, col) {
+    const d = this.dome; d.visible = true; d.material.uniforms.uCol.value.set(col);
+    d.scale.set(r, Math.min(r * 0.55, 4.5), r); d.position.set(this.wx(cx), this.sim?.hAt ? this.sim.hAt(cx, cz) : 0, this.wx(cz));
+  }
+  // what a selected source reaches (the dome) and everything it serves there (a beam off each)
+  reachOf(b) {
+    const s = this.sim, cv = s?.coverOf ? s.coverOf(b) : {}, k = ['pw', 'wa', 'se', 'fu'].find(q => cv[q]);
+    this.beams.count = 0;
+    if (!k || !b.done || b.off) { this.dome.visible = false; return; }
+    this.showDome(b.x + b.w / 2, b.z + b.d / 2, cv[k], COVER_COL[k]);
+    this.beams.material.color.set(COVER_COL[k]).multiplyScalar(2.2);
+    const o = this.beamO ||= new THREE.Object3D();
+    for (const q of s.servedList ? s.servedList(b, k) : []) {
+      if (this.beams.count >= 120) break;
+      const g = this.bm.get(q.id), top = g?.userData.top ?? 0.8;
+      o.position.set(this.wx(q.x + q.w / 2), top + 0.05, this.wx(q.z + q.d / 2)); o.scale.set(1, 1.2 + 0.25 * Math.sin(q.id), 1); o.updateMatrix();
+      this.beams.setMatrixAt(this.beams.count++, o.matrix);
+    }
+    this.beams.instanceMatrix.needsUpdate = true;
   }
   select(b) {
     this.selId = b ? b.id : null; this.sel.visible = !!b;
+    if (!this.ghostOn) { this.dome.visible = false; this.beams.count = 0; }
     if (!b) { this.range.visible = false; return; }
+    if (!this.ghostOn) this.reachOf(b);
     const x0 = this.wx(b.x) - 0.05, z0 = this.wx(b.z) - 0.05, x1 = this.wx(b.x + b.w) + 0.05, z1 = this.wx(b.z + b.d) + 0.05;
     this.sel.geometry.setFromPoints([new THREE.Vector3(x0, 0.06, z0), new THREE.Vector3(x1, 0.06, z0), new THREE.Vector3(x1, 0.06, z1), new THREE.Vector3(x0, 0.06, z1)]);
     const nr = B[b.type].noise; this.range.visible = !!nr;
@@ -895,7 +931,7 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
         this.paintSeen = s.paintV;
         for (const g of this.bm.values()) delete g.userData.box;
       } }
-    this.t += dt; const s = this.sim, t = this.t;
+    this.t += dt; this.dtLast = dt; const s = this.sim, t = this.t;
     this.camUpdate(dt);
     this.syncRoads(); this.syncPlaza(); this.syncLz();
     this.syncBuildings(dt);
@@ -903,6 +939,8 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
     this.syncPeople(dt);
     this.syncVehicles(dt);
     this.smokeUpdate(dt); this.routeTick(dt);
+    HOLO.t.value = t; this.sparks.update(dt);
+    if (this.selId != null && !this.ghostOn && (this.reachT = (this.reachT || 0) - dt) <= 0) { this.reachT = 0.5; const b = s.byId(this.selId); if (b) this.reachOf(b); }
     // the boom barriers lift for anything on wheels and drop behind it
     for (const bm of this.booms || []) {
       const u = bm.userData, up = s.veh.some(v => !v.away && Math.hypot(v.x - u.gx, v.z - u.gz) < u.r);
@@ -915,7 +953,8 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
     this.fr = (this.fr || 0) + 1;
     if (every > 1 && this.fr % every === 0) this.r.shadowMap.needsUpdate = true;
     if (this.fr % 60 === 1) surfScale(this.scene, 1.8 / 0.575);     // (GC 0.70) the surface detail in metres: a 1.8 m person stands 0.575 units
-    this.r.render(this.scene, this.cam);
+    if (this.bloom.on && this.q < 3) this.bloom.render(this.scene, this.cam, this.q <= 1 ? 4 : 0);     // (GC 0.86) with glow; the lowest level goes without
+    else this.r.render(this.scene, this.cam);
     this.autoQuality();
     void s;
   }
@@ -959,14 +998,16 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
         this.world.add(g); this.bm.set(b.id, g);
       }
       const model = g.userData.model, ud = model.userData;
-      // under construction (or being upgraded): scaffolding round it, and a new building rises inside
+      // under construction (or being upgraded)
       const busy = !b.done || !!b.upg;
-      if (busy) {
+      if (!b.done) this.holoBuild(g, b, dt);     // (GC 0.86) going up: it rises out of its own hologram, sparks flying at the line
+      else if (g.userData.holo) this.holoDone(g, b);
+      if (busy && b.done) {     // being upgraded: scaffolding round it, sparks along the top
+        this.sparkRing(g, b, g.userData.top + 0.1, 0.3);
         if (!g.userData.scaf) {
           const h = Math.max(0.8, g.userData.top + 0.2), sc = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(b.w - 0.1, h, b.d - 0.1, Math.max(1, b.w), 2, Math.max(1, b.d))), this.m.scaffold);
           sc.position.y = h / 2; g.add(sc); g.userData.scaf = sc;
         }
-        model.scale.y = b.done ? 1 : 0.06 + 0.94 * b.prog;
       } else if (g.userData.scaf) { g.remove(g.userData.scaf); g.userData.scaf = null; model.scale.y = 1; }
       // wear: grime on the roof as the condition drops, and it leans a little when it's really bad
       const worn = b.cond < 60 ? (b.cond < 35 ? 2 : 1) : 0;
@@ -1014,6 +1055,51 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
     // one chunk a frame is re-merged, so a big change spreads over a few frames
     for (const c of this.chunks?.values() || []) if (c.dirty) { this.rebuildChunk(c); break; }
   }
+  // ---------------------------------------------------------------- (GC 0.86) building as a hologram: the finished building is cut
+  // off at a line that climbs with the work; above it, its blueprint in light; at it, a burning line throwing sparks
+  holoBuild(g, b, dt) {
+    const u = g.userData, model = u.model;
+    let h = u.holo;
+    if (!h) {
+      h = u.holo = { pl0: new THREE.Plane(new THREE.Vector3(0, -1, 0), 0), pl1: new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), mats: [], seen: b.prog, t: -9 };
+      h.fill = holoFill('#5fe8ff', 0.07); h.edge = holoEdge('#5fe8ff', 1.5); h.fill.clippingPlanes = [h.pl1]; h.edge.clippingPlanes = [h.pl1];
+      const swap = m => { const c = m.clone(); c.clippingPlanes = [h.pl0]; c.clipShadows = true; h.mats.push(c); return c; };
+      model.traverse(o => { if (o.isMesh && !o.userData.holo) { o.userData.m0 = o.material; o.material = Array.isArray(o.material) ? o.material.map(swap) : swap(o.material); } });
+      h.added = holoize(model, h.fill, h.edge);
+      const w = b.w / 2 - 0.02, d = b.d / 2 - 0.02;
+      h.line = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-w, 0, -d), new THREE.Vector3(w, 0, -d), new THREE.Vector3(w, 0, d), new THREE.Vector3(-w, 0, d)]), holoEdge('#ffb347', 3.5));
+      h.line.raycast = () => {}; h.line.renderOrder = 3; g.add(h.line);
+      model.scale.y = 1;
+    }
+    const y = Math.max(0.03, u.top * b.prog), gy = this.sim.hAt ? this.sim.hAt(b.x + b.w / 2, b.z + b.d / 2) : 0;
+    h.pl0.constant = gy + y; h.pl1.constant = -(gy + y); h.line.position.y = y;
+    if (b.prog !== h.seen) { h.seen = b.prog; h.t = this.t; }
+    const live = this.t - h.t < 1.5;     // work going on: the line burns and throws sparks; stalled, it dims
+    h.line.material.opacity = live ? 0.7 + 0.3 * Math.sin(this.t * 40 + b.id) : 0.3;
+    h.edge.opacity = live ? 0.9 : 0.5;
+    if (live) this.sparkRing(g, b, y, 1);
+  }
+  holoDone(g, b) {
+    const h = g.userData.holo; g.userData.holo = null;
+    unholoize(h.added); g.remove(h.line);
+    g.userData.model.traverse(o => { if (o.userData.m0) { o.material = o.userData.m0; delete o.userData.m0; } });
+    for (const m of h.mats) m.dispose(); h.fill.dispose(); h.edge.dispose(); h.line.material.dispose(); h.line.geometry.dispose();
+    if (b) for (let i = 0; i < 3; i++) this.sparkRing(g, b, g.userData.top * (0.3 + i * 0.35), 0, 10);     // done: a last shower
+  }
+  // sparks thrown off a footprint's outline at a height: k scales the rate, n (if given) is a burst of that many per tile of edge
+  sparkRing(g, b, y, k, n = 0) {
+    const S = this.sparks, cx = g.position.x, cz = g.position.z, w = b.w / 2, d = b.d / 2, P = 2 * (b.w + b.d);
+    let c = n ? n * P / 4 : 7 * P * k * (this.dtLast || 0.016);
+    while (c > 0) {
+      if (c < 1 && Math.random() > c) break; c--;
+      const e = Math.random() * P; let x, z, nx = 0, nz = 0;
+      if (e < b.w) { x = -w + e; z = -d; nz = -1; } else if (e < b.w + b.d) { x = w; z = -d + e - b.w; nx = 1; }
+      else if (e < 2 * b.w + b.d) { x = w - (e - b.w - b.d); z = d; nz = 1; } else { x = -w; z = d - (e - 2 * b.w - b.d); nx = -1; }
+      const sp = 0.4 + Math.random() * 1.4;
+      S.emit(cx + x, y, cz + z, nx * sp + (Math.random() - 0.5) * 0.9, 0.6 + Math.random() * 1.8, nz * sp + (Math.random() - 0.5) * 0.9, 0.35 + Math.random() * 0.55);
+    }
+  }
+
   // ---------------------------------------------------------------- batching: the still parts of finished buildings are
   // merged per 32-tile chunk and material, so a Major Base is a few hundred draw calls, not a few thousand. The building's
   // own copies stay (hidden) for picking, and come back while it's being built, refitted or changes its wear

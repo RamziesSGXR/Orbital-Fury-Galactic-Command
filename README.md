@@ -1,6 +1,6 @@
 # Orbital Fury: Galactic Command
 
-**Prototype 0.85.0.** One war, run from four posts, in one game.
+**Prototype 0.86.0.** One war, run from four posts, in one game.
 
 You found a command (a name, a livery: emblem and colours) and hold the centre of the galaxy against three enemies. Everything in
 the war is yours to run, and each part changes the others:
@@ -13,6 +13,24 @@ the war is yours to run, and each part changes the others:
 | **The base** | Found a base on the system's key world: roads, zones, and buildings that grow along them. | +35% output from the system for each charter. |
 
 A system that falls takes its station and its base with it.
+
+## What's new in 0.86: FOB Commander after dark
+
+Ramzies sent a clip of a city builder (a night-time citadel, planned buildings as glowing blueprints that turn solid,
+construction sparks, a dome over a turbine's reach): "Do you think we can make FOB Commander more like this?" The look,
+yes; this is the first pass.
+
+- **Blueprints.** The build ghost is a hologram: see-through, scan-lined and outlined, cyan where it can go and red where
+  it can't. Beside the pointer, a label: the building's name, its cost and upkeep, how far its service reaches from
+  there and how many buildings it would serve, and CAN BUILD HERE or why not.
+- **Buildings rise out of their holograms.** Below a burning line that climbs with the work, the real building; above
+  it, its blueprint in light. Sparks fly off the line while the crews are at it; stalled work dims it. Done, a last
+  shower and the hologram is gone. Upgrades keep their scaffolding, with sparks along the top.
+- **Reach you can see.** Select a generator, substation, well, tower, lagoon, fuel farm or the command post: a dome over
+  how far it reaches and a beam of light off every building it serves. Placing one shows the dome too.
+- **Glow.** Lit windows, lamps, holograms and sparks bloom, more at night. The lowest graphics level goes without.
+- Next: the defensive waves (DIRECTION 16), then more of the clip's look (raised foundations and terraces, banners,
+  wall turrets, the leaner bar).
 
 ## What's new in 0.85: FOB Commander shows instead of tells
 

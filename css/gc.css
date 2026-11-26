@@ -1147,3 +1147,13 @@ table.st tr.me td { color: var(--amber); } table.st b { font-weight: 600; }
 .track s.end em { transform: translateX(-100%); text-align: right; }
 .ln-ml, .ln-mlh { display: grid; grid-template-columns: 34px 1fr 46px 1fr 46px; gap: 6px; align-items: center; padding: 2px 0; } .ln-mlh span { font: 600 8.5px var(--head); letter-spacing: 1.4px; color: var(--dim); }
 .ln-ml > b { font: 600 10px var(--head); letter-spacing: 1px; color: var(--cyan); } .ln-ml > i { position: relative; height: 8px; background: var(--empty); } .ln-ml > i u { position: absolute; left: 0; top: 0; bottom: 0; } .ln-ml > span { text-align: right; font-size: 11px; }
+
+/* (GC 0.86) the blueprint's label at the pointer while placing: what, what it costs, what it reaches, can it go here */
+#fb-tip.pcard { border-color: rgba(95, 232, 255, 0.55); background: rgba(6, 16, 20, 0.92); padding: 6px 9px 7px; box-shadow: 0 0 14px rgba(95, 232, 255, 0.12); }
+#fb-tip .pc { display: flex; flex-direction: column; gap: 2px; min-width: 150px; }
+#fb-tip .pc > b { color: #bff6ff; letter-spacing: 1px; font-size: 11.5px; }
+#fb-tip .pc-c { color: var(--amber); font-size: 11px; } #fb-tip .pc-c.poor { color: #ff8a7a; }
+#fb-tip .pc-r { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #cfe9ee; } #fb-tip .pc-r .ic { width: 13px; height: 13px; stroke: #5fe8ff; }
+#fb-tip .pc-r em { color: #fff; font-style: normal; white-space: nowrap; } #fb-tip .pc-r { white-space: nowrap; }
+#fb-tip .pc-ok { color: #5fe8ff; font-size: 10.5px; letter-spacing: 0.8px; margin-top: 2px; }
+#fb-tip .pc-no { color: #ff7a6a; font-size: 11px; margin-top: 2px; }

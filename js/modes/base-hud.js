@@ -563,15 +563,31 @@ export function makeHud(o) {
 
   // ---------------------------------------------------------------- the tip and the flash
   function tip(html, x, y, above) {
-    const t = $('fb-tip'); t.innerHTML = html; t.hidden = false;
+    const t = $('fb-tip'); t.innerHTML = html; t.hidden = false; t.classList.remove('pcard');
     const r = t.getBoundingClientRect(), host = $('th-stage').getBoundingClientRect();
     t.style.left = Math.min(host.width - r.width - 6, Math.max(6, x - host.left - r.width / 2)) + 'px';
     t.style.top = Math.max(4, (above ? y - host.top - r.height - 4 : y - host.top + 14)) + 'px';
   }
-  function hideTip() { const t = $('fb-tip'); if (t) t.hidden = true; curTip = false; }
+  function hideTip() { const t = $('fb-tip'); if (t) { t.hidden = true; t.classList.remove('pcard'); } curTip = false; }
   // (GC 0.84) while placing: why it cannot go where the pointer is, beside the pointer
   let curTip = false;
   function pointerTip(text, x, y) { if (text) { tip(`<span class="warn">${esc(words(text))}</span>`, x, y - 16, true); curTip = true; } else if (curTip && flashT <= 0) hideTip(); }
+  // (GC 0.86) while placing a building: a blueprint's label at the pointer. What it is, what it costs, what it would reach from
+  // here and how many it would serve, and whether it can go here (and if not, why not)
+  const REACH = { pw: ['power', 'Power'], wa: ['drop', 'Water'], se: ['potty', 'Sewage'], fu: ['box', 'Fuel'] };
+  function placeCard(k, c, x, y, at) {
+    if (!k) { pointerTip(null); return; }
+    const s = sim(), d = B[k], spec = o.specOf(k), cost = s.costOf(k, spec), sup = Math.round(typeof cost === 'object' ? cost.sup ?? cost.cost ?? 0 : cost);
+    const up = d.up ? ` · −${perWatch(d.up * (s.hasStd(k) ? STD[s.std].up : 1))}/watch` : '', pw = d.pw < 0 ? ` · ${d.pw}⚡` : '';
+    let reach = '';
+    const cv = s.coverOf ? s.coverOf({ type: k }) : {}, ck = Object.keys(REACH).find((q) => cv[q]);
+    if (ck && at) { const [w, dd] = at.rot % 2 ? [d.d, d.w] : [d.w, d.d], n = s.servedList({ id: -1, type: k, x: at.x, z: at.z, w, d: dd }, ck).length;
+      reach = `<span class="pc-r">${icon(REACH[ck][0])}${REACH[ck][1]} reach ${cv[ck]} · <em>serves ${n}</em></span>`; }
+    if (d.look) reach += `<span class="pc-r">${icon('beauty')}Looks +${d.look}</span>`;
+    const ok = c.ok ? `<span class="pc-ok">✓ CAN BUILD HERE</span>` : `<span class="pc-no">✕ ${esc(words(c.why || 'Not here'))}</span>`;
+    tip(`<div class="pc"><b>${esc(d.name.toUpperCase())}</b><span class="pc-c${s.supplies < sup ? ' poor' : ''}">${sup} SUP${up}${pw}</span>${reach}${ok}</div>`, x + 130, y + 4, false);
+    $('fb-tip').classList.add('pcard'); curTip = true;
+  }
   function flash(text, cls = 'warn') { const top = $('fb-build').getBoundingClientRect().top || innerHeight - 200; tip(`<span class="${cls}">${esc(words(text))}</span>`, innerWidth / 2, top - 8, true); flashT = cls === 'warn' ? 2.4 : 4; }
 
   // ---------------------------------------------------------------- layout: keep the panels out of each other's way
@@ -597,5 +613,5 @@ export function makeHud(o) {
     view().zoneStrong = !!(o.tool() && o.tool().startsWith('zone:')) || (buildOpen && group === 'zones');
   }
 
-  return { mount, show, reset, tick, layout, buildBar, selPanel, board, flash, pointerTip, cash, floatWorld, offices: () => offices, snap: () => snapMode, cycleSnap: () => { snapMode = SNAPS[(SNAPS.indexOf(snapMode) + 1) % SNAPS.length]; buildBar(true); }, group: () => group };
+  return { mount, show, reset, tick, layout, buildBar, selPanel, board, flash, pointerTip, placeCard, cash, floatWorld, offices: () => offices, snap: () => snapMode, cycleSnap: () => { snapMode = SNAPS[(SNAPS.indexOf(snapMode) + 1) % SNAPS.length]; buildBar(true); }, group: () => group };
 }

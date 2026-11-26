@@ -32,9 +32,12 @@ export const Utilities = {
   },
   // how many standing buildings a source serves with one of its services (pw, wa, se, fu), for its status card
   servedBy(s, k) {
-    const r = this.coverOf(s)[k]; if (!r) return 0;
+    return this.servedList(s, k).length;
+  },
+  servedList(s, k) {     // (GC 0.86) and which: the beams off them when the source is selected
+    const r = this.coverOf(s)[k]; if (!r) return [];
     const need = k === 'se' ? b => this.needsSewer(b) : k === 'wa' ? b => this.needsWater(b) : k === 'pw' ? b => B[b.type].pw < 0 : b => FUELED.has(b.type);
-    return this.b.filter(b => b.done && b !== s && need(b) && reaches(s, b, r)).length;
+    return this.b.filter(b => b.done && b !== s && need(b) && reaches(s, b, r));
   },
   graceOn() { return (this.utilGrace || 0) > 0; },
   // worked out when the base changes: who is covered, how much water and sewage there is, what smells

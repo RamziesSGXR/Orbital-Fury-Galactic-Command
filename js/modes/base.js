@@ -139,7 +139,7 @@ function bind(canvasOnly = false) {     // (GC 0.78: canvasOnly, for a view buil
     }
     if (zoneDrag) { view.showPlots(zoneRect(zoneDrag, tileOf(e))); return; }
     if (roadDrag && !roadDrag.bull) { const end = lineEnd(e), c = sim.checkLine(roadDrag, end, ROADS[tool].k); view.showLine(roadDrag, end, ROADS[tool].k === 'paved' ? 2 : 1, c.ok, ['wall', 'wire', 'bags', 'trench'].includes(ROADS[tool].k)); hud.pointerTip(!c.ok && c.why && c.why !== 'Too short' ? c.why : null, e.clientX, e.clientY); return; }
-    if (tool && !isRoad(tool) && !isZone(tool)) { const t = tileAt(e), sp = specOf(tool), c = sim.canPlace(tool, t.tx, t.tz, t.rot, sp); view.setGhost(tool, t.tx, t.tz, t.rot, c.ok, sp); hud.pointerTip(c.ok ? null : c.why, e.clientX, e.clientY); }     // (GC 0.84) and why not, at the pointer
+    if (tool && !isRoad(tool) && !isZone(tool)) { const t = tileAt(e), sp = specOf(tool), c = sim.canPlace(tool, t.tx, t.tz, t.rot, sp); view.setGhost(tool, t.tx, t.tz, t.rot, c.ok, sp); hud.placeCard(tool, c, e.clientX, e.clientY, { x: t.tx, z: t.tz, rot: t.rot }); }     // (GC 0.84) and why not, at the pointer; (GC 0.86) on a blueprint's label
     else hud.pointerTip(null);
   });
   const up = (e) => {
