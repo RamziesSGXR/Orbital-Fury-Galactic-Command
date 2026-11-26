@@ -298,6 +298,22 @@
     4.883,
     4.605
    ]
+  },
+  "cover_fern": {
+   "tris": 700,
+   "far": 220
+  },
+  "cover_grass": {
+   "tris": 600,
+   "far": 180
+  },
+  "cover_bush": {
+   "tris": 900,
+   "far": 260
+  },
+  "cover_shrub": {
+   "tris": 599,
+   "far": 200
   }
  }
 }

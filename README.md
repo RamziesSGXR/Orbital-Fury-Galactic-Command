@@ -1,6 +1,6 @@
 # Orbital Fury: Galactic Command
 
-**Prototype 0.92.0.** One war, run from four posts, in one game.
+**Prototype 0.92.1.** One war, run from four posts, in one game.
 
 You found a command (a name, a livery: emblem and colours) and hold the centre of the galaxy against three enemies. Everything in
 the war is yours to run, and each part changes the others:
@@ -30,6 +30,10 @@ work: tap, drag and pinch. `INSTALL.bat -Remove` takes it away again.
   roads, the water's edge and the cliffs stay as they were; the height view and the grid still draw over it.
 - **The rocks and the spires round the base are scanned boulders and cliffs** (their light far forms: the base is seen
   from afar).
+- **Ground cover in the ground fight (0.92.1).** Close in, the ground round the camera is set with scanned grass tufts,
+  ferns, bushes and shrubs (cut down in Blender to a few hundred triangles each, with a lighter far form), the biome's own
+  mix: lush in the jungle, a little scrub in the desert and on Mars, none on snow or the moon. They sit on firm or soft dry
+  land only, each always in the same place, and go when the view pulls back or on the low setting.
 - On the lowest quality setting (which the base drops to by itself on a slow computer) the scans give way to the drawn
   ground and the old rocks, for the frame rate (Ramzies: 30 to 144 frames a second).
 
