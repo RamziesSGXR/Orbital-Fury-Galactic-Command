@@ -1102,7 +1102,7 @@ table.st tr.me td { color: var(--amber); } table.st b { font-weight: 600; }
 #fb-mins .track { padding-bottom: 14px; } #fb-mins .track > i { height: 10px; } #fb-mins .track em { top: 14px; font-size: 8.5px; }
 .ln-pics { display: flex; flex-wrap: wrap; gap: 5px; margin: 4px 0 2px; }
 .ln-pic { width: 64px; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 3px 2px 2px; background: rgba(12, 16, 14, 0.85); border: 1px solid rgba(127, 233, 224, 0.2); clip-path: var(--cut); cursor: help; }
-.ln-pic img { width: 56px; height: 40px; object-fit: contain; } .ln-pic em { font-style: normal; font-size: 8.5px; line-height: 1.1; text-align: center; color: var(--dim); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.ln-pic img { width: 56px; height: 40px; object-fit: contain; } .ln-pic em { font-style: normal; font-size: 8.5px; line-height: 1.1; text-align: center; color: var(--dim); display: block; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }     /* (GC 0.87) one line: the tip has the whole name, and every page fits whatever is unlocking */
 .ln-pic.ok { border-color: rgba(141, 240, 160, 0.7); } .ln-pic.ok em { color: #8df0a0; } .ln-pic.perk .ic { width: 26px; height: 26px; margin: 7px 0 6px; color: var(--amber); }
 .ln-pics.sm .ln-pic { width: 54px; } .ln-pics.sm .ln-pic img { width: 46px; height: 32px; }
 .ln-pair { margin: 3px 0; } .ln-pair > b { display: block; font: 600 9px var(--head); letter-spacing: 1.6px; color: var(--cyan); margin-top: 3px; }
@@ -1157,3 +1157,9 @@ table.st tr.me td { color: var(--amber); } table.st b { font-weight: 600; }
 #fb-tip .pc-r em { color: #fff; font-style: normal; white-space: nowrap; } #fb-tip .pc-r { white-space: nowrap; }
 #fb-tip .pc-ok { color: #5fe8ff; font-size: 10.5px; letter-spacing: 0.8px; margin-top: 2px; }
 #fb-tip .pc-no { color: #ff7a6a; font-size: 11px; margin-top: 2px; }
+
+/* (GC 0.87) laying a foundation: its sizes along the blueprint's edges */
+#fb-dims { position: absolute; inset: 0; pointer-events: none; z-index: 8; }
+#fb-dims[hidden] { display: none; }
+#fb-dims span { position: absolute; transform: translate(-50%, -50%); padding: 1px 6px; font: 11px/1.4 ui-monospace, Menlo, Consolas, monospace; letter-spacing: 0.5px; color: #e8f1f6; background: rgba(12, 16, 18, 0.8); border: 1px solid rgba(220, 235, 245, 0.45); white-space: nowrap; }
+#fb-dims span[hidden] { display: none; }

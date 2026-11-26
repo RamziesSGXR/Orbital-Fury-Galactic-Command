@@ -1,16 +1,16 @@
 // The 3D view: a near-isometric camera you can rotate, the ground, the wire, every building and everyone walking about.
 import * as THREE from './vendor/three.js';
-import { C, B, ZONES, ZKEYS, UTIL, LAND } from './config.js';
+import { C, B, ZONES, ZKEYS, UTIL, LAND, SLAB_LV } from './config.js';
 import { dims, wingOf, PLAZA } from './sim.js';
 import { BIOMES } from './site.js';
-import { SCRUB_COL, loadBuildings, sharedGeo, makeMats, mergeStatic, buildModel, makePerson, poseKit, makeForklift, makeTruck, makeLRV, makeTank, makeCrate, makeDropship, wrap } from './models.js';
+import { SCRUB_COL, loadBuildings, sharedGeo, makeMats, mergeStatic, buildModel, slabModel, makePerson, poseKit, makeForklift, makeTruck, makeLRV, makeTank, makeCrate, makeDropship, wrap } from './models.js';
 const VMAKE = { lift: makeForklift, truck: makeTruck, lrv: makeLRV, tank: makeTank };
 import { Noise } from './noise.js';
 import { isLine } from './net.js';
 import { Crowd3D } from '../model3d.js';
 import { surfScale } from '../surface.js';
 import { WL } from './site.js';
-import { HOLO, holoFill, holoEdge, tintHolo, holoize, unholoize, Sparks, domeMat, domeGeo, beamGeo, beamMat, Bloom } from './fx.js';
+import { HOLO, BP, holoFill, holoEdge, tintHolo, holoize, unholoize, Sparks, domeMat, domeGeo, beamGeo, beamMat, Bloom } from './fx.js';
 
 // ---------------------------------------------------------------- terrain height, in every shader (0.17)
 // Rather than lift every mesh by hand, the vertex stage adds the ground's height under each vertex (in world space) to
@@ -454,7 +454,7 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
     if (s.deckV !== this.deckSeen) { this.deckSeen = s.deckV; HG.load(s); }
     const net = s.net, N = this.N, nd = id => net.nodes.find(n => n.id === id), surf = new THREE.Group();
     const strip = (g, a, b, w, y, mat, ext = 0) => {   // a flat strip from a to b, w wide
-      const L = Math.hypot(b.x - a.x, b.z - a.z) + ext, geo = new THREE.PlaneGeometry(L, w, Math.max(1, Math.ceil(L)), 1); geo.rotateX(-Math.PI / 2);   // a vertex every cell, to follow the ground
+      const L = Math.hypot(b.x - a.x, b.z - a.z) + ext, geo = new THREE.PlaneGeometry(L, w, Math.max(1, Math.ceil(L * 2)), 1); geo.rotateX(-Math.PI / 2);   // a vertex every half cell, to follow the ground (and up a ramp onto a raised foundation, GC 0.87)
       const m = new THREE.Mesh(geo, mat); m.position.set(this.wx((a.x + b.x) / 2), y, this.wx((a.z + b.z) / 2)); m.rotation.y = -Math.atan2(b.z - a.z, b.x - a.x); m.receiveShadow = true; g.add(m); return m;
     };
     // Roads are built the way road tools build them: each stretch is cut back from its junctions, and every junction is
@@ -750,7 +750,7 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
     const ramp = (a, b, v) => Math.max(0, Math.min(1, (v - a) / (b - a)));
     const d = ramp(4, 6, h) * (1 - ramp(18.5, 21, h)), warm = 1 - Math.min(1, Math.abs(h - 12.5) / 6.5);
     this.dayLight = d;
-    if (this.bloom) { this.bloom.strength = 0.18 + 0.4 * (1 - d); this.bloom.threshold = 1.3 - 0.25 * (1 - d); }     // (GC 0.86) the night glows more
+    if (this.bloom) { this.bloom.strength = 0.06 + 0.24 * (1 - d); this.bloom.threshold = 1.5 - 0.35 * (1 - d); }     // (GC 0.86) lamps and windows glow at night (GC 0.87: and only them, softly)
     const ang = (h - 12.5) / 12 * Math.PI;
     this.sun.position.set(this.target.x - Math.sin(ang) * 26, 8 + 26 * Math.max(0.15, Math.cos(ang * 0.8)), this.target.z + 12);
     this.sun.intensity = 0.45 + 1.95 * d;   // at night this is moonlight: weaker and blue
@@ -780,7 +780,7 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
     // the game camera: true perspective (0.19), a long lens looking down at the ground under the target. zoom is still
     // half the height of what you see at the target, so everything that goes by zoom works as before
     const c = this.gcam, z = this.zoom, half = c.fov * Math.PI / 360, d = z / Math.tan(half), cp = Math.cos(this.pitch);
-    const gy = this.sim?.hAt ? Math.max(0, this.sim.hAt(this.target.x + this.N / 2, this.target.z + this.N / 2)) : 0;
+    const gy = this.sim?.hAt ? Math.max(0, this.sim.surfAt(this.target.x + this.N / 2, this.target.z + this.N / 2)) : 0;
     c.aspect = this.aspect; c.near = Math.max(0.3, d * 0.5 - 45); c.far = d * 1.7 + 700;   // tight round the ground in view, for depth precision
     if (this.shift) c.setViewOffset(this.w, this.h, this.shift * this.w / 2, 0, this.w, this.h); else if (c.view) c.clearViewOffset();
     c.updateProjectionMatrix();
@@ -819,7 +819,7 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
   // where the pointer is: the tile under it and the building it's over
   // a point on the base, on screen: [x, y] in page pixels, or null if behind the camera or off screen
   toScreen(x, z, y = null) {
-    const v = new THREE.Vector3(this.wx(x), (y ?? 0) + (this.sim?.hAt ? this.sim.hAt(x, z) : 0), this.wx(z)).project(this.cam);
+    const v = new THREE.Vector3(this.wx(x), (y ?? 0) + (this.sim?.hAt ? this.sim.surfAt(x, z) : 0), this.wx(z)).project(this.cam);
     if (v.z > 1 || Math.abs(v.x) > 1.05 || Math.abs(v.y) > 1.05) return null;
     const r = this.canvas.getBoundingClientRect(); return [r.left + (v.x + 1) / 2 * r.width, r.top + (1 - v.y) / 2 * r.height];
   }
@@ -838,14 +838,14 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
     let bid = null, best = Infinity; const box = new THREE.Box3(), hit = new THREE.Vector3();
     for (const [id, g] of this.bm) {
       const b = this.sim.byId?.(id); if (!b) continue;
-      g.userData.box ||= new THREE.Box3().setFromObject(g); box.copy(g.userData.box); const h = this.sim.hAt(b.x + b.w / 2, b.z + b.d / 2); box.min.y += h; box.max.y += h;
+      g.userData.box ||= new THREE.Box3().setFromObject(g); box.copy(g.userData.box); const h = this.sim.surfAt(b.x + b.w / 2, b.z + b.d / 2); box.min.y += h; box.max.y += h;
       if (this.ray.ray.intersectBox(box, hit)) { const dd = hit.distanceTo(this.ray.ray.origin); if (dd < best) { best = dd; bid = id; } }
     }
     return { x: p.x + this.N / 2, z: p.z + this.N / 2, bid };
   }
   // where a ray meets the ground: march down it over the height field, then close in
   groundHit(ray) {
-    const s = this.sim, o = ray.origin, d = ray.direction, H = x => (s?.hAt ? s.hAt(x.x + this.N / 2, x.z + this.N / 2) : 0);
+    const s = this.sim, o = ray.origin, d = ray.direction, H = x => (s?.hAt ? s.surfAt(x.x + this.N / 2, x.z + this.N / 2) : 0);
     if (!s?.hgt) { const p = new THREE.Vector3(); ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), p); return p; }
     // start where the ray comes down through the top of the terrain
     let t0 = d.y < 0 ? Math.max(0, (o.y - 34) / -d.y) : 0, t1 = d.y < 0 ? (o.y + 10) / -d.y : 4000;   // the ground is never above 30 cells
@@ -866,16 +866,16 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
     if (key !== this.ghostKey) {
       if (this.ghostG) this.world.remove(this.ghostG);
       this.ghostG = buildModel(type, this.m, false, spec && { ...spec, wing: spec.wing ?? (dims(type, 0, spec.design)[0] - B[type].w) / 2 }); this.ghostKey = key;
-      // (GC 0.86) a blueprint hologram: see-through, scan-lined and outlined, cyan where it can go and red where it can't
-      this.ghostMat ||= holoFill('#5fe8ff', 0.2); this.ghostEdge ||= holoEdge('#5fe8ff');
+      // (GC 0.86) a blueprint: a faint wash and drafting lines, pale where it can go and red where it can't
+      this.ghostMat ||= holoFill(BP.ok, 0.22); this.ghostEdge ||= holoEdge(BP.ok, 0.95);
       this.ghostG.traverse(o => { if (o.isMesh) { o.material = this.ghostMat; o.castShadow = false; } });
       holoize(this.ghostG, null, this.ghostEdge);
       this.ghostG.rotation.y = rot * Math.PI / 2; this.world.add(this.ghostG);
     }
     const [w, d] = dims(type, rot, spec?.design);
     this.ghostG.visible = true; this.ghostG.position.set(this.wx(x + w / 2), 0, this.wx(z + d / 2));
-    tintHolo(this.ghostMat, this.ghostEdge, ok ? '#5fe8ff' : '#ff4a4a');
-    this.foot.visible = true; this.foot.scale.set(w, d, 1); this.foot.position.set(this.wx(x + w / 2), 0.04, this.wx(z + d / 2)); this.foot.material.color.set(ok ? '#5fe8ff' : '#ff4a4a');
+    tintHolo(this.ghostMat, this.ghostEdge, ok ? BP.ok : BP.bad);
+    this.foot.visible = true; this.foot.scale.set(w, d, 1); this.foot.position.set(this.wx(x + w / 2), 0.04, this.wx(z + d / 2)); this.foot.material.color.set(ok ? BP.ok : BP.bad);
     this.grid.visible = true;
     const cv = { ...(B[type].cover || {}) }; if (UTIL.powCover[type]) cv.pw = UTIL.powCover[type];
     const nr = B[type].noise || Math.max(0, ...Object.values(cv)); this.range.visible = !!nr;
@@ -887,7 +887,7 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
   // (GC 0.86) a dome over how far a service reaches, standing on the ground at its middle
   showDome(cx, cz, r, col) {
     const d = this.dome; d.visible = true; d.material.uniforms.uCol.value.set(col);
-    d.scale.set(r, Math.min(r * 0.55, 4.5), r); d.position.set(this.wx(cx), this.sim?.hAt ? this.sim.hAt(cx, cz) : 0, this.wx(cz));
+    d.scale.set(r, Math.min(r * 0.55, 4.5), r); d.position.set(this.wx(cx), this.sim?.hAt ? this.sim.surfAt(cx, cz) : 0, this.wx(cz));
   }
   // what a selected source reaches (the dome) and everything it serves there (a beam off each)
   reachOf(b) {
@@ -933,7 +933,7 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
       } }
     this.t += dt; this.dtLast = dt; const s = this.sim, t = this.t;
     this.camUpdate(dt);
-    this.syncRoads(); this.syncPlaza(); this.syncLz();
+    this.syncRoads(); this.syncPlaza(); this.syncLz(); this.syncRamps();
     this.syncBuildings(dt);
     this.syncScrub(); this.syncZones(); this.syncFlora(dt);
     this.syncPeople(dt);
@@ -984,12 +984,13 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
     const s = this.sim, t = this.t;
     for (const b of s.b) {
       let g = this.bm.get(b.id);
-      const key = `${b.std ?? ''}:${b.design || 0}:${(b.parts || []).join()}:${b.w}x${b.d}@${b.x},${b.z}`;
+      const key = `${b.std ?? ''}:${b.design || 0}:${(b.parts || []).join()}:${b.w}x${b.d}@${b.x},${b.z}${b.type === 'slab' ? `:${b.k}:${b.lv}` : ''}`;
       if (g && g.userData.key !== key) { if (g.userData.ck) this.unbatch(g); this.world.remove(g); this.bm.delete(b.id); g = null; }   // refitted: build it again
       if (!g) {
         g = new THREE.Group(); g.userData.b = b.id; g.userData.key = key;
         const std = b.std != null && b.std < 2 ? { std: b.std, w: b.rot % 2 ? b.d : b.w, d: b.rot % 2 ? b.w : b.d } : null;
-        const model = buildModel(b.type, this.m, true, std || (b.design || b.parts?.length ? { design: b.design, parts: b.parts, wing: wingOf(b) } : null)); model.rotation.y = b.rot * Math.PI / 2; g.add(model); g.userData.model = model;
+        const model = b.type === 'slab' ? slabModel(b.w, b.d, b.lv || 0, b.k, this.m) : buildModel(b.type, this.m, true, std || (b.design || b.parts?.length ? { design: b.design, parts: b.parts, wing: wingOf(b) } : null)); model.rotation.y = b.rot * Math.PI / 2; g.add(model); g.userData.model = model;
+        if (b.type === 'slab') { g.userData.bot = -SLAB_LV[b.lv || 0].h; g.userData.slab = true; }     // (GC 0.87) rises from the ground to its top
         g.position.set(this.wx(b.x + b.w / 2), 0, this.wx(b.z + b.d / 2));
         g.traverse(o => { o.userData.bid = b.id; });
         const box = new THREE.Box3().setFromObject(model); g.userData.top = box.max.y;
@@ -998,6 +999,7 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
         this.world.add(g); this.bm.set(b.id, g);
       }
       const model = g.userData.model, ud = model.userData;
+      if (g.userData.slab) { const y = b.done ? 0 : SLAB_LV[b.lv || 0].h; if (g.position.y !== y) { g.position.y = y; delete g.userData.box; } }     // (GC 0.87) until it is down, the decks don't lift it: this does
       // under construction (or being upgraded)
       const busy = !b.done || !!b.upg;
       if (!b.done) this.holoBuild(g, b, dt);     // (GC 0.86) going up: it rises out of its own hologram, sparks flying at the line
@@ -1055,6 +1057,45 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
     // one chunk a frame is re-merged, so a big change spreads over a few frames
     for (const c of this.chunks?.values() || []) if (c.dirty) { this.rebuildChunk(c); break; }
   }
+  // ---------------------------------------------------------------- (GC 0.87) ramps: where a road or footpath crosses the rim of a
+  // raised foundation, a concrete wedge under it. The decks lift the slab's edge corners and not the far ones, so the road
+  // over the rim tile already climbs; this fills in under it. One tile box, top at 0 and a level deep, per ramp tile
+  syncRamps() {
+    const s = this.sim; if (!s.rim) return;
+    const key = `${s.slabV}:${s.roadsV}`; if (this.rampKey === key) return; this.rampKey = key;
+    const N = s.N, list = [], seen = new Set();
+    for (const sl of s.slabs()) {
+      if (!sl.lv || !sl.done) continue; const h = SLAB_LV[sl.lv].h;
+      for (let j = -1; j <= sl.d; j++) for (let i = -1; i <= sl.w; i++) {
+        const x = sl.x + i, z = sl.z + j, k = z * N + x; if (x < 0 || z < 0 || x >= N || z >= N || seen.has(k) || s.slabMap[k] || !s.roads[k]) continue;
+        seen.add(k); list.push([x, z, h]);
+      }
+    }
+    if (this.rampM) { this.world.remove(this.rampM); this.rampM.dispose(); this.rampM = null; }
+    if (!list.length) return;
+    const geo = this.rampGeo ||= (() => { const g = new THREE.BoxGeometry(1, 1, 1); g.translate(0, -0.5, 0); return g; })();
+    const im = this.rampM = new THREE.InstancedMesh(geo, this.m._slab || this.m.concrete, list.length), o = new THREE.Object3D();
+    list.forEach(([x, z, h], n) => { o.position.set(this.wx(x + 0.5), -0.004, this.wx(z + 0.5)); o.scale.set(1, h + 0.3, 1); o.updateMatrix(); im.setMatrixAt(n, o.matrix); });
+    im.receiveShadow = true; im.castShadow = true; im.raycast = () => {}; this.world.add(im);
+  }
+  // laying a foundation: its blueprint over the ground, as big and as high as it will be
+  setSlabGhost(r, lv = 0, ok = true) {
+    const G = this.slabG;
+    if (!r) { if (G) G.visible = false; return; }
+    const h = Math.max(0.05, SLAB_LV[lv].h), key = `${r.w}x${r.d}x${lv}`;
+    if (!G || G.userData.key !== key) {
+      if (G) { this.world.remove(G); G.traverse(o => o.geometry?.dispose()); }
+      const g = this.slabG = new THREE.Group(); g.userData.key = key;
+      const geo = new THREE.BoxGeometry(r.w, h, r.d, Math.min(24, r.w), 1, Math.min(24, r.d)); geo.translate(0, h / 2, 0);
+      this.slabFill ||= holoFill(BP.ok, 0.18); this.slabEdge ||= holoEdge(BP.ok, 0.95);
+      const f = new THREE.Mesh(geo, this.slabFill); f.raycast = () => {}; f.renderOrder = 2;
+      const e = new THREE.LineSegments(new THREE.EdgesGeometry(geo, 1), this.slabEdge); e.raycast = () => {}; e.renderOrder = 2;
+      g.add(f, e); this.world.add(g);
+    }
+    this.slabG.visible = true; this.slabG.position.set(this.wx(r.x + r.w / 2), 0, this.wx(r.z + r.d / 2));
+    tintHolo(this.slabFill, this.slabEdge, ok ? BP.ok : BP.bad);
+  }
+
   // ---------------------------------------------------------------- (GC 0.86) building as a hologram: the finished building is cut
   // off at a line that climbs with the work; above it, its blueprint in light; at it, a burning line throwing sparks
   holoBuild(g, b, dt) {
@@ -1062,22 +1103,22 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
     let h = u.holo;
     if (!h) {
       h = u.holo = { pl0: new THREE.Plane(new THREE.Vector3(0, -1, 0), 0), pl1: new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), mats: [], seen: b.prog, t: -9 };
-      h.fill = holoFill('#5fe8ff', 0.07); h.edge = holoEdge('#5fe8ff', 1.5); h.fill.clippingPlanes = [h.pl1]; h.edge.clippingPlanes = [h.pl1];
+      h.fill = holoFill(BP.ok, 0.08); h.edge = holoEdge(BP.ok, 0.8); h.fill.clippingPlanes = [h.pl1]; h.edge.clippingPlanes = [h.pl1];
       const swap = m => { const c = m.clone(); c.clippingPlanes = [h.pl0]; c.clipShadows = true; h.mats.push(c); return c; };
       model.traverse(o => { if (o.isMesh && !o.userData.holo) { o.userData.m0 = o.material; o.material = Array.isArray(o.material) ? o.material.map(swap) : swap(o.material); } });
       h.added = holoize(model, h.fill, h.edge);
       const w = b.w / 2 - 0.02, d = b.d / 2 - 0.02;
-      h.line = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-w, 0, -d), new THREE.Vector3(w, 0, -d), new THREE.Vector3(w, 0, d), new THREE.Vector3(-w, 0, d)]), holoEdge('#ffb347', 3.5));
+      h.line = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-w, 0, -d), new THREE.Vector3(w, 0, -d), new THREE.Vector3(w, 0, d), new THREE.Vector3(-w, 0, d)]), holoEdge(BP.work, 0.9));
       h.line.raycast = () => {}; h.line.renderOrder = 3; g.add(h.line);
       model.scale.y = 1;
     }
-    const y = Math.max(0.03, u.top * b.prog), gy = this.sim.hAt ? this.sim.hAt(b.x + b.w / 2, b.z + b.d / 2) : 0;
+    const bot = u.bot || 0, y = bot + Math.max(0.03, (u.top - bot) * b.prog), gy = (this.sim.hAt ? this.sim.surfAt(b.x + b.w / 2, b.z + b.d / 2) : 0) + g.position.y;
     h.pl0.constant = gy + y; h.pl1.constant = -(gy + y); h.line.position.y = y;
     if (b.prog !== h.seen) { h.seen = b.prog; h.t = this.t; }
-    const live = this.t - h.t < 1.5;     // work going on: the line burns and throws sparks; stalled, it dims
-    h.line.material.opacity = live ? 0.7 + 0.3 * Math.sin(this.t * 40 + b.id) : 0.3;
-    h.edge.opacity = live ? 0.9 : 0.5;
-    if (live) this.sparkRing(g, b, y, 1);
+    const live = this.t - h.t < 1.5;     // work going on: welding sparks at the line; stalled, the drawing fades back
+    h.line.material.opacity = live ? 0.9 : 0.35;
+    h.edge.opacity = live ? 0.8 : 0.45;
+    if (live) this.sparkRing(g, b, y + g.position.y, 1);
   }
   holoDone(g, b) {
     const h = g.userData.holo; g.userData.holo = null;
@@ -1089,7 +1130,7 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
   // sparks thrown off a footprint's outline at a height: k scales the rate, n (if given) is a burst of that many per tile of edge
   sparkRing(g, b, y, k, n = 0) {
     const S = this.sparks, cx = g.position.x, cz = g.position.z, w = b.w / 2, d = b.d / 2, P = 2 * (b.w + b.d);
-    let c = n ? n * P / 4 : 7 * P * k * (this.dtLast || 0.016);
+    let c = n ? n * P / 8 : 2.5 * P * k * (this.dtLast || 0.016);
     while (c > 0) {
       if (c < 1 && Math.random() > c) break; c--;
       const e = Math.random() * P; let x, z, nx = 0, nz = 0;
@@ -1191,7 +1232,7 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
       if (a.hidden) continue;
       const k = F.ready(a.kind) ? a.kind : a.kind.startsWith('civ') ? 'civ0' : 'troop'; if (!F.ready(k)) continue;
       const wx = this.wx(a.x), wz = this.wx(a.z);
-      sph.center.set(wx, 0.6 + (this.sim.hAt ? this.sim.hAt(a.x, a.z) : 0), wz); if (!fr.intersectsSphere(sph)) continue;
+      sph.center.set(wx, 0.6 + (this.sim.hAt ? this.sim.surfAt(a.x, a.z) : 0), wz); if (!fr.intersectsSphere(sph)) continue;
       const ph = t * 9 + a.seed; let f = 'stand', y = 0;
       if (a.act === 'lie') f = 'down';
       else if (!far) switch (a.act) {
@@ -1223,7 +1264,7 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
       if (!g) { g = makePerson(this.m, a.kind); g.scale.setScalar(1.15); g.userData.list = []; g.traverse(o => { if (o.isMesh) g.userData.list.push(o); }); this.pm.set(id, g); }
       g.visible = !a.hidden;
       const u = g.userData, wx = this.wx(a.x), wz = this.wx(a.z);
-      sph.center.set(wx, 0.6 + (this.sim.hAt ? this.sim.hAt(a.x, a.z) : 0), wz); u.seen = g.visible && fr.intersectsSphere(sph);     // (GC 0.27: where they are drawn, on the land's height; on high ground, close in, they were dropped as out of sight)
+      sph.center.set(wx, 0.6 + (this.sim.hAt ? this.sim.surfAt(a.x, a.z) : 0), wz); u.seen = g.visible && fr.intersectsSphere(sph);     // (GC 0.27: where they are drawn, on the land's height; on high ground, close in, they were dropped as out of sight)
       if (!u.seen) continue;
       if (far && a.act !== 'lie') {
         if (!u.rest || u.px !== wx || u.pz !== wz || u.yaw !== a.yaw) {

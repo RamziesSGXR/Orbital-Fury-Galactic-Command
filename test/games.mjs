@@ -55,8 +55,14 @@ if (which === 'all' || which === 'base') {
     const hq = sim.b.find(b => b.type === 'hq'), [dx, dz] = sim.door(hq); let roads = 0;
     for (const [ox, oz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
       const a = sim.snapLine({ x: dx + 0.5, z: dz + 0.5 }, 'free', 'dirt'), b = sim.snapLine({ x: dx + 0.5 + ox * 14, z: dz + 0.5 + oz * 14 }, 'free', 'dirt', a);
-      if (sim.checkLine(a, b, 'dirt').ok && sim.drawLine(a, b, 'dirt')) { roads++; sim.zoneFill(Math.floor(dx + ox * 5 + (oz ? 2 : 0)), Math.floor(dz + oz * 5 + (ox ? 2 : 0)), ['life', 'logi', 'comm', 'train'][roads - 1]); }
+      if (sim.checkLine(a, b, 'dirt').ok && sim.drawLine(a, b, 'dirt')) roads++;
     }
+    // (GC 0.87) foundations beside the roads, laid as a player would, and something built on each once it is down
+    let laid = 0; const want = [['life', 'barracks'], ['logi', 'depot'], ['util', 'gen'], ['train', 'range']], slabs = [];
+    const byRoad = (x, z) => { for (let i = -1; i <= 6; i++) for (const j of [-1, 5]) if (sim.road(x + i, z + j)) return true; for (let j = 0; j < 5; j++) for (const i of [-1, 6]) if (sim.road(x + i, z + j)) return true; return false; };
+    for (const [k] of want) for (let t = 0; t < 900; t++) { const x = dx - 20 + (t % 30) * 1.5 | 0, z = dz - 20 + Math.floor(t / 30) * 1.5 | 0; if (byRoad(x, z) && sim.layCheck(x, z, x + 5, z + 4, k, 0).ok) { const sl = sim.lay(x, z, x + 5, z + 4, k, 0); if (sl) { laid++; slabs.push([sl, k]); break; } } }
+    for (let i = 0; i < 3000; i++) { sim.step(0.1); sim.drain(); }
+    let built = 0; for (const [sl, k] of slabs) { const t = want.find((w) => w[0] === k)[1]; for (let r = 0; r < 4 && sl.done; r++) for (let q = 0; q < sl.w * sl.d; q++) { const x = sl.x + q % sl.w, z = sl.z + Math.floor(q / sl.w); if (sim.canPlace(t, x, z, r, { std: 0 }).ok && sim.place(t, x, z, r, false, { std: 0 })) { built++; r = 9; break; } } }
     let lo = Infinity;
     for (let i = 0; i < 30000; i++) {
       sim.step(0.1); sim.drain();
@@ -64,7 +70,8 @@ if (which === 'all' || which === 'base') {
     }
     const data = JSON.parse(JSON.stringify(sim.save())), s2 = new Sim({ state: data });
     if (s2.b.length !== sim.b.length || Math.abs(s2.supplies - sim.supplies) > 1e-6 || s2.troops.length !== sim.troops.length) bad.push('base: a loaded save is not the same base');
-    console.log('BASE', JSON.stringify({ roads, day: Math.floor(sim.time.day), charter: C.STAGES[sim.stage || 0].name, buildings: sim.b.length, troops: sim.troops.length, supplies: Math.round(sim.supplies), lowest: Math.round(lo), credits: Math.round(sim.credits), morale: Math.round(sim.morale), save: JSON.stringify(data).length }));
+    if (!laid) bad.push('base: no foundation could be laid by the roads');
+    console.log('BASE', JSON.stringify({ roads, laid, built, day: Math.floor(sim.time.day), charter: C.STAGES[sim.stage || 0].name, buildings: sim.b.length, troops: sim.troops.length, supplies: Math.round(sim.supplies), lowest: Math.round(lo), credits: Math.round(sim.credits), morale: Math.round(sim.morale), save: JSON.stringify(data).length }));
   } catch (err) { bad.push('base threw: ' + err.message + ' ' + String(err.stack).split('\n')[1]); }
 }
 console.log(bad.length ? 'FAULTS:\n  ' + bad.join('\n  ') : 'no faults found');

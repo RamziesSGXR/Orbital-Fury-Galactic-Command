@@ -6,7 +6,7 @@
 #   - the controls work: trade on the market, a commitment up a level, borrow and repay, send a special operation; a
 #     file graded from the task board
 #   - (GC 0.84) no SCIENCE: upgrades come with milestones (the ladder on POPULATION); beauty lifts morale near the bunks,
-#     not at all in an Industry zone; the cursor says why a building cannot go where it points
+#     not at all on an Industry foundation; the cursor says why a building cannot go where it points
 import sys
 from playwright.sync_api import sync_playwright
 out = sys.argv[1] if len(sys.argv) > 1 else '/tmp/shots'; errs = []
@@ -105,16 +105,16 @@ with sync_playwright() as pw:
     pg.click('#fb-dock [data-mt=pop]'); pg.wait_for_timeout(400)
     assert 'UNLOCKS' in pg.inner_text('#fb-mi-body') and pg.evaluate("document.querySelectorAll('#fb-mi-body .track s.mini').length") >= 3, 'POPULATION has no unlock ladder'
     pg.screenshot(path=f'{out}/offices-pop-ladder.png')
-    # --- beauty: a garden by the bunks counts in full; nothing goes in an Industry zone
+    # --- beauty: a garden by the bunks counts in full; nothing goes on an Industry foundation
     bt = S('''(() => { s.foundedF = true; const bk = s.b.find(b => b.done && s.cap(b, 'beds') > 0); const l0 = s.look || 0; let put = null, why = null;
       for (let k = 0; k < 400 && !put; k++) { const x = bk.x - 6 + (k % 20), z = bk.z - 6 + Math.floor(k / 20); const c = s.canPlace('tree', x, z, 0); if (c.ok) put = s.place('tree', x, z, 0); else why = c.why; }
       if (put) { put.done = true; put.prog = 1; } s.recalc();
       return { placed: !!put, why, seen: put && put.seen, l0, l1: s.look, mor: s.mor.beauty }; })()''')
     print('beauty', bt)
     assert bt['placed'] and bt['l1'] > bt['l0'], 'a tree by the bunks did not lift the beauty score'
-    zoned = S('''(() => { const hq = s.b.find(b => b.type === 'hq'); for (let k = 0; k < 900; k++) { const x = hq.x - 30 + (k % 30) * 2, z = hq.z + 14 + Math.floor(k / 30) * 2; if (s.canPlace('tree', x, z, 0).ok) { s.paintZone(x, z, x, z, 'ind'); const c = s.canPlace('tree', x, z, 0); return c; } } return null; })()''')
+    zoned = S('''(() => { const hq = s.b.find(b => b.type === 'hq'); for (let k = 0; k < 900; k++) { const x = hq.x - 30 + (k % 30) * 2, z = hq.z + 14 + Math.floor(k / 30) * 2; if (s.canPlace('tree', x, z, 0).ok && s.layCheck(x, z, x + 2, z + 2, 'ind', 0).ok) { s.lay(x, z, x + 2, z + 2, 'ind', 0, true); const c = s.canPlace('tree', x + 1, z + 1, 0); return c; } } return null; })()''')
     print('tree in industry:', zoned)
-    assert zoned and not zoned['ok'] and 'Industry' in zoned['why'], 'beauty was allowed in an Industry zone'
+    assert zoned and not zoned['ok'] and 'Industry' in zoned['why'], 'beauty was allowed on an Industry foundation'
     # --- the cursor says why: a Garden (it needs a road out front) over open ground far from any road
     pg.keyboard.press('Escape'); pg.wait_for_timeout(200)
     pg.evaluate("document.querySelector('#fb-groups [data-g=beauty]').click()"); pg.wait_for_timeout(300)
@@ -135,7 +135,8 @@ with sync_playwright() as pw:
     pg.screenshot(path=f'{out}/offices-ops-sent.png')
     # --- grade a file, from the task board (GC 0.83)
     pg.keyboard.press('Escape'); pg.wait_for_timeout(300)
-    pg.wait_for_selector('#fb-body [data-grade]', timeout=5000)
+    pg.evaluate("(() => { const s = gc.mode.sim, t = s.troops.find(x => x.state !== 'patrol' && !x.grade); if (t) { t.train = 100; t.grade = null; } })()")     # (GC 0.87: the operation may have taken the trooper who had a file)
+    pg.wait_for_selector('#fb-body [data-grade]', timeout=8000)
     g0 = S('s.stats.graded || 0'); r = pg.evaluate("(() => { const b = document.querySelector('#fb-body [data-grade]'); if (!b) return null; b.click(); return b.dataset.grade; })()")
     pg.wait_for_timeout(300); print('graded', r)
     assert r and S('s.stats.graded || 0') == g0 + 1, 'grading a file from the task board did nothing'

@@ -60,7 +60,7 @@ with sync_playwright() as pw:
     pg.click('#fb-items [data-b=road1]'); pg.wait_for_timeout(1500)
     pg.evaluate(f"(() => {{ const v = gc.mode.view; v.lookAt({dx + ox * 6 + 0.5}, {dz + oz * 6 + 0.5}); v.zoom = v.zoomT = 6; }})()"); pg.wait_for_timeout(1200)
     pg.screenshot(path=f'{out}/ui-2-crossing.png')
-    assert pg.evaluate("document.querySelector('#fb-body .tb-next').textContent.includes('Zone Life Support and Logistics')"), 'the orders did not move on after the first road'
+    assert pg.evaluate("document.querySelector('#fb-body .tb-next').textContent.includes('groundwork')"), 'the orders did not move on after the first road'
 
     # --- a building's card
     pg.evaluate("(() => { const s = gc.mode.sim, v = gc.mode.view, hq = s.b.find(b => b.type === 'hq'); v.lookAt(hq.x + 1.5, hq.z + 1.5); v.zoom = v.zoomT = 10; })()"); pg.wait_for_timeout(800)

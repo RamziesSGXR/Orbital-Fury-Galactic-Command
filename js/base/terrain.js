@@ -34,6 +34,14 @@ export const Terrain = {
     const M = this.N + 1, fx = Math.max(0, Math.min(M - 1.001, x)), fz = Math.max(0, Math.min(M - 1.001, z)), i = Math.floor(fx), j = Math.floor(fz), u = fx - i, v = fz - j, h = this.hgt;
     return (h[j * M + i] * (1 - u) + h[j * M + i + 1] * u) * (1 - v) + (h[(j + 1) * M + i] * (1 - u) + h[(j + 1) * M + i + 1] * u) * v;
   },
+  // (GC 0.87) the height of whatever is walked or built on at a point: a finished foundation's top or a bridge deck where
+  // there is one (the decks), else the ground. The same sum the shader does, so the view can put things where they show
+  surfAt(x, z) {
+    const dk = this.deck; if (!dk || !dk.size) return this.hAt(x, z);
+    const M = this.N + 1, fx = Math.max(0, Math.min(M - 1.001, x)), fz = Math.max(0, Math.min(M - 1.001, z)), i = Math.floor(fx), j = Math.floor(fz), u = fx - i, v = fz - j, h = this.hgt;
+    const c = (k) => dk.get(k) ?? h[k], k0 = j * M + i;
+    return (c(k0) * (1 - u) + c(k0 + 1) * u) * (1 - v) + (c(k0 + M) * (1 - u) + c(k0 + M + 1) * u) * v;
+  },
   // how much the ground rises across a rectangle of tiles: the highest corner less the lowest
   gradeOf(x, z, w, d) {
     let lo = Infinity, hi = -Infinity;
@@ -58,7 +66,7 @@ export const Terrain = {
     const N = this.N;
     for (const [x, z] of [[i - 1, j - 1], [i, j - 1], [i - 1, j], [i, j]]) {
       if (x < 0 || z < 0 || x >= N || z >= N) continue;
-      const t = z * N + x; if (this.occ?.[t] || this.roads?.[t] || this.walls?.[t]) return true;
+      const t = z * N + x; if (this.occ?.[t] || this.roads?.[t] || this.walls?.[t] || this.slabMap?.[t]) return true;
     }
     return false;
   },

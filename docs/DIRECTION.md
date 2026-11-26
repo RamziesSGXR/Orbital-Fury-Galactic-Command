@@ -114,6 +114,18 @@ FOB Commander's goals (agreed at 0.83 and 0.84, from Ramzies):
     construction sparks, a label at the pointer, domes over reach and beams off what is served, glow~~ **(0.86)**; still
     to do: raised foundations, ramps and terraces with sizes shown; banners, wall turrets and lamps along the walls; a
     leaner bottom bar (category words that open into small cards); people about at night.
+    (0.87, Ramzies: not holograms but blueprints that get built: done.)
+19. ~~Foundations instead of zones: typed slabs, raised in steps, ramps where roads meet them, roads joining them up;
+    anything permanent on one; no growth by itself.~~ **(0.87)**
+20. Utilities through the foundations and the paved roads between them, up to what the sources put out: no circles.
+21. Walls on foundations: taller and stronger than on bare ground, with a walkway, and turrets, lamps, banners and
+    searchlights mounted on them. Then the defensive waves (16) come at them.
+22. A grittier, less cartoonish look for the buildings, in Blender when Ramzies gives access again.
+23. Our own names everywhere (Ramzies, 0.87): no Helldivers references left in any mode, the campaign, the code or the
+    files: the base's Office codes (DEF, PRO, TRU on the feed; Defence and Expansion standing) go first, with 0.88;
+    the rest in a sweep of its own later.
+24. Roads (Ramzies, 0.87): dirt roads carry nothing; paved roads are laid on a foundation of their own and carry power,
+    water and sewage between foundations. More than one kind of wall.
 16. Active defences and DEFENSIVE WAVES. Watch and act: the enemy comes in from a side in 3D; turrets, artillery, wire and
     troopers fight; you prepare during the warning and, mid-wave, can pause, build, repair or call a strike. Losing costs
     damage and wounds (wrecked buildings left as repairable ruins, troopers wounded, supplies stolen); the base survives.

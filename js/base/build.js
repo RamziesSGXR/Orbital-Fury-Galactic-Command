@@ -73,7 +73,9 @@ export const Build = {
   heads() { return this.troops.length + this.engineers(); },   // votes on the base, engineers included
   crewOn(id) { return this.crews?.find(c => c.job === id) || null; },
   // where a job stands in the queue: 0 = a crew is on it
-  jobQueue() { return this.b.filter(b => !b.done || b.upg).map(b => b.id).concat((this.clr || []).map(o => o.id)); },
+  jobQueue() { return this.b.filter(b => (!b.done || b.upg) && this.slabReady(b)).map(b => b.id).concat((this.clr || []).map(o => o.id)); },
+  // (GC 0.87) nothing goes up on a foundation until the foundation itself is down
+  slabReady(b) { if (b.type === 'slab') return true; const s = this.slabAt?.(b.x, b.z); return !s || s.done; },
   waitingAhead(id) { const q = this.jobQueue().filter(j => !this.crewOn(j)); return q.indexOf(id); },
   // each finished yard takes three recruits and trains them; a crew whose yard comes down is posted elsewhere
   yardStep() {
@@ -125,6 +127,7 @@ export const Build = {
         b.prog += dt / (b.time * C.BUILD) * pace;
         if (b.prog >= 1) {
           b.prog = 1; b.done = true; this.events.push({ t: 'built', id: b.id, refit: !!b.refit }); this.roadsV++;
+          if (b.type === 'slab') this.slabsChanged();     // (GC 0.87) a foundation down: walk and build on it
           this.say('base', b.refit ? `${B[b.type].name} refitted: ${DESIGNS[b.design || 0].name}.` : `${B[b.type].name} complete${this.hasStd(b.type) ? ` (${STD[this.stdOf(b)].name.toLowerCase()})` : ''}. ${c.name} moves on.`);
           b.refit = false; c.job = null;
         }

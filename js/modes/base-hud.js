@@ -13,7 +13,8 @@
 //   - the status bar: the clock (slower, pause, faster), the day, the time and what the base is doing at that hour, and
 //     (GC 0.82) the dock: a button for each of the Offices' windows (base-offices.js), with how that Office is doing.
 // Ministries are Offices here, votes are troops, the pelican a dropship.
-import { C, B, GROUPS, ZONES, ZKEYS, GOODS, GKEYS, STD, TRAIN, TECH, VEHICLES, LOANS, CHAINS, GROW, SUPPLY_MODES, SUPPLY_CAPS, COMMIT, MARKET, FOUNDATION, MIN } from '../base/config.js';
+import { C, B, GROUPS, ZONES, ZKEYS, GOODS, GKEYS, STD, TRAIN, TECH, VEHICLES, LOANS, CHAINS, GROW, SUPPLY_MODES, SUPPLY_CAPS, COMMIT, MARKET, FOUNDATION, MIN, SLABS, SKEYS, SLAB_LV } from '../base/config.js';
+import { KIND } from '../base/slabs.js';     // (GC 0.87) foundations
 import { MKEYS, rankOf, LOOSE } from '../base/sim.js';
 import { REQUESTS, CALLS, GRADES, fileOf } from '../base/desk.js';
 import { words } from '../core/words.js';
@@ -38,7 +39,7 @@ export const ICON = {
   training: 'M12 3a9 9 0 1 0 0 18 9 9 0 1 0 0-18M12 8a4 4 0 1 0 0 8 4 4 0 1 0 0-8M12 11.5v1', living: 'M3 11l9-7 9 7M5 10v10h14V10M10 20v-5h4v5',
   income: 'M4 20h16M7 17v-4M12 17V9M17 17V5', industry: 'M3 21V11l6 4v-4l6 4V5h4v16zM7 21v-3M12 21v-3', power: 'M13 2 5 14h6l-1 8 8-12h-6z', defence: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z',
   truth: 'M3 10v4h3l7 4V6l-7 4zM16 9c1.5 1.5 1.5 4.5 0 6M19 7c3 3 3 7 0 10', command: 'M12 21V9M8 21h8M5 7c4-4 10-4 14 0M8 10c2-2 6-2 8 0M12 9V3',
-  zones: 'M3 3h8v8H3zM13 13h8v8h-8zM13 3h8v8M3 13h8v8', beauty: 'M12 22v-7M12 15c-4 0-7-2.6-7-6s3-6 7-6 7 2.6 7 6-3 6-7 6zM8 22h8',     // (GC 0.84: a tree)
+  zones: 'M3 3h8v8H3zM13 13h8v8h-8zM13 3h8v8M3 13h8v8', found: 'M2 16h20v4H2zM5 16V9h8v7M15 16v-4h5v4M2 18h20', beauty: 'M12 22v-7M12 15c-4 0-7-2.6-7-6s3-6 7-6 7 2.6 7 6-3 6-7 6zM8 22h8',     // (GC 0.84: a tree)
   // (GC 0.85) for the lenses, the status marks over buildings and the board
   people: 'M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM2 21c0-4 3-6.5 7-6.5s7 2.5 7 6.5M16 4.5a3.2 3.2 0 0 1 0 6.2M18 14.8c2.4.7 4 2.9 4 6.2', smile: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM8 14c1 1.6 2.4 2.4 4 2.4s3-.8 4-2.4M9 9.5v1M15 9.5v1',
   drop: 'M12 3c3 4 6 7.5 6 11a6 6 0 0 1-12 0c0-3.5 3-7 6-11z', potty: 'M7 3h10v7H7zM5 10h14l-2 6H7zM9 16l-1 5h8l-1-5', wrench: 'M15 4a5 5 0 0 0-5 6.5L3.5 17l3.5 3.5 6.5-6.5A5 5 0 0 0 20 9l-3 3-3-1-1-3z',
@@ -75,13 +76,14 @@ export const CONDITION = 'Condition: every building wears a little each day, and
 // (GC 0.85) [a short line for the board, the whole of it for its tip, the test]
 const ORDERS = [
   ['Draw a road from the command post', 'Draw a road from the command post (ROADS, drag)', (s) => s.net.segs.some((q) => !['wall', 'wire', 'bags', 'trench'].includes(q.k))],
-  ['Zone Life Support and Logistics', 'Paint a Life Support zone and a Logistics zone along the road (ZONES: tap beside a road to fill a block): barracks, a mess, latrines and a depot grow there', (s) => s.zoneCount('life') > 0 && s.zoneCount('logi') > 0],
-  ['Lay the foundation: a Firing Range', 'Lay the foundation: place a Firing Range (TRAINING); the zones grow the Supply Depot, Barracks and Mess Hall', (s) => s.founded()],
-  ['Power the base: a generator', 'Power the base: a Biofuel Generator by the road (UTILITIES). Every utility covers a circle round it', (s) => s.b.some((b) => b.done && B[b.type].pw > 0 && b.type !== 'hq')],
+  ['The groundwork: depot, barracks, mess, range', 'Put up the groundwork: a Supply Depot, Barracks, a Mess Hall and a Firing Range. As tents they go on bare ground with their door on the road', (s) => s.founded()],
+  ['Lay a foundation by the road', 'Lay a foundation beside a road (FOUNDATIONS: pick a kind and drag on the ground). Anything better than a tent stands on one of its kind', (s) => s.slabs().some((x) => x.done)],
+  ['Power the base: a generator', 'Power the base: a Biofuel Generator, on a Utilities foundation (FOUNDATIONS, then UTILITIES). Every utility covers a circle round it', (s) => s.b.some((b) => b.done && B[b.type].pw > 0 && b.type !== 'hq')],
   ['Wall the base in, with a Lookout', 'Wall the base in and put up a Lookout Tower (DEFENCE): inside a closed wall everything produces 5% more and morale is +3; with a tower, 10% and +6', (s) => s.wallBonus().tower],
   ['Build an Engineer Yard', 'Build an Engineer Yard (INDUSTRY): a third engineer crew means three jobs at once', (s) => s.crews.some((c) => c.yard)],
   ['Plant something by the bunks (BEAUTY)', 'Trees, planters, gardens and the rest lift morale where the bunks can see them (BEAUTY)', (s) => (s.look || 0) > 0],
-  ['Zone Civic and pick a franchise', 'Paint a Civic and Commerce zone and pick a franchise: shops grow as the base fills up', (s) => s.zoneCount('comm') > 0],
+  ['Open a shop on a Civic foundation', 'Lay a Civic foundation and open a shop on it: a vending machine, a club or a franchise', (s) => s.b.some((b) => KIND[b.type] === 'civic')],
+  ['Raise a foundation', 'Lay a RAISED foundation (FOUNDATIONS, HEIGHT) and run a road up to it: the road ramps up onto it', (s) => s.slabs().some((x) => x.lv > 0 && x.done)],
   ['Water and sewage: a well and a lagoon', 'Give the bunks water and sewage beyond the command post: a Water Well and a Sewage Lagoon (UTILITIES). Keep the well away from the lagoon', (s) => s.has('well') && s.has('lagoon')],
   ['Carry power further: a Substation', 'Carry the power further with a Substation, so nothing goes dark (UTILITIES)', (s) => s.has('substation')],
   ['Upgrade a tent to a prefab', 'Upgrade a tent to a prefab: tap it and press UPGRADE', (s) => s.b.some((b) => b.done && s.hasStd(b.type) && b.type !== 'hq' && s.stdOf(b) >= 1)],
@@ -244,7 +246,7 @@ export function makeHud(o) {
     { const u = s.util; if (u && !s.graceOn()) { if (u.dark) warn(`${u.dark} dark`, `${u.dark} building${u.dark > 1 ? 's are' : ' is'} outside power coverage. A Substation near ${u.dark > 1 ? 'them' : 'it'} (UTILITIES).`, 'power'); if (s.waterEff() < 0.75) warn('Water short', 'Bunks without water lose morale and fall sick. Wells, a purification unit, or a tower (UTILITIES).', 'drop'); if (s.sewerEff() < 0.75) warn('Sewage short', 'Bunks with nowhere for their waste lose morale and fall sick. A lagoon or a treatment plant (UTILITIES).', 'potty'); } }
     if (s.power.ratio < 1) warn('Power short', `${s.power.made} made, ${s.power.used} wanted: buildings run slow. A Generator or a Solar Array (UTILITIES).`, 'power');
     if (s.hunger > 0.15) warn('Hungry', 'Not enough seats at meals, or not enough rations. A Mess Hall feeds 24.', 'living', 'pop');
-    if (s.troops.length > s.beds) warn('Bunks short', `${s.troops.length} troops, ${s.beds} bunks. Zone more Life Support.`, 'living', 'pop');
+    if (s.troops.length > s.beds) warn('Bunks short', `${s.troops.length} troops, ${s.beds} bunks. Put up more barracks.`, 'living', 'pop');
     if (s.credits < -s.OD) warn('Overdrawn', 'Wages go unpaid and franchises stop. Take an offer that pays, or sell supplies.', 'coin', 'bud');
     if (s.nextStage() && s.stageCheck().every((c) => c.ok)) warn('Charter coming', 'Every term is met: it is granted within the hour.', 'star', 'pop');
     if (fixes.length) h += `<div class="tb-fix">${fixes.join('')}</div>`;
@@ -287,13 +289,13 @@ export function makeHud(o) {
   const TABS = GROUPS.filter((g) => g[0] !== 'landscape');
   function buildBar(force) {
     const s = sim(), tool = o.tool();
-    const gh = TABS.map(([k, n, desc, , zk]) => `<button class="bg${k === group ? ' on' : ''}${k === group && buildOpen ? ' open' : ''}" data-g="${k}" ${zk && ZONES[zk] ? `style="box-shadow: inset 0 -3px 0 ${ZONES[zk].col}"` : ''} title="${esc(desc)}">${icon(k)}<span>${n}</span></button>`).join('');
+    const gh = TABS.map(([k, n, desc, , zk]) => `<button class="bg${k === group ? ' on' : ''}${k === group && buildOpen ? ' open' : ''}" data-g="${k}" ${zk && SLABS[zk] ? `style="box-shadow: inset 0 -3px 0 ${SLABS[zk].col}"` : ''} title="${esc(desc)}">${icon(k)}<span>${n}</span></button>`).join('');
     if (force || gh !== groupsSig) { groupsSig = gh; $('fb-groups').innerHTML = gh; }
     $('fb-items').hidden = !buildOpen;
     if (!buildOpen) return;
     const G = TABS.find((x) => x[0] === group) || TABS[0];
     let html;
-    if (group === 'zones') html = zonesBar(G);
+    if (group === 'found') html = foundBar(G);
     else {
       const found = s.founded(), fm = s.foundMissing();
       const items = group === 'roads' ? [] : G[3].filter((k) => B[k] && !B[k].fixed);
@@ -301,7 +303,7 @@ export function makeHud(o) {
       const u = s.util, utilLine = group === 'power' && u ? `<span class="bi-crews">POWER ${s.power.made}/${s.power.used} · WATER ${u.water.made}/${u.water.use} · SEWAGE ${u.sewer.cap}/${u.sewer.use} A DAY${u.dark ? ` · ${u.dark} DARK` : ''}</span>` : '';
       const cs = s.crews || [], busy = cs.filter((c) => c.job != null && !c.wait).length, q = s.jobQueue().length;
       const crews = `<span class="bi-crews${q > cs.length + 2 ? ' bad' : ''}" title="Engineer crews do every building job, one each. An Engineer Yard (INDUSTRY) trains another.">CREWS ${busy}/${cs.length} AT WORK · ${q} JOB${q === 1 ? '' : 'S'} OPEN${!s.secure() ? ' · SWEEP UNDER WAY' : ''}</span>`;
-      const head = `<div class="bi-head"><b>${G[1]}</b><span class="bi-desc"></span>${utilLine}${crews}${stdRow}${!found && group !== 'roads' ? `<em>Foundation first: ${fm.map((t) => B[t].name).join(', ')}. These bring the money in.</em>` : ''}</div>`;
+      const head = `<div class="bi-head"><b>${G[1]}</b><span class="bi-desc"></span>${utilLine}${crews}${stdRow}${!found && group !== 'roads' ? `<em>Groundwork first: ${fm.map((t) => B[t].name).join(', ')}. These bring the money in.</em>` : ''}</div>`;
       let cards = '';
       if (group === 'roads' || group === 'defence') {
         const lines = group === 'roads' ? ['road1', 'road2', 'path', 'unroad'] : ['wall', 'wire', 'bags', 'trench', 'unroad'];
@@ -311,25 +313,44 @@ export function makeHud(o) {
       cards += items.map((k) => {
         const d = B[k], lk = s.locked(k), spec = o.specOf(k), cost = s.costOf(k, spec), c = typeof cost === 'object' ? cost.sup ?? cost.cost ?? 0 : cost, poor = s.supplies < c, fnd = !found && FOUNDATION.includes(k) && fm.includes(k);
         const up = d.up ? ` · <i>−${perWatch(d.up * (s.hasStd(k) ? STD[s.std].up : 1))}/watch</i>` : '', pw = d.pw < 0 ? ` · <i>${d.pw}⚡</i>` : '';
-        return `<button class="bi${lk ? ' lock' : ''}${poor ? ' poor' : ''}${tool === k ? ' on' : ''}${fnd ? ' found' : ''}" data-b="${k}">${pic(k)}<b>${esc(d.name)}</b><span class="why">${esc(lk ? 'Needs ' + lk.join(' and ') : whyOf(k))}</span><span class="cost">${s.designable(k) ? 'FROM ' : ''}${Math.round(c)} SUP${up}${pw}</span></button>`;
+        const need = s.slabNeed(k, spec), noSlab = need && !s.slabs().some((x) => need === 'any' || x.k === need);     // (GC 0.87) nowhere for it yet
+        return `<button class="bi${lk ? ' lock' : ''}${poor ? ' poor' : ''}${tool === k ? ' on' : ''}${fnd ? ' found' : ''}" data-b="${k}">${pic(k)}<b>${esc(d.name)}</b><span class="why${noSlab && !lk ? ' warn' : ''}">${esc(lk ? 'Needs ' + lk.join(' and ') : noSlab ? `Needs ${need === 'any' ? 'a foundation' : `a ${SLABS[need].name} foundation`}` : whyOf(k))}</span><span class="cost">${s.designable(k) ? 'FROM ' : ''}${Math.round(c)} SUP${up}${pw}</span></button>`;
       }).join('');
       if (!cards) cards = '<span class="fine">Nothing to place by hand here yet.</span>';
       html = head + `<div class="bi-row">${cards}</div>`;
     }
     if (force || (html !== itemsSig && !held($('fb-items')))) { itemsSig = html; $('fb-items').innerHTML = html; }
   }
-  function zonesBar(G) {
-    const s = sim(), tool = o.tool(), d = s.dem, ch = s.chainNow(), lockedChain = s.b.some((b) => B[b.type].chain);
-    const dem = d ? DEMAND.map(([k, n]) => `<span class="dm" title="${d[k] ? `Short by ${d[k]}${k === 'bunks' ? ` (jobs for ${d.jobs})` : ''}` : 'Enough for now'}"><i>${n}</i><b><u style="width:${Math.round((d.bars[k] || 0) * 100)}%"></u></b></span>`).join('') : '<span class="fine">Demand is worked out every hour.</span>';
-    const stdRow = `<span class="bi-std"><span>GROW AS</span>${STD.map((t, i) => { const lk = s.stdLock(i); return `<button class="plate btn${s.std === i ? ' on' : ''}${lk ? ' lock' : ''}" data-std="${i}" title="${esc(t.doctrine + ' standard. ' + t.desc + (lk ? ' ' + lk + '.' : ''))}">${t.name.toUpperCase()}</button>`; }).join('')}</span>`;
-    const chain = lockedChain ? `<span class="bi-chain">FRANCHISE <b>${esc(B[ch].name)}</b></span>` : `<span class="bi-chain">FRANCHISE <select id="fb-chain" title="The one chain your Civic and Commerce zone grows (one a base)">${['', ...CHAINS].map((k) => `<option value="${k}" ${ch === (k || null) ? 'selected' : ''}>${k ? esc(B[k].name) : 'None'}</option>`).join('')}</select></span>`;
-    const head = `<div class="bi-head"><b>${G[1]}</b><span class="bi-dem">${dem}</span>${chain}${stdRow}</div>`;
+  // (GC 0.87) FOUNDATIONS: the height to lay at, and a card for each kind. Drag on the ground to lay one
+  const metres = (h) => `${Math.round(h * 8 * 10) / 10} m`;
+  function foundBar(G) {
+    const s = sim(), tool = o.tool(), lv = o.slabLv(), sl = s.slabs();
+    const lvRow = `<span class="bi-std"><span>HEIGHT</span>${SLAB_LV.map((L, i) => { const lk = L.stage && (s.stage || 0) < L.stage; return `<button class="plate btn${lv === i ? ' on' : ''}${lk ? ' lock' : ''}" data-slv="${i}" title="${esc(L.desc)}">${L.name} · ${metres(L.h)}</button>`; }).join('')}</span>`;
+    const head = `<div class="bi-head"><b>${G[1]}</b><span class="bi-crews">${sl.length ? `${sl.reduce((a, x) => a + x.w * x.d, 0)} TILES LAID` : 'NONE LAID'} · PICK ONE, DRAG ON THE GROUND</span>${lvRow}</div>`;
     const card = (k) => {
-      const z = ZONES[k], note = s.growNote?.[k], n = s.zoneCount(k);
-      const what = z.grows.length ? 'Grows ' + z.grows.map((t) => t === 'chain' ? (ch ? B[ch].name : 'your franchise') : B[t].name).join(', ') : z.fits ? 'Placed here, works 5% better' : 'Kept clear';
-      return `<button class="bi zone${tool === 'zone:' + k ? ' on' : ''}" data-b="zone:${k}"><span class="th" style="box-shadow: inset 0 -3px 0 ${z.col}">${thumb('t_zone_' + k) ? `<img src="${thumb('t_zone_' + k)}" alt="">` : ''}</span><b style="color:${z.col}">${esc(z.name)}</b><span class="why">${esc(what)}</span><span class="cost">${n ? n + ' tiles' : 'none painted'}${note && z.grows.length && note !== 'building' ? ' · ' + esc(note) : ''}</span></button>`;
+      const S = SLABS[k], have = sl.filter((x) => x.k === k).reduce((a, x) => a + x.w * x.d, 0);
+      return `<button class="bi zone${tool === 'slab:' + k ? ' on' : ''}" data-b="slab:${k}">${pic('t_slab_' + k)}<b style="color:${S.col}">${esc(S.name)}</b><span class="why">${esc(S.desc.split('. ')[0])}</span><span class="cost">${SLAB_LV[lv].cost} SUP / TILE${have ? ` · ${have} LAID` : ''}</span></button>`;
     };
-    return head + `<div class="bi-row">${ZKEYS.map(card).join('')}<button class="bi zone${tool === 'zone:' ? ' on' : ''}" data-b="zone:">${pic('t_unzone')}<b>Unzone</b><span class="why">Drag to clear zoning. Buildings already up stay.</span><span class="cost">FREE</span></button></div>`;
+    return head + `<div class="bi-row">${SKEYS.map(card).join('')}</div>`;
+  }
+  // laying one: a label at the pointer (what, how big, how high, what it costs, whether it can go here) and its sizes along
+  // the blueprint's edges, in metres
+  function slabCard(c, k, lv, x, y) {
+    if (!c) { pointerTip(null); slabDims(null); return; }
+    const S = SLABS[k], L = SLAB_LV[lv];
+    const ok = c.ok ? '<span class="pc-ok">✓ CAN LAY HERE</span>' : `<span class="pc-no">✕ ${esc(words(c.why || 'Not here'))}</span>`;
+    tip(`<div class="pc"><b>${esc(S.name.toUpperCase())} FOUNDATION</b><span class="pc-c${sim().supplies < c.cost ? ' poor' : ''}">${c.cost} SUP · ${c.w} × ${c.d} tiles</span><span class="pc-r">${icon('found')}${L.name.toLowerCase()} · ${metres(L.h)} high</span>${ok}</div>`, x + 130, y + 4, false);
+    $('fb-tip').classList.add('pcard'); curTip = true; slabDims(c, lv);
+  }
+  function slabDims(c, lv) {
+    let el = $('fb-dims');
+    if (!c) { if (el) el.hidden = true; return; }
+    if (!el) { el = document.createElement('div'); el.id = 'fb-dims'; el.innerHTML = '<span></span><span></span><span></span>'; $('th-stage').appendChild(el); }
+    const v = view(), h = SLAB_LV[lv].h, host = $('th-stage').getBoundingClientRect(), [a, b2, hh] = el.children;
+    const put = (e, p, t) => { if (!p) { e.hidden = true; return; } e.hidden = false; e.textContent = t; e.style.left = (p[0] - host.left) + 'px'; e.style.top = (p[1] - host.top) + 'px'; };
+    put(a, v.toScreen(c.x + c.w / 2, c.z + c.d, h), `${c.w * 8} m`); put(b2, v.toScreen(c.x + c.w, c.z + c.d / 2, h), `${c.d * 8} m`);
+    if (lv) put(hh, v.toScreen(c.x, c.z + c.d, h / 2), `↕ ${metres(h)}`); else hh.hidden = true;
+    el.hidden = false;
   }
   // with a mouse, what a card is before it is picked
   function itemTip(e) {
@@ -337,7 +358,7 @@ export function makeHud(o) {
     const s = sim(), at = (h) => tip(h, e.clientX, e.clientY - 12, true);
     if (b.dataset.snap) return at('<b>Snapping</b><br>GRID: ends on tile centres. 45°: straight lines at 45-degree steps. FREE: anywhere. Ends always join existing roads and walls. G switches; Shift draws free.');
     const k = b.dataset.b;
-    if (k.startsWith('zone:')) return at(k === 'zone:' ? '<b>Unzone</b><br>Drag over the ground to clear zoning.' : `<b>${esc(ZONES[k.slice(5)].name)}</b><br>${esc(words(ZONES[k.slice(5)].desc))}`);
+    if (k.startsWith('slab:')) { const S = SLABS[k.slice(5)]; return at(`<b>${esc(S.name)} foundation</b><br>${esc(words(S.desc))}<br><span class="fine">Drag on the ground to lay it; lay more beside it to grow it. It needs a road to its edge.</span>`); }
     if (LINES[k]) return at(`<b>${LINES[k].name}</b><br>${esc(words(LINES[k].desc))}`);
     const d = B[k]; if (!d) return hideTip();
     const lk = s.locked(k), cf = s.hasStd(k) ? STD[s.std].cap : 1, cp = (v) => Math.max(1, Math.round(v * cf));
@@ -369,18 +390,27 @@ export function makeHud(o) {
   const GOLD = { beauty: '#7cc96a', roads: '#9aa3a0', logistics: '#e6eadc', training: '#f5d547', living: '#7fe9e0', income: '#59ff8a', power: '#ffb03a', defence: '#ff6a4d', truth: '#c98bff', command: '#6aa8ff', industry: '#c8705a' };
   const roleOf = (k) => (GROUPS.find((g) => g[3].includes(k)) || ['command', 'COMMAND'])[0];
   function selPanel() {
-    const s = sim(), p = $('fb-selp'), id = o.sel(), b = id && s.byId(id), zk = !b && o.zsel();
+    const s = sim(), p = $('fb-selp'), id = o.sel(), b = id && s.byId(id);
     let html = '';
-    if (b) html = buildingCard(b);
-    else if (zk && ZONES[zk]) html = o.zoneCard(zk);
+    if (b) html = b.type === 'slab' ? foundCard(b) : buildingCard(b);
     p.hidden = !html;
     if (html !== selSig && (!html || !held(p) || !selSig)) { selSig = html; p.innerHTML = html; }
+  }
+  // (GC 0.87) a foundation's card: its kind, size and height, the whole foundation it is part of, what stands on it
+  function foundCard(b) {
+    const s = sim(), S = SLABS[b.k], L = SLAB_LV[b.lv || 0], on = s.onSlab(b), f = s.foundOf(b), kv = (k, v, cls = '') => `<div class="kv"><span>${k}</span><b class="${cls}">${v}</b></div>`;
+    const st = !b.done ? ['warn', `Being laid: ${buildState(b)}`] : f && !f.road ? ['bad', 'No road to it: run one up to its edge'] : ['ok', on.length ? `${on.length} building${on.length > 1 ? 's' : ''} on it` : 'Ready to build on'];
+    const names = [...new Set(on.map((x) => B[x.type].name))].slice(0, 4).join(', ');
+    const bits = [kv('KIND', `<span style="color:${S.col}">${esc(S.name)}</span>`), kv('SIZE', `${b.w} × ${b.d} tiles · ${b.w * 8} × ${b.d * 8} m`), kv('HEIGHT', `${L.name.toLowerCase()} · ${metres(L.h)}`),
+      f && f.slabs.size > 1 ? kv('FOUNDATION', `${f.tiles} tiles in ${f.slabs.size} slabs`) : '', names ? kv('ON IT', esc(names)) : '', f ? kv('ROAD', f.road ? 'joined' : 'none to it', f.road ? '' : 'down') : ''].join('');
+    const btn = `<button class="plate btn sm danger" data-fb="del" ${on.length ? 'disabled title="Clear what stands on it first"' : ''}>${b.done ? 'TAKE UP +' + Math.round(b.cost * C.REFUND) : 'CANCEL +' + b.cost}</button>`;
+    return `<div class="fph"><span>${esc(S.name.toUpperCase())} FOUNDATION</span><button class="fx" data-fb="close" aria-label="Close">×</button></div><div class="sp-status ${st[0]}">${esc(st[1])}</div><div class="sp-body">${bits}<p>${esc(words(S.desc))}</p></div><div class="sp-btns">${btn}</div>`;
   }
   function buildingCard(b) {
     const s = sim(), d = B[b.type], bits = [], kv = (k, v, cls = '') => `<div class="kv"><span>${k}</span><b class="${cls}">${v}</b></div>`, meter = (pc, col) => `<div class="meter"><i style="width:${Math.max(0, Math.min(100, pc))}%;background:${col}"></i></div>`;
     if (s.hasStd(b.type)) { const k = s.stdOf(b); bits.push(kv('STANDARD', `${STD[k].name} <small>(${STD[k].doctrine.toLowerCase()})</small>`)); }
     if (!b.done || b.upg) { const pr = b.done ? b.upg.prog : b.prog; bits.push(kv(b.done ? 'UPGRADE TO ' + STD[b.upg.to].name.toUpperCase() : 'CONSTRUCTION', Math.round(pr * 100) + '%') + meter(pr * 100, 'var(--amber)') + kv('ENGINEERS', esc(buildState(b)))); }
-    { const notes = []; if (b.grown && ZONES[b.grown]) notes.push(`Grew in ${ZONES[b.grown].name}`); if (d.beds && b.noisy) notes.push('<span class="warn">Noisy neighbours: morale suffers</span>'); if (d.beds && b.hazard) notes.push('<span class="warn">Fuel or a generator next door: a hazard</span>'); if (b.nearPad) notes.push(`Near a landing pad: holds ${Math.round((GROW.padBonus - 1) * 100)}% more`); if (s.zoneFit(b) > 1) notes.push('In its own zone: works 5% better'); if (notes.length) bits.push(kv('ZONE', notes.join('<br>'))); }
+    { const notes = []; if (d.beds && b.noisy) notes.push('<span class="warn">Noisy neighbours: morale suffers</span>'); if (d.beds && b.hazard) notes.push('<span class="warn">Fuel or a generator next door: a hazard</span>'); if (b.nearPad) notes.push(`Near a landing pad: holds ${Math.round((GROW.padBonus - 1) * 100)}% more`); if (s.zoneFit(b) > 1) notes.push('In its own zone: works 5% better'); if (notes.length) bits.push(kv('ZONE', notes.join('<br>'))); }
     if (b.done && (d.pw < 0 || s.needsWater(b) || s.needsSewer(b))) { const sv = []; if (d.pw < 0) sv.push(b.dark ? '<span class="down">no power: outside the grid</span>' : 'power'); if (s.needsWater(b)) sv.push(b.dry ? '<span class="warn">no water</span>' : 'water'); if (s.needsSewer(b)) sv.push(b.foul ? '<span class="warn">no sewage</span>' : 'sewage'); if (b.smelly) sv.push('<span class="warn">smells the lagoon</span>'); bits.push(kv('SERVICES', sv.join(' · '))); }
     if (d.water && b.done) bits.push(kv('WATER', `${d.water} a day${b.bad ? ' · <span class="down">contaminated: a lagoon is too close</span>' : ''}`));
     if (b.type === 'yard') { const cs = s.crews.filter((c) => c.yard === b.id); bits.push(kv('CREW', cs.length ? cs.map((c) => `${esc(c.name)}: ${c.wait > 0 ? 'in training' : c.job == null ? 'free' : 'at work'}`).join('; ') : b.done ? 'waiting for 3 recruits' : 'none yet')); }
@@ -430,6 +460,7 @@ export function makeHud(o) {
     { const mk = e.target.closest('[data-mk]'); if (mk) { o.select(+mk.dataset.mk); return; } }     // (GC 0.85) a mark over a building: its card
     { const ln = e.target.closest('[data-lens]'); if (ln) { offices.open(ln.dataset.lens); audio.click(); return; } }     // a fix on the board: the lens that shows it
     const g = e.target.closest('[data-g]'); if (g && root.contains(g)) { const k = g.dataset.g; buildOpen = k === group ? !buildOpen : true; group = k; if (o.tool()) o.setTool(o.tool()); audio.click(); buildBar(true); return; }
+    const sv = e.target.closest('[data-slv]'); if (sv) { const k = +sv.dataset.slv, L = SLAB_LV[k]; if (L.stage && (s.stage || 0) < L.stage) { flash(L.desc.split('. ').pop()); audio.deny(); return; } o.setSlabLv(k); audio.click(); buildBar(true); return; }     // (GC 0.87)
     const sd = e.target.closest('[data-std]'); if (sd) { const k = +sd.dataset.std, lk = s.stdLock(k); if (lk) { flash(lk + '.'); audio.deny(); return; } s.setStd(k); thumbs = {}; audio.click(); buildBar(true); return; }
     if (e.target.closest('[data-snap]')) { snapMode = SNAPS[(SNAPS.indexOf(snapMode) + 1) % SNAPS.length]; audio.click(); buildBar(true); return; }
     const bi = e.target.closest('[data-b]'); if (bi) { const k = bi.dataset.b; if (LINES[k] && LINES[k].k) { const lk = s.equipLock(LINES[k].k); if (lk) { flash(`${LINES[k].name}: ${lk.toLowerCase()} (INDUSTRY).`); audio.deny(); return; } } if (B[k] && s.locked(k)) { flash(`${B[k].name} needs ${s.locked(k).join(' and ')} first.`); audio.deny(); return; } o.setTool(k); buildBar(true); return; }
@@ -490,7 +521,7 @@ export function makeHud(o) {
     const v = view(), s = sim(); if (!v || !s) return; const k = lensKey;
     try {
       if (!k) { v.setInfo(null); v.setCover(null); v.setRoutes(null); return; }
-      v.setInfo(new Map(s.b.map((b) => [b.id, lensColor(s, b, k)])), false);
+      v.setInfo(new Map(s.b.filter((b) => b.type !== 'slab').map((b) => [b.id, lensColor(s, b, k)])), false);     // (GC 0.87: not the foundations)
       v.setCover(k === 'eff' ? coverList(s) : k === 'hap' ? reachList(s) : null);
       v.setRoutes(k === 'eff' ? routesNow(s) : null);
     } catch (err) { console.error(err); }
@@ -608,10 +639,10 @@ export function makeHud(o) {
     if (!root || root.hidden) return;
     readouts(); board(); selPanel(); offices.render(); marks();
     if (lensKey && (lensT += 1) % 5 === 0) applyLens();
-    if (group === 'zones' && (ivT = (ivT + 1) % 10) === 0) buildBar();
+    if (group === 'found' && (ivT = (ivT + 1) % 10) === 0) buildBar();
     else buildBar();
-    view().zoneStrong = !!(o.tool() && o.tool().startsWith('zone:')) || (buildOpen && group === 'zones');
+    view().zoneStrong = false;
   }
 
-  return { mount, show, reset, tick, layout, buildBar, selPanel, board, flash, pointerTip, placeCard, cash, floatWorld, offices: () => offices, snap: () => snapMode, cycleSnap: () => { snapMode = SNAPS[(SNAPS.indexOf(snapMode) + 1) % SNAPS.length]; buildBar(true); }, group: () => group };
+  return { mount, show, reset, tick, layout, buildBar, selPanel, board, flash, pointerTip, placeCard, slabCard, cash, floatWorld, offices: () => offices, snap: () => snapMode, cycleSnap: () => { snapMode = SNAPS[(SNAPS.indexOf(snapMode) + 1) % SNAPS.length]; buildBar(true); }, group: () => group };
 }

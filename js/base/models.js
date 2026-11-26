@@ -4,6 +4,7 @@
 import * as THREE from './vendor/three.js';
 import { staticGeo } from '../model3d.js';
 import { logoCanvas, lookOf } from './logo.js';
+import { SLABS, SLAB_LV } from './config.js';
 
 const shade = (hex, k) => { const c = new THREE.Color(hex); c.multiplyScalar(k); return c; };
 
@@ -831,6 +832,45 @@ Object.assign(MAKE, {
   t_zone_buffer(g) { tile(g, '#586a3c'); box(g, 2.7, 0.02, 2.7, tm('#9aa3a0', { transparent: true, opacity: 0.55 }), 0, 0.012, 0, { cast: false }); for (let x = -1.1; x <= 1.11; x += 0.55) { ball(g, 0.2, tm('#4f6b34'), x, 0.18, -1.05); ball(g, 0.2, tm('#4f6b34'), x, 0.18, 1.05); }
     for (const [x, z] of [[-0.5, 0], [0.6, 0.2]]) { cyl(g, 0.05, 0.06, 0.5, tm('#6b4f33'), x, 0.25, z); ball(g, 0.34, tm('#5f7d3e'), x, 0.7, z); } },
 });
+// ---------------------------------------------------------------- (GC 0.87) foundations: a concrete slab w x d tiles, its top at y = 0
+// (the view stands it on the levelled ground, or lifts it to its top once it is down), a skirt below it into the ground,
+// expansion joints every tile, grit and stains; a raised one has a steel edge, and every one a painted line in its kind's
+// colour, the only colour on it (Ramzies: grittier, less cartoonish)
+let SLABTEX = null;
+function slabTex() {
+  if (SLABTEX) return SLABTEX;
+  const S = 128, c = document.createElement('canvas'); c.width = c.height = S; const x = c.getContext('2d');
+  let seed = 11; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  x.fillStyle = '#8b8c85'; x.fillRect(0, 0, S, S);
+  for (let i = 0; i < 9; i++) { const px = rnd() * S, pz = rnd() * S, r = 10 + rnd() * 30, gr = x.createRadialGradient(px, pz, 0, px, pz, r); gr.addColorStop(0, `rgba(${rnd() < 0.5 ? '60,56,48' : '150,148,138'},${0.08 + rnd() * 0.12})`); gr.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = gr; x.fillRect(0, 0, S, S); }
+  for (let i = 0; i < 2200; i++) { const v = 100 + rnd() * 70 | 0; x.fillStyle = `rgba(${v},${v},${v - 8},0.4)`; x.fillRect(rnd() * S, rnd() * S, 1 + rnd() * 1.5, 1 + rnd() * 1.5); }
+  for (let i = 0; i < 3; i++) { x.strokeStyle = 'rgba(55,54,50,0.35)'; x.lineWidth = 0.8; x.beginPath(); let px = rnd() * S, pz = rnd() * S; x.moveTo(px, pz); for (let k = 0; k < 5; k++) { px += (rnd() - 0.5) * 30; pz += (rnd() - 0.5) * 30; x.lineTo(px, pz); } x.stroke(); }   // hairline cracks
+  x.strokeStyle = 'rgba(45,45,42,0.5)'; x.lineWidth = 1.6; x.strokeRect(0, 0, S, S);   // the joint round each tile
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  return (SLABTEX = t);
+}
+const KINDM = {};
+export function slabModel(w, d, lv, k, m) {
+  const g = new THREE.Group(), h = SLAB_LV[lv || 0].h, skirt = 0.3, H = h + skirt;
+  m._slab ||= new THREE.MeshStandardMaterial({ map: slabTex(), roughness: 0.96, metalness: 0.02 });
+  const geo = new THREE.BoxGeometry(w, H, d); geo.translate(0, -H / 2, 0);
+  const uv = geo.attributes.uv, sc = [[d, H], [d, H], [w, d], [w, d], [w, H], [w, H]];
+  for (let f = 0; f < 6; f++) for (let v = 0; v < 4; v++) { const i = f * 4 + v; uv.setXY(i, uv.getX(i) * sc[f][0], uv.getY(i) * sc[f][1]); }
+  const body = new THREE.Mesh(geo, m._slab); body.castShadow = lv > 0; body.receiveShadow = true; g.add(body);
+  const col = KINDM[k] ||= new THREE.MeshStandardMaterial({ color: new THREE.Color(SLABS[k]?.col || '#888').lerp(new THREE.Color('#77786f'), 0.45), roughness: 0.85 });
+  const ins = lv ? 0.28 : 0.18, lw = 0.07;   // the painted line, set in from the edge
+  if (w > 1.2 && d > 1.2) for (const [sx, sz, lx, lz] of [[0, -(d / 2 - ins), w - 2 * ins, lw], [0, d / 2 - ins, w - 2 * ins, lw], [-(w / 2 - ins), 0, lw, d - 2 * ins], [w / 2 - ins, 0, lw, d - 2 * ins]]) box(g, lx, 0.006, lz, col, sx, 0.003, sz, { cast: false });
+  if (lv) for (const [sx, sz, lx, lz] of [[0, -d / 2 + 0.03, w, 0.07], [0, d / 2 - 0.03, w, 0.07], [-w / 2 + 0.03, 0, 0.07, d], [w / 2 - 0.03, 0, 0.07, d]]) box(g, lx, 0.03, lz, m.steel, sx, 0.0, sz, { cast: false });   // the steel edge
+  mergeStatic(g); return g;
+}
+const SPIC = { life: 'barracks', logi: 'depot', civic: 'club', train: 'range', ops: 'patrol', ind: 'factory', util: 'gen' };
+for (const [k, type] of Object.entries(SPIC)) MAKE['t_slab_' + k] = (g, m) => {
+  const sub = new THREE.Group(); (MAKE[type] || MAKE.hab)(sub, m);
+  const b = new THREE.Box3().setFromObject(sub), sz = b.getSize(new THREE.Vector3()), c = b.getCenter(new THREE.Vector3()), W = Math.ceil(Math.max(sz.x, sz.z) + 1.2);
+  sub.position.set(-c.x, 0, -c.z); const top = new THREE.Group(); top.add(sub); top.position.y = SLAB_LV[1].h; g.add(top);
+  const s = slabModel(W, W, 1, k, m); s.position.y = SLAB_LV[1].h; g.add(s);
+  box(g, W + 1.2, 0.1, W + 1.2, tm('#6f6a55'), 0, -0.05, 0, { cast: false });
+};
 for (const [k, [type, col]] of Object.entries(ZPIC)) MAKE['t_zone_' + k] = (g, m) => { const sub = new THREE.Group(); (MAKE[type] || MAKE.hab)(sub, m); g.add(sub);
   const b = new THREE.Box3().setFromObject(sub), sz = b.getSize(new THREE.Vector3()), c = b.getCenter(new THREE.Vector3()), W = Math.max(sz.x, sz.z) + 1.1;
   box(g, W, 0.12, W, tm('#586a3c'), c.x, -0.07, c.z, { cast: false }); box(g, W - 0.15, 0.02, W - 0.15, tm(col, { transparent: true, opacity: 0.6 }), c.x, 0.004, c.z, { cast: false }); };

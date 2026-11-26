@@ -58,9 +58,10 @@ export const Zones = {
     for (let j = 0; j < d; j++) for (let i = 0; i < w; i++) out.add(this.zoneAt(x + i, z + j));
     return out;
   },
-  inBuffer(type, x, z, rot, dz) { return this.zone ? this.zonesUnder(type, x, z, rot, dz).has(ZONES.buffer.n) : false; },
+  inBuffer() { return false; },     // (GC 0.87) no zones
   // a hand-placed building standing in the zone it belongs to works a little better
   zoneFit(b) {
+    return 1;     // (GC 0.87) no zones: what stands on its own foundation is simply where it belongs
     if (!this.zone || b.grown) return 1;
     const n = this.zoneAt(Math.floor(b.x + b.w / 2), Math.floor(b.z + b.d / 2)), k = this.zoneKey(n);
     return k && ZONES[k].fits?.includes(b.type) ? GROW.fit : 1;

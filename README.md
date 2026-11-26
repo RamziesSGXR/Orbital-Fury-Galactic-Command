@@ -1,6 +1,6 @@
 # Orbital Fury: Galactic Command
 
-**Prototype 0.86.0.** One war, run from four posts, in one game.
+**Prototype 0.87.0.** One war, run from four posts, in one game.
 
 You found a command (a name, a livery: emblem and colours) and hold the centre of the galaxy against three enemies. Everything in
 the war is yours to run, and each part changes the others:
@@ -13,6 +13,33 @@ the war is yours to run, and each part changes the others:
 | **The base** | Found a base on the system's key world: roads, zones, and buildings that grow along them. | +35% output from the system for each charter. |
 
 A system that falls takes its station and its base with it.
+
+## What's new in 0.87: foundations
+
+Ramzies, on 0.86: not a hologram, a blueprint that gets built; a fine line between sci-fi and realism. And from the
+clip: "you build a foundation and then you build the things on top of the foundation", with some verticality, roads that
+connect things, foundation types instead of zoning, utilities carried by the foundations, and walls that matter.
+Agreed: foundation kinds replace zones outright (no growth by itself), anything permanent needs one, they can be raised
+in steps, and foundations come first.
+
+- **Blueprints, not holograms.** What you place and what is going up are pale drafting lines over a faint wash, filled
+  in from the ground up as the work goes on, with welding sparks. The glow is kept for lamps and windows at night.
+- **FOUNDATIONS replace ZONES.** Pick a kind (Living, Logistics, Civic, Training, Operations, Industry, Utilities) and
+  a height, and drag on the ground: the blueprint shows its sizes along its edges in metres, and a label its kind,
+  size, cost and whether it can go there. It levels the ground under it and the engineers build it before anything
+  goes up on it. Lay more beside it to grow the foundation. Nothing grows by itself any more: you place every
+  building, and anything better than a tent goes on a foundation of its kind. Tents, the landing pad, field works,
+  flags, trees, lookouts and turrets can go on bare ground; gardens and monuments on any foundation (not Industry).
+- **Height.** GROUND (0.4 m), RAISED (3.2 m) or HIGH (6.4 m, with an FOB charter). What stands on a raised foundation
+  stands on its top; where a road meets its edge the road ramps up onto it, and nobody walks off the edge anywhere
+  else. Nothing goes on the bare ground right against one.
+- **Roads join it up.** A foundation needs a road to its edge before anything with a door goes on it; on it, doors open
+  onto the slab. People and vehicles cross a foundation as they would a paved road.
+- Tap a foundation for its card: kind, size, height, the foundation it is part of, what stands on it. It can only be
+  taken up once it is clear.
+- Old bases: everything that needs a foundation gets one under it, of its kind; the zones go.
+- Next: utilities carried by the foundations and the roads between them (no more circles), then walls on foundations
+  with turrets, lamps and banners on them, then the defensive waves.
 
 ## What's new in 0.86: FOB Commander after dark
 

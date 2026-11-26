@@ -16,6 +16,7 @@ import { makeSite, biomeOf, GROUND, RW, RH, survey, regionKind, placeName } from
 import { writeReport } from './reports.js';
 import { Build } from './build.js';
 import { Zones } from './zones.js';
+import { Slabs } from './slabs.js';     // (GC 0.87) foundations
 import { Utilities } from './utils.js';
 import { Land, GRID } from './land.js';
 import { Terrain, TERRA } from './terrain.js';
@@ -124,6 +125,7 @@ export class Sim {
     const N = this.N; this.inMask = new Uint8Array(N * N);
     // only on ground the Bureau has granted: the parcels you hold
     for (let z = Math.max(1, W[1]); z < Math.min(N - 1, W[3]); z++) for (let x = Math.max(1, W[0]); x < Math.min(N - 1, W[2]); x++) { const i = z * N + x; this.inMask[i] = this.walls[i] || (this.blocked(i) && !this.roads[i]) || !this.ownedTile(x, z) ? 0 : 1; }
+    this.slabSync();     // (GC 0.87) foundations: which touch a road, and the surface (roads and slabs) people move on
     this.buildDecks();
     this.roadsV = (this.roadsV || 0) + 1; this.events?.push({ t: 'roads' });
   }
@@ -168,7 +170,7 @@ export class Sim {
   walkGrid() {   // where people and vehicles can go: anywhere on the map that isn't a building or a wall; gates are open
     if (this._walkV === this.layoutV()) return this._walk;
     const N = this.N, w = new Uint8Array(N * N);
-    const W = this.win(); for (let z = W[1]; z < W[3]; z++) for (let x = W[0], i = z * N + x; x < W[2]; x++, i++) w[i] = !this.occ[i] && this.walls[i] !== 1 && this.walls[i] !== 3 && (!this.blocked(i) || this.roads[i]) ? 1 : 0;
+    const W = this.win(); for (let z = W[1]; z < W[3]; z++) for (let x = W[0], i = z * N + x; x < W[2]; x++, i++) w[i] = !this.occ[i] && this.walls[i] !== 1 && this.walls[i] !== 3 && (!this.blocked(i) || this.roads[i]) && !(this.rim?.[i] & 2 && !this.roads[i]) && !(this.slabMap?.[i] && !this.surf[i]) ? 1 : 0;
     this._walk = w; this._walkV = this.layoutV(); return w;
   }
   layoutV() { return this.b.length * 7919 + this.nid * 31 + (this.roadsV || 0); }
@@ -180,7 +182,7 @@ export class Sim {
     if (this._pathV !== this._walkV) { this._paths = new Map(); this._pathV = this._walkV; }
     const key = ((az * N + ax) * N + bz) * N + bx, hit = this._paths.get(key);
     if (hit) return hit.map(p => [p[0], p[1]]);
-    const p = findPath(N, w, this.roads, WPREF, ax, az, bx, bz) || [[bx + 0.5, bz + 0.5]];
+    const p = findPath(N, w, this.surf || this.roads, WPREF, ax, az, bx, bz) || [[bx + 0.5, bz + 0.5]];
     if (this._paths.size > 4000) this._paths.clear();
     this._paths.set(key, p.map(q => [q[0], q[1]]));
     return p;
@@ -192,7 +194,7 @@ export class Sim {
     if (this._dpathV !== this._walkV) { this._dpaths = new Map(); this._dpathV = this._walkV; }
     const key = ((az * N + ax) * N + bz) * N + bx, hit = this._dpaths.get(key);
     if (hit) return hit.map(p => [p[0], p[1]]);
-    const p = findPath(N, w, this.roads, VFAST, ax, az, bx, bz) || [[bx + 0.5, bz + 0.5]];
+    const p = findPath(N, w, this.surf || this.roads, VFAST, ax, az, bx, bz) || [[bx + 0.5, bz + 0.5]];
     if (this._dpaths.size > 2000) this._dpaths.clear();
     this._dpaths.set(key, p.map(q => [q[0], q[1]]));
     return p;
@@ -290,6 +292,7 @@ export class Sim {
         if (h > this.hgt[j * M + i] - 0.05) deck.set(j * M + i, Math.max(deck.get(j * M + i) ?? -1e9, h));
       }
     }
+    if (this.b) this.slabDecks(deck);     // (GC 0.87) and every finished foundation, so what stands on one stands on its top
     this.deck = deck; this.deckV = (this.deckV || 0) + 1;
   }
   drawLine(a, b, k) {
@@ -350,12 +353,12 @@ export class Sim {
     if (d.tech && !this.hasTech(d.tech)) n.push(this.milestoneText(d.tech));     // (GC 0.84) a milestone, not research
     if (d.stage && (this.stage || 0) < d.stage) n.push(`a ${C.STAGES[d.stage].name} charter`);
     if (d.pad && this.count('pad') >= this.padCap()) n.push(this.has('comms') || this.count('comms') ? 'another Comms Tower' : 'a Comms Tower');
-    if (!this.founded() && !EARLY.has(type)) n.push(`the foundation first (${this.foundMissing().map(t => B[t].name).join(', ')})`);
+    if (!this.founded() && !EARLY.has(type)) n.push(`the groundwork first (${this.foundMissing().map(t => B[t].name).join(', ')})`);
     return n.length ? n : null;
   }
   // the foundation: once a base has placed these it can build anything; until then, only what brings money in
   foundMissing() { return FOUNDATION.filter(t => !this.b.some(b => b.type === t)); }
-  founded() { if (this.foundedF) return true; if (!this.foundMissing().length) { this.foundedF = true; this.say('base', 'The foundation is laid: pad, depot, barracks, mess and range. Every other building is open to you now.'); return true; } return false; }
+  founded() { if (this.foundedF) return true; if (!this.foundMissing().length) { this.foundedF = true; this.say('base', 'The groundwork is done: pad, depot, barracks, mess and range. Every other building is open to you now.'); return true; } return false; }
   padCap() { return 1 + this.count('comms') * (this.hasTech('radio') ? 3 : 2) + this.count('mast') * B.mast.pads; }
   padLoad() { return C.PADLOAD + (this.hasTech('cargo') ? 60 : 0); }
   padSeats() { return C.PADSEATS + (this.hasTech('cargo') ? 4 : 0); }
@@ -370,7 +373,7 @@ export class Sim {
     const fresh = !this.mile; this.peak = Math.max(this.peak || 0, this.heads()); this.mile ||= [];
     const now = Object.keys(TECH).filter(k => this.hasTech(k) && !this.mile.includes(k)); if (!now.length) return;
     this.mile.push(...now); if (fresh) return;
-    const T = TECH[now[0]], at = T.stage && (this.stage || 0) >= T.stage && (!T.pop || T.pop <= C.STAGES[T.stage].troops) ? `the ${C.STAGES[T.stage].name} charter` : `${T.pop} on the base`;
+    const T = now.map(k => TECH[k]).reduce((a, t) => (t.pop || 0) > (a.pop || 0) ? t : a), at = T.stage && (this.stage || 0) >= T.stage && (!T.pop || T.pop <= C.STAGES[T.stage].troops) ? `the ${C.STAGES[T.stage].name} charter` : `${T.pop} on the base`;
     this.say('bur', `Milestone: ${at}. Unlocked: ${now.map(k => `${TECH[k].name} (${TECH[k].desc.replace(/\.$/, '').replace(/^Unlocks /, '').replace(/^the /, '')})`).join('; ')}.`);
     this.events.push({ t: 'milestone', keys: now });
   }
@@ -401,19 +404,17 @@ export class Sim {
     const d = B[type]; if (!d) return { ok: false, why: 'Unknown building' };
     if (d.fixed) return { ok: false, why: 'Cannot be built' };
     if (d.unique && this.count(type)) return { ok: false, why: 'Only one allowed' };
-    if (GROWS.has(type) && !spec?.grow) return { ok: false, why: `Grows by itself in a ${ZONES[GROWS.get(type)].name} zone: paint one from the ZONES bar` };
     if (d.chain) { const other = this.b.find(b => B[b.type].chain && b.type !== type); if (other) return { ok: false, why: `Exclusive franchise agreement with ${B[other.type].name}` }; }
     const lk = this.locked(type); if (lk) return { ok: false, why: 'Needs ' + lk.join(' and ') };
     if (this.hasStd(type)) { const sl = this.stdLock(this.stdFor(type, spec)); if (sl) return { ok: false, why: sl + ': build it as a tent or prefab' }; }
     if (this.supplies < this.costOf(type, spec)) return { ok: false, why: 'Not enough supplies' };
     if (d.atGate && !(this.gates || []).some(g => Math.hypot(g.x - x - 1, g.z - z - 0.5) < 4.5)) return { ok: false, why: 'Stands at a gate: within four tiles of one' };
     const dz = spec?.design || 0, f = this.fits(type, x, z, rot, dz); if (!f.ok) return f;
-    if (this.inBuffer(type, x, z, rot, dz)) return { ok: false, why: 'Buffer zone: kept clear' };
-    if (d.look) { const [w, dd] = dims(type, rot, dz); for (let j = 0; j < dd; j++) for (let i = 0; i < w; i++) if (this.zoneKey(this.zoneAt(x + i, z + j)) === 'ind') return { ok: false, why: 'Nobody would see it in an Industry zone: put beauty where people live and walk' }; }     // (GC 0.84)
+    const sf = this.slabFit(type, x, z, rot, dz, spec); if (!sf.ok) return sf;     // (GC 0.87) on the right foundation, or bare ground where it may
     if (d.atWater) { const [w, dd] = dims(type, rot, dz); if (!this.nearWater(x, z, w, dd, 2)) return { ok: false, why: 'Must stand within two tiles of water' }; }
     if (d.deposit) { const [w, dd] = dims(type, rot, dz); let on = 0; for (let j = 0; j < dd; j++) for (let i = 0; i < w; i++) if (this.terr?.[(z + j) * this.N + x + i] === d.deposit) on++; if (on < 2) return { ok: false, why: d.deposit === 3 ? 'Must stand on an Biofuel seep' : 'Must stand on an ore field' }; }
     if (d.atWall) { let near = false; for (let j = -2; j <= 2 && !near; j++) for (let i = -2; i <= 2; i++) { const tx = x + i, tz = z + j; if (tx >= 0 && tz >= 0 && tx < this.N && tz < this.N && this.walls[tz * this.N + tx]) { near = true; break; } } if (!near) return { ok: false, why: 'Stands at the wall: within two tiles of it' }; }
-    if (!LOOSE.has(type) && !this.frontage(type, x, z, rot, dz)) return { ok: false, why: 'Needs a road out front: build along a road' };
+    if (sf.lv < 0 && !LOOSE.has(type) && !this.frontage(type, x, z, rot, dz)) return { ok: false, why: 'Needs a road out front: build along a road' };
     return f;
   }
   // a building's door has to open onto a road
@@ -477,7 +478,7 @@ export class Sim {
     if (this.hasStd(type)) { b.std = this.stdFor(type, spec); b.cost = cost; b.time = this.buildTime(type, b.std); }
     if (!free) { b.clr = this.scrubUnder(x, z, w, dd); if (!b.clr.length) delete b.clr; }
     for (let j = 0; j < dd; j++) for (let i = 0; i < w; i++) this.occ[(z + j) * this.N + x + i] = b.id;
-    this.levelFoot(x, z, w, dd);
+    if (!this.slabAt(x, z)) this.levelFoot(x, z, w, dd);     // (GC 0.87) a foundation is level already
     this.b.push(b);
     if (!free) this.events.push({ t: 'placed', id: b.id });
     this.roadsV = (this.roadsV || 0) + 1;   // roadside lamps step around new buildings
@@ -493,7 +494,8 @@ export class Sim {
   }
   demolish(id) {
     const b = this.byId(id); if (!b || B[b.type].fixed) return false;
-    for (let j = 0; j < b.d; j++) for (let i = 0; i < b.w; i++) this.occ[(b.z + j) * this.N + b.x + i] = 0;
+    if (b.type === 'slab') { const on = this.onSlab(b); if (on.length) return { ok: false, why: `Clear it first: the ${B[on[0].type].name}${on.length > 1 ? ` and ${on.length - 1} more stand` : ' stands'} on it` }; }     // (GC 0.87)
+    else for (let j = 0; j < b.d; j++) for (let i = 0; i < b.w; i++) this.occ[(b.z + j) * this.N + b.x + i] = 0;
     this.b = this.b.filter(o => o !== b);
     this.earn('refund', Math.round((b.cost ?? B[b.type].cost) * (b.done ? C.REFUND : 1)));
     for (const t of this.troops) { if (t.job === id) { t.job = null; if (t.state === 'job') t.state = 'idle'; } if (t.at === id) t.at = null; }
@@ -501,6 +503,7 @@ export class Sim {
     this.veh = this.veh.filter(v => v.home !== id);
     if (this.cleaning === id) this.cleaning = null;
     this.events.push({ t: 'removed', id }); this.roadsV++;
+    if (b.type === 'slab') this.slabsChanged();
     return true;
   }
   repairCost(b) { return Math.ceil((b.cost ?? B[b.type].cost) * 0.25 * (1 - b.cond / 100)) + (b.cond < 100 ? 5 : 0); }
@@ -749,7 +752,7 @@ export class Sim {
     this.mood *= 0.985;
     this.deskHour(h);
     if (h === 10) this.callDay();
-    this.adjacency(); this.growStep();   // zones (js/zones.js)
+    this.adjacency(); this.dem = this.demand();   // (GC 0.87) what the base is short of; nothing grows by itself any more
     this.pipeFuel();   // utilities (js/utils.js)
     this.marketHour(h);
     this.fort = this.fortify();
@@ -1598,8 +1601,8 @@ export class Sim {
   // ---------------------------------------------------------------- saving
   save() {
     const o = {};
-    for (const k of Object.keys(this)) if (!['deck', 'hgt', 'hgt0', 'terr0', 'paint', 'own', 'zone', 'scrub', 'rng', 'events', 'occ', 'mor', 'power', 'roads', 'walls', 'inMask', 'wallIn', 'gates', 'terr', 'hgt', '_walk', '_walkV', '_paths', '_pathV', '_dpaths', '_dpathV'].includes(k)) o[k] = this[k];
-    o.rngS = this.rng.s; o.v = 12; o.scrubS = this.packScrub(); o.zoneS = this.packZones(); o.ownS = this.packOwn(); o.hgtS = this.packHeights(); o.paintS = this.packPaint();
+    for (const k of Object.keys(this)) if (!['deck', 'hgt', 'hgt0', 'terr0', 'paint', 'own', 'zone', 'scrub', 'rng', 'events', 'occ', 'mor', 'power', 'roads', 'walls', 'inMask', 'wallIn', 'gates', 'terr', 'hgt', '_walk', '_walkV', '_paths', '_pathV', '_slabT', 'slabMap', 'rim', 'slabGrp', 'fnds', 'surf', '_dpaths', '_dpathV'].includes(k)) o[k] = this[k];
+    o.rngS = this.rng.s; o.v = 13; o.scrubS = this.packScrub(); o.zoneS = this.packZones(); o.ownS = this.packOwn(); o.hgtS = this.packHeights(); o.paintS = this.packPaint();
     return JSON.parse(JSON.stringify(o));
   }
   load(s) {
@@ -1609,16 +1612,17 @@ export class Sim {
     delete this.walls; delete this.inMask; delete this.gates; delete this.roads;
     this.own = this.unpackOwn(s.ownS); delete this.ownS;
     this.genMap();
-    for (const b of this.b) for (let j = 0; j < b.d; j++) for (let i = 0; i < b.w; i++) this.occ[(b.z + j) * this.N + b.x + i] = b.id;
+    for (const b of this.b) if (b.type !== 'slab') for (let j = 0; j < b.d; j++) for (let i = 0; i < b.w; i++) this.occ[(b.z + j) * this.N + b.x + i] = b.id;
     this.unpackTerrain(s.hgtS, s.paintS); delete this.hgtS; delete this.paintS;
     this.scrub = this.unpackScrub(s.scrubS); delete this.scrubS;
     this.zone = this.unpackZones(s.zoneS); delete this.zoneS;
     heal(this.net);   // roads that cross without a junction (drawn before 0.53) get one
     this.rebuildNet();
+    if (s.v < 13) this.slabsFromZones();     // (GC 0.87) a save from before foundations: a slab under what stood in its zones
     this.roadsV = 1;
     this.adjacency(); this.recalc(); this.tick(); this.marketInit();
     if (!this.orders.length) this.newOrder();
     if (!this.supplyPlan || !SUPPLY_MODES[this.supplyPlan.mode]) this.supplyPlan = { mode: 'needs', cap: 0.5 };   // (GC 0.58) saves from before the supply order
   }
 }
-Object.assign(Sim.prototype, Market, Build, Zones, Utilities, Land, Terrain, Raids); bindMarket(B);
+Object.assign(Sim.prototype, Market, Build, Zones, Slabs, Utilities, Land, Terrain, Raids); bindMarket(B);

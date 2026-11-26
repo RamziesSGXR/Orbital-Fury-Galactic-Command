@@ -156,21 +156,40 @@ export const MIN = {
 // The build bar is grouped by the Head Office that owns each building. Humanity has no standing yet; it arrives later.
 // the build menu, by what a building is for: [key, label, what the section is for, the buildings in it]
 export const GROUPS = [
-  ['roads', 'ROADS', 'Roads first: every building snaps to a plot along one, door to the street.', []],
-  ['zones', 'ZONES', 'Paint zones along roads: bunks, mess halls, latrines, storage and shops grow in them by themselves as the base needs them, at the standard picked here.', []],
+  ['roads', 'ROADS', 'Roads join everything up: tents go along one, door to the street, and every foundation needs a road to it.', []],
+  ['found', 'FOUNDATIONS', 'Lay a concrete foundation first, then build on it. Its kind says what can stand on it; raise it for height. Tents, the landing pad, field works, flags and trees can go on bare ground.', []],     // (GC 0.87: the zones were here)
   ['landscape', 'LANDSCAPE', 'Shape the ground and paint its surface, for supplies. Buildings level their own footprint as they go down; roads need a gentle grade; dig below the waterline and it floods.', []],
-  // buildings, by the zone they belong in (the tab carries the zone's colour); then the services that are not zoned
-  ['living', 'LIFE SUPPORT', 'Life Support zone: house, feed and look after your people. Empty bunks are what bring recruits in. Barracks, mess halls and latrines also grow by themselves in the zone.', ['barracks', 'hab', 'block', 'mess', 'potty', 'dome'], 'life'],
-  ['logistics', 'LOGISTICS', 'Logistics zone: bring supplies and recruits in and store them. Depots also grow by themselves in the zone.', ['pad', 'depot', 'fueldepot', 'shed'], 'logi'],
-  ['income', 'CIVIC', 'Civic and Commerce zone: shops and clubs that earn credits and keep people content.', ['vend', 'club', 'burger', 'chicken', 'cola', 'mart', 'casino'], 'comm'],
-  ['training', 'TRAINING', 'Training zone: turn recruits into troopers. The front pays supplies and credits for every one you ship.', ['range', 'course', 'parade', 'lecture'], 'train'],
-  ['command', 'OPERATIONS', 'Operations zone: patrols, command, medicine and records.', ['patrol', 'medbay', 'comms', 'mast', 'armory', 'vbay', 'command', 'warroom', 'vault', 'truth', 'hdbarracks', 'brig', 'cryo', 'eob'], 'ops'],
-  ['industry', 'INDUSTRY', 'Industry zone: the engineers and their plant, and whatever digs, pumps or makes. Noisy: keep it clear of Life Support.', ['yard', 'batch', 'motorpool', 'extractor', 'mine', 'factory'], 'ind'],
-  ['power', 'UTILITIES', 'Power, water, sewage and fuel. Each covers a circle round it: a building outside power coverage goes dark, and bunks without water or sewage lose morale and fall sick.', ['gen', 'solar', 'substation', 'well', 'tower', 'rowpu', 'lagoon', 'treatment', 'fuelfarm']],
+  // buildings, by the foundation they stand on (the tab carries its colour); then what goes anywhere
+  ['living', 'LIFE SUPPORT', 'On a Living foundation: house, feed and look after your people. Empty bunks are what bring recruits in. Tents can go on bare ground by a road.', ['barracks', 'hab', 'block', 'mess', 'potty', 'dome'], 'life'],
+  ['logistics', 'LOGISTICS', 'On a Logistics foundation: bring supplies and recruits in and store them. The landing pad goes anywhere; tents by a road.', ['pad', 'depot', 'fueldepot', 'shed'], 'logi'],
+  ['income', 'CIVIC', 'On a Civic foundation: shops and clubs that earn credits and keep people content.', ['vend', 'club', 'burger', 'chicken', 'cola', 'mart', 'casino'], 'civic'],
+  ['training', 'TRAINING', 'On a Training foundation: turn recruits into troopers. The front pays supplies and credits for every one you ship.', ['range', 'course', 'parade', 'lecture'], 'train'],
+  ['command', 'OPERATIONS', 'On an Operations foundation: patrols, command, medicine and records.', ['patrol', 'medbay', 'comms', 'mast', 'armory', 'vbay', 'command', 'warroom', 'vault', 'truth', 'hdbarracks', 'brig', 'cryo', 'eob'], 'ops'],
+  ['industry', 'INDUSTRY', 'On an Industry foundation: the engineers and their plant, and whatever digs, pumps or makes. Noisy: keep it away from the bunks.', ['yard', 'batch', 'motorpool', 'extractor', 'mine', 'factory'], 'ind'],
+  ['power', 'UTILITIES', 'On a Utilities foundation: power, water, sewage and fuel. Each covers a circle round it: a building outside power coverage goes dark, and bunks without water or sewage lose morale and fall sick.', ['gen', 'solar', 'substation', 'well', 'tower', 'rowpu', 'lagoon', 'treatment', 'fuelfarm'], 'util'],
   ['defence', 'DEFENCE', 'Close the wall, watch it and light it. Inside a closed wall everything works 5% better and morale is +3; with a Lookout Tower, 10% and +6.', ['lookout', 'flood', 'turret', 'shelter']],
-  ['beauty', 'BEAUTY', 'How good the base looks lifts morale, where people can see it: within ten tiles of the bunks it counts in full, further off by half, and not at all in an Industry zone. Gardens, fountains and parks are on air too.', ['tree', 'planter', 'garden', 'fountain', 'park']],     // (GC 0.84)
+  ['beauty', 'BEAUTY', 'How good the base looks lifts morale, where people can see it: within ten tiles of the bunks it counts in full, further off by half, and not at all on an Industry foundation. Trees go anywhere; the rest on any foundation. Gardens, fountains and parks are on air too.', ['tree', 'planter', 'garden', 'fountain', 'park']],     // (GC 0.84)
   ['truth', 'PUBLICITY', 'Morale and propaganda, for the Publicity Office.', ['flag', 'banner', 'hdbanner', 'speaker', 'billboard', 'pool', 'plaque', 'statue', 'memorial', 'halls', 'partyhq', 'palace', 'monument']],
 ];
+// (GC 0.87) Foundations (Ramzies: "build a foundation and then build the things on top"). A slab of one kind at one
+// height; what stands on it must be of its kind (js/base/slabs.js). Zones are gone: every building is placed by hand.
+export const SLABS = {
+  life:  { name: 'Living', short: 'LIVING', col: '#4fb4ff', groups: ['living'], desc: 'Bunks, mess halls, latrines and the hydro dome. Keep it away from noise and fuel.' },
+  logi:  { name: 'Logistics', short: 'LOGISTICS', col: '#f0c84a', groups: ['logistics'], desc: 'Depots, fuel depots and bunkers. Near the landing pad they hold more.' },
+  civic: { name: 'Civic', short: 'CIVIC', col: '#59e08a', groups: ['income'], desc: 'Shops, clubs and your franchise.' },
+  train: { name: 'Training', short: 'TRAINING', col: '#ff9a3a', groups: ['training'], desc: 'Ranges, courses, the parade ground and the lecture hall. Noisy.' },
+  ops:   { name: 'Operations', short: 'OPERATIONS', col: '#c98bff', groups: ['command'], also: ['silo'], desc: 'Patrols, comms, medicine, command and records.' },
+  ind:   { name: 'Industry', short: 'INDUSTRY', col: '#c8735a', groups: ['industry'], desc: 'The engineers\' yard, the batch plant, the motor pool and whatever digs or makes. Noisy and hazardous.' },
+  util:  { name: 'Utilities', short: 'UTILITIES', col: '#8fd0d8', groups: ['power'], desc: 'Power, water, sewage and fuel.' },
+};
+export const SKEYS = Object.keys(SLABS);
+// heights: h in world units (x 8 m, like every other height here), cost and engineers' time per tile
+export const SLAB_LV = [
+  { name: 'GROUND', h: 0.05, cost: 2, time: 0.06, desc: 'A slab on the levelled ground: walk and drive straight on.' },
+  { name: 'RAISED', h: 0.4, cost: 5, time: 0.12, desc: 'A storey up. Reached by ramps where a road or footpath meets its edge; harder to rush.' },
+  { name: 'HIGH', h: 0.8, cost: 9, time: 0.2, stage: 1, desc: 'Two storeys up: a strongpoint. Needs a Forward Operating Base charter.' },
+];
+export const SLAB_MAX = 24;   // tiles on a side, for one slab: lay more beside it to grow the foundation
 // what a new base builds before anything else: these are what bring money in. Everything else waits for them
 export const FOUNDATION = ['pad', 'depot', 'barracks', 'mess', 'range'];
 export const EARLY = new Set([...FOUNDATION, 'gen', 'solar', 'potty', 'hab', 'yard', 'substation', 'well', 'tower', 'lagoon', 'rowpu']);
@@ -185,6 +204,7 @@ export const B = {
               desc: 'Every base flies one, at its centre. It cannot be removed. Troops salute it, and medals are pinned beneath it.' },
   // the Command Post: what the first dropship brings down, the HQ with its own landing pad beside it. Placed once, at the start
   starter:  { name: 'Command Post', group: 'core', w: 6, d: 3, cost: 0, fixed: true, unique: true },
+  slab:     { name: 'Foundation', group: 'found', w: 1, d: 1, cost: 0, up: 0, slab: true },     // (GC 0.87) laid by FOUNDATIONS, any size
   pad:      { name: 'Landing Pad', group: 'core', w: 3, d: 3, cost: 300, up: 20, pw: -1, pad: true,
               desc: 'The supply dropship lands here every morning, and transports take trained troopers to the front every afternoon. More pads, bigger loads.' },
   depot:    { name: 'Supply Depot', group: 'core', w: 2, d: 2, cost: 180, up: 12, lifts: 1, store: { rations: 150, ammo: 100 },

@@ -1,32 +1,20 @@
-// (GC 0.86) The base's light show: a bloom pass so lit windows, lamps and holograms glow, hologram blueprints for
-// what is planned or going up, construction sparks, and the range domes and supply beams shown on selection.
+// (GC 0.86) The base's effects: a bloom pass so lit windows and lamps glow at night, blueprints for what is planned or
+// going up (GC 0.87: drafting lines, not holograms), welding sparks, and the reach shown on selection.
 import * as THREE from './vendor/three.js';
 
-// one clock for every hologram's scan lines
+// one clock for the moving parts of these effects
 export const HOLO = { t: { value: 0 } };
 
-// chains the base view's own hook (terrain height in every shader) before adding to a material's shader
-const chain = (mat, sh) => { THREE.Material.prototype.onBeforeCompile.call(mat, sh); };
-
-// a hologram's see-through fill: additive, with fine scan lines and a bright band sweeping up it
-export function holoFill(color = '#5fe8ff', opacity = 0.12) {
-  const m = new THREE.MeshBasicMaterial({ color, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: true });
-  m.onBeforeCompile = function (sh) {
-    chain(this, sh); sh.uniforms.uHT = HOLO.t;
-    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying float vHy;')
-      .replace('#include <project_vertex>', '#include <project_vertex>\n#ifndef NO_HGT\nvHy = hW.y;\n#else\nvHy = (modelMatrix * vec4(transformed, 1.0)).y;\n#endif');
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vHy; uniform float uHT;')
-      .replace('#include <opaque_fragment>', 'float hsl = 0.55 + 0.45 * step(0.5, fract(vHy * 16.0 - uHT * 2.0));\nfloat hsw = smoothstep(0.9, 1.0, fract(vHy * 0.3 - uHT * 0.45));\noutgoingLight *= hsl + hsw * 3.0;\n#include <opaque_fragment>');
-  };
-  m.customProgramCacheKey = () => 'gc-holo';
-  return m;
+// (GC 0.87) a blueprint, not a hologram (Ramzies: a fine line between sci-fi and realism): pale drafting lines over a faint
+// see-through wash, drawn normally (no glow, no scan lines)
+export const BP = { ok: '#dcebf5', bad: '#ff7766', work: '#e3a85a' };
+export function holoFill(color = BP.ok, opacity = 0.1) {
+  return new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false, side: THREE.DoubleSide });
 }
-// its outline: bright enough to bloom
-export function holoEdge(color = '#5fe8ff', k = 1.5) {
-  const m = new THREE.LineBasicMaterial({ transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false });
-  m.color.set(color).multiplyScalar(k); return m;
+export function holoEdge(color = BP.ok, opacity = 0.85) {
+  return new THREE.LineBasicMaterial({ color, transparent: true, opacity, depthWrite: false });
 }
-export function tintHolo(fill, edge, color, k = 1.5) { fill.color.set(color); edge.color.set(color).multiplyScalar(k); }
+export function tintHolo(fill, edge, color) { fill.color.set(color); edge.color.set(color); }
 
 // the outline of a mesh, worked out once per shape
 const EDGES = new WeakMap();
@@ -65,7 +53,7 @@ export class Sparks {
     this.pos = new THREE.BufferAttribute(new Float32Array(max * 3), 3).setUsage(THREE.DynamicDrawUsage);
     this.col = new THREE.BufferAttribute(new Float32Array(max * 3), 3).setUsage(THREE.DynamicDrawUsage);
     geo.setAttribute('position', this.pos); geo.setAttribute('color', this.col); geo.setDrawRange(0, 0);
-    this.mat = new THREE.PointsMaterial({ size: 0.22, map: dot(), vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true });
+    this.mat = new THREE.PointsMaterial({ size: 0.12, map: dot(), vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true });
     this.pts = new THREE.Points(geo, this.mat); this.pts.frustumCulled = false; this.pts.raycast = () => {}; this.pts.renderOrder = 3;
     parent.add(this.pts);
   }
@@ -90,7 +78,7 @@ export class Sparks {
     for (let i = 0; i < this.n; i++) {
       const k = i * 3, f = 1 - this.age[i] / this.life[i];   // white hot, then orange, then red, then out
       pa[k] = P[k]; pa[k + 1] = P[k + 1]; pa[k + 2] = P[k + 2];
-      ca[k] = 3.2 * f; ca[k + 1] = (0.4 + 1.8 * f * f) * f; ca[k + 2] = 0.9 * f * f * f;
+      ca[k] = 1.6 * f; ca[k + 1] = (0.35 + 0.9 * f * f) * f; ca[k + 2] = 0.45 * f * f * f;
     }
     this.pos.needsUpdate = this.col.needsUpdate = true; this.pts.geometry.setDrawRange(0, this.n);
   }

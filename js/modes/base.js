@@ -1,9 +1,10 @@
 // THE BASE: the base on a system's key world. The rules and the 3D are FOB Super Commander's (js/base); this file is how
 // the commander meets them inside Galactic Command: one base for each system, roads, zones and buildings from the shared
 // tool bar, requests on the shared desk, and its charter reported back to the map (the system pays more into the war).
-import { C, B, GROUPS, ZONES, GOODS, SUPPLY_MODES, SUPPLY_CAPS } from '../base/config.js';
+import { C, B, GROUPS, GOODS, SUPPLY_MODES, SUPPLY_CAPS } from '../base/config.js';
 import { makeGuide } from './guide.js';
 import { Sim, LOOSE } from '../base/sim.js';
+import { KIND } from '../base/slabs.js';     // (GC 0.87) foundations
 import { Life } from '../base/life.js';
 import { View } from '../base/view.js';
 import { ensureLogo } from '../base/logo.js';
@@ -20,12 +21,12 @@ const SHOWS = new Set(['garden', 'fountain', 'park', 'parade', 'speaker', 'billb
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
 const ROADS = LINES;     // (GC 0.81) the line tools: roads, walls and field works, with the standalone game's cards (base-hud.js)
-const isZone = (t) => !!t && t.startsWith('zone:'), isRoad = (t) => !!ROADS[t];
+const isSlabT = (t) => !!t && t.startsWith('slab:'), isRoad = (t) => !!ROADS[t];     // (GC 0.87) laying a foundation (the zones were here)
 
 let app, ui, audio, canvas, view = null, sim = null, life = null, args = null;
 let acc = 0, tool = null, rot = 0, sel = 0, hudT = 0, saveT = 25;
-let roadDrag = null, zoneDrag = null, drag = null, pinch = null; const ptrs = new Map(), held = new Set();
-let hover = null, tut = null, zsel = null, hud = null;     // zsel: (GC 0.79) the zone picked, by key
+let roadDrag = null, slabDrag = null, slabLv = 0, drag = null, pinch = null; const ptrs = new Map(), held = new Set();
+let hover = null, tut = null, zsel = null, hud = null;     // zsel: (GC 0.79) the zone picked, by key (GC 0.87: no zones; always null)
 const TUT_KEY = 'ofgc.guide.base';
 
 const baseFaction = (sys) => ({ ...structuredClone(app.faction), base: `Fort ${sys.worlds[sys.key].name}`, diff: 'recruit' });
@@ -48,36 +49,29 @@ function siloRow(b) {
   const S = C.SILO, n = b.nukes || 0;
   return `<div class="kv"><span>WARHEADS</span><b class="${n ? 'up' : ''}">${n} of ${S.max}${n < S.max ? ` · next ${Math.round((b.nukeT || 0) * 100)}%` : ''}</b></div><div class="so"><button class="plate btn sm" data-nk="${b.id}" ${n ? '' : 'disabled'} title="Credits and Defence standing; the warhead is no longer here for a raid.">SHIP ONE TO THE FRONT · +${S.cr} CR</button></div>`;
 }
-// (GC 0.79) A zone's card: how much of it is painted and, for the zones that grow by themselves, what is going up there or why
-// nothing is (the reason the simulation keeps in growNote), with what the base is short of.
-const ZWANT = { life: ['bunks', 'seats', 'latrines'], logi: ['storage'], comm: ['shops'] };
-const DNAME = { bunks: 'bunks', seats: 'mess seats', latrines: 'latrines', storage: 'storage', shops: 'shops' };
-function zoneCard(zk) {
-  const z = ZONES[zk], n = sim.zoneCount(zk), grows = !!ZWANT[zk];
-  let st = n ? `${n} tiles painted` : 'None painted yet', tone = n ? 'ok' : 'warn';
-  if (grows) {
-    const note = (sim.growNote || {})[zk] || (n ? 'waiting for the next hour' : 'no zone painted');
-    const up = sim.b.find((b) => b.grown === zk && !b.done);
-    if (note === 'building') st = up ? `A ${B[up.type].name} is going up` : 'Growing';
-    else if (note === 'nothing needed') st = 'Nothing needed now: it grows when the base runs short';
-    else { st = note.charAt(0).toUpperCase() + note.slice(1); tone = 'warn'; }
-  }
-  const d = sim.dem || {}, short = grows ? ZWANT[zk].filter((k) => d[k] > 0).map((k) => `${DNAME[k]} ${d[k]}`).join(', ') : '';
-  return `<div class="fph"><span style="color:${z.col}">${esc(z.name.toUpperCase())}</span><button class="fx" data-fb="close" aria-label="Close">×</button></div><div class="sp-status ${tone}">${esc(st)}</div><div class="sp-body"><div class="kv"><span>PAINTED</span><b>${n} tiles</b></div>`
-    + `${short ? `<div class="kv"><span>THE BASE NEEDS</span><b class="warn">${esc(short)}</b></div>` : ''}<p>${esc(words(z.desc))}</p></div>`;
-}
 // ---------------------------------------------------------------- the guide: how a base is played (js/modes/guide.js)
 const TUT = [
   { t: 'ROADS FIRST', x: 'Everything is built along a road. Pick <b>DIRT ROAD</b> below and drag from the command post across open ground.', done: () => sim.net.segs.some((g) => !['wall', 'wire', 'bags', 'trench'].includes(g.k)) },
-  { t: 'ZONE THE ROADSIDE', x: 'Open <b>ZONES</b>, pick <b>Life Support</b> and tap beside your road. Bunks, mess halls and latrines grow there by themselves as the base needs them.', done: () => sim.zone.some((v) => v) },
-  { t: 'POWER, WATER, SEWAGE', x: 'Open <b>UTILITIES</b> and place a <b>Biofuel Generator</b> by the road. Each utility covers a circle round it: keep the bunks inside, and keep wells away from a sewage lagoon.', done: () => sim.b.some((b) => B[b.type].group === 'power') },
+  { t: 'LAY A FOUNDATION', x: 'Open <b>FOUNDATIONS</b>, pick a kind and drag on the ground beside your road. Anything better than a tent stands on a foundation of its kind; tents go on bare ground with their door on a road.', done: () => sim.slabs().length > 0 },
+  { t: 'POWER, WATER, SEWAGE', x: 'Lay a <b>Utilities</b> foundation, then open <b>UTILITIES</b> and put a <b>Biofuel Generator</b> on it. Each utility covers a circle round it: keep the bunks inside, and keep wells away from a sewage lagoon.', done: () => sim.b.some((b) => B[b.type].group === 'power') },
   { t: 'CHECK ON A BUILDING', x: 'With no tool in hand, tap any building: its card shows its crew, whether it has power, water and sewage, its condition and what is wrong with it. <b>CREW FIRST</b> staffs it before the rest; <b>REPAIR</b> puts a worn one back to 100%.', done: () => !!sel },
   { t: 'WHAT MATTERS', x: 'Keep morale up and the books in profit: troops need beds, food, water and power, and every charter you earn makes the base worth more. Drag to move, right-drag or Q and E to turn, wheel or pinch to zoom. <b>II</b> pauses and <b>1×</b> speeds time up. Requests land on your desk at the side: answer them or they are filed without you. A supply dropship lands every watch, six times a day, and bills you for what it brings: tap the command post to choose what it buys and how much it may spend.', last: true },
 ];
 function setTool(t) {
   tool = tool === t ? null : t; sel = 0; zsel = null; view.select(null);
-  view.setGhost(null); view.showLine(null); view.showPlots(isZone(tool) || (tool && !isRoad(tool) && !LOOSE.has(tool)) ? sim.plotTiles() : null);
-  audio.click(); hud.buildBar(true); hud.selPanel(); hud.pointerTip(null);
+  view.setGhost(null); view.showLine(null); view.setSlabGhost(null); view.showPlots(tool && !isRoad(tool) && !isSlabT(tool) ? plotsFor(tool) : null);
+  audio.click(); hud.buildBar(true); hud.selPanel(); hud.pointerTip(null); hud.slabCard(null);
+}
+// (GC 0.87) where a building could go: free tiles on foundations of its kind, and for a tent the roadsides too
+function plotsFor(t) {
+  const need = sim.slabNeed(t, specOf(t)), want = KIND[t], out = [], N = sim.N;
+  if (!need && LOOSE.has(t)) return null;
+  for (const sl of sim.slabs()) {
+    if (want && sl.k !== want) continue; if (B[t].look && sl.k === 'ind') continue;
+    for (let j = 0; j < sl.d; j++) for (let i = 0; i < sl.w; i++) { const x = sl.x + i, z = sl.z + j; if (!sim.occ[z * N + x] && !sim.roads[z * N + x]) out.push([x, z, 1]); }
+  }
+  if (!need && !LOOSE.has(t)) out.push(...sim.plotTiles());
+  return out;
 }
 const clearSel = () => { sel = 0; zsel = null; view.select(null); hud.selPanel(); };
 function demolish() { const b = sim.byId(sel), s0 = sim.supplies, r = sim.demolish(sel); if (r === false || (r && r.ok === false)) { audio.deny(); if (r && r.why) app.toast(r.why); } else { audio.baseDown(); if (b && sim.supplies > s0) hud.floatWorld(b.x + b.w / 2, b.z + b.d / 2, 1, `+${Math.round(sim.supplies - s0)} SUP`, 'up'); clearSel(); } }     // (GC 0.85: the refund rises off it)
@@ -87,12 +81,15 @@ const tileOf = (e) => { const p = view.pick(e.clientX, e.clientY); return [Math.
 function tileAt(e) {
   const p = view.pick(e.clientX, e.clientY);
   if (!tool) return p;
+  { const sp = specOf(tool), pl = sim.slabPlot(tool, p.x, p.z, rot, sp?.design || 0, sp); if (pl) return { ...p, tx: pl.tx, tz: pl.tz, rot: pl.rot }; }     // (GC 0.87) on a foundation: where the pointer is
   if (!LOOSE.has(tool)) { const pl = sim.plotFor(tool, p.x, p.z, 0); if (pl) return { ...p, tx: pl.tx, tz: pl.tz, rot: pl.rot }; }
   const d = B[tool], w = rot % 2 ? d.d : d.w, dd = rot % 2 ? d.w : d.d;
   return { ...p, tx: Math.round(p.x - w / 2), tz: Math.round(p.z - dd / 2), rot };
 }
 const lineEnd = (e) => { const p = view.pick(e.clientX, e.clientY); return sim.snapLine({ x: p.x, z: p.z }, e.shiftKey ? 'free' : hud.snap(), ROADS[tool].k || 'dirt', roadDrag); };   // SNAP on the ROADS tab (G); Shift draws free
-const zoneRect = (a, b) => { const out = []; for (let z = Math.min(a[1], b[1]); z <= Math.max(a[1], b[1]); z++) for (let x = Math.min(a[0], b[0]); x <= Math.max(a[0], b[0]); x++) out.push([x, z, 1]); return out; };
+// (GC 0.87) laying a foundation: from where the drag began (or the tile under the pointer) to the tile under it now
+const slabNow = (e) => { const t = tileOf(e), a = slabDrag || t, k = tool.slice(5); return { k, c: sim.layCheck(a[0], a[1], t[0], t[1], k, slabLv) }; };
+function slabHover(e) { const { k, c } = slabNow(e); view.setSlabGhost(c, slabLv, c.ok); hud.slabCard(c, k, slabLv, e.clientX, e.clientY); }
 // (GC 0.78) a graphics driver can drop the 3D view, most often while the browser tab is in the background: the HUD keeps
 // working over a black screen. The browser is asked for the view back; if it has not given it back in a few seconds, the
 // view is built again on a fresh canvas, where it was looking. Coming back to the tab, the view is sized and checked again.
@@ -124,8 +121,8 @@ function bind(canvasOnly = false) {     // (GC 0.78: canvasOnly, for a view buil
   canvas.addEventListener('pointerdown', (e) => {
     if (mode.off) return;
     canvas.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), ang: Math.atan2(b.y - a.y, b.x - a.x) }; drag = null; roadDrag = null; zoneDrag = null; view.showLine(null); return; }
-    if (isZone(tool) && e.button === 0) { zoneDrag = tileOf(e); drag = null; return; }
+    if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), ang: Math.atan2(b.y - a.y, b.x - a.x) }; drag = null; roadDrag = null; slabDrag = null; view.showLine(null); return; }
+    if (isSlabT(tool) && e.button === 0) { slabDrag = tileOf(e); drag = null; slabHover(e); return; }
     if (isRoad(tool) && e.button === 0) { roadDrag = tool === 'unroad' ? { bull: true } : lineEnd(e); drag = null; return; }
     drag = { x: e.clientX, y: e.clientY, btn: e.button, moved: false };
   });
@@ -137,19 +134,20 @@ function bind(canvasOnly = false) {     // (GC 0.78: canvasOnly, for a view buil
       if (pinch && ptrs.size === 2) { const [a, b] = [...ptrs.values()], d = Math.hypot(a.x - b.x, a.y - b.y), ang = Math.atan2(b.y - a.y, b.x - a.x); view.zoomBy(pinch.d / Math.max(1, d)); view.spin(-(ang - pinch.ang)); pinch.d = d; pinch.ang = ang; return; }
       if (drag) { if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > 6) drag.moved = true; if (drag.moved) { if (drag.btn === 2 || drag.btn === 1) view.spin(-dx * 0.008); else view.pan(dx, dy); } }
     }
-    if (zoneDrag) { view.showPlots(zoneRect(zoneDrag, tileOf(e))); return; }
+    if (isSlabT(tool) && !drag?.moved) { slabHover(e); return; }
     if (roadDrag && !roadDrag.bull) { const end = lineEnd(e), c = sim.checkLine(roadDrag, end, ROADS[tool].k); view.showLine(roadDrag, end, ROADS[tool].k === 'paved' ? 2 : 1, c.ok, ['wall', 'wire', 'bags', 'trench'].includes(ROADS[tool].k)); hud.pointerTip(!c.ok && c.why && c.why !== 'Too short' ? c.why : null, e.clientX, e.clientY); return; }
-    if (tool && !isRoad(tool) && !isZone(tool)) { const t = tileAt(e), sp = specOf(tool), c = sim.canPlace(tool, t.tx, t.tz, t.rot, sp); view.setGhost(tool, t.tx, t.tz, t.rot, c.ok, sp); hud.placeCard(tool, c, e.clientX, e.clientY, { x: t.tx, z: t.tz, rot: t.rot }); }     // (GC 0.84) and why not, at the pointer; (GC 0.86) on a blueprint's label
+    if (tool && !isRoad(tool) && !isSlabT(tool)) { const t = tileAt(e), sp = specOf(tool), c = sim.canPlace(tool, t.tx, t.tz, t.rot, sp); view.setGhost(tool, t.tx, t.tz, t.rot, c.ok, sp); hud.placeCard(tool, c, e.clientX, e.clientY, { x: t.tx, z: t.tz, rot: t.rot }); }     // (GC 0.84) and why not, at the pointer; (GC 0.86) on a blueprint's label
     else hud.pointerTip(null);
   });
   const up = (e) => {
     if (mode.off) return;
     ptrs.delete(e.pointerId);
-    if (zoneDrag) {
-      const a = zoneDrag, t = tileOf(e), zk = tool.slice(5) || null; zoneDrag = null;
-      const one = a[0] === t[0] && a[1] === t[1], r = one ? sim.zoneFill(t[0], t[1], zk) : sim.paintZone(a[0], a[1], t[0], t[1], zk);
-      if (r.ok) { audio.podLand(); sim.growStep(); } else { audio.deny(); app.toast(one ? (r.why || 'Zones go beside a road, on your land.') : 'Zones go on open ground on your land.'); }
-      view.showPlots(sim.plotTiles()); return;
+    if (slabDrag) {     // (GC 0.87) lay it
+      const { k, c } = slabNow(e); slabDrag = null;
+      if (!c.ok) { audio.deny(); app.toast(c.why || 'It cannot go there.'); slabHover(e); return; }
+      const sl = sim.lay(c.x, c.z, c.x + c.w - 1, c.z + c.d - 1, k, slabLv); audio.podLand(); hud.buildBar();
+      if (sl) hud.floatWorld(sl.x + sl.w / 2, sl.z + sl.d / 2, 0.5, `−${sl.cost} SUP`, 'down');
+      slabHover(e); return;
     }
     if (roadDrag) {
       let ok;
@@ -169,12 +167,12 @@ function bind(canvasOnly = false) {     // (GC 0.78: canvasOnly, for a view buil
       return;
     }
     const p = view.pick(e.clientX, e.clientY); sel = p.bid || 0; view.select(sel ? sim.byId(sel) : null);
-    zsel = sel ? null : sim.zoneKey(sim.zoneAt(Math.floor(p.x), Math.floor(p.z)));     // (GC 0.79) open ground in a zone: the zone's card
-    if (sel || zsel) audio.click(); hud.selPanel();
+    zsel = null;
+    if (sel) audio.click(); hud.selPanel();
   };
   canvas.addEventListener('pointerup', up);
-  canvas.addEventListener('pointerleave', () => { if (hud) hud.pointerTip(null); });     // (GC 0.84)
-  canvas.addEventListener('pointercancel', (e) => { ptrs.delete(e.pointerId); drag = null; pinch = null; roadDrag = null; zoneDrag = null; });
+  canvas.addEventListener('pointerleave', () => { if (hud) { hud.pointerTip(null); hud.slabCard(null); } if (view && !slabDrag) view.setSlabGhost(null); });     // (GC 0.84)
+  canvas.addEventListener('pointercancel', (e) => { ptrs.delete(e.pointerId); drag = null; pinch = null; roadDrag = null; slabDrag = null; });
   canvas.addEventListener('wheel', (e) => { e.preventDefault(); view.zoomBy(Math.exp(e.deltaY * 0.0012)); }, { passive: false });
   if (canvasOnly) return;
   window.addEventListener('keydown', (e) => {
@@ -220,18 +218,18 @@ const mode = {
     view.zoomT = view.zoom = 16;
     view.resize();
     acc = 0; tool = null; sel = 0; zsel = null; hover = null; saveT = 25; ui.speeds = [1, 2, 4];
-    if (!hud) { hud = makeHud({ app, ui, audio, sim: () => sim, view: () => view, tool: () => tool, setTool, sel: () => sel, zsel: () => zsel, clearSel, demolish, specOf, supplyRow, siloRow, zoneCard, war: forWar, select: (id) => { sel = id; zsel = null; view.select(sim.byId(id)); audio.click(); hud.selPanel(); }, toast: (t) => app.toast(t) }); hud.mount(); }
+    if (!hud) { hud = makeHud({ app, ui, audio, sim: () => sim, view: () => view, tool: () => tool, setTool, sel: () => sel, zsel: () => zsel, clearSel, demolish, specOf, supplyRow, siloRow, slabLv: () => slabLv, setSlabLv: (k) => { slabLv = k; }, war: forWar, select: (id) => { sel = id; zsel = null; view.select(sim.byId(id)); audio.click(); hud.selPanel(); }, toast: (t) => app.toast(t) }); hud.mount(); }
     hud.show(true);
     tut = app.tutorial ? makeGuide(TUT, { key: TUT_KEY, tutorial: app.tutorial, words, audio, exit: () => app.leavePost() }) : null;     // (GC 0.81) outside the tutorial, the task board's ORDERS teach the base
     $('th-where').textContent = sim.faction.base;
     hud.reset(); if (tut) tut.tick(); else { const co = $('th-coach'); if (co) co.hidden = true; }
     if (!loaded) { const gr = app.grant('b_grant'); if (gr) sim.supplies += gr; }
-    if (!loaded) { ui.message('A NEW BASE', 2600); ui.feed('BASE: The command post is down. Draw a road from it, then zone along the road.', 'radio'); }
+    if (!loaded) { ui.message('A NEW BASE', 2600); ui.feed('BASE: The command post is down. Draw a road from it, put the groundwork up along it as tents, then lay foundations (FOUNDATIONS) for anything better.', 'radio'); }
     else ui.feed(`BASE: Welcome back, Commander. Day ${(sim.time && sim.time.cday) || 1}.`, 'radio');     // (GC 0.79: the day the top bar shows)
   },
   store() { if (sim && args) { try { app.siteSave('base', args.system.id, sim.save()); } catch (err) { console.error(err); } } },
   report() { const s = sim.stage || 0, r = sim.rates(), net = r.crNet + r.supNet; return { air: Math.min(5, sim.b.filter((b) => b.done && !b.off && SHOWS.has(b.type)).length), profit: sim.flow.days.length > 0 && net > 0, net, level: Math.min(4, s + 1), charter: C.STAGES[s].name, troops: sim.troops.length }; },
-  leave() { mode.store(); mode.off = true; held.clear(); if (hud) hud.show(false); if (tut) tut.hide(); tut = null; if (view) { view.setGhost(null); view.showLine(null); view.showPlots(null); } },
+  leave() { mode.store(); mode.off = true; held.clear(); if (hud) hud.show(false); if (tut) tut.hide(); tut = null; if (view) { view.setGhost(null); view.showLine(null); view.showPlots(null); view.setSlabGhost(null); } },
   frame(dt, now, real) {
     if (!sim) return;
     const fx = (KB.held('panRight', held) ? 1 : 0) - (KB.held('panLeft', held) ? 1 : 0), fz = (KB.held('panUp', held) ? 1 : 0) - (KB.held('panDown', held) ? 1 : 0);
@@ -264,11 +262,14 @@ const mode = {
     for (const [ox, oz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
       const a = sim.snapLine({ x: dx + 0.5, z: dz + 0.5 }, 'free', 'dirt'), b = sim.snapLine({ x: dx + 0.5 + ox * 12, z: dz + 0.5 + oz * 12 }, 'free', 'dirt', a);
       if (!sim.checkLine(a, b, 'dirt').ok) continue;
-      drew = !!sim.drawLine(a, b, 'dirt'); zoned = sim.zoneFill(Math.floor(dx + ox * 6 + (oz ? 2 : 0)), Math.floor(dz + oz * 6 + (ox ? 2 : 0)), 'life'); break;
+      drew = !!sim.drawLine(a, b, 'dirt');
+      // (GC 0.87) a Living foundation along it, the side away from the command post
+      const sx = ox ? Math.floor(dx + ox * 3) : Math.floor(dx - 3), sz = oz ? Math.floor(dz + oz * 3) : Math.floor(dz + 1);
+      zoned = sim.lay(sx, sz, sx + (ox ? ox * 7 : 6), sz + (oz ? oz * 7 : 4), 'life', 0, true); break;
     }
     for (let i = 0; i < 4000; i++) sim.step(0.1);
     sim.drain();
-    return { drew, zoned: !!(zoned && zoned.ok), buildings: sim.b.length, day: sim.time && sim.time.day };
+    return { drew, laid: !!zoned, buildings: sim.b.length, day: sim.time && sim.time.day };
   },
   get sim() { return sim; }, get view() { return view; },
 };
