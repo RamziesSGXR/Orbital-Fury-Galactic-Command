@@ -183,7 +183,7 @@ const ART = {
 const TABS = [['home', 'HOME'], ['play', 'PLAY'], ['collection', 'COLLECTION'], ['career', 'CAREER'], ['store', 'STORE'], ['options', 'OPTIONS']];
 const tabName = (k) => (TABS.find((x) => x[0] === k) || [k, k === 'livery' ? 'YOUR LIVERY' : k.toUpperCase()])[1];
 let tab = 'home', optTab = 'play', playGame = null;     // playGame: the game whose saves the PLAY tab is showing
-const NEWS = { title: 'Photoscans, an installer, touch', lines: ['The ground fight\'s land is photoscanned: real grass, sand, snow, moon dust, mud and asphalt, lit by the sun.', 'Scanned trees and rocks in the ground fight, and a pine of its own; each with a lighter far form, so the frame rate holds.', 'Texture on every model in every mode: pitted concrete, chipped paint, woven cloth, grained wood.', 'Windows: INSTALL.bat puts the game on your desktop; PLAY.bat plays it without installing.', 'Touch screens: tap, drag and pinch, with no page zoom or long-press menus in the way.'] };
+const NEWS = { title: 'FOB Commander in photoscans', lines: ['The base\'s ground is photoscanned like the ground fight\'s: real sand, earth, snow, litter and burnt ground, lit by the sun.', 'The rocks and spires round the base are scanned boulders and cliffs.', 'The ground fight: scanned land, trees and rocks, and a pine of its own, each with a light far form for the frame rate.', 'Windows: GalacticCommand-Setup.exe installs it; touch screens work.'] };
 // (GC 0.73) what is done with the mouse and Esc (fixed); every key below them can be changed (js/core/keys-ui.js)
 const KEYS = {
   war: [['Click a system', 'Select it; click another to send a fleet'], ['Drag, mouse wheel', 'Move and zoom the map'], ['END ROUND', 'Play out the round'], ['Esc', 'The menu']],

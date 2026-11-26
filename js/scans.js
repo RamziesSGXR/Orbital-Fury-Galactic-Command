@@ -51,17 +51,27 @@ const GROUND = { grass: ['grass_a', 'grass_b'], jungle: ['jungle_a', 'jungle_b']
 // metres each picture spans (the scans' own, a little larger where they are very fine, so they read from above)
 const TILE = { grass_a: 15, grass_b: 2.6, jungle_a: 4, jungle_b: 2.6, desert_a: 15, desert_b: 4, ice_a: 3, ice_b: 3, moon_a: 2.4, moon_b: 4, mars_a: 4, mars_b: 3, city_a: 4, city_b: 3, ash_a: 2.5, steppe_a: 4 };
 const TEX = new Map(), TL = new THREE.TextureLoader();
-function tex(name) {
-  let t = TEX.get(name); if (t) return t;
-  t = TL.load(BASE + `ground/${name}.jpg`); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; t.colorSpace = THREE.NoColorSpace;     // (the land's shader works in the picture's own sRGB values)
-  TEX.set(name, t); return t;
+function tex(name, lin = false) {     // (the ground fight's land works in the picture's own sRGB values; the base's in linear light)
+  let t = TEX.get(name + lin); if (t) return t;
+  t = TL.load(BASE + `ground/${name}.jpg`); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; t.colorSpace = lin && /_diff$/.test(name) ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+  TEX.set(name + lin, t); return t;
+}
+const toLin = (c) => (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+// (GC 0.92) a scanned model's geometry fitted to a built shape it stands in for: 'ball' (centred, a radius of one across), or
+// 'cone' (a height of one, centred, a radius of one across)
+export function fitScan(sc, mode = 'ball') {
+  const g = sc.geo.clone(); g.computeBoundingBox(); const b = g.boundingBox, cx = (b.min.x + b.max.x) / 2, cz = (b.min.z + b.max.z) / 2, h = b.max.y - b.min.y, r = Math.max(b.max.x - b.min.x, b.max.z - b.min.z) / 2;
+  g.translate(-cx, -(b.min.y + h / 2), -cz);
+  if (mode === 'cone') g.scale(1 / r, 1 / h, 1 / r); else g.scale(1 / r, 1 / r, 1 / r);
+  return g;
 }
 // how far the scan's own colour replaces the map's (0: the map's colours, the scan's detail; 1: the scan's colours)
 const HUE = { grass: 0.35, jungle: 0.45, desert: 0.7, ice: 0.6, moon: 0.8, mars: 0.55, city: 0.7, steppe: 0.5, ash: 0.6 };
-export async function groundSet(biome) {
+export async function groundSet(biome, lin = false) {
   const ix = await scanIndex(), pair = GROUND[biome]; if (!ix || !pair) return null;
   const [a, b] = pair, mean = (k) => (ix.ground[k] && ix.ground[k].mean) || [0.5, 0.5, 0.5];
-  return { a: tex(`${a}_diff`), an: tex(`${a}_nor`), b: tex(`${b}_diff`), bn: tex(`${b}_nor`), ta: TILE[a] || 4, tb: TILE[b] || 3, ma: mean(a), mb: mean(b), hue: HUE[biome] ?? 0.5 };
+  const mm = (k) => (lin ? mean(k).map(toLin) : mean(k));
+  return { a: tex(`${a}_diff`, lin), an: tex(`${a}_nor`, lin), b: tex(`${b}_diff`, lin), bn: tex(`${b}_nor`, lin), ta: TILE[a] || 4, tb: TILE[b] || 3, ma: mm(a), mb: mm(b), hue: HUE[biome] ?? 0.5 };
 }
 
 // THE PINE (GC 0.91). Poly Haven's firs are millions of polygons (every needle), far past what a forest in a browser can carry

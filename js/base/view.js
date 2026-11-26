@@ -9,6 +9,7 @@ import { Noise } from './noise.js';
 import { isLine, WALLS } from './net.js';
 import { Crowd3D } from '../model3d.js';
 import { surfScale, surf, water, KIND, LAND as SOIL } from '../surface.js';
+import { groundSet, scanModel, fitScan } from '../scans.js';
 import { WL } from './site.js';
 import { HOLO, BP, holoFill, holoEdge, tintHolo, holoize, unholoize, Sparks, domeMat, domeGeo, beamGeo, beamMat, Bloom } from './fx.js';
 
@@ -275,15 +276,26 @@ export class View {
     HG.load(s);
     const lin = c => new THREE.Color().setRGB(c[0] / 255, c[1] / 255, c[2] / 255, THREE.SRGBColorSpace);
     const U = { uGA: { value: this.gndA }, uGB: { value: this.gndB }, uN: { value: N }, uHue: { value: lin(hue) }, uBed: { value: lin((bio?.sea || [70, 110, 150]).map(v => v * 0.7)) }, uElev: this.uElev ||= { value: 0 }, uGrid: this.uGrid ||= { value: 0 }, uLandK: { value: SOIL[s.site?.biome] ?? KIND.soil } };
+    // (GC 0.92, Ramzies: "GTA V, not PlayStation 2") the base's land photoscanned too: its biome's two materials (js/scans.js)
+    const SC = this.scU = { tScA: { value: null }, tScAn: { value: null }, tScB: { value: null }, tScBn: { value: null }, uScOn: { value: 0 }, uScT: { value: new THREE.Vector2(15, 3) }, uScMA: { value: new THREE.Vector3(0.2, 0.2, 0.2) }, uScMB: { value: new THREE.Vector3(0.2, 0.2, 0.2) }, uScK: { value: new THREE.Vector2(0.6, (this.q ?? 0) >= 3 ? 0 : 1) } };
+    Object.assign(U, SC);
+    groundSet(s.site?.biome || 'steppe', true).then((g) => { if (!g) return; SC.tScA.value = g.a; SC.tScAn.value = g.an; SC.tScB.value = g.b; SC.tScBn.value = g.bn; SC.uScT.value.set(g.ta, g.tb); SC.uScMA.value.set(...g.ma); SC.uScMB.value.set(...g.mb); SC.uScK.value.x = g.hue; SC.uScOn.value = 1; });
     const gm = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.95 }); gm.defines = { STANDARD: '', NO_HGT: '', GC_NOSURF: '', GC_LAND: '' };     // (GC 0.70: the ground has its own texture, not a model's surface detail; GC 0.90: but the land's grit, pebbles and cracks, close up)
     gm.polygonOffset = true; gm.polygonOffsetFactor = 2; gm.polygonOffsetUnits = 6;   // the ground gives way to whatever lies on it
     gm.onBeforeCompile = sh => {
       Object.assign(sh.uniforms, U);
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vTpW; varying vec3 vTpN;')
         .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvTpW = (modelMatrix * vec4(transformed, 1.0)).xyz; vTpN = normalize(mat3(modelMatrix) * objectNormal);');
-      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
+      sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+  if (uScOn > 0.5 && uScK.y > 0.5 && scAmt > 0.0) {     // (GC 0.92) the scans' normals, on the land's own frame
+    vec2 sm = vTpW.xz * GC_SCALE; vec3 q0 = dFdx(-vViewPosition), q1 = dFdy(-vViewPosition); vec2 st0 = dFdx(sm), st1 = dFdy(sm);
+    vec3 N = normal, q1p = cross(q1, N), q0p = cross(N, q0), T = q1p * st0.x + q0p * st1.x, Bt = q1p * st0.y + q0p * st1.y;
+    float dt = max(dot(T, T), dot(Bt, Bt)), sc = dt == 0.0 ? 0.0 : inversesqrt(dt);
+    normal = normalize(mix(N, mat3(T * sc, Bt * sc, N) * scN, scAmt));
+  }`).replace('#include <common>', `#include <common>
 varying vec3 vTpW; varying vec3 vTpN;
 uniform sampler2D uGA; uniform sampler2D uGB; uniform float uN; uniform vec3 uHue; uniform vec3 uBed; uniform float uElev; uniform float uGrid; uniform float uLandK;
+uniform sampler2D tScA; uniform sampler2D tScAn; uniform sampler2D tScB; uniform sampler2D tScBn; uniform float uScOn; uniform vec2 uScT; uniform vec3 uScMA; uniform vec3 uScMB; uniform vec2 uScK; vec3 scN = vec3(0.0, 0.0, 1.0); float scAmt = 0.0;
 float tpH(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); float a = fract(sin(dot(i, vec2(127.1, 311.7))) * 43758.5); float b = fract(sin(dot(i + vec2(1, 0), vec2(127.1, 311.7))) * 43758.5); float c = fract(sin(dot(i + vec2(0, 1), vec2(127.1, 311.7))) * 43758.5); float d = fract(sin(dot(i + vec2(1, 1), vec2(127.1, 311.7))) * 43758.5); return mix(mix(a, b, f.x), mix(c, d, f.x), f.y); }
 float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y + w.z); return tpH(p.zy * 3.1) * w.x + tpH(p.xz * 3.1) * w.y + tpH(p.xy * 3.1) * w.z; }`)
         .replace('#include <map_fragment>', `#include <map_fragment>
@@ -309,6 +321,21 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
   float steep = 1.0 - clamp(vTpN.y, 0.0, 1.0), rk = max(A.g * 0.8, smoothstep(0.3, 0.62, steep));
   col = mix(col, uHue * 0.5 * (0.6 + gr * 0.7), rk);                                               // bare rock: cliffs and high rock
   col = mix(col, uBed * (0.9 + n2 * 0.2), smoothstep(0.03, -0.3, vTpW.y));                          // the bed under the water, by depth
+  if (uScOn > 0.5 && uScK.y > 0.5) {   // (GC 0.92) photoscanned: the biome's main material, its second on dry ground and dirt, each at two sizes turned across each other
+    vec2 m = vTpW.xz * GC_SCALE; mat2 R = mat2(0.8, 0.6, -0.6, 0.8);
+    vec2 a1 = m / uScT.x, a2 = R * m / (uScT.x * 2.3) + 0.37, b1 = m / uScT.y, b2 = R * m / (uScT.y * 2.1) + 0.61;
+    float ta = smoothstep(0.3, 0.7, tpH(m * 0.021 + 3.0)), tb = smoothstep(0.3, 0.7, tpH(m * 0.033 + 7.0));
+    vec3 SA = mix(texture2D(tScA, a1).rgb, texture2D(tScA, a2).rgb, ta), SB = mix(texture2D(tScB, b1).rgb, texture2D(tScB, b2).rgb, tb);
+    vec3 n2a = texture2D(tScAn, a2).rgb * 2.0 - 1.0, n2b = texture2D(tScBn, b2).rgb * 2.0 - 1.0;
+    vec3 An = mix(texture2D(tScAn, a1).rgb * 2.0 - 1.0, vec3(transpose(R) * n2a.xy, n2a.z), ta), Bn = mix(texture2D(tScBn, b1).rgb * 2.0 - 1.0, vec3(transpose(R) * n2b.xy, n2b.z), tb);
+    vec3 L3 = vec3(0.3, 0.59, 0.11); float lg = dot(col, L3);
+    float wb = smoothstep(0.42, 0.78, tpH(m * 0.045 + 9.0) * 0.6 + tpH(m * 0.17 + 2.0) * 0.25 + (P.g + P.a) * 0.45);
+    vec3 S = mix(SA, SB, wb), M = mix(uScMA, uScMB, wb);
+    vec3 kept = col * S / max(M, vec3(0.02)), own = S * lg / max(dot(M, L3), 0.02);
+    scAmt = smoothstep(0.55, 0.85, vTpN.y) * (1.0 - smoothstep(0.0, -0.4, vTpW.y)) * (1.0 - 0.6 * A.b) * (1.0 - uElev);
+    col = mix(col, mix(kept, own, uScK.x), scAmt);
+    scN = normalize(mix(An, Bn, wb));
+  }
   #ifdef GC_TEX
   { // (GC 0.90) the ground close up: the biome's own (sand, snow, grass, ash, else soil), and where sand (12) or grass (14) or dry
     // ground (8) is painted on it, that one over it; not on cliffs, under water or on mud
@@ -360,6 +387,9 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
       q.setFromEuler(new THREE.Euler((nz.v(i, 1) - 0.5) * 0.25, a, (nz.v(1, i) - 0.5) * 0.25)); mx.compose(new THREE.Vector3(Math.cos(a) * r, h / 2 - 0.3, Math.sin(a) * r), q, new THREE.Vector3(w, h, w)); spires.setMatrixAt(i, mx);
     }
     spires.castShadow = true; this.world.add(spires);
+    // (GC 0.92) the rocks and spires are scanned boulders and cliffs once they have come (their far forms: the base is seen from afar)
+    if ((this.q ?? 0) < 3) scanModel('rock_flat').then((near) => near && scanModel('rock_flat_far').then((far) => { if (!far) return; rocks.geometry = fitScan(far, 'ball'); rocks.material = near.mats; }));
+    if ((this.q ?? 0) < 3) scanModel('rock_spire').then((near) => near && scanModel('rock_spire_far').then((far) => { if (!far) return; spires.geometry = fitScan(far, 'cone'); spires.material = near.mats; }));
     for (let i = 0; i < 26; i++) {
       const a = i / 26 * TAU + nz.v(i, 9), r = N / 2 + 40 + nz.v(9, i) * 60, h = 10 + nz.v(i * 3, 2) * 22;
       const hill = new THREE.Mesh(new THREE.ConeGeometry(h * 1.6, h, 6), rock); hill.position.set(Math.cos(a) * r, h / 2 - 1, Math.sin(a) * r); hill.rotation.y = a; this.world.add(hill);
@@ -1034,7 +1064,7 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
     this.applyQ(mode === 'auto' ? (this.q ?? 0) : mode === 'high' ? 0 : mode === 'low' ? 3 : 1);
   }
   applyQ(q) {
-    const was = this.q; this.q = q;
+    const was = this.q; this.q = q; if (this.scU) this.scU.uScK.value.y = q >= 3 ? 0 : 1;     // (GC 0.92: no scanned ground on the lowest setting)
     const dpr = window.devicePixelRatio || 1;
     this.r.setPixelRatio([Math.min(2, dpr), Math.min(1.5, dpr), Math.min(1, dpr), Math.min(1, dpr) * 0.75][q]);
     this.r.shadowMap.autoUpdate = q === 0; this.r.shadowMap.needsUpdate = true;

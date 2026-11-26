@@ -1,6 +1,6 @@
 # Orbital Fury: Galactic Command
 
-**Prototype 0.91.2.** One war, run from four posts, in one game.
+**Prototype 0.92.0.** One war, run from four posts, in one game.
 
 You found a command (a name, a livery: emblem and colours) and hold the centre of the galaxy against three enemies. Everything in
 the war is yours to run, and each part changes the others:
@@ -21,6 +21,17 @@ game into your user folder (no admin needed) and puts **Galactic Command** on th
 double-click **PLAY.bat** in the unzipped folder to play without installing. Either opens the game full screen in its own
 Microsoft Edge window, served from your own computer only (nothing goes online); closing the window stops it. Touch screens
 work: tap, drag and pinch. `INSTALL.bat -Remove` takes it away again.
+
+## What's new in 0.92: FOB Commander's land in photoscans
+
+- **The base's ground is photoscanned**, as the ground fight's is: its biome's main scanned material and a second one on
+  dry ground and dirt (desert sand and stony ground, steppe earth, snow and rock, jungle litter and mud, burnt ground),
+  each laid at two sizes turned across each other, with the scans' own relief lit by the sun. The painted ground, the
+  roads, the water's edge and the cliffs stay as they were; the height view and the grid still draw over it.
+- **The rocks and the spires round the base are scanned boulders and cliffs** (their light far forms: the base is seen
+  from afar).
+- On the lowest quality setting (which the base drops to by itself on a slow computer) the scans give way to the drawn
+  ground and the old rocks, for the frame rate (Ramzies: 30 to 144 frames a second).
 
 ## What's new in 0.91: the ground fight in photoscans, an installer, and touch
 
