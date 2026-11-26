@@ -8,6 +8,7 @@
 // The theatres are loaded when first entered. Each one fills the same frame (#s-theatre) and hands back what the map
 // needs to know: who won, what tier the station is, what rank the base is.
 import * as WarRoom from './core/warroom.js';
+import './core/debug.js';     // (GC 0.92) F3: the debug readout, over every mode
 import './surface.js';     // (GC 0.70) surface detail on every 3D model: extends three.js's shaders before anything is drawn
 import { MSG_TIMES, msgKey, setMsg, timeMessage } from './core/msgtime.js';
 import { VERSION, C as GC } from './galaxy/config.js';
@@ -183,7 +184,7 @@ const ART = {
 const TABS = [['home', 'HOME'], ['play', 'PLAY'], ['collection', 'COLLECTION'], ['career', 'CAREER'], ['store', 'STORE'], ['options', 'OPTIONS']];
 const tabName = (k) => (TABS.find((x) => x[0] === k) || [k, k === 'livery' ? 'YOUR LIVERY' : k.toUpperCase()])[1];
 let tab = 'home', optTab = 'play', playGame = null;     // playGame: the game whose saves the PLAY tab is showing
-const NEWS = { title: 'FOB Commander in photoscans', lines: ['The base\'s ground is photoscanned like the ground fight\'s: real sand, earth, snow, litter and burnt ground, lit by the sun.', 'The rocks and spires round the base are scanned boulders and cliffs.', 'Close in, the ground fight\'s land is set with scanned grass, ferns, bushes and shrubs.', 'Every model in every mode wears real scanned canvas, worn paint, concrete, planking, rock and bark.', 'Light from a real photographed sky on the base and on the ground fight\'s scans.', 'The ground fight: scanned land, trees and rocks, and a pine of its own, each with a light far form for the frame rate.', 'Windows: GalacticCommand-Setup.exe installs it; touch screens work.'] };
+const NEWS = { title: 'Fixes from the Surface', lines: ['Tilted low and close in, the ground fight no longer shows black past the land.', 'The ground\'s texture keeps its size on screen as you zoom, and no longer repeats.', 'The fog of war is dark again, day and night.', 'The installed game opens to fit the screen, going full screen at the first tap.', 'F3 shows the debug readout everywhere: frames, drawing, the graphics card and the screen sizes.', 'Before that: photoscanned ground, trees, rocks and ground cover; real scanned materials on every model; light from a real sky.'] };
 // (GC 0.73) what is done with the mouse and Esc (fixed); every key below them can be changed (js/core/keys-ui.js)
 const KEYS = {
   war: [['Click a system', 'Select it; click another to send a fleet'], ['Drag, mouse wheel', 'Move and zoom the map'], ['END ROUND', 'Play out the round'], ['Esc', 'The menu']],
@@ -710,3 +711,14 @@ requestAnimationFrame(loop);
 
 // (GC 0.91) a touch screen: a long press does not open the browser's own menu over the game (fields still have theirs)
 document.addEventListener('contextmenu', (e) => { if (!(e.target.closest && e.target.closest('input, textarea, [contenteditable]'))) e.preventDefault(); });
+
+// (GC 0.92.4) Played from the Windows installer (?app=1): the game goes full screen itself at the first tap, click or key, the
+// browser's way (which fits the screen exactly), and keeps Esc for its own menu (hold Esc to leave full screen).
+if (/[?&]app=1/.test(location.search)) {
+  const fs = () => {
+    removeEventListener('pointerdown', fs, true); removeEventListener('keydown', fs, true);
+    const d = document.documentElement; if (document.fullscreenElement || !d.requestFullscreen) return;
+    d.requestFullscreen({ navigationUI: 'hide' }).then(() => { try { navigator.keyboard && navigator.keyboard.lock && navigator.keyboard.lock(['Escape']); } catch {} }).catch(() => {});
+  };
+  addEventListener('pointerdown', fs, true); addEventListener('keydown', fs, true);
+}

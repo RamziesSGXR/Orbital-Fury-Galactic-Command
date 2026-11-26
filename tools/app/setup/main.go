@@ -158,7 +158,9 @@ func openEdge(url string) *os.Process {
 		if _, err := os.Stat(exe); err == nil {
 			prof := filepath.Join(home(), "edge")
 			os.MkdirAll(prof, 0o755)
-			c := exec.Command(exe, "--app="+url, "--user-data-dir="+prof, "--start-fullscreen", "--no-first-run", "--autoplay-policy=no-user-gesture-required")
+			// (0.92.4: maximized, and the game goes full screen itself at the first tap or key; Edge's own start-fullscreen
+			// could leave the window larger than a Surface's screen, cutting the interface off at its edges)
+			c := exec.Command(exe, "--app="+url+"?app=1", "--user-data-dir="+prof, "--start-maximized", "--no-first-run", "--autoplay-policy=no-user-gesture-required")
 			if c.Start() == nil {
 				return c.Process
 			}

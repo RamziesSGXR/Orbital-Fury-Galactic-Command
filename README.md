@@ -1,6 +1,6 @@
 # Orbital Fury: Galactic Command
 
-**Prototype 0.92.3.** One war, run from four posts, in one game.
+**Prototype 0.92.4.** One war, run from four posts, in one game.
 
 You found a command (a name, a livery: emblem and colours) and hold the centre of the galaxy against three enemies. Everything in
 the war is yours to run, and each part changes the others:
@@ -21,6 +21,23 @@ game into your user folder (no admin needed) and puts **Galactic Command** on th
 double-click **PLAY.bat** in the unzipped folder to play without installing. Either opens the game full screen in its own
 Microsoft Edge window, served from your own computer only (nothing goes online); closing the window stops it. Touch screens
 work: tap, drag and pinch. `INSTALL.bat -Remove` takes it away again.
+
+## Fixed in 0.92.4 (from playing on a Surface)
+
+- **Tilted low and close in, the ground fight showed black past the land.** The land now carries on round the patch under
+  the map's picture as a coarse ring of the same ground, fading into the haze, and past the map's own edge it carries the
+  edge on instead of going black.
+- **The interface was cut off at the screen's edges** when the installed game opened. Edge is now opened maximized, and the
+  game goes full screen itself at the first tap, click or key, the browser's own way, which fits the screen exactly (Esc
+  stays the game's menu; hold Esc to leave full screen).
+- **The ground's texture keeps its size on the screen and no longer repeats.** Each scanned ground is laid small close in
+  and large, turned, pulled back, so its grain stays about the same size as the camera zooms, and the ground under it is
+  warped slowly so no two repeats line up; the fine grit shows only close in (pulled back it looked like carpet). Both the
+  ground fight and the base.
+- **The fog of war is dark again**, by day as by night (Ramzies: "move the fog of war back to dark fog").
+- **F3 now shows the debug readout everywhere** (the menu, the war room, the base, the station; the ground fight has its
+  own): version, where you are, frames a second, what was drawn, the graphics card, and the screen, window and page sizes,
+  with COPY REPORT. Ctrl+Shift+D does the same.
 
 ## What's new in 0.92: FOB Commander's land in photoscans
 

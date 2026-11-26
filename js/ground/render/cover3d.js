@@ -8,11 +8,11 @@ import { scanModel } from '../../scans.js';
 
 // per biome: [model, chance a cell has it, smallest and largest scale of its real size]
 const MIX = {
-  grass: [['cover_grass', 0.5, 1.4, 2.4], ['cover_fern', 0.1, 0.9, 1.4], ['cover_bush', 0.05, 1.2, 2.0], ['cover_shrub', 0.08, 1.6, 2.6]],
-  jungle: [['cover_fern', 0.38, 1.2, 2.0], ['cover_grass', 0.25, 1.6, 2.6], ['cover_bush', 0.1, 1.4, 2.4], ['cover_shrub', 0.1, 2.0, 3.2]],
+  grass: [['cover_grass', 0.5, 0.8, 1.4], ['cover_fern', 0.1, 0.9, 1.4], ['cover_bush', 0.05, 1.2, 2.0], ['cover_shrub', 0.08, 1.6, 2.6]],
+  jungle: [['cover_fern', 0.38, 1.2, 2.0], ['cover_grass', 0.25, 0.9, 1.5], ['cover_bush', 0.1, 1.4, 2.4], ['cover_shrub', 0.1, 2.0, 3.2]],
   desert: [['cover_bush', 0.05, 0.9, 1.5], ['cover_shrub', 0.04, 1.2, 2.0]],
   mars: [['cover_shrub', 0.03, 1.0, 1.8]],
-  city: [['cover_grass', 0.12, 1.2, 2.0], ['cover_shrub', 0.05, 1.2, 2.0]],
+  city: [['cover_grass', 0.12, 0.8, 1.3], ['cover_shrub', 0.05, 1.2, 2.0]],
 };
 const CELL = 2.4, R = 48, CAP = 2400, M4 = new THREE.Matrix4(), Q = new THREE.Quaternion(), P = new THREE.Vector3(), S = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
 const hash = (x, y, k) => { let h = Math.imul(x | 0, 374761393) ^ Math.imul(y | 0, 668265263) ^ Math.imul(k, 2246822519); h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };

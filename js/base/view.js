@@ -325,8 +325,10 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
   col = mix(col, uBed * (0.9 + n2 * 0.2), smoothstep(0.03, -0.3, vTpW.y));                          // the bed under the water, by depth
   if (uScOn > 0.5 && uScK.y > 0.5) {   // (GC 0.92) photoscanned: the biome's main material, its second on dry ground and dirt, each at two sizes turned across each other
     vec2 m = vTpW.xz * GC_SCALE; mat2 R = mat2(0.8, 0.6, -0.6, 0.8);
-    vec2 a1 = m / uScT.x, a2 = R * m / (uScT.x * 2.3) + 0.37, b1 = m / uScT.y, b2 = R * m / (uScT.y * 2.1) + 0.61;
-    float ta = smoothstep(0.3, 0.7, tpH(m * 0.021 + 3.0)), tb = smoothstep(0.3, 0.7, tpH(m * 0.033 + 7.0));
+    // (0.92.4) small close in, large pulled back (the grain keeps its size on the screen), the ground warped so repeats never line up
+    vec2 fw = fwidth(m); float zf = smoothstep(0.03, 0.2, max(fw.x, fw.y)); vec2 wm = m + vec2(tpH(m * 0.011 + 1.3), tpH(m * 0.011 + 8.7)) * 9.0;
+    vec2 a1 = wm / (uScT.x * 0.45), a2 = R * wm / (uScT.x * 2.4) + 0.37, b1 = wm / (uScT.y * 0.5), b2 = R * wm / (uScT.y * 2.2) + 0.61;
+    float ta = clamp(zf + (tpH(m * 0.021 + 3.0) - 0.5) * 0.5, 0.0, 1.0), tb = clamp(zf + (tpH(m * 0.033 + 7.0) - 0.5) * 0.5, 0.0, 1.0);
     vec3 SA = mix(texture2D(tScA, a1).rgb, texture2D(tScA, a2).rgb, ta), SB = mix(texture2D(tScB, b1).rgb, texture2D(tScB, b2).rgb, tb);
     vec3 n2a = texture2D(tScAn, a2).rgb * 2.0 - 1.0, n2b = texture2D(tScBn, b2).rgb * 2.0 - 1.0;
     vec3 An = mix(texture2D(tScAn, a1).rgb * 2.0 - 1.0, vec3(transpose(R) * n2a.xy, n2a.z), ta), Bn = mix(texture2D(tScBn, b1).rgb * 2.0 - 1.0, vec3(transpose(R) * n2b.xy, n2b.z), tb);
@@ -342,7 +344,7 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
   { // (GC 0.90) the ground close up: the biome's own (sand, snow, grass, ash, else soil), and where sand (12) or grass (14) or dry
     // ground (8) is painted on it, that one over it; not on cliffs, under water or on mud
     float k2 = P.r >= P.b && P.r >= max(P.g, P.a) ? 12.0 : P.b >= max(P.g, P.a) ? 14.0 : 8.0, t2 = max(P.r, max(P.b, max(P.g, P.a))) * 0.85;
-    col = gcLand2(col, vTpW.xz * GC_SCALE, smoothstep(0.55, 0.85, vTpN.y) * (1.0 - smoothstep(0.0, -0.4, vTpW.y)) * (1.0 - 0.6 * A.b), uLandK, k2, t2); }
+    col = gcLand2(col, vTpW.xz * GC_SCALE, smoothstep(0.55, 0.85, vTpN.y) * (1.0 - smoothstep(0.0, -0.4, vTpW.y)) * (1.0 - 0.6 * A.b) * (1.0 - smoothstep(0.03, 0.1, max(fwidth(vTpW.xz * GC_SCALE).x, fwidth(vTpW.xz * GC_SCALE).y))), uLandK, k2, t2); }     // (0.92.4: grit only close in)
   #endif
   col *= 1.0 + clamp(dot(vTpN.xz, vec2(-0.6, -0.8)) * 2.2, -0.22, 0.2);                             // hillshade: slopes read even on snow
   if (uElev > 0.5) {                                                                                // the ELEVATION view: a height ramp and contours

@@ -68,15 +68,20 @@ export class Ground3D {
           normal = normalize(mat3(T * sc, Bt * sc, N) * vec3(scN.xy * uScK.y, scN.z));
         }`)
         .replace('#include <map_fragment>', `
-        vec3 gr = (vG.x < 0.0 || vG.x > 1.0 || vG.y < 0.0 || vG.y > 1.0) ? vec3(0.0) : texture2D(tGround, vG).rgb;
+        vec3 gr = texture2D(tGround, clamp(vG, 0.0, 1.0)).rgb;     // (GC 0.92: past the map's edge, its edge carried on, not black)
         float hk = clamp(vHt / uAmp * 0.5 + 0.5, 0.0, 1.0);
         gr *= 0.84 + 0.3 * hk;                                   // high ground a little lighter, hollows a little darker
         // (GC 0.91, Ramzies: "we're shooting for GTA V") the ground is photoscanned: the biome's main material, a second one in
         // patches, each laid at two sizes turned across each other (so it never shows its repeat), coloured and lit as the
         // scan is, and as light or dark as the map's own picture is there (its tracks, scorches and hollows stay)
         if (uScOn > 0.5 && uScK.y > 0.5) {
-          mat2 R = mat2(0.8, 0.6, -0.6, 0.8); vec2 a1 = vWp / uScT.x, a2 = R * vWp / (uScT.x * 2.3) + 0.37, b1 = vWp / uScT.y, b2 = R * vWp / (uScT.y * 2.1) + 0.61;
-          float ta = smoothstep(0.3, 0.7, gcN(vWp * 0.021 + 3.0)), tb = smoothstep(0.3, 0.7, gcN(vWp * 0.033 + 7.0));
+          // (0.92.4, Ramzies: "make the texture not scale with the camera and not look so repetitive") each scan at a small size
+          // close in and a large one, turned, pulled back, so its grain stays about the same size on the screen as the camera
+          // zooms; and the ground under it warped slowly, so no two repeats line up
+          mat2 R = mat2(0.8, 0.6, -0.6, 0.8); vec2 fw = fwidth(vWp); float zf = smoothstep(0.012, 0.09, max(fw.x, fw.y));
+          vec2 wp = vWp + vec2(gcN(vWp * 0.011 + 1.3), gcN(vWp * 0.011 + 8.7)) * 9.0;
+          vec2 a1 = wp / (uScT.x * 0.45), a2 = R * wp / (uScT.x * 2.2) + 0.37, b1 = wp / (uScT.y * 0.5), b2 = R * wp / (uScT.y * 2.1) + 0.61;
+          float ta = clamp(zf + (gcN(vWp * 0.021 + 3.0) - 0.5) * 0.5, 0.0, 1.0), tb = clamp(zf + (gcN(vWp * 0.033 + 7.0) - 0.5) * 0.5, 0.0, 1.0);
           vec3 A = mix(texture2D(tScA, a1).rgb, texture2D(tScA, a2).rgb, ta), B = mix(texture2D(tScB, b1).rgb, texture2D(tScB, b2).rgb, tb);
           vec3 An = mix(texture2D(tScAn, a1).rgb * 2.0 - 1.0, vec3(transpose(R) * (texture2D(tScAn, a2).rgb * 2.0 - 1.0).xy, (texture2D(tScAn, a2).rgb * 2.0 - 1.0).z), ta);
           vec3 Bn = mix(texture2D(tScBn, b1).rgb * 2.0 - 1.0, vec3(transpose(R) * (texture2D(tScBn, b2).rgb * 2.0 - 1.0).xy, (texture2D(tScBn, b2).rgb * 2.0 - 1.0).z), tb);
@@ -100,9 +105,12 @@ export class Ground3D {
           gr = mix(gr, vec3(0.03), max(ln * 0.55, l5 * 0.85));
         }
         vec4 ov = texture2D(tOver, vO);
+        #ifdef GC_OUTER
+          ov = vec4(0.0);     // (GC 0.92) the land past the sheet has nothing drawn on it
+        #endif
         diffuseColor.rgb *= gcLin(clamp(gr * (1.0 - ov.a) + ov.rgb, 0.0, 1.0));
         #ifdef GC_TEX
-          diffuseColor.rgb = gcLand(diffuseColor.rgb, vWp, (uTopo > 0.5 ? 0.0 : 1.0) * (1.0 - ov.a), uLand);     // (GC 0.90) the biome's own ground close up: sand, snow, grass, regolith, soil
+          diffuseColor.rgb = gcLand(diffuseColor.rgb, vWp, (uTopo > 0.5 ? 0.0 : 1.0) * (1.0 - ov.a) * (1.0 - smoothstep(0.02, 0.06, max(fwidth(vWp).x, fwidth(vWp).y))), uLand);     /* (grit only close in: pulled back it was a carpet) */     // (GC 0.90) the biome's own ground close up: sand, snow, grass, regolith, soil
         #endif`);
     }; return mat; };
     this.mat = noSurf(two(new THREE.MeshLambertMaterial({ color: 0xffffff })));     /* (GC 0.70) the land wears its own drawn picture: no surface detail */
@@ -111,6 +119,13 @@ export class Ground3D {
     // its few-metre facets shadowing each other drew stripes down every slope turned from the sun, and dark smears on the flat
     // below a dune. Its hills are already shaded by their own slope (and the map's own shading); what stands on them still throws its shadow.
     this.mesh = new THREE.Mesh(g, this.mat); this.mesh.frustumCulled = false; this.mesh.receiveShadow = true; this.mesh.castShadow = false; this.scene.add(this.mesh);
+    // (GC 0.92, Ramzies: "odd visual glitch when zooming in") THE LAND PAST THE SHEET. Tilted low and close in, the camera sees
+    // past the patch of land under the sheet, where there was only black: a coarse ring of the same land carries on round it
+    // (a hole where the sheet's land is, so nothing is drawn twice), fading into the haze.
+    { const m = 24, vn2 = (m + 1) * (m + 1); this.skM = m; this.skPos = new Float32Array(vn2 * 3); this.skUv = new Float32Array(vn2 * 2); this.skIdx = new Uint32Array(m * m * 6);
+      const sg = this.skGeo = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.BufferAttribute(this.skPos, 3)); sg.setAttribute('uv', new THREE.BufferAttribute(this.skUv, 2)); sg.setIndex(new THREE.BufferAttribute(this.skIdx, 1));
+      this.matOut = noSurf(two(new THREE.MeshLambertMaterial({ color: 0xffffff }))); this.matOut.defines.GC_LAND = ''; this.matOut.defines.GC_OUTER = '';
+      this.skirt = new THREE.Mesh(sg, this.matOut); this.skirt.frustumCulled = false; this.skirt.receiveShadow = true; this.scene.add(this.skirt); }
     // THE THINGS THAT STAND UP (GC 0.19): rocks, trees, buildings, guns. Each is a block risen out of the sheet: its roof is the
     // very patch of the sheet it stands on (so it wears its own top-down drawing, lit and fogged like everything else) and
     // its walls take the colours at its edge, darker. Built afresh each frame from what is in view.
@@ -195,6 +210,19 @@ export class Ground3D {
     let p = 0, q = 0;
     for (let j = 0; j <= n; j++) { const z = z0 + j * c; for (let i = 0; i <= n; i++) { const x = x0 + i * c; P[p++] = x; P[p++] = this.y(x, z); P[p++] = z; U[q++] = (x - (camX - L / 2)) / L; U[q++] = 1 - (z - (camY - L / 2)) / L; } }
     this.geo.attributes.position.needsUpdate = true; this.geo.attributes.uv.needsUpdate = true; this.geo.computeVertexNormals();
+    if (this.skirt) {     // (GC 0.92) the coarse land round the sheet's, four sheets across, its middle left open
+      const m = this.skM, E = L * 4, c2 = E / m, sx = Math.floor((camX - E / 2) / c2) * c2, sz = Math.floor((camY - E / 2) / c2) * c2, SP = this.skPos, SU = this.skUv, SI = this.skIdx;
+      let a = 0, b = 0, t = 0;
+      for (let j = 0; j <= m; j++) { const z = sz + j * c2; for (let i = 0; i <= m; i++) { const x = sx + i * c2; SP[a++] = x; SP[a++] = this.y(x, z); SP[a++] = z; SU[b++] = 0.5; SU[b++] = 0.5; } }
+      const hx0 = x0 + c, hx1 = x0 + n * c - c, hz0 = z0 + c, hz1 = z0 + n * c - c;     // (cells wholly under the sheet's land are left out; the rest overlap it a little, under it)
+      for (let j = 0; j < m; j++) for (let i = 0; i < m; i++) {
+        const cx0 = sx + i * c2, cz0 = sz + j * c2; if (cx0 >= hx0 && cx0 + c2 <= hx1 && cz0 >= hz0 && cz0 + c2 <= hz1) continue;
+        const p0 = j * (m + 1) + i, p1 = p0 + 1, p2 = p0 + m + 1, p3 = p2 + 1; SI[t++] = p0; SI[t++] = p2; SI[t++] = p1; SI[t++] = p1; SI[t++] = p2; SI[t++] = p3;
+      }
+      for (let i = 1; i < SP.length; i += 3) SP[i] -= 0.35;     // (a little lower, so where the two overlap the sheet's land is the one seen)
+      this.skGeo.setDrawRange(0, t); this.skGeo.attributes.position.needsUpdate = true; this.skGeo.index.needsUpdate = true; this.skGeo.computeVertexNormals();
+      if (this.scene.fog && !this._clr?.equals(this.scene.fog.color)) { this._clr = this.scene.fog.color.clone(); this.r.setClearColor(this._clr, 1); }     // (and past it all, the haze, not black)
+    }
     // the blocks: [{ x, y, r, h, n }] in metres (n: how many sides, 4 for a building, more for a rock or a tree)
     { const B = o.blocks || [], P2 = this.bp, U2 = this.bu, N2 = this.bn, C2 = this.bc, ux0 = camX - L / 2, uz0 = camY - L / 2, max = V3.blocks * V3.sides * 9; let k = 0;
       const put = (x, y, z, nx, ny, nz, sh) => { const a = k * 3, b = k * 2; P2[a] = x; P2[a + 1] = y; P2[a + 2] = z; U2[b] = (x - ux0) / L; U2[b + 1] = 1 - (z - uz0) / L; N2[a] = nx; N2[a + 1] = ny; N2[a + 2] = nz; C2[a] = C2[a + 1] = C2[a + 2] = sh; k++; };

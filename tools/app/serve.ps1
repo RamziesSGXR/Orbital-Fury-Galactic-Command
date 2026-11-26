@@ -21,7 +21,7 @@ if (-not $Browser) {
   if ($exe) {
     $prof = Join-Path $env:LOCALAPPDATA 'GalacticCommand\edge'
     New-Item -ItemType Directory -Force -Path $prof | Out-Null
-    $edge = Start-Process -FilePath $exe -PassThru -ArgumentList @("--app=$url", "--user-data-dir=`"$prof`"", '--start-fullscreen', '--no-first-run', '--disable-features=msEdgeSidebarV2,TranslateUI', '--autoplay-policy=no-user-gesture-required')
+    $edge = Start-Process -FilePath $exe -PassThru -ArgumentList @("--app=$url`?app=1", "--user-data-dir=`"$prof`"", '--start-maximized', '--no-first-run', '--disable-features=msEdgeSidebarV2,TranslateUI', '--autoplay-policy=no-user-gesture-required')
   }
 }
 if (-not $edge) { Start-Process $url }
