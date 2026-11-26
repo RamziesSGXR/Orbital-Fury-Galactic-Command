@@ -1,6 +1,6 @@
 # Orbital Fury: Galactic Command
 
-**Prototype 0.92.4.** One war, run from four posts, in one game.
+**Prototype 0.92.5.** One war, run from four posts, in one game.
 
 You found a command (a name, a livery: emblem and colours) and hold the centre of the galaxy against three enemies. Everything in
 the war is yours to run, and each part changes the others:
@@ -21,6 +21,13 @@ game into your user folder (no admin needed) and puts **Galactic Command** on th
 double-click **PLAY.bat** in the unzipped folder to play without installing. Either opens the game full screen in its own
 Microsoft Edge window, served from your own computer only (nothing goes online); closing the window stops it. Touch screens
 work: tap, drag and pinch. `INSTALL.bat -Remove` takes it away again.
+
+## Fixed in 0.92.5
+
+- **The fog of war showed bright patches of land** far off, tilted: the land past the map picture's patch (0.92.4) was
+  not under the fog. It now is, as dark as the rest of the unseen ground.
+- **The web version kept old pictures and models** after an update (its offline store never changed). Each version now
+  has its own store and the old ones are thrown away.
 
 ## Fixed in 0.92.4 (from playing on a Surface)
 

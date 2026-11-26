@@ -106,7 +106,7 @@ export class Ground3D {
         }
         vec4 ov = texture2D(tOver, vO);
         #ifdef GC_OUTER
-          ov = vec4(0.0);     // (GC 0.92) the land past the sheet has nothing drawn on it
+          ov = vec4(0.0056, 0.0141, 0.0254, 0.72);     // (GC 0.92.5) the land past the sheet is past anyone's sight: under the fog of war, as the sheet's own unseen ground is
         #endif
         diffuseColor.rgb *= gcLin(clamp(gr * (1.0 - ov.a) + ov.rgb, 0.0, 1.0));
         #ifdef GC_TEX

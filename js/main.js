@@ -184,7 +184,7 @@ const ART = {
 const TABS = [['home', 'HOME'], ['play', 'PLAY'], ['collection', 'COLLECTION'], ['career', 'CAREER'], ['store', 'STORE'], ['options', 'OPTIONS']];
 const tabName = (k) => (TABS.find((x) => x[0] === k) || [k, k === 'livery' ? 'YOUR LIVERY' : k.toUpperCase()])[1];
 let tab = 'home', optTab = 'play', playGame = null;     // playGame: the game whose saves the PLAY tab is showing
-const NEWS = { title: 'Fixes from the Surface', lines: ['Tilted low and close in, the ground fight no longer shows black past the land.', 'The ground\'s texture keeps its size on screen as you zoom, and no longer repeats.', 'The fog of war is dark again, day and night.', 'The installed game opens to fit the screen, going full screen at the first tap.', 'F3 shows the debug readout everywhere: frames, drawing, the graphics card and the screen sizes.', 'Before that: photoscanned ground, trees, rocks and ground cover; real scanned materials on every model; light from a real sky.'] };
+const NEWS = { title: 'Fixes from the Surface', lines: ['The fog of war covers the far land too: no more bright patches when tilted.', 'Tilted low and close in, the ground fight no longer shows black past the land.', 'The ground\'s texture keeps its size on screen as you zoom, and no longer repeats.', 'The fog of war is dark again, day and night.', 'The installed game opens to fit the screen, going full screen at the first tap.', 'F3 shows the debug readout everywhere: frames, drawing, the graphics card and the screen sizes.', 'Before that: photoscanned ground, trees, rocks and ground cover; real scanned materials on every model; light from a real sky.'] };
 // (GC 0.73) what is done with the mouse and Esc (fixed); every key below them can be changed (js/core/keys-ui.js)
 const KEYS = {
   war: [['Click a system', 'Select it; click another to send a fleet'], ['Drag, mouse wheel', 'Move and zoom the map'], ['END ROUND', 'Play out the round'], ['Esc', 'The menu']],
@@ -722,3 +722,7 @@ if (/[?&]app=1/.test(location.search)) {
   };
   addEventListener('pointerdown', fs, true); addEventListener('keydown', fs, true);
 }
+
+// (GC 0.91, 0.92.5) installable, and playable offline once opened, when served from the web (not from this computer); the
+// worker is registered with the version, so each new version starts with a fresh store of pictures and models
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js?v=' + VERSION).catch(() => {});
