@@ -1,6 +1,6 @@
 # Orbital Fury: Galactic Command
 
-**Prototype 0.92.1.** One war, run from four posts, in one game.
+**Prototype 0.92.2.** One war, run from four posts, in one game.
 
 You found a command (a name, a livery: emblem and colours) and hold the centre of the galaxy against three enemies. Everything in
 the war is yours to run, and each part changes the others:
@@ -34,6 +34,11 @@ work: tap, drag and pinch. `INSTALL.bat -Remove` takes it away again.
   ferns, bushes and shrubs (cut down in Blender to a few hundred triangles each, with a lighter far form), the biome's own
   mix: lush in the jungle, a little scrub in the desert and on Mars, none on snow or the moon. They sit on firm or soft dry
   land only, each always in the same place, and go when the view pulls back or on the low setting.
+- **Real materials on every model, in every mode (0.92.2).** The detail every lit model wears is now photoscanned where it
+  matters: canvas and cloth are real hessian, painted metal is real worn and rusting paint, concrete is real weathered
+  concrete, wood is real planking, rock is real lichened rock and bark real bark (Poly Haven CC0, made into the detail
+  layers by tools/textures/detail.py), with their own relief, rust and dirt. Buildings, vehicles, walls, troopers and
+  props in all four modes, at no extra cost per pixel.
 - On the lowest quality setting (which the base drops to by itself on a slow computer) the scans give way to the drawn
   ground and the old rocks, for the frame rate (Ramzies: 30 to 144 frames a second).
 

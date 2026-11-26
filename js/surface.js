@@ -165,7 +165,9 @@ if (!C.__gcSurf && !OFF) {
   // per KIND (plain, fabric, hard, organic, skin, none, stone, wood, soil, rock, bark, foliage, sand, snow, grass, regolith,
   // water): metres the picture spans; metres of relief from its lowest to its highest; how strongly it lightens and darkens;
   // how far its marked places (B) go: paint to bare metal, concrete spalled, lichen on rock, glints on snow, bare earth in grass
-  const float GC_TILE[17] = float[17](2.0, 0.55, 1.4, 0.9, 0.4, 1.0, 1.8, 1.0, 2.4, 2.2, 0.9, 0.8, 1.6, 3.0, 0.9, 2.5, 6.0);
+  const float GC_TILE[17] = float[17](2.0, 0.6, 1.6, 0.9, 0.4, 1.0, 2.4, 1.6, 2.4, 2.6, 1.0, 0.8, 1.6, 3.0, 0.9, 2.5, 6.0);
+  // (GC 0.92) the layers that are photoscans (cloth, painted metal, concrete, wood, rock, bark): B there is warmth, not wear
+  const float GC_SCAN[17] = float[17](0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
   const float GC_DEEP[17] = float[17](0.004, 0.006, 0.006, 0.014, 0.0015, 0.0, 0.03, 0.01, 0.035, 0.05, 0.025, 0.02, 0.02, 0.05, 0.025, 0.05, 0.04);
   const float GC_TONE[17] = float[17](1.1, 1.3, 1.1, 1.3, 0.8, 0.0, 1.5, 1.4, 1.3, 1.4, 1.5, 1.4, 1.1, 0.7, 1.3, 1.3, 0.0);
   const float GC_WEAR[17] = float[17](0.0, 0.5, 0.5, 0.3, 0.0, 0.0, 0.45, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.6, 0.6, 0.0, 0.0);
@@ -213,7 +215,7 @@ if (!C.__gcSurf && !OFF) {
     gcHt = (d.g - 0.5) * GC_DEEP[ki] / GC_SCALE;
     if (ki == 5) return c;                                               // a light, glass: as it is
     float blot = smoothstep(0.22, 0.78, gcNoise(p * 1.6) * 0.6 + gcNoise(p * 4.3 + 7.1) * 0.4);   // patches a hand or two across
-    d.rb = mix(vec2(0.5, 0.0), d.rb, 0.55 + 0.9 * blot);                // (stronger in some patches than others, so the picture does not show its repeat)
+    d.rb = mix(vec2(0.5, GC_SCAN[ki] * 0.5), d.rb, 0.55 + 0.9 * blot);                // (stronger in some patches than others, so the picture does not show its repeat)
     float grain = clamp(0.5 + (d.r - 0.5) * 3.0, 0.0, 1.0);
     float f = 1.0 + (d.r - 0.5) * GC_TONE[ki];
     if (ki == 0) f *= 0.95 + 0.09 * blot;                                // plain
@@ -230,8 +232,9 @@ if (!C.__gcSurf && !OFF) {
     c *= f;
     // marked places: paint scratched and chipped to bare metal (a little shinier), concrete spalled paler, cloth rubbed pale,
     // lichen on rock, glints on snow
-    float wear = d.b * GC_WEAR[ki];
+    float sk = GC_SCAN[ki], wear = d.b * GC_WEAR[ki] * (1.0 - sk);
     c = mix(c, gcWorn(c, ki, grain), wear);
+    float wm = max((d.b - 0.5) * (ki == 2 ? 0.7 : 0.9), -0.04) * sk; c *= vec3(1.0 + wm, 1.0 + wm * 0.2, 1.0 - wm);     // (a scan's own rust, dirt and lichen: warmer where it is; its paint's own colour left out)
     gcRough = ki == 2 ? -0.3 * wear : ki == 13 ? -0.4 * wear : 0.25 * wear + 0.15 * clamp(0.5 - d.g, 0.0, 0.5);
     // dust: on what faces up, and (on a model) toward its feet; not on skin, leaves, grass or snow
     float lum = dot(c, vec3(0.3, 0.59, 0.11));

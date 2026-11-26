@@ -193,6 +193,22 @@ for _ in range(14):
 wv = wv / wv.std() * 0.6 + 0.4 * fbm(2.0, 4, 40, seed=162)
 L[16] = layer(np.zeros((S, S)), 0.12 * wv, np.zeros((S, S)))
 
+# (GC 0.92, Ramzies: "GTA V, not PlayStation 2") the made-up cloth, painted metal, concrete, wood, rock and bark give way to real
+# photoscans (Poly Haven CC0: hessian_230, rusty_painted_metal, concrete_wall_008, raw_plank_wall, lichen_rock, bark_brown_02;
+# their pictures kept small in tools/textures/scan_src). Such a layer holds: R how light or dark (0.5 the scan's mean), G its
+# relief (from the scan's own displacement), B how much warmer or cooler than its mean (rust, dirt, lichen): surface.js reads
+# those layers so (GC_SCAN), and they carry their wear in them already.
+SRC = os.path.join(os.path.dirname(__file__), 'scan_src')
+for k, name in [(1, 'fabric'), (2, 'hard'), (6, 'stone'), (7, 'wood'), (9, 'rock'), (10, 'bark')]:
+    f = os.path.join(SRC, name + '_diff.jpg')
+    if not os.path.exists(f): continue
+    c = np.asarray(Image.open(f).convert('RGB').resize((S, S), Image.LANCZOS), np.float32) / 255
+    h = np.asarray(Image.open(os.path.join(SRC, name + '_disp.jpg')).convert('L').resize((S, S), Image.LANCZOS), np.float32) / 255
+    lum = c @ np.array([0.3, 0.59, 0.11], np.float32); lr = lum / max(lum.mean(), 1e-3)
+    warm = (c[..., 0] - c[..., 2]); warm = warm - warm.mean()
+    R = 0.5 + np.clip((lr - 1) * 0.42, -0.5, 0.5); G = 0.5 + (h - h.mean()) / (h.std() + 1e-6) * 0.14; B = 0.5 + np.clip(warm * 1.6, -0.5, 0.5)
+    L[k] = np.stack([np.clip(R, 0, 1), np.clip(G, 0, 1), np.clip(B, 0, 1)], -1)
+
 out = np.concatenate([L[i] for i in range(17)], 0)
 dst = os.path.join(os.path.dirname(__file__), '..', '..', 'assets', 'textures'); os.makedirs(dst, exist_ok=True)
 img = Image.fromarray((out * 255 + 0.5).astype(np.uint8), 'RGB')
