@@ -10,6 +10,7 @@ import { isLine, WALLS } from './net.js';
 import { Crowd3D } from '../model3d.js';
 import { surfScale, surf, water, KIND, LAND as SOIL } from '../surface.js';
 import { groundSet, scanModel, fitScan } from '../scans.js';
+import { skyLight } from '../sky.js';
 import { WL } from './site.js';
 import { HOLO, BP, holoFill, holoEdge, tintHolo, holoize, unholoize, Sparks, domeMat, domeGeo, beamGeo, beamMat, Bloom } from './fx.js';
 
@@ -64,6 +65,7 @@ export class View {
     this.yaw = Math.PI / 4; this.yawT = this.yaw; this.pitch = 0.82; this.zoom = 9; this.zoomT = 9;
     this.target = new THREE.Vector3(0, 0, 2); this.ray = new THREE.Raycaster(); this.t = 0;
     const hemi = this.hemi = new THREE.HemisphereLight('#dfe9ff', '#6b5638', 1.1); this.scene.add(hemi);
+    skyLight(this.r).then((env) => { if (env) { this.skyEnv = env; this.setTime(this.hourNow ?? 12); } });     // (GC 0.92) light from a real sky
     const sun = this.sun = new THREE.DirectionalLight('#fff1d6', 2.4);
     sun.position.set(-18, 30, 12); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
     Object.assign(sun.shadow.camera, { left: -26, right: 26, top: 26, bottom: -26, near: 1, far: 90 }); sun.shadow.bias = -0.0006; sun.shadow.normalBias = 0.02;
@@ -834,7 +836,9 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
     this.sun.position.set(this.target.x - Math.sin(ang) * 26, 8 + 26 * Math.max(0.15, Math.cos(ang * 0.8)), this.target.z + 12);
     this.sun.intensity = 0.45 + 1.95 * d;   // at night this is moonlight: weaker and blue
     this.sun.color.setRGB(0.55 + 0.45 * d, 0.62 + 0.33 * warm * d + 0.08 * (1 - d), 0.85 * (1 - d) + (0.42 + 0.42 * warm) * d);
-    this.hemi.intensity = 0.75 + 0.4 * d;
+    this.hourNow = h; const sky = this.skyEnv && (this.q ?? 0) < 3;
+    this.scene.environment = sky ? this.skyEnv : null; this.scene.environmentIntensity = 0.1 + 0.32 * d;     // (GC 0.92) the sky's soft light, by day; the hemisphere gives a little way to it
+    this.hemi.intensity = (0.75 + 0.4 * d) * (sky ? 0.8 : 1);
     this.hemi.color.setRGB(0.32 + 0.55 * d, 0.38 + 0.53 * d, 0.6 + 0.4 * d);
     this.scene.background.copy(this.skyNight).lerp(this.skyDay, d); this.scene.fog.color.copy(this.scene.background);
     if (this.lampHead) { this.lampHead.emissiveIntensity = 0.1 + (1 - d) * 2.4; this.lampPool.opacity = (1 - d) * 0.75; }

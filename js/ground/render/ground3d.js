@@ -9,6 +9,7 @@ import * as THREE from '../../vendor/three.js';
 import { noSurf } from '../../surface.js';
 import { groundSet } from '../../scans.js';
 import { Cover3D } from './cover3d.js';
+import { skyLight } from '../../sky.js';
 import { Units3D, Fx3D } from './units3d.js';
 import { Props3D } from './props3d.js';
 
@@ -122,6 +123,7 @@ export class Ground3D {
     try { this.units = new Units3D(this.scene, livery); this.fx = new Fx3D(this.scene); } catch (err) { console.warn('3D units unavailable', err); this.units = null; this.fx = null; }
     this.gun = new THREE.Vector3();
     try { this.props = new Props3D(this.scene); } catch (err) { console.warn('3D props unavailable', err); this.props = null; }
+    skyLight(this.r).then((env) => { this.skyEnv = env; });     // (GC 0.92) light from a real sky, on the photoscans
     try { this.cover = new Cover3D(this.scene); } catch (err) { console.warn('ground cover unavailable', err); this.cover = null; }     // (GC 0.92)
   }
   // metres above the middle height at a point of the map
@@ -210,6 +212,7 @@ export class Ground3D {
       this.bgeo.setDrawRange(0, k); for (const a of ['position', 'uv', 'normal', 'color']) this.bgeo.attributes[a].needsUpdate = true; this.nBlocks = B.length; }
     if (this.units) this.units.frame(o.units || [], (x, z) => this.y(x, z), !!o.hot);
     if (this.props) this.props.frame(o.props || [], (x, z) => this.y(x, z), o.lit ?? 1);
+    this.scene.environment = this.skyEnv && o.scans !== false ? this.skyEnv : null; this.scene.environmentIntensity = 0.38 * (o.lit ?? 1);
     if (this.cover) this.cover.frame({ biome: this.scBiome, near: this._near, scale: o.scale, camX: o.camX, camY: o.camY, ter: o.ter, y: (x, z) => this.y(x, z), lit: o.lit, on: o.scans !== false });
     // the lens: as far off as makes a metre at the camera's point the same size on screen as it is on the sheet
     const E = Math.max(30, Math.min(86, o.tilt || V3.tilt)) * RAD, d = H / 2 / Math.tan(V3.fov * RAD / 2) / scale, fx = -Math.sin(yaw), fz = -Math.cos(yaw), ly = this.y(camX, camY), C = this.cam;

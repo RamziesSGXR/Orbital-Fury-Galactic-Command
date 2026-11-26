@@ -122,7 +122,7 @@ FOB Commander's goals (agreed at 0.83 and 0.84, from Ramzies):
     searchlights mounted on them. Then the defensive waves (16) come at them.
 25. (0.92.2: every model in every mode wears real scanned cloth, paint, concrete, wood, rock and bark as its detail; ground
     cover in the ground fight. Next in Blender: the base's buildings remade with their own texture layouts, scanned
-    materials and a far form each; a light from a real sky; then the station and the war room.)
+    materials and a far form each (0.92.3: light from a real sky done); then the station and the war room.)
     Realism (Ramzies, 0.91: "we're shooting for GTA V, not PlayStation 2"; CC0 photoscans welcome), in this order: the ground
     fight, FOB Commander, the station, the galactic campaign. (0.91: the ground fight's land, trees and rocks from scans.)
     (0.91 too: a far form of each, the pine built from cards, all off on the low setting; Ramzies: 30 to 144 frames a

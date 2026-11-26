@@ -1,6 +1,6 @@
 # Orbital Fury: Galactic Command
 
-**Prototype 0.92.2.** One war, run from four posts, in one game.
+**Prototype 0.92.3.** One war, run from four posts, in one game.
 
 You found a command (a name, a livery: emblem and colours) and hold the centre of the galaxy against three enemies. Everything in
 the war is yours to run, and each part changes the others:
@@ -39,6 +39,9 @@ work: tap, drag and pinch. `INSTALL.bat -Remove` takes it away again.
   concrete, wood is real planking, rock is real lichened rock and bark real bark (Poly Haven CC0, made into the detail
   layers by tools/textures/detail.py), with their own relief, rust and dirt. Buildings, vehicles, walls, troopers and
   props in all four modes, at no extra cost per pixel.
+- **Light from a real sky (0.92.3).** A photographed overcast sky (Poly Haven CC0) lights every surface softly from all round
+  and is what shiny ones reflect, on the base (its buildings and ground) and on the ground fight's photoscans; the game's
+  own sun still sets the direction and the shadows, and the sky's light follows the time of day. `?sky=0` turns it off.
 - On the lowest quality setting (which the base drops to by itself on a slow computer) the scans give way to the drawn
   ground and the old rocks, for the frame rate (Ramzies: 30 to 144 frames a second).
 

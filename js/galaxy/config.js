@@ -1,5 +1,5 @@
 // Every number and every name in the game lives here, so the prototype can be retuned or renamed in one place.
-export const VERSION = '0.92.2';
+export const VERSION = '0.92.3';
 
 export const C = {
   names: {
