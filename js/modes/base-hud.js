@@ -25,7 +25,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<
 const fmt = (n) => Math.round(n).toLocaleString('en-US');
 const ORD = ['1ST', '2ND', '3RD', '4TH'];
 export const OFFICE = { def: 'OPERATIONS OFFICE', pro: 'GROWTH OFFICE', tru: 'PUBLICITY OFFICE' };     // (GC 0.82: the Growth Office, as MIN names it)
-export const OSHORT = { def: 'DEF', pro: 'EXP', tru: 'PUB' };
+export const OSHORT = { def: 'OPS', pro: 'GRO', tru: 'PUB' };     // (GC 0.88) our own names for the Offices
 // time as the player reads it: one calendar day is C.WEEK simulation seconds, an hour C.WEEK / 24
 const CAL_H = () => C.WEEK / 24;
 export function dur(simS) { const h = simS / CAL_H(); if (h >= 36) { const d = Math.round(h / 24); return `${d} day${d === 1 ? '' : 's'}`; } if (h >= 1) return `${Math.round(h)} h`; return `${Math.max(1, Math.round(h * 60))} min`; }
@@ -78,14 +78,14 @@ const ORDERS = [
   ['Draw a road from the command post', 'Draw a road from the command post (ROADS, drag)', (s) => s.net.segs.some((q) => !['wall', 'wire', 'bags', 'trench'].includes(q.k))],
   ['The groundwork: depot, barracks, mess, range', 'Put up the groundwork: a Supply Depot, Barracks, a Mess Hall and a Firing Range. As tents they go on bare ground with their door on the road', (s) => s.founded()],
   ['Lay a foundation by the road', 'Lay a foundation beside a road (FOUNDATIONS: pick a kind and drag on the ground). Anything better than a tent stands on one of its kind', (s) => s.slabs().some((x) => x.done)],
-  ['Power the base: a generator', 'Power the base: a Biofuel Generator, on a Utilities foundation (FOUNDATIONS, then UTILITIES). Every utility covers a circle round it', (s) => s.b.some((b) => b.done && B[b.type].pw > 0 && b.type !== 'hq')],
+  ['Power the base: a generator', 'Power the base: a Biofuel Generator on a Utilities foundation (FOUNDATIONS, then UTILITIES). It powers its foundation and every foundation a paved road joins to it; dirt roads carry nothing', (s) => s.b.some((b) => b.done && B[b.type].pw > 0 && b.type !== 'hq')],
   ['Wall the base in, with a Lookout', 'Wall the base in and put up a Lookout Tower (DEFENCE): inside a closed wall everything produces 5% more and morale is +3; with a tower, 10% and +6', (s) => s.wallBonus().tower],
   ['Build an Engineer Yard', 'Build an Engineer Yard (INDUSTRY): a third engineer crew means three jobs at once', (s) => s.crews.some((c) => c.yard)],
   ['Plant something by the bunks (BEAUTY)', 'Trees, planters, gardens and the rest lift morale where the bunks can see them (BEAUTY)', (s) => (s.look || 0) > 0],
   ['Open a shop on a Civic foundation', 'Lay a Civic foundation and open a shop on it: a vending machine, a club or a franchise', (s) => s.b.some((b) => KIND[b.type] === 'civic')],
   ['Raise a foundation', 'Lay a RAISED foundation (FOUNDATIONS, HEIGHT) and run a road up to it: the road ramps up onto it', (s) => s.slabs().some((x) => x.lv > 0 && x.done)],
-  ['Water and sewage: a well and a lagoon', 'Give the bunks water and sewage beyond the command post: a Water Well and a Sewage Lagoon (UTILITIES). Keep the well away from the lagoon', (s) => s.has('well') && s.has('lagoon')],
-  ['Carry power further: a Substation', 'Carry the power further with a Substation, so nothing goes dark (UTILITIES)', (s) => s.has('substation')],
+  ['Water and sewage: a well and a lagoon', 'Give the bunks water and sewage beyond the command post: a Water Well and a Sewage Lagoon on a Utilities foundation, joined to the bunks by paved road. Keep the well away from the lagoon', (s) => s.has('well') && s.has('lagoon')],
+  ['Join a foundation by paved road', 'Run a paved road from your Utilities foundation to another: power, water and sewage go along it (ROADS)', (s) => s.utilNets && (s.utilNets(), s.slabs().some((x) => x.k !== 'util' && x.done && s.netMap[x.z * s.N + x.x] && s.utilLive?.pw.has(s.netJoin().U.pw.f(s.netMap[x.z * s.N + x.x]))))],
   ['Upgrade a tent to a prefab', 'Upgrade a tent to a prefab: tap it and press UPGRADE', (s) => s.b.some((b) => b.done && s.hasStd(b.type) && b.type !== 'hq' && s.stdOf(b) >= 1)],
   ['Ship troopers to the front', 'Ship trained troopers to the front: transports leave the landing pad at 16:00', (s) => s.stats.deployed > 0],
   ['Answer a request', 'Deal with the desk: answer a request', (s) => (s.stats.desk || 0) + (s.stats.graded || 0) > 0],
@@ -280,7 +280,7 @@ export function makeHud(o) {
     if (d.guns) m.push(`arms ${d.guns} tiles of wall`);
     if (d.squads) m.push('sends standing patrols');
     if (d.look) m.push(`+${d.look} beauty near the bunks`);     // (GC 0.84)
-    if (d.weekly) m.push(Object.entries(d.weekly).map(([st, v]) => `${v > 0 ? '+' : ''}${v} ${{ def: 'Defence', pro: 'Expansion', tru: 'Publicity' }[st]} a day`).join(', '));
+    if (d.weekly) m.push(Object.entries(d.weekly).map(([st, v]) => `${v > 0 ? '+' : ''}${v} ${{ def: 'Operations', pro: 'Growth', tru: 'Publicity' }[st]} a day`).join(', '));
     const sk = s.hasStd(k) ? STD[s.std] : null;
     if (d.prop) m.push(`+${Math.round(d.prop * (sk?.prop ?? 1))} propaganda`);
     if (d.mor) m.push(`+${Math.round(d.mor * (sk?.mor ?? 1))} morale`);
@@ -411,7 +411,7 @@ export function makeHud(o) {
     if (s.hasStd(b.type)) { const k = s.stdOf(b); bits.push(kv('STANDARD', `${STD[k].name} <small>(${STD[k].doctrine.toLowerCase()})</small>`)); }
     if (!b.done || b.upg) { const pr = b.done ? b.upg.prog : b.prog; bits.push(kv(b.done ? 'UPGRADE TO ' + STD[b.upg.to].name.toUpperCase() : 'CONSTRUCTION', Math.round(pr * 100) + '%') + meter(pr * 100, 'var(--amber)') + kv('ENGINEERS', esc(buildState(b)))); }
     { const notes = []; if (d.beds && b.noisy) notes.push('<span class="warn">Noisy neighbours: morale suffers</span>'); if (d.beds && b.hazard) notes.push('<span class="warn">Fuel or a generator next door: a hazard</span>'); if (b.nearPad) notes.push(`Near a landing pad: holds ${Math.round((GROW.padBonus - 1) * 100)}% more`); if (s.zoneFit(b) > 1) notes.push('In its own zone: works 5% better'); if (notes.length) bits.push(kv('ZONE', notes.join('<br>'))); }
-    if (b.done && (d.pw < 0 || s.needsWater(b) || s.needsSewer(b))) { const sv = []; if (d.pw < 0) sv.push(b.dark ? '<span class="down">no power: outside the grid</span>' : 'power'); if (s.needsWater(b)) sv.push(b.dry ? '<span class="warn">no water</span>' : 'water'); if (s.needsSewer(b)) sv.push(b.foul ? '<span class="warn">no sewage</span>' : 'sewage'); if (b.smelly) sv.push('<span class="warn">smells the lagoon</span>'); bits.push(kv('SERVICES', sv.join(' · '))); }
+    if (b.done && (d.pw < 0 || s.needsWater(b) || s.needsSewer(b))) { const sv = []; if (d.pw < 0) sv.push(b.dark ? '<span class="down">no power: not on a powered network</span>' : 'power'); if (s.needsWater(b)) sv.push(b.dry ? '<span class="warn">no water</span>' : 'water'); if (s.needsSewer(b)) sv.push(b.foul ? '<span class="warn">no sewage</span>' : 'sewage'); if (b.smelly) sv.push('<span class="warn">smells the lagoon</span>'); bits.push(kv('SERVICES', sv.join(' · '))); }
     if (d.water && b.done) bits.push(kv('WATER', `${d.water} a day${b.bad ? ' · <span class="down">contaminated: a lagoon is too close</span>' : ''}`));
     if (b.type === 'yard') { const cs = s.crews.filter((c) => c.yard === b.id); bits.push(kv('CREW', cs.length ? cs.map((c) => `${esc(c.name)}: ${c.wait > 0 ? 'in training' : c.job == null ? 'free' : 'at work'}`).join('; ') : b.done ? 'waiting for 3 recruits' : 'none yet')); }
     if (b.done) {
@@ -441,7 +441,7 @@ export function makeHud(o) {
     const crew = s.troops.filter((t) => t.job === b.id).slice(0, 6).map((t) => `${rankOf(t.missions)} ${esc(t.name)}`).join(', ');
     const out = d.need && Object.keys(d.need).find((g) => (b.stock[g] || 0) < 0.5);
     const st = !b.done ? ['warn', `Under construction: ${buildState(b)}`] : b.upg ? ['warn', `Upgrading, half pace: ${buildState(b)}`] : b.off ? ['warn', 'Switched off: its crew and power go elsewhere'] : out ? ['bad', `Out of ${GOODS[out].name.toLowerCase()}`]
-      : b.dark ? ['bad', 'Dark: outside power coverage. Build a Substation (UTILITIES)'] : d.crew && b.crew < 1 ? ['bad', 'No crew'] : d.pw < 0 && s.power.ratio < 1 ? ['bad', 'Short of power'] : d.crew && b.crew < d.crew ? ['warn', `Short of crew, ${b.crew} of ${d.crew}`]
+      : b.dark ? ['bad', 'Dark: no power reaches it. A paved road to a generator\'s foundation, or a Substation'] : d.crew && b.crew < 1 ? ['bad', 'No crew'] : d.pw < 0 && s.power.ratio < 1 ? ['bad', 'Short of power'] : d.crew && b.crew < d.crew ? ['warn', `Short of crew, ${b.crew} of ${d.crew}`]
         : b.cond < 40 ? ['bad', 'Falling apart: repair it'] : ['ok', d.store ? 'Stocked and running' : 'Running'];
     const mv = b.done ? moneyOf(b) : 0, role = roleOf(b.type);
     const top = `<div class="sp-status ${st[0]}">${esc(st[1])}</div><div class="sp-money"><span>UPKEEP <b class="down">−${fmt(perWatch(s.upkeepOf(b)))}</b>/watch</span><span>NET <b class="${mv < 0 ? 'down' : 'up'}">${mv >= 0 ? '+' : '−'}${fmt(Math.abs(mv))}</b> SUP/watch</span><span class="role" style="color:${GOLD[role] || 'var(--dim)'}">${(GROUPS.find((g) => g[0] === role) || [0, 'COMMAND'])[1]}</span></div>`;
@@ -502,7 +502,13 @@ export function makeHud(o) {
     if (k === 'ops') { if (d.watch || d.guns || d.squads) return '#ff6a4d'; if (d.slots || d.pad) return '#f5d547'; return GREY; }
     return GREY;
   }
-  function coverList(s) { const out = [], col = { pw: '#ffd23a', wa: '#4fb4ff', se: '#b08a4a', fu: '#c98bff' }; for (const b of s.b) if (b.done && !b.off) for (const [k, r] of Object.entries(s.coverOf(b))) out.push({ x: b.x + b.w / 2, z: b.z + b.d / 2, r, col: col[k] || '#ffffff' }); return out; }
+  function coverList(s) { const out = [], col = { pw: '#ffd23a', wa: '#4fb4ff', se: '#b08a4a', fu: '#c98bff' }; for (const b of s.b) if (b.done && !b.off) for (const [k, r] of Object.entries(s.coverOf(b))) out.push({ x: b.x + b.w / 2, z: b.z + b.d / 2, r, col: col[k] || '#ffffff', hq: b.type === 'hq' }); return out; }
+  // (GC 0.88) the networks, coloured by what they carry: green with power, water and sewage, amber with some, grey with none
+  function netList(s) {
+    if (!s.utilNets) return []; const nets = s.utilNets(), J = s.netJoin(), L = s.utilLive || {}, out = [];
+    for (let v = 1; v <= nets.n; v++) { const n = ['pw', 'wa', 'se'].filter((k) => L[k]?.has(J.U[k].f(v))).length; out.push({ tiles: nets.tiles[v], col: n === 3 ? '#7cf07a' : n ? '#ffb648' : '#9aa3a0' }); }
+    return out;
+  }
   function reachList(s) { return s.b.filter((b) => b.done && B[b.type].beds).map((b) => ({ x: b.x + b.w / 2, z: b.z + b.d / 2, r: 10 + b.w / 2, col: '#7cf07a' })); }     // where beauty counts in full
   function routesNow(s) {     // the routes goods take: pad to storage, storage to the buildings that use them, and the runs on now
     const done = s.b.filter((b) => b.done), mid = (b) => [b.x + b.w / 2, b.z + b.d / 2], out = new Map();
@@ -520,9 +526,10 @@ export function makeHud(o) {
   function applyLens() {
     const v = view(), s = sim(); if (!v || !s) return; const k = lensKey;
     try {
-      if (!k) { v.setInfo(null); v.setCover(null); v.setRoutes(null); return; }
+      if (!k) { v.setInfo(null); v.setCover(null); v.setRoutes(null); v.setNet(null, 'lens'); return; }
       v.setInfo(new Map(s.b.filter((b) => b.type !== 'slab').map((b) => [b.id, lensColor(s, b, k)])), false);     // (GC 0.87: not the foundations)
-      v.setCover(k === 'eff' ? coverList(s) : k === 'hap' ? reachList(s) : null);
+      v.setCover(k === 'eff' ? coverList(s).filter((c) => c.hq) : k === 'hap' ? reachList(s) : null);     // (GC 0.88) the command post's circle; the rest are networks
+      v.setNet(k === 'eff' ? netList(s) : null, 'lens');
       v.setRoutes(k === 'eff' ? routesNow(s) : null);
     } catch (err) { console.error(err); }
   }
@@ -533,7 +540,7 @@ export function makeHud(o) {
     else if (!lensKey && foldedFor != null) { buildOpen = foldedFor; foldedFor = null; buildBar(true); }
   }
   // THE MARKS: what is wrong with a building, as an icon over it. A click opens its card
-  const MK = { dark: ['power', 'r', 'Dark: outside power coverage. A Substation (UTILITIES).'], crew0: ['person', 'r', 'No crew'], crew: ['person', 'a', 'Short of crew'], stock: ['box', 'r', 'Out of '], dry: ['drop', 'a', 'No water'], foul: ['potty', 'a', 'No sewage'], worn: ['wrench', 'r', 'Falling apart: tap it and REPAIR'], noise: ['noise', 'a', 'Noise or fuel next to the bunks'], off: ['off', 'g', 'Switched off'] };
+  const MK = { dark: ['power', 'r', 'Dark: no power reaches it. Join its foundation to a generator\'s by paved road.'], crew0: ['person', 'r', 'No crew'], crew: ['person', 'a', 'Short of crew'], stock: ['box', 'r', 'Out of '], dry: ['drop', 'a', 'No water'], foul: ['potty', 'a', 'No sewage'], worn: ['wrench', 'r', 'Falling apart: tap it and REPAIR'], noise: ['noise', 'a', 'Noise or fuel next to the bunks'], off: ['off', 'g', 'Switched off'] };
   const markEls = new Map();
   function markOf(s, b) {
     const d = B[b.type]; if (!b.done) return null;
@@ -611,9 +618,15 @@ export function makeHud(o) {
     const s = sim(), d = B[k], spec = o.specOf(k), cost = s.costOf(k, spec), sup = Math.round(typeof cost === 'object' ? cost.sup ?? cost.cost ?? 0 : cost);
     const up = d.up ? ` · −${perWatch(d.up * (s.hasStd(k) ? STD[s.std].up : 1))}/watch` : '', pw = d.pw < 0 ? ` · ${d.pw}⚡` : '';
     let reach = '';
-    const cv = s.coverOf ? s.coverOf({ type: k }) : {}, ck = Object.keys(REACH).find((q) => cv[q]);
-    if (ck && at) { const [w, dd] = at.rot % 2 ? [d.d, d.w] : [d.w, d.d], n = s.servedList({ id: -1, type: k, x: at.x, z: at.z, w, d: dd }, ck).length;
-      reach = `<span class="pc-r">${icon(REACH[ck][0])}${REACH[ck][1]} reach ${cv[ck]} · <em>serves ${n}</em></span>`; }
+    // (GC 0.88) a source: the network it would put its service on and how many on it draw that; a Substation or a Water Tower: how
+    // many networks it would join
+    const link = k === 'substation' ? 'pw' : B[k].relay === 'wa' ? 'wa' : null, ks = link ? [link] : s.serves ? s.serves({ type: k }) : [], ck = ks[0];
+    if (ck && at && s.netsAt) {
+      const [w, dd] = at.rot % 2 ? [d.d, d.w] : [d.w, d.d], ns = s.netsAt(at.x, at.z, w, dd);
+      if (link) { const r = s.coverOf({ type: k })[link]; reach = `<span class="pc-r">${icon(REACH[ck][0])}${REACH[ck][1]} · joins networks within <em>${r} tiles</em></span>`; }
+      else if (!ns.size) reach = `<span class="pc-r">${icon(REACH[ck][0])}<span class="warn">${REACH[ck][1]} for its foundation once it is down</span></span>`;
+      else { const n = s.servedList({ id: -1, type: k, x: at.x, z: at.z, w, d: dd }, ck).length; reach = `<span class="pc-r">${icon(REACH[ck][0])}${REACH[ck][1]} · <em>serves ${n} on its network</em></span>`; }
+    }
     if (d.look) reach += `<span class="pc-r">${icon('beauty')}Looks +${d.look}</span>`;
     const ok = c.ok ? `<span class="pc-ok">✓ CAN BUILD HERE</span>` : `<span class="pc-no">✕ ${esc(words(c.why || 'Not here'))}</span>`;
     tip(`<div class="pc"><b>${esc(d.name.toUpperCase())}</b><span class="pc-c${s.supplies < sup ? ' poor' : ''}">${sup} SUP${up}${pw}</span>${reach}${ok}</div>`, x + 130, y + 4, false);

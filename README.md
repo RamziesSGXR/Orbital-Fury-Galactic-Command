@@ -1,6 +1,6 @@
 # Orbital Fury: Galactic Command
 
-**Prototype 0.87.0.** One war, run from four posts, in one game.
+**Prototype 0.88.0.** One war, run from four posts, in one game.
 
 You found a command (a name, a livery: emblem and colours) and hold the centre of the galaxy against three enemies. Everything in
 the war is yours to run, and each part changes the others:
@@ -13,6 +13,28 @@ the war is yours to run, and each part changes the others:
 | **The base** | Found a base on the system's key world: roads, zones, and buildings that grow along them. | +35% output from the system for each charter. |
 
 A system that falls takes its station and its base with it.
+
+## What's new in 0.88: power runs through the foundations
+
+Ramzies: "dirt roads don't carry power but more advanced roads do, and they should have a foundation"; and our own
+names, not the reference game's.
+
+- **Networks, not circles.** Power, water, sewage and fuel run through the finished foundations and the paved roads
+  (and bridges) between them. A building is on a network when it stands on one of its tiles or one runs right beside it.
+  A generator, solar array, well, purifier, lagoon, treatment plant or fuel farm serves every building on its network,
+  and each network shares out only what its own sources make. Dirt roads and footpaths carry nothing.
+- **Paved roads are laid on a concrete bed** of their own, a little wider than the road: the foundation the services run
+  in.
+- **Substations and Water Towers join networks** within their reach (a ring on the ground when selected or placed), so
+  a foundation across open ground can be served without a road to it.
+- The command post's own plant still covers the tents round it, so a new base has power and water before it has a
+  network.
+- Selecting a source washes its network in its colour, with a thin beam off everything on it that draws from it; the
+  placing label says how many it would serve on its network. The EFFICIENCY lens shows every network: green with
+  power, water and sewage, amber with some, grey with none.
+- **Our own names.** The feed says OPERATIONS, GROWTH and PUBLICITY (not DEF, PRO and TRU), and the Offices' standings
+  are Operations, Growth and Publicity standing. The rest of the reference game's names come out of every mode in a
+  sweep of their own later.
 
 ## What's new in 0.87: foundations
 

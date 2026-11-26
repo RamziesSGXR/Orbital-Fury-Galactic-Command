@@ -70,7 +70,7 @@ export const Raids = {
     void fit; void wound; void damage;
     if (margin >= 12) {
       out = 'repelled'; const sal = r.size * 35 * (silo ? C.SILO.salvage : 1); this.earn('salvage', sal); if (silo) this.stats.nukesFired = (this.stats.nukesFired || 0) + 1; this.gain('def', 3); this.mood = Math.min(15, this.mood + 2); this.pride += 2; this.stats.raidsWon = (this.stats.raidsWon || 0) + 1;
-      text = silo ? `A warhead from the Missile Silo met ${q.name.toLowerCase()} before it reached the wire. ${sal} supplies of salvage recovered. Defence standing rises.` : `${q.name} turned back at the sight of the wall. ${sal} supplies of salvage recovered. Defence standing rises.`;
+      text = silo ? `A warhead from the Missile Silo met ${q.name.toLowerCase()} before it reached the wire. ${sal} supplies of salvage recovered. Operations standing rises.` : `${q.name} turned back at the sight of the wall. ${sal} supplies of salvage recovered. Operations standing rises.`;
     } else if (margin >= -6) {
       out = 'held'; this.gain('def', 1); this.stats.raidsWon = (this.stats.raidsWon || 0) + 1;
       text = `${q.name} tested the perimeter and left. No harm done; a watched, closed wall would have earned a commendation.`;

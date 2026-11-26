@@ -104,7 +104,7 @@ export function domeGeo() { return new THREE.SphereGeometry(1, 56, 14, 0, Math.P
 
 // a supply beam: a thin column of light rising off a building, bright at the bottom and fading out at the top
 export function beamGeo() {
-  const g = new THREE.CylinderGeometry(0.045, 0.045, 1, 8, 6, true); g.translate(0, 0.5, 0);
+  const g = new THREE.CylinderGeometry(0.03, 0.03, 1, 6, 6, true); g.translate(0, 0.5, 0);
   const p = g.attributes.position, c = new Float32Array(p.count * 3);
   for (let i = 0; i < p.count; i++) { const f = Math.pow(1 - p.getY(i), 1.6); c[i * 3] = f; c[i * 3 + 1] = f; c[i * 3 + 2] = f; }
   g.setAttribute('color', new THREE.BufferAttribute(c, 3)); return g;

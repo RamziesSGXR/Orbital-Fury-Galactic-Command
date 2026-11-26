@@ -21,6 +21,8 @@ const SHOWS = new Set(['garden', 'fountain', 'park', 'parade', 'speaker', 'billb
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
 const ROADS = LINES;     // (GC 0.81) the line tools: roads, walls and field works, with the standalone game's cards (base-hud.js)
+// (GC 0.88) who is talking on the feed, by our own names (the codes are the Offices': operations, growth, publicity)
+const CH = { def: 'OPERATIONS', pro: 'GROWTH', tru: 'PUBLICITY', bur: 'BUREAU', log: 'LOGISTICS', riv: 'RIVALS', base: 'BASE' };
 const isSlabT = (t) => !!t && t.startsWith('slab:'), isRoad = (t) => !!ROADS[t];     // (GC 0.87) laying a foundation (the zones were here)
 
 let app, ui, audio, canvas, view = null, sim = null, life = null, args = null;
@@ -47,13 +49,13 @@ function supplyRow() {
 // (GC 0.64) the Missile Silo: its warheads, and shipping one to the front
 function siloRow(b) {
   const S = C.SILO, n = b.nukes || 0;
-  return `<div class="kv"><span>WARHEADS</span><b class="${n ? 'up' : ''}">${n} of ${S.max}${n < S.max ? ` · next ${Math.round((b.nukeT || 0) * 100)}%` : ''}</b></div><div class="so"><button class="plate btn sm" data-nk="${b.id}" ${n ? '' : 'disabled'} title="Credits and Defence standing; the warhead is no longer here for a raid.">SHIP ONE TO THE FRONT · +${S.cr} CR</button></div>`;
+  return `<div class="kv"><span>WARHEADS</span><b class="${n ? 'up' : ''}">${n} of ${S.max}${n < S.max ? ` · next ${Math.round((b.nukeT || 0) * 100)}%` : ''}</b></div><div class="so"><button class="plate btn sm" data-nk="${b.id}" ${n ? '' : 'disabled'} title="Credits and Operations standing; the warhead is no longer here for a raid.">SHIP ONE TO THE FRONT · +${S.cr} CR</button></div>`;
 }
 // ---------------------------------------------------------------- the guide: how a base is played (js/modes/guide.js)
 const TUT = [
   { t: 'ROADS FIRST', x: 'Everything is built along a road. Pick <b>DIRT ROAD</b> below and drag from the command post across open ground.', done: () => sim.net.segs.some((g) => !['wall', 'wire', 'bags', 'trench'].includes(g.k)) },
   { t: 'LAY A FOUNDATION', x: 'Open <b>FOUNDATIONS</b>, pick a kind and drag on the ground beside your road. Anything better than a tent stands on a foundation of its kind; tents go on bare ground with their door on a road.', done: () => sim.slabs().length > 0 },
-  { t: 'POWER, WATER, SEWAGE', x: 'Lay a <b>Utilities</b> foundation, then open <b>UTILITIES</b> and put a <b>Biofuel Generator</b> on it. Each utility covers a circle round it: keep the bunks inside, and keep wells away from a sewage lagoon.', done: () => sim.b.some((b) => B[b.type].group === 'power') },
+  { t: 'POWER, WATER, SEWAGE', x: 'Lay a <b>Utilities</b> foundation, then open <b>UTILITIES</b> and put a <b>Biofuel Generator</b> on it. It powers its foundation and every foundation a <b>paved road</b> joins to it (dirt roads carry nothing). Keep wells away from a sewage lagoon.', done: () => sim.b.some((b) => B[b.type].group === 'power') },
   { t: 'CHECK ON A BUILDING', x: 'With no tool in hand, tap any building: its card shows its crew, whether it has power, water and sewage, its condition and what is wrong with it. <b>CREW FIRST</b> staffs it before the rest; <b>REPAIR</b> puts a worn one back to 100%.', done: () => !!sel },
   { t: 'WHAT MATTERS', x: 'Keep morale up and the books in profit: troops need beds, food, water and power, and every charter you earn makes the base worth more. Drag to move, right-drag or Q and E to turn, wheel or pinch to zoom. <b>II</b> pauses and <b>1×</b> speeds time up. Requests land on your desk at the side: answer them or they are filed without you. A supply dropship lands every watch, six times a day, and bills you for what it brings: tap the command post to choose what it buys and how much it may spend.', last: true },
 ];
@@ -240,7 +242,7 @@ const mode = {
       if (n >= 40) acc = 0;
       for (const ev of sim.drain()) {
         life.event(ev);
-        if (ev.t === 'say') ui.feed(`${String(ev.ch || 'base').toUpperCase()}: ${ev.text}`, 'radio');
+        if (ev.t === 'say') ui.feed(`${CH[ev.ch] || String(ev.ch || 'base').toUpperCase()}: ${ev.text}`, 'radio');
         else if (ev.t === 'built') { audio.ready(); hud.buildBar(); const b = sim.b.find((o) => o.id === ev.id); if (b && !ev.refit) note(app.tutorial ? {} : { built: 1 }, [['building', b.type]]); }
         else if (ev.t === 'week') { audio.objective(); hud.buildBar(); if (!app.tutorial) note({ baseDays: 1, baseFirst: ev.rank === 0 ? 1 : 0, baseReview: ev.review || 0 }); }
         else if (ev.t === 'desk') audio.chirp();

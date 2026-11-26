@@ -117,7 +117,7 @@ FOB Commander's goals (agreed at 0.83 and 0.84, from Ramzies):
     (0.87, Ramzies: not holograms but blueprints that get built: done.)
 19. ~~Foundations instead of zones: typed slabs, raised in steps, ramps where roads meet them, roads joining them up;
     anything permanent on one; no growth by itself.~~ **(0.87)**
-20. Utilities through the foundations and the paved roads between them, up to what the sources put out: no circles.
+20. ~~Utilities through the foundations and the paved roads between them, up to what the sources put out: no circles.~~ **(0.88)**
 21. Walls on foundations: taller and stronger than on bare ground, with a walkway, and turrets, lamps, banners and
     searchlights mounted on them. Then the defensive waves (16) come at them.
 22. A grittier, less cartoonish look for the buildings, in Blender when Ramzies gives access again.

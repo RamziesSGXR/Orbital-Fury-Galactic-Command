@@ -2,7 +2,7 @@
 //
 // Four goods trade between the bases on the planet for credits: supplies, rations, Biofuel fuel and ammo. Each has a price
 // that moves every day. Three Head Office indices (100 is normal) say how hard every base on the planet is chasing each
-// Head Office's favour: when everyone pushes Defence, ammo and rations get dear and Defence standing gets expensive to buy.
+// Head Office's favour: when everyone pushes Operations, ammo and rations get dear and Operations standing gets expensive to buy.
 //
 // Commitments are how a base buys standing: for each Head Office a level from NONE to ALL OUT, paid every day in goods.
 // Standing per day = level x rate x 100 / index, so standing is cheap when a Head Office is out of fashion. Maxing all three

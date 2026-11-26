@@ -81,6 +81,7 @@ export class View {
     this.world.clear();
     this.chunks = new Map(); this.bm = new Map(); this.pm = new Map(); this.fm = new Map(); this.cm = []; this.vm = new Map(); this.smoke = []; this.roadsV = -1;
     this.ghostKey = ''; this.scrubKey = null; this.scrubM = null; this.zoneKey = null; this.zoneM = null; this.parcelKey = ''; this.parcelG = null;
+    this.slabG = null; this.rampM = null; this.rampKey = null; this.netM_sel = null; this.netM_lens = null;     // (GC 0.87, 0.88) gone with the old world
     this.buildGround();
     this.setFaction(sim.faction);
   }
@@ -516,6 +517,10 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
       if (sg.k === 'bridge') this.bridgeFrame(a0, b0, sg.w);
       if (L <= 0.01) continue;
       strip(surf, a, b, hw * 2, y, this.roadMats[sf]);
+      if (sg.k === 'paved') {     // (GC 0.88) a paved road is laid on a concrete bed of its own, a little wider than it: its foundation, and what carries the services
+        const bed = new THREE.BoxGeometry(L, 0.14, hw * 2 + 0.24, Math.max(1, Math.ceil(L * 2)), 1, 1); bed.translate(0, -0.058, 0);
+        const m = new THREE.Mesh(bed, this.m.concrete); m.position.set(this.wx((a.x + b.x) / 2), 0, this.wx((a.z + b.z) / 2)); m.rotation.y = -Math.atan2(b.z - a.z, b.x - a.x); m.receiveShadow = true; surf.add(m);
+      }
       if (sf === 1) for (const sd of [-1, 1]) strip(surf, { x: a.x - uz * 0.2 * sd, z: a.z + ux * 0.2 * sd }, { x: b.x - uz * 0.2 * sd, z: b.z + ux * 0.2 * sd }, 0.11, y + 0.003, rut);   // one rough lane: two wheel ruts
       if (kerbed(sg)) {
         const off = hw - KW / 2;
@@ -877,27 +882,48 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
     tintHolo(this.ghostMat, this.ghostEdge, ok ? BP.ok : BP.bad);
     this.foot.visible = true; this.foot.scale.set(w, d, 1); this.foot.position.set(this.wx(x + w / 2), 0.04, this.wx(z + d / 2)); this.foot.material.color.set(ok ? BP.ok : BP.bad);
     this.grid.visible = true;
-    const cv = { ...(B[type].cover || {}) }; if (UTIL.powCover[type]) cv.pw = UTIL.powCover[type];
-    const nr = B[type].noise || Math.max(0, ...Object.values(cv)); this.range.visible = !!nr;
-    this.range.material.color.set(B[type].noise ? '#ff4a4a' : cv.pw ? '#ffd23a' : cv.wa ? '#4fb4ff' : cv.se ? '#b08a4a' : '#c98bff');
+    // (GC 0.88) a source shows the network it would join; a Substation or a Water Tower its reach too, as a ring on the ground
+    const s = this.sim, link = type === 'substation' ? 'pw' : B[type].relay === 'wa' ? 'wa' : null, ks = link ? [link] : s?.serves ? s.serves({ type }) : [];
+    const nr = B[type].noise || (link ? s.coverOf({ type })[link] : 0); this.range.visible = !!nr;
+    this.range.material.color.set(B[type].noise ? '#ff4a4a' : COVER_COL[link] || '#c98bff');
     if (nr) { this.range.scale.setScalar(nr); this.range.position.set(this.wx(x + w / 2), 0.05, this.wx(z + d / 2)); }
-    const ck = ['pw', 'wa', 'se', 'fu'].find(k => cv[k]); this.beams.count = 0;
-    if (ck) this.showDome(x + w / 2, z + d / 2, cv[ck], ok ? COVER_COL[ck] : '#ff4a4a'); else this.dome.visible = false;
+    this.beams.count = 0; this.dome.visible = false;
+    if (ks.length && s.netsAt) { const k = ks[0], J = s.netJoin(), roots = new Set([...s.netsAt(x, z, w, d)].map(v => J.U[k].f(v))); this.setNet([...roots].map(r => ({ tiles: s.netTiles(r, k), col: ok ? COVER_COL[k] : '#ff6a5a' }))); }
+    else this.setNet(null);
   }
-  // (GC 0.86) a dome over how far a service reaches, standing on the ground at its middle
+  // (GC 0.86) a dome over how far a service reaches (GC 0.88: not used; reach is a ring on the ground, and a network its tiles)
   showDome(cx, cz, r, col) {
     const d = this.dome; d.visible = true; d.material.uniforms.uCol.value.set(col);
     d.scale.set(r, Math.min(r * 0.55, 4.5), r); d.position.set(this.wx(cx), this.sim?.hAt ? this.sim.surfAt(cx, cz) : 0, this.wx(cz));
   }
-  // what a selected source reaches (the dome) and everything it serves there (a beam off each)
+  // (GC 0.88) networks shown on the base: each tile washed in its service's colour, on whatever it is (the decks lift it onto
+  // a foundation). Two layers: 'sel', what is selected or being placed; 'lens', the EFFICIENCY lens
+  setNet(list, slot = 'sel') {
+    const n = list ? list.reduce((a, e) => a + e.tiles.length, 0) : 0, key = 'netM_' + slot;
+    let im = this[key];
+    if (!n) { if (im) im.count = 0; return; }
+    if (!im || im.userData.cap < n) {
+      if (im) { this.world.remove(im); im.dispose(); }
+      const geo = this.netGeo ||= (() => { const g = new THREE.PlaneGeometry(0.94, 0.94); g.rotateX(-Math.PI / 2); return g; })();
+      const mat = new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: slot === 'lens' ? 0.26 : 0.34, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -18 });
+      im = this[key] = new THREE.InstancedMesh(geo, mat, Math.max(256, n * 2)); im.userData.cap = Math.max(256, n * 2); im.raycast = () => {}; im.frustumCulled = false; im.renderOrder = 3; this.world.add(im);
+    }
+    const o = this.netO ||= new THREE.Object3D(), c = new THREE.Color(), N = this.N; let i = 0;
+    for (const e of list) { c.set(e.col); for (const t of e.tiles) { o.position.set(this.wx(t % N + 0.5), slot === 'lens' ? 0.03 : 0.036, this.wx(Math.floor(t / N) + 0.5)); o.updateMatrix(); im.setMatrixAt(i, o.matrix); im.setColorAt(i, c); i++; } }
+    im.count = i; im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true;
+  }
+  // what a selected source serves: its network's tiles, a beam off everything on it that draws the service, and for a
+  // Substation or a Water Tower the reach it joins networks across
   reachOf(b) {
-    const s = this.sim, cv = s?.coverOf ? s.coverOf(b) : {}, k = ['pw', 'wa', 'se', 'fu'].find(q => cv[q]);
-    this.beams.count = 0;
-    if (!k || !b.done || b.off) { this.dome.visible = false; return; }
-    this.showDome(b.x + b.w / 2, b.z + b.d / 2, cv[k], COVER_COL[k]);
-    this.beams.material.color.set(COVER_COL[k]).multiplyScalar(2.2);
+    const s = this.sim; this.beams.count = 0; this.setNet(null);
+    if (!b.done || b.off || !s?.serves) return;
+    const link = b.type === 'substation' ? 'pw' : B[b.type].relay === 'wa' ? 'wa' : null, ks = link ? [link] : s.serves(b); if (!ks.length) return;
+    const k = ks[0], root = s.netOf(b, k);
+    if (root) this.setNet([{ tiles: s.netTiles(root, k), col: COVER_COL[k] }]);
+    if (link) { const r = s.coverOf(b)[link]; this.range.visible = true; this.range.material.color.set(COVER_COL[link]); this.range.scale.setScalar(r); this.range.position.set(this.wx(b.x + b.w / 2), 0.05, this.wx(b.z + b.d / 2)); }
+    this.beams.material.color.set(COVER_COL[k]).multiplyScalar(1.4);
     const o = this.beamO ||= new THREE.Object3D();
-    for (const q of s.servedList ? s.servedList(b, k) : []) {
+    for (const q of s.servedList(b, k)) {
       if (this.beams.count >= 120) break;
       const g = this.bm.get(q.id), top = g?.userData.top ?? 0.8;
       o.position.set(this.wx(q.x + q.w / 2), top + 0.05, this.wx(q.z + q.d / 2)); o.scale.set(1, 1.2 + 0.25 * Math.sin(q.id), 1); o.updateMatrix();
@@ -907,13 +933,13 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
   }
   select(b) {
     this.selId = b ? b.id : null; this.sel.visible = !!b;
-    if (!this.ghostOn) { this.dome.visible = false; this.beams.count = 0; }
+    if (!this.ghostOn) { this.dome.visible = false; this.beams.count = 0; this.setNet(null); }
     if (!b) { this.range.visible = false; return; }
-    if (!this.ghostOn) this.reachOf(b);
     const x0 = this.wx(b.x) - 0.05, z0 = this.wx(b.z) - 0.05, x1 = this.wx(b.x + b.w) + 0.05, z1 = this.wx(b.z + b.d) + 0.05;
     this.sel.geometry.setFromPoints([new THREE.Vector3(x0, 0.06, z0), new THREE.Vector3(x1, 0.06, z0), new THREE.Vector3(x1, 0.06, z1), new THREE.Vector3(x0, 0.06, z1)]);
     const nr = B[b.type].noise; this.range.visible = !!nr;
     if (nr) { this.range.scale.setScalar(nr); this.range.position.set(this.wx(b.x + b.w / 2), 0.05, this.wx(b.z + b.d / 2)); }
+    if (!this.ghostOn) this.reachOf(b);     // (GC 0.88) after the noise ring: a Substation's reach is a ring too
   }
 
   // ---------------------------------------------------------------- every frame

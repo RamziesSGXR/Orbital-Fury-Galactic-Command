@@ -18,7 +18,7 @@ export const C = {
   BRIDGE: 3,               // a road tile over water costs this many times as much
   // the charter: how much land the Bureau lets you hold. parcels: the most parcels of LAND you may own at once
   // four steps, after the design doc: a camp in an action area, a forward operating base behind a closed wall, a walled
-  // garrison town, a major installation. Each is granted for recruits, Expansion standing and a fee in credits and supplies
+  // garrison town, a major installation. Each is granted for recruits, Growth standing and a fee in credits and supplies
   STAGES: [
     // needs: buildings the Bureau wants standing before it grants the charter; store: total storage (rations, fuel, ammo)
     { name: 'Outpost', parcels: 12 },
@@ -84,8 +84,8 @@ export const MARKET = {
   impact: 0.0005,    // each unit you trade moves the price this much (100 units: 5%)
   vol: 0.035,        // the day's random move
   shocks: [
-    { m: 'def', d: 35, days: 4, text: 'a major offensive opens on the front. Every base is shipping ammo; Defence favour is dear.' },
-    { m: 'def', d: -25, days: 3, text: 'ceasefire rumours (denied). Ammo prices slip; Defence favour is cheap today.' },
+    { m: 'def', d: 35, days: 4, text: 'a major offensive opens on the front. Every base is shipping ammo; Operations favour is dear.' },
+    { m: 'def', d: -25, days: 3, text: 'ceasefire rumours (denied). Ammo prices slip; Operations favour is cheap today.' },
     { m: 'pro', d: 30, days: 4, text: 'audit season at the Bureau. Everyone is building; supplies and fuel are dear.' },
     { m: 'pro', d: -22, days: 3, text: 'a supply glut after a convoy came through whole. Supplies and fuel are cheap.' },
     { m: 'tru', d: 32, days: 4, text: 'election day. Every base wants the Publicity Office to notice it.' },
@@ -148,8 +148,8 @@ export const TECH = {
 export const TRAIN = { range: 8, course: 6, lecture: 4, parade: 3 };   // points an hour; the duty day is 7.5 training hours
 
 export const MIN = {
-  def: { name: 'Operations Office', short: 'DEFENCE', key: 'D', wants: 'Trained troopers shipped to the front on time, and patrols that come back.' },
-  pro: { name: 'Growth Office', short: 'EXPANSION', key: 'X', wants: 'Supply lines that never run dry, and housing for every recruit. Audited every day.' },
+  def: { name: 'Operations Office', short: 'OPERATIONS', key: 'D', wants: 'Trained troopers shipped to the front on time, and patrols that come back.' },
+  pro: { name: 'Growth Office', short: 'GROWTH', key: 'X', wants: 'Supply lines that never run dry, and housing for every recruit. Audited every day.' },
   tru: { name: 'Publicity Office', short: 'PUBLICITY', key: 'T', wants: 'A base that inspires: morale, propaganda and upkeep.' },
 };
 
@@ -166,7 +166,7 @@ export const GROUPS = [
   ['training', 'TRAINING', 'On a Training foundation: turn recruits into troopers. The front pays supplies and credits for every one you ship.', ['range', 'course', 'parade', 'lecture'], 'train'],
   ['command', 'OPERATIONS', 'On an Operations foundation: patrols, command, medicine and records.', ['patrol', 'medbay', 'comms', 'mast', 'armory', 'vbay', 'command', 'warroom', 'vault', 'truth', 'hdbarracks', 'brig', 'cryo', 'eob'], 'ops'],
   ['industry', 'INDUSTRY', 'On an Industry foundation: the engineers and their plant, and whatever digs, pumps or makes. Noisy: keep it away from the bunks.', ['yard', 'batch', 'motorpool', 'extractor', 'mine', 'factory'], 'ind'],
-  ['power', 'UTILITIES', 'On a Utilities foundation: power, water, sewage and fuel. Each covers a circle round it: a building outside power coverage goes dark, and bunks without water or sewage lose morale and fall sick.', ['gen', 'solar', 'substation', 'well', 'tower', 'rowpu', 'lagoon', 'treatment', 'fuelfarm'], 'util'],
+  ['power', 'UTILITIES', 'On a Utilities foundation: power, water, sewage and fuel. They run through the foundations and the paved roads between them (dirt roads carry nothing): a building no power reaches goes dark, and bunks without water or sewage lose morale and fall sick.', ['gen', 'solar', 'substation', 'well', 'tower', 'rowpu', 'lagoon', 'treatment', 'fuelfarm'], 'util'],
   ['defence', 'DEFENCE', 'Close the wall, watch it and light it. Inside a closed wall everything works 5% better and morale is +3; with a Lookout Tower, 10% and +6.', ['lookout', 'flood', 'turret', 'shelter']],
   ['beauty', 'BEAUTY', 'How good the base looks lifts morale, where people can see it: within ten tiles of the bunks it counts in full, further off by half, and not at all on an Industry foundation. Trees go anywhere; the rest on any foundation. Gardens, fountains and parks are on air too.', ['tree', 'planter', 'garden', 'fountain', 'park']],     // (GC 0.84)
   ['truth', 'PUBLICITY', 'Morale and propaganda, for the Publicity Office.', ['flag', 'banner', 'hdbanner', 'speaker', 'billboard', 'pool', 'plaque', 'statue', 'memorial', 'halls', 'partyhq', 'palace', 'monument']],
@@ -243,7 +243,7 @@ export const B = {
   patrol:   { name: 'Patrol Office', group: 'military', w: 2, d: 2, cost: 240, up: 12, crew: 1, needs: ['barracks'], need: { ammo: 24 }, squads: 1,
               desc: 'Sends out standing patrols of three trained troopers every morning and brings them home. Set how many squads it keeps out.' },
   lookout:  { name: 'Lookout Tower', group: 'military', w: 1, d: 1, cost: 90, up: 4, crew: 1, watch: 9, atWall: true,
-              desc: 'A trooper with binoculars and a thermos. Stands at the wall and watches nine tiles of it either way. Unwatched wall costs Defence standing.' },
+              desc: 'A trooper with binoculars and a thermos. Stands at the wall and watches nine tiles of it either way. Unwatched wall costs Operations standing.' },
   medbay:   { name: 'Medical Bay', group: 'military', w: 3, d: 2, cost: 300, up: 16, pw: -2, crew: 1, needs: ['barracks'], ward: 4, mor: 2, staff: 1,
               desc: 'A medic and four beds. Troopers hurt on patrol are treated here and return to duty in a few watches; without one they are flown off planet, or worse.' },
   command:  { name: 'Command Tower', group: 'military', w: 3, d: 3, cost: 700, up: 30, pw: -5, crew: 2, unique: true, tech: 'command', watch: 16, prop: 10, mor: 4, staff: 2,
@@ -251,11 +251,11 @@ export const B = {
   armory:   { name: 'Armory', group: 'military', w: 2, d: 2, cost: 320, up: 20, pw: -2, crew: 1, needs: ['barracks'],
               desc: 'Staffed, it makes every patrol more likely to succeed.' },
   hdbarracks: { name: 'Vanguard Barracks', group: 'military', w: 3, d: 2, cost: 420, up: 22, pw: -4, crew: 1, needs: ['barracks'], cryo: true,
-              desc: 'Vanguards pass through on their way to the front, kept in cryo until needed. Staffed and powered, it earns +3 Defence standing every day.' },
+              desc: 'Vanguards pass through on their way to the front, kept in cryo until needed. Staffed and powered, it earns +3 Operations standing every day.' },
   vbay:     { name: 'Vehicle Bay', group: 'military', w: 3, d: 3, cost: 380, up: 20, crew: 1, needs: ['motorpool'], tech: 'lrv', need: { fuel: 40 }, armour: true,
               desc: 'Keeps a rover, and a tank once Armoured Doctrine is researched. Special operations can take them along. A wrecked vehicle is replaced in two watches.' },
   silo:     { name: 'Missile Silo', group: 'military', w: 3, d: 3, cost: 1400, up: 36, pw: -6, crew: 3, unique: true, tech: 'fortworks', needs: ['yard'], need: { fuel: 40 }, large: true,
-              desc: 'The launch site from the ground fight. Crewed, powered and fuelled, it assembles a mini-nuke over three days and holds two. A warhead in the silo is fired at the next raid before it reaches the wire; or ship it to the front for credits and Defence standing.' },
+              desc: 'The launch site from the ground fight. Crewed, powered and fuelled, it assembles a mini-nuke over three days and holds two. A warhead in the silo is fired at the next raid before it reaches the wire; or ship it to the front for credits and Operations standing.' },
   shelter:  { name: 'Underground Bunker', group: 'military', w: 2, d: 2, cost: 280, up: 10, pw: -1, mor: 3, needs: ['barracks'],
               desc: 'A blast door and a long stairway down. Knowing it is there helps everyone sleep.' },
 
@@ -313,7 +313,7 @@ export const B = {
   turret:   { name: 'Defence Turret', group: 'military', w: 1, d: 1, cost: 220, up: 8, pw: -2, guns: 6, atWall: true, tech: 'fortworks', need: { ammo: 15 },
               desc: 'An autonomous rotary gun on Mag-Coil torque and a Guidance Core. Arms six tiles of wall either way. Walls deter; turrets destroy.' },
   eob:      { stage: 2, name: 'Emergency Operations Bunker', group: 'military', w: 4, d: 3, cost: 900, up: 24, pw: 5, crew: 2, unique: true, tech: 'fortworks', large: true, mor: 3, weekly: { def: 2 },
-              desc: 'If the surface falls silent, the war continues below. Armoured walls, redundant comm relays and its own power grid. +2 Defence standing a day.' },
+              desc: 'If the surface falls silent, the war continues below. Armoured walls, redundant comm relays and its own power grid. +2 Operations standing a day.' },
   vault:    { name: 'Server and Storage Vault', group: 'industry', w: 3, d: 3, cost: 640, up: 16, pw: -4, crew: 1, tech: 'archive', large: true, lab: 0.35, store: { rations: 60, fuel: 40, ammo: 40 },
               desc: 'Every battle log, strat-map and colonist record on quantum drives, cooled by Foundry heat plates. Research 35% faster, and a hardened store.' },
   warroom:  { name: 'War Room', group: 'military', w: 4, d: 4, cost: 1200, up: 30, pw: -6, crew: 3, unique: true, tech: 'warroom', needs: ['command'], large: true, prop: 8, odds: 0.08, offers: 1, staff: 2,
@@ -346,11 +346,11 @@ export const B = {
               desc: 'A plaque for every trooper who fell. Halves the grief of each loss.' },
   // ---------------------------------------------------------------- utilities (0.15). cover: tiles of reach (power, water, sewage, fuel)
   substation: { name: 'Substation', group: 'power', w: 1, d: 1, cost: 110, up: 4, cover: { pw: 10 },
-              desc: 'Transformers behind a fence. Carries the grid ten tiles further: every building inside its circle can draw power.' },
+              desc: 'Transformers behind a fence. Joins every power network within ten tiles into one, so a foundation across open ground can draw from your generators without a paved road to it.' },
   well:     { name: 'Water Well', group: 'power', w: 1, d: 1, cost: 90, up: 3, pw: -1, water: 40, cover: { wa: 6 },
-              desc: 'A borehole, a pump and a chlorine drum. About forty recruits\' water a watch for the buildings round it. Keep it away from a sewage lagoon.' },
+              desc: 'A borehole, a pump and a chlorine drum. About forty recruits\' water a watch for everything on its network. Keep it away from a sewage lagoon.' },
   tower:    { name: 'Water Tower', group: 'power', w: 1, d: 1, cost: 160, up: 5, cover: { wa: 9 }, relay: 'wa',
-              desc: 'A tank on legs. Adds no water of its own, but carries what the wells and purifiers make nine tiles further, if one is within fourteen tiles.' },
+              desc: 'A tank on legs. Adds no water of its own, but joins every water network within nine tiles into one.' },
   rowpu:    { name: 'Water Purification Unit', group: 'power', w: 2, d: 2, cost: 340, up: 12, pw: -3, crew: 1, water: 160, cover: { wa: 9 }, atWater: true,
               desc: 'A reverse-osmosis unit on a trailer, drawing from a river, lake or the sea (it must stand within two tiles of water). A hundred and sixty recruits\' water a watch.' },
   lagoon:   { name: 'Sewage Lagoon', group: 'power', w: 3, d: 2, cost: 160, up: 4, sewer: 150, cover: { se: 8 }, smell: 4,
@@ -358,7 +358,7 @@ export const B = {
   treatment:{ stage: 2, name: 'Waste Treatment Plant', group: 'power', w: 3, d: 3, cost: 620, up: 16, pw: -4, crew: 1, sewer: 400, cover: { se: 12 },
               desc: 'Clarifiers, aeration and a lab that tests the outflow. Four hundred recruits\' waste a watch, no smell, nothing in the water. Needs a Fort charter.' },
   fuelfarm: { name: 'Fuel Farm', group: 'power', w: 3, d: 3, cost: 380, up: 12, store: { fuel: 300 }, cover: { fu: 9 },
-              desc: 'Bermed fuel bladders and a pump house. Holds three hundred fuel and pipes it to every generator, motor pool and vehicle bay within nine tiles, so the trucks only have to fill the farm.' },
+              desc: 'Bermed fuel bladders and a pump house. Holds three hundred fuel and pipes it to every generator, motor pool and vehicle bay on its network, so the trucks only have to fill the farm.' },
   statue:   { name: 'Victory Statue', group: 'propaganda', w: 2, d: 2, cost: 360, up: 10, prop: 16, mor: 4, needs: ['truth', 'parade'],
               desc: 'A hero in bronze on your crest. Inspectors love it.' },
 };
@@ -410,7 +410,7 @@ export const FACTION_DEFAULT = {
 // Every large building keeps its required shape. Pick one of three designs, then add parts: each costs more and does more.
 export const DESIGNS = [
   { key: 'std', name: 'Standard Issue', cost: 1, desc: 'The approved pattern. Cheapest.' },
-  { key: 'fort', name: 'Fortified', cost: 1.25, wear: 0.5, wings: 1, desc: 'Blast walls, armour plate and a walled yard a tile wide each side. Wears half as fast and adds 1 Defence standing a day.', weekly: { def: 1 } },
+  { key: 'fort', name: 'Fortified', cost: 1.25, wear: 0.5, wings: 1, desc: 'Blast walls, armour plate and a walled yard a tile wide each side. Wears half as fast and adds 1 Operations standing a day.', weekly: { def: 1 } },
   { key: 'mon', name: 'Monumental', cost: 1.4, prop: 6, pride: 1, wings: 1, desc: 'Columns, gold trim, banners and a colonnaded wing a tile wide each side. +6 propaganda and pride; people stand up straighter walking past.' },
 ];
 // the part library: what each part looks like is drawn in models.js; what it does depends on the building (PARTS_FOR)

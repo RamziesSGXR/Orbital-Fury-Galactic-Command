@@ -4,7 +4,7 @@
 #     the hologram comes off and the building's own materials are back (so it batches again)
 #   - the build ghost is a hologram (cyan where it can go, red where it can't), with a label at the pointer: name, cost,
 #     reach and how many it serves, and CAN BUILD HERE or why not
-#   - selecting a source shows a dome over its reach and a beam off each building it serves
+#   - selecting a source shows its network (GC 0.88: no dome) and a beam off each building on it that it serves
 #   - the glow pass runs (and the lowest graphics level goes without it)
 import sys
 from playwright.sync_api import sync_playwright
@@ -25,7 +25,9 @@ with sync_playwright() as pw:
     ids = S("""for (let i = 0; i < 2000; i++) s.step(0.1); s.drain(); s.foundedF = true;
       const hq = s.b.find(b => b.type === 'hq');
       const put = (t, ox, oz) => { for (let k = 0; k < 400; k++) { const x = hq.x + ox + (k % 20), z = hq.z + oz + Math.floor(k / 20); if (s.fits(t, x, z, 0).ok) return s.place(t, x, z, 0, true); } return null; };
-      const a = put('comms', 6, -2), g = put('gen', -6, 4), c = put('barracks', -3, 7);
+      const a = put('comms', 6, -2);
+      // (GC 0.88) a generator and a barracks on one finished foundation: one network
+      let g = null, c = null; for (let k = 0; k < 400 && !g; k++) { const x = hq.x - 14 + (k % 20), z = hq.z + 4 + Math.floor(k / 20); if (s.layCheck(x, z, x + 7, z + 5, 'util', 0).ok) { s.lay(x, z, x + 7, z + 5, 'util', 0, true); g = s.place('gen', x + 1, z + 1, 0, true); c = s.place('barracks', x + 4, z + 1, 0, true); } }
       a.done = false; a.prog = 0.4; s.recalc();
       v.target.set(v.wx(a.x + 1), 0, v.wx(a.z + 3)); v.zoomT = 7;
       return { a: a.id, g: g.id, c: c.id };""")
@@ -53,15 +55,15 @@ with sync_playwright() as pw:
     print('done', dn)
     assert not dn['holo'] and dn['m0'] == 0 and dn['twin'] == 0 and dn['clip'] == 0, 'a finished building keeps its hologram'
 
-    # selecting the generator: a dome over its reach, beams off what it powers
+    # selecting the generator: its network, beams off what it powers
     S(f"gc.mode.view.select(gc.mode.sim.byId({ids['g']}))"); pg.wait_for_timeout(700)
-    sel = S("return { dome: v.dome.visible, r: v.dome.scale.x, beams: v.beams.count, served: s.servedList(s.byId(%d), 'pw').length }" % ids['g'])
+    sel = S("return { net: v.netM_sel ? v.netM_sel.count : 0, beams: v.beams.count, served: s.servedList(s.byId(%d), 'pw').length }" % ids['g'])
     print('selected', sel)
-    assert sel['dome'] and sel['r'] > 1, 'no dome over the generator\'s reach'
+    assert sel['net'] > 0, 'the generator\'s network is not shown'
     assert sel['beams'] == sel['served'] and sel['served'] > 0, 'no beams off what the generator powers'
     pg.screenshot(path=f'{out}/fx-select.png')
     S("gc.mode.view.select(null)"); pg.wait_for_timeout(200)
-    assert not S("return v.dome.visible || v.beams.count > 0"), 'the dome stays after the selection is cleared'
+    assert not S("return (v.netM_sel && v.netM_sel.count > 0) || v.beams.count > 0"), 'the network stays after the selection is cleared'
 
     # the ghost and the label at the pointer: a substation, over open ground
     pg.evaluate("document.querySelector('#fb-groups [data-g=power]').click()"); pg.wait_for_timeout(300)
@@ -72,14 +74,14 @@ with sync_playwright() as pw:
     print('label', card)
     assert card and card['card'] and 'SUBSTATION' in card['text'] and 'SUP' in card['text'], 'no blueprint label at the pointer'
     assert 'CAN BUILD HERE' in card['text'] or '✕' in card['text'], 'the label does not say whether it can go here'
-    assert 'serves' in card['text'], 'the label does not say how many it would serve'
-    gh = S("let n = 0; v.ghostG.traverse(o => { if (o.userData.holo) n++; }); return { vis: v.ghostG.visible, outl: n, dome: v.dome.visible, col: '#' + v.ghostEdge.color.clone().multiplyScalar(1 / 1.5).getHexString() }")
+    assert 'joins networks within' in card['text'], 'the label does not say what a Substation joins'
+    gh = S("let n = 0; v.ghostG.traverse(o => { if (o.userData.holo) n++; }); return { vis: v.ghostG.visible, outl: n, ring: v.range.visible, col: '#' + v.ghostEdge.color.clone().multiplyScalar(1 / 1.5).getHexString() }")
     print('ghost', gh)
-    assert gh['vis'] and gh['outl'] > 0 and gh['dome'], 'the ghost is not an outlined hologram with its reach'
+    assert gh['vis'] and gh['outl'] > 0 and gh['ring'], 'the ghost is not an outlined blueprint with its reach'
     pg.screenshot(path=f'{out}/fx-ghost.png')
     pg.keyboard.press('Escape'); pg.wait_for_timeout(200)
     assert pg.evaluate("document.getElementById('fb-tip').hidden"), 'the label stays after the tool is put away'
-    assert not S("return v.dome.visible"), 'the dome stays after the tool is put away'
+    assert not S("return v.range.visible"), 'the reach stays after the tool is put away'
 
     # the glow pass: on above the lowest level, off at it
     gl = S("const r = v.bloom; return { on: r.on, w: r.w, q: v.q }")

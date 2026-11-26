@@ -79,7 +79,7 @@ export class Sim {
     this.supplyPlan = { mode: 'needs', cap: 0.5 };   // (GC 0.58) the standing supply order, set at the command post
     this.tech = { done: [], cur: null, pts: 0 };
     this.stats = { patrolsWon: 0, patrolsLost: 0, deployed: 0, trained: 0, inspections: 0, delivered: 0 };
-    this.week_ = { short: 0, total: 0, fed: 0, eat: 0 };   // this week's supply record, for the Expansion audit
+    this.week_ = { short: 0, total: 0, fed: 0, eat: 0 };   // this week's supply record, for the Growth audit
     // the land: parcels, none held until the HQ comes down (a flat test map holds the middle 7 x 7, about the old 80 tiles)
     this.own = new Uint8Array(GRID * GRID);
     this.genMap();
@@ -142,7 +142,7 @@ export class Sim {
   equipLock(what) { const t = EQUIP[what]; return !t || this.equipFree || this.has(t) ? null : `Needs a ${B[t].name}`; }
   stageCheck() {
     const n = this.nextStage(); if (!n) return null;
-    return [{ ok: this.heads() >= n.troops, text: `${n.troops} recruits on the base (${this.heads()})` }, { ok: this.stand.pro >= n.pro, text: `Expansion standing ${n.pro} (${Math.round(this.stand.pro)})` }, { ok: this.credits >= n.cr, text: `${n.cr.toLocaleString('en-US')} credits for the charter fee (${Math.round(this.credits).toLocaleString('en-US')})` }, { ok: this.supplies >= (n.sup || 0), text: `${(n.sup || 0).toLocaleString('en-US')} supplies for the charter works (${Math.round(this.supplies).toLocaleString('en-US')})` }].filter(c => !/^0 supplies/.test(c.text))
+    return [{ ok: this.heads() >= n.troops, text: `${n.troops} recruits on the base (${this.heads()})` }, { ok: this.stand.pro >= n.pro, text: `Growth standing ${n.pro} (${Math.round(this.stand.pro)})` }, { ok: this.credits >= n.cr, text: `${n.cr.toLocaleString('en-US')} credits for the charter fee (${Math.round(this.credits).toLocaleString('en-US')})` }, { ok: this.supplies >= (n.sup || 0), text: `${(n.sup || 0).toLocaleString('en-US')} supplies for the charter works (${Math.round(this.supplies).toLocaleString('en-US')})` }].filter(c => !/^0 supplies/.test(c.text))
       .concat((n.needs || []).map(t => ({ ok: this.has(t), text: `${B[t].name} built` })), n.store ? [{ ok: this.storeAll() >= n.store, text: `Storage for ${n.store} goods (${Math.round(this.storeAll())})` }] : []);
   }
   promote() {
@@ -345,6 +345,7 @@ export class Sim {
 
   // ---------------------------------------------------------------- building
   has(type) { return this.b.some(b => b.type === type && b.done); }
+  pwRatio(b) { return this.power?.byNet?.get(b.pwNet || 0) ?? this.power?.ratio ?? 1; }     // (GC 0.88) the power its own network can give it
   count(type) { return this.b.filter(b => b.type === type).length; }
   byId(id) { return this.b.find(b => b.id === id); }
   // what still stands between you and a building, as names: buildings, research, or another Comms Tower for a pad
@@ -515,11 +516,11 @@ export class Sim {
   toggle(id) { const b = this.byId(id); if (b && (B[b.type].crew || B[b.type].pw < 0)) { b.off = !b.off; this.recalc(); } }
   // (GC 0.78) CREW FIRST: this building is crewed before the rest, taking hands from the least needed if it must
   crewFirst(id) { const b = this.byId(id); if (!b || !B[b.type].crew) return false; b.first = !b.first; this.recalc(); return true; }
-  // (GC 0.64) a warhead from the Missile Silo shipped to the front: credits and Defence standing
+  // (GC 0.64) a warhead from the Missile Silo shipped to the front: credits and Operations standing
   shipNuke(id) {
     const b = this.byId(id), S = C.SILO; if (!b || b.type !== 'silo' || !(b.nukes > 0)) return false;
     b.nukes--; this.earn('nuke', 0, S.cr); this.gain('def', S.def); this.stats.nukesShipped = (this.stats.nukesShipped || 0) + 1;
-    this.say('def', `A warhead from the Missile Silo is on its way to the front. ${S.cr} credits from Head Office; Defence standing rises.`); return true;
+    this.say('def', `A warhead from the Missile Silo is on its way to the front. ${S.cr} credits from Head Office; Operations standing rises.`); return true;
   }
   nukesReady() { return this.b.reduce((a, b) => a + (b.type === 'silo' && b.done && !b.off ? b.nukes || 0 : 0), 0); }
   setSquads(id, n) { const b = this.byId(id); if (b && B[b.type].squads) b.squads = clamp(n, 0, 3); }
@@ -597,12 +598,12 @@ export class Sim {
   recalc() {
     this.utilities();   // coverage: who has power, water and sewage (js/utils.js)
     const done = this.b.filter(b => b.done);
-    let made = 0, used = 0, beds = 0;
+    let made = 0, used = 0, beds = 0; const madeN = new Map(), usedN = new Map();     // (GC 0.88) and by network
     for (const b of done) {
       const d = B[b.type];
       if (d.beds) beds += this.cap(b, 'beds');
       if (b.off) continue;
-      const pw = this.stat(b, 'pw'); if (pw < 0 && !b.dark) used -= pw;   // a building outside the grid draws nothing
+      const pw = this.stat(b, 'pw'); if (pw < 0 && !b.dark) { used -= pw; usedN.set(b.pwNet || 0, (usedN.get(b.pwNet || 0) || 0) - pw); }   // a building outside the grid draws nothing
     }
     // crew: keep troops where they are if they're still needed, then fill in priority order, trained troopers first,
     // so recruits stay free to train
@@ -641,10 +642,12 @@ export class Sim {
       const d = B[b.type], pw = this.stat(b, 'pw'); if (b.off) continue;
       if (pw > 0 && d.pw <= 0) { made += pw; continue; }   // parts that add power to a building that otherwise draws it
       if (!(d.pw > 0)) continue;
-      if (b.type === 'gen') made += d.pw * this.crewFrac(b) * (b.stock.fuel > 0.01 ? 1 : 0) * this.condF(b);
-      else made += pw + (b.type === 'solar' && this.hasTech('solar') ? 2 : 0);
+      const out = b.type === 'gen' ? d.pw * this.crewFrac(b) * (b.stock.fuel > 0.01 ? 1 : 0) * this.condF(b) : pw + (b.type === 'solar' && this.hasTech('solar') ? 2 : 0);
+      made += out; const k = this.netOf ? this.netOf(b, 'pw') || (b.type === 'hq' ? -1 : 0) : 0; madeN.set(k, (madeN.get(k) || 0) + out);
     }
-    this.power = { made: Math.round(made), used, ratio: used > 0 ? Math.min(1, made / used) : 1 };
+    // (GC 0.88) each network shares out what its own sources make; whatever draws during the grace, off any network, the whole base's
+    const byNet = new Map(); for (const [k, u] of usedN) byNet.set(k, k === 0 ? (used > 0 ? Math.min(1, made / used) : 1) : u > 0 ? Math.min(1, (madeN.get(k) || 0) / u) : 1);
+    this.power = { made: Math.round(made), used, ratio: used > 0 ? Math.min(1, made / used) : 1, byNet, worst: Math.min(1, ...byNet.values()) };
     this.slowF = done.some(o => B[o.type].sluggish) ? 1 - B.chicken.sluggish : 1;
     this.beds = beds;
     this.citizens = done.reduce((a, b) => a + (B[b.type].staff || 0), 0);
@@ -665,7 +668,7 @@ export class Sim {
       const d = B[b.type], n = (seen[b.type] = (seen[b.type] || 0) + 1), dim = Math.pow(0.7, n - 1), cf = this.condF(b);
       const run = d.crew ? this.crewFrac(b) * (b.off ? 0 : 1) : 1;
       const dp = this.stat(b, 'prop'), dm = this.stat(b, 'mor');
-      if (dp) prop += dp * dim * cf * (d.crew ? 0.4 + 0.6 * run : 1) * (d.pw < 0 ? 0.5 + 0.5 * (b.dark ? 0 : this.power.ratio) : 1);
+      if (dp) prop += dp * dim * cf * (d.crew ? 0.4 + 0.6 * run : 1) * (d.pw < 0 ? 0.5 + 0.5 * (b.dark ? 0 : this.pwRatio(b)) : 1);
       if (dm) comfort += dm * dim * cf * run * (d.potty ? (b.clean ?? 100) / 100 : 1) * (d.eat && b.stock.rations <= 0 ? 0.3 : 1);
     }
     this.prop = Math.round(100 * (1 - Math.exp(-prop / 55)));
@@ -702,7 +705,7 @@ export class Sim {
   condF(b) { return b.cond < 40 ? 0.5 : b.cond < 70 ? 0.85 : 1; }
   work(b) {   // how hard a building runs right now, 0..1+
     const d = B[b.type]; if (!b.done || b.off) return 0;
-    const pw = d.pw < 0 ? (b.dark ? 0 : this.power.ratio) : 1;
+    const pw = d.pw < 0 ? (b.dark ? 0 : this.pwRatio(b)) : 1;
     const slow = this.slowF ?? 1;
     return this.crewFrac(b) * pw * this.condF(b) * (0.6 + 0.8 * this.morale / 100) * slow * (b.upg ? 0.5 : 1) * this.zoneFit(b);
   }
@@ -1007,17 +1010,17 @@ export class Sim {
     this.say('def', `${go.length} trooper${go.length > 1 ? 's' : ''} shipped to the front (${o.sent} of ${o.n}). +${pay} supplies, +${cr} credits.`);
     if (o.sent >= o.n) {
       this.orders.shift(); this.gain('def', o.def);
-      this.say('def', `Deployment order complete. +${o.def} Defence standing. The front thanks you, briefly.`);
+      this.say('def', `Deployment order complete. +${o.def} Operations standing. The front thanks you, briefly.`);
     }
   }
   checkOrders() {
     const day = this.time.day;
     for (const o of this.orders.filter(o => day > o.due)) {
       this.orders = this.orders.filter(x => x !== o);
-      if (o.sent >= o.n * 0.75) { this.gain('def', Math.round(o.def * 0.4)); this.say('def', `Deployment order mostly met: ${o.sent} of ${o.n} shipped. +${Math.round(o.def * 0.4)} Defence standing.`); continue; }
+      if (o.sent >= o.n * 0.75) { this.gain('def', Math.round(o.def * 0.4)); this.say('def', `Deployment order mostly met: ${o.sent} of ${o.n} shipped. +${Math.round(o.def * 0.4)} Operations standing.`); continue; }
       const pen = Math.round(3 + (o.n - o.sent) * 0.8);
       this.gain('def', -pen);
-      this.say('def', `Deployment order missed: ${o.sent} of ${o.n} shipped. -${pen} Defence standing. The front has been told to wait, and is not pleased.`);
+      this.say('def', `Deployment order missed: ${o.sent} of ${o.n} shipped. -${pen} Operations standing. The front has been told to wait, and is not pleased.`);
     }
   }
 
@@ -1236,11 +1239,11 @@ export class Sim {
         hero = this.rng.pick(back.filter(t => !(t.hurt > 0)).length ? back.filter(t => !(t.hurt > 0)) : back); hero.medals++; this.pride += 5;
         this.honours.push({ name: hero.name, rank: rankOf(hero.missions), op: p.op, week: this.week });
       }
-      if (!quiet || dead.length || hero) this.say('def', `${p.op}: success. +${p.def} Defence standing, +${p.sup} supplies.` + (dead.length ? ` We lost ${dead.map(t => t.name).join(', ')}.` : ''));
+      if (!quiet || dead.length || hero) this.say('def', `${p.op}: success. +${p.def} Operations standing, +${p.sup} supplies.` + (dead.length ? ` We lost ${dead.map(t => t.name).join(', ')}.` : ''));
       if (hero) this.say('def', `${rankOf(hero.missions)} ${hero.name} is awarded the Medal of Valour. All recruits will assemble at the Head Office flag.`);
     } else {
       this.gain('def', -(2 + p.diff)); this.stats.patrolsLost++;
-      this.say('def', `${p.op}: failed. -${2 + p.diff} Defence standing.` + (dead.length ? ` Fallen: ${dead.map(t => t.name).join(', ')}.` : ''));
+      this.say('def', `${p.op}: failed. -${2 + p.diff} Operations standing.` + (dead.length ? ` Fallen: ${dead.map(t => t.name).join(', ')}.` : ''));
     }
     // the after-action report: every special operation files one; standing patrols only when something happened
     if (!quiet || dead.length || hurt.length || evac.length || hero) {
@@ -1269,7 +1272,7 @@ export class Sim {
     if (growth < 90) notes.push(`The Head Office expected ${target} recruits on the base by now. Build housing; recruits fill empty bunks.`);
     if (!notes.length) notes.push('Supply lines clean. The Head Office is quietly impressed.');
     this.audit = { week: this.week, score, lines: Math.round(lines), food: Math.round(food), housing: Math.round(housing), growth: Math.round(growth), target, notes, delta: Math.round(this.stand.pro - before) };
-    this.say('pro', `Expansion audit: ${score}/100. Expansion standing ${this.audit.delta >= 0 ? '+' : ''}${this.audit.delta}. ${notes[0]}`);
+    this.say('pro', `Growth audit: ${score}/100. Growth standing ${this.audit.delta >= 0 ? '+' : ''}${this.audit.delta}. ${notes[0]}`);
     this.week_ = { short: 0, total: 0, fed: 0, eat: 0 };
   }
 
@@ -1348,7 +1351,7 @@ export class Sim {
       ['mess', (this.seats || 0) >= home, 'not enough seats at the mess'],
       ['bunks', this.troops.length <= (this.beds || 0), 'troopers sleeping rough'],
       ['crews', !short.length, short.length ? `${B[short[0].type].name} short of crew` : ''],
-      ['power', !this.power || this.power.ratio >= 1, 'not enough power'],
+      ['power', !this.power || (this.power.worst ?? this.power.ratio) >= 1, 'not enough power'],
       ['walks', (W.all ?? 0) <= R.walk, `long walks (${W.all} m on average, the review wants ${R.walk})`],   // (GC 0.68) the layout
     ];
     return checks;
@@ -1374,9 +1377,9 @@ export class Sim {
     this.closeFlow(); this.earn('alloc', amt, 0); this.cash(this.hqId(), amt); this.lastAlloc = amt;
     const gross = Math.round(amt / 0.82), fee = Math.round(gross * 0.11);
     this.ledger = { week: this.week, gross, fee, consult: gross - fee - amt, net: amt };
-    for (const b of this.b) if (b.done && B[b.type].cryo && !b.off && b.crew > 0 && this.power.ratio >= 1) { this.gain('def', 3); this.say('def', 'Vanguards thawed, briefed and shipped to the front. +3 Defence standing.'); }
+    for (const b of this.b) if (b.done && B[b.type].cryo && !b.off && b.crew > 0 && this.power.ratio >= 1) { this.gain('def', 3); this.say('def', 'Vanguards thawed, briefed and shipped to the front. +3 Operations standing.'); }
     { const f = this.fort = this.fortify(), g = Math.round((f.score - 45) / 9);
-      if (g && (this.week >= 3 || g > 0)) { this.gain('def', g); this.say('def', g > 0 ? `Perimeter review: the base scores ${f.score} for defensibility. +${g} Defence standing.` : `Perimeter review: the base scores ${f.score} for defensibility${f.closed ? '' : ' (there is no closed wall)'}. ${g} Defence standing. Watch the wall and man the gates.`); } }
+      if (g && (this.week >= 3 || g > 0)) { this.gain('def', g); this.say('def', g > 0 ? `Perimeter review: the base scores ${f.score} for defensibility. +${g} Operations standing.` : `Perimeter review: the base scores ${f.score} for defensibility${f.closed ? '' : ' (there is no closed wall)'}. ${g} Operations standing. Watch the wall and man the gates.`); } }
     // standing earned by the buildings themselves: the bunker, the brig, fortified designs, monumental pride
     { const add = {}; let pr = 0;
       for (const b of this.b) if (b.done && !b.off) {
@@ -1472,7 +1475,7 @@ export class Sim {
   repay(i, amt) {
     const l = this.loans[i]; if (!l) return false; amt = Math.min(amt, l.bal, Math.max(0, this.credits)); if (amt <= 0) return false;
     l.bal -= amt; this.spend('loans', 0, amt);
-    if (l.bal <= 0.5) { this.loans.splice(i, 1); this.gain('pro', 3); this.say('bur', `${LOANS[l.k].name} repaid in full. The Bureau is delighted, and slightly suspicious. +3 Expansion standing.`); }
+    if (l.bal <= 0.5) { this.loans.splice(i, 1); this.gain('pro', 3); this.say('bur', `${LOANS[l.k].name} repaid in full. The Bureau is delighted, and slightly suspicious. +3 Growth standing.`); }
     return true;
   }
   // every week: interest on each loan, then the least payment; the overdraft has its own fee
@@ -1480,11 +1483,11 @@ export class Sim {
     for (const l of [...this.loans]) {
       const L = LOANS[l.k], int = Math.round(l.bal * (l.k === 'charter' ? this.D.rate : L.rate) * 10) / 10; l.bal += int; l.int = (l.int || 0) + int;   // interest goes on the loan, not out of pocket
       const pay = Math.min(l.bal, L.pay); l.bal -= pay; this.spend('loans', 0, pay);
-      if (l.bal <= 0.5) { this.loans = this.loans.filter(x => x !== l); this.gain('pro', 3); this.say('bur', `${L.name} repaid in full. +3 Expansion standing.`); }
+      if (l.bal <= 0.5) { this.loans = this.loans.filter(x => x !== l); this.gain('pro', 3); this.say('bur', `${L.name} repaid in full. +3 Growth standing.`); }
     }
     if (this.credits < 0) {
       const fee = Math.round(-this.credits * C.ODFEE); this.spend('interest', 0, fee);
-      if (this.credits < -this.OD) { this.gain('pro', -2); this.say('bur', `Your base is ${fmt(-this.credits)} credits overdrawn, past the Bureau's patience. -2 Expansion standing. Staff wages will not be paid until this improves.`); }
+      if (this.credits < -this.OD) { this.gain('pro', -2); this.say('bur', `Your base is ${fmt(-this.credits)} credits overdrawn, past the Bureau's patience. -2 Growth standing. Staff wages will not be paid until this improves.`); }
       else this.say('bur', `Overdraft fee: ${fee} credits on ${fmt(-this.credits)} overdrawn.`);
     }
   }
@@ -1601,7 +1604,7 @@ export class Sim {
   // ---------------------------------------------------------------- saving
   save() {
     const o = {};
-    for (const k of Object.keys(this)) if (!['deck', 'hgt', 'hgt0', 'terr0', 'paint', 'own', 'zone', 'scrub', 'rng', 'events', 'occ', 'mor', 'power', 'roads', 'walls', 'inMask', 'wallIn', 'gates', 'terr', 'hgt', '_walk', '_walkV', '_paths', '_pathV', '_slabT', 'slabMap', 'rim', 'slabGrp', 'fnds', 'surf', '_dpaths', '_dpathV'].includes(k)) o[k] = this[k];
+    for (const k of Object.keys(this)) if (!['deck', 'hgt', 'hgt0', 'terr0', 'paint', 'own', 'zone', 'scrub', 'rng', 'events', 'occ', 'mor', 'power', 'roads', 'walls', 'inMask', 'wallIn', 'gates', 'terr', 'hgt', '_walk', '_walkV', '_paths', '_pathV', '_slabT', 'slabMap', 'rim', 'slabGrp', 'fnds', 'surf', 'netMap', '_nets', '_netU', '_netK', '_netUK', 'utilLive', '_dpaths', '_dpathV'].includes(k)) if (!ArrayBuffer.isView(this[k])) o[k] = this[k];     /* (GC 0.88) never a whole-map array: they are packed, or worked out again */ 
     o.rngS = this.rng.s; o.v = 13; o.scrubS = this.packScrub(); o.zoneS = this.packZones(); o.ownS = this.packOwn(); o.hgtS = this.packHeights(); o.paintS = this.packPaint();
     return JSON.parse(JSON.stringify(o));
   }
