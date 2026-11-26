@@ -33,6 +33,9 @@ with sync_playwright() as pw:
     # 1. the sight: infrared to begin with, colour at a click, and the height view
     assert f.evaluate("__game.cam.sight") == 'whot', 'the sight should start in infrared'
     pg.screenshot(path=f'{out}/view-1-thermal.png')
+    # (GC 0.92.6) the land is one mesh, carried on well past the map picture (no second, coarse ring under it)
+    rim = f.evaluate("(() => { const g = __game.renderer._g3; return { nl: g.nl, skirt: !!g.skirt, wide: g.gx[0] < g.gx[10] - 2 * (g.gx[122] - g.gx[10]) && g.gx[132] > g.gx[122] + 2 * (g.gx[122] - g.gx[10]) }; })()")
+    assert rim['nl'] == 133 and not rim['skirt'] and rim['wide'], rim
     f.click('.sgt[data-sight=day]'); pg.wait_for_timeout(400); assert f.evaluate("__game.cam.sight") == 'day'     # (0.49: a desktop names the three sights, one button each)
     f.click('.sgt[data-sight=bhot]'); pg.wait_for_timeout(300); assert f.evaluate("__game.cam.sight") == 'bhot'; f.click('.sgt[data-sight=day]'); pg.wait_for_timeout(300)
     assert f.evaluate("document.getElementById('btn-pause').parentElement.id") == 'gamebar', 'pause should sit in the top bar on a desktop'; pg.screenshot(path=f'{out}/view-2-colour.png')

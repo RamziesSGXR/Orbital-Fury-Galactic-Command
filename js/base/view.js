@@ -9,7 +9,7 @@ import { Noise } from './noise.js';
 import { isLine, WALLS } from './net.js';
 import { Crowd3D } from '../model3d.js';
 import { surfScale, surf, water, KIND, LAND as SOIL } from '../surface.js';
-import { groundSet, scanModel, fitScan } from '../scans.js';
+import { groundSet, scanModel, fitScan, HEX } from '../scans.js';
 import { skyLight } from '../sky.js';
 import { WL } from './site.js';
 import { HOLO, BP, holoFill, holoEdge, tintHolo, holoize, unholoize, Sparks, domeMat, domeGeo, beamGeo, beamMat, Bloom } from './fx.js';
@@ -299,6 +299,7 @@ varying vec3 vTpW; varying vec3 vTpN;
 uniform sampler2D uGA; uniform sampler2D uGB; uniform float uN; uniform vec3 uHue; uniform vec3 uBed; uniform float uElev; uniform float uGrid; uniform float uLandK;
 uniform sampler2D tScA; uniform sampler2D tScAn; uniform sampler2D tScB; uniform sampler2D tScBn; uniform float uScOn; uniform vec2 uScT; uniform vec3 uScMA; uniform vec3 uScMB; uniform vec2 uScK; vec3 scN = vec3(0.0, 0.0, 1.0); float scAmt = 0.0;
 float tpH(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); float a = fract(sin(dot(i, vec2(127.1, 311.7))) * 43758.5); float b = fract(sin(dot(i + vec2(1, 0), vec2(127.1, 311.7))) * 43758.5); float c = fract(sin(dot(i + vec2(0, 1), vec2(127.1, 311.7))) * 43758.5); float d = fract(sin(dot(i + vec2(1, 1), vec2(127.1, 311.7))) * 43758.5); return mix(mix(a, b, f.x), mix(c, d, f.x), f.y); }
+${HEX}
 float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y + w.z); return tpH(p.zy * 3.1) * w.x + tpH(p.xz * 3.1) * w.y + tpH(p.xy * 3.1) * w.z; }`)
         .replace('#include <map_fragment>', `#include <map_fragment>
 { vec2 w = vTpW.xz, cuv = (w + uN * 0.5) / uN; float px = max(fwidth(w).x, fwidth(w).y);   // world units to a pixel: fine detail fades out before it can shimmer
@@ -324,17 +325,15 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
   col = mix(col, uHue * 0.5 * (0.6 + gr * 0.7), rk);                                               // bare rock: cliffs and high rock
   col = mix(col, uBed * (0.9 + n2 * 0.2), smoothstep(0.03, -0.3, vTpW.y));                          // the bed under the water, by depth
   if (uScOn > 0.5 && uScK.y > 0.5) {   // (GC 0.92) photoscanned: the biome's main material, its second on dry ground and dirt, each at two sizes turned across each other
-    vec2 m = vTpW.xz * GC_SCALE; mat2 R = mat2(0.8, 0.6, -0.6, 0.8);
-    // (0.92.4) small close in, large pulled back (the grain keeps its size on the screen), the ground warped so repeats never line up
-    vec2 fw = fwidth(m); float zf = smoothstep(0.03, 0.2, max(fw.x, fw.y)); vec2 wm = m + vec2(tpH(m * 0.011 + 1.3), tpH(m * 0.011 + 8.7)) * 9.0;
-    vec2 a1 = wm / (uScT.x * 0.45), a2 = R * wm / (uScT.x * 2.4) + 0.37, b1 = wm / (uScT.y * 0.5), b2 = R * wm / (uScT.y * 2.2) + 0.61;
-    float ta = clamp(zf + (tpH(m * 0.021 + 3.0) - 0.5) * 0.5, 0.0, 1.0), tb = clamp(zf + (tpH(m * 0.033 + 7.0) - 0.5) * 0.5, 0.0, 1.0);
-    vec3 SA = mix(texture2D(tScA, a1).rgb, texture2D(tScA, a2).rgb, ta), SB = mix(texture2D(tScB, b1).rgb, texture2D(tScB, b2).rgb, tb);
-    vec3 n2a = texture2D(tScAn, a2).rgb * 2.0 - 1.0, n2b = texture2D(tScBn, b2).rgb * 2.0 - 1.0;
-    vec3 An = mix(texture2D(tScAn, a1).rgb * 2.0 - 1.0, vec3(transpose(R) * n2a.xy, n2a.z), ta), Bn = mix(texture2D(tScBn, b1).rgb * 2.0 - 1.0, vec3(transpose(R) * n2b.xy, n2b.z), tb);
+    // (0.92.6, Ramzies: "the textures constantly repeat") each laid as hexagons turned and shifted at random (js/scans.js HEX),
+    // at one size on the land however far off the camera is
+    vec2 m = vTpW.xz * GC_SCALE, sa = m / uScT.x, sb = m / uScT.y, sax = dFdx(sa), say = dFdy(sa), sbx = dFdx(sb), sby = dFdy(sb);
     vec3 L3 = vec3(0.3, 0.59, 0.11); float lg = dot(col, L3);
     float wb = smoothstep(0.42, 0.78, tpH(m * 0.045 + 9.0) * 0.6 + tpH(m * 0.17 + 2.0) * 0.25 + (P.g + P.a) * 0.45);
-    vec3 S = mix(SA, SB, wb), M = mix(uScMA, uScMB, wb);
+    vec3 SA = uScMA, SB = uScMB, An = vec3(0.0, 0.0, 1.0), Bn = An;
+    if (wb < 0.996) SA = gcHexLay(tScA, tScAn, sa, sax, say, uScMA, An);
+    if (wb > 0.004) SB = gcHexLay(tScB, tScBn, sb, sbx, sby, uScMB, Bn);
+    vec3 S = mix(SA, SB, wb) * (0.92 + 0.16 * (tpH(m * 0.029 + 5.0) * 0.6 + tpH(m * 0.094 + 13.0) * 0.4)), M = mix(uScMA, uScMB, wb);     // (and lighter and darker over tens of metres)
     vec3 kept = col * S / max(M, vec3(0.02)), own = S * lg / max(dot(M, L3), 0.02);
     scAmt = smoothstep(0.55, 0.85, vTpN.y) * (1.0 - smoothstep(0.0, -0.4, vTpW.y)) * (1.0 - 0.6 * A.b) * (1.0 - uElev);
     col = mix(col, mix(kept, own, uScK.x), scAmt);

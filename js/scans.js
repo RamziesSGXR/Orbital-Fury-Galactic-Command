@@ -74,6 +74,40 @@ export async function groundSet(biome, lin = false) {
   return { a: tex(`${a}_diff`, lin), an: tex(`${a}_nor`, lin), b: tex(`${b}_diff`, lin), bn: tex(`${b}_nor`, lin), ta: TILE[a] || 4, tb: TILE[b] || 3, ma: mm(a), mb: mm(b), hue: HUE[biome] ?? 0.5 };
 }
 
+// (GC 0.92.6, Ramzies: "the textures constantly repeat") HEX TILING (after Mikkelsen, "Practical Real-Time Hex-Tiling", 2022).
+// A scanned picture laid edge to edge shows its repeat as a lattice from any height. Here it is laid as a field of hexagons,
+// each with the picture turned and shifted at random, and the three nearest blended (the brighter one wins where they meet, so
+// the grain keeps its contrast): no two neighbours alike and no lattice to see, at one fixed size on the land (it does not
+// change as the camera comes in or pulls back). For the land shaders: gcHexLay(colour, normal, st, dFdx(st), dFdy(st), out n)
+// gives the colour and the normal (tangent space, on st's own axes); the derivatives are taken by the caller, in the open.
+// Each hexagon's patch of the picture is evened out first to the picture's own mean (mean: its mean colour, as the picture's
+// values are) over a quarter of the picture and more, so no hexagon is lighter or darker than its neighbours as a whole:
+// without it the hexagons showed as a honeycomb of slightly different greys close in.
+export const HEX = `
+uvec2 gcPcg(uvec2 v) { v = v * 1664525u + 1013904223u; v.x += v.y * 1664525u; v.y += v.x * 1664525u; v ^= (v >> 16u); v.x += v.y * 1664525u; v.y += v.x * 1664525u; v ^= (v >> 16u); return v; }
+vec3 gcHexR(ivec2 p) { uvec2 h = gcPcg(uvec2(p + 32768)); uvec2 g = gcPcg(h ^ uvec2(0x9e3779b9u, 0x85ebca6bu)); return vec3(vec2(h >> 8u), float(g.x >> 8u)) / 16777216.0; }
+vec3 gcHexLay(sampler2D tc, sampler2D tn, vec2 st, vec2 dx, vec2 dy, vec3 mean, out vec3 nrm) {
+  float lm = log2(float(textureSize(tc, 0).x)) - 2.0;
+  vec2 sk = vec2(st.x - 0.57735027 * st.y, 1.15470054 * st.y) * 3.4641016;
+  ivec2 b = ivec2(floor(sk)); vec2 f = fract(sk); float tz = 1.0 - f.x - f.y, s = step(0.0, -tz), s2 = 2.0 * s - 1.0; int si = int(s);
+  vec3 w = vec3(-tz * s2, s - f.y * s2, s - f.x * s2);
+  ivec2 V[3]; V[0] = b + ivec2(si, si); V[1] = b + ivec2(si, 1 - si); V[2] = b + ivec2(1 - si, si);
+  vec3 C[3]; vec2 P[3]; mat2 R[3]; vec3 lum;
+  for (int i = 0; i < 3; i++) {
+    vec3 h = gcHexR(V[i]); float a = h.z * 6.2831853, ca = cos(a), sa = sin(a); R[i] = mat2(ca, sa, -sa, ca);
+    vec2 cen = vec2(float(V[i].x) + 0.5 * float(V[i].y), 0.8660254 * float(V[i].y)) / 3.4641016;
+    P[i] = R[i] * (st - cen) + cen + h.xy;
+    C[i] = textureGrad(tc, P[i], R[i] * dx, R[i] * dy).rgb * clamp(mean / max(textureLod(tc, P[i], lm).rgb, vec3(0.02)), vec3(0.5), vec3(2.0));
+    lum[i] = dot(C[i], vec3(0.299, 0.587, 0.114));
+  }
+  vec3 W = mix(vec3(1.0), lum, 0.6) * pow(max(w, vec3(0.0)), vec3(7.0)); W /= max(W.x + W.y + W.z, 1e-6);
+  vec3 n = vec3(0.0); vec2 nb = textureLod(tn, vec2(0.5), 16.0).xy * 2.0 - 1.0;     // (the normals' own lean, over the whole picture: the snow's leans 12 degrees one way, and turned a different way in each hexagon it lit each differently)
+  for (int i = 0; i < 3; i++) { vec3 t = textureGrad(tn, P[i], R[i] * dx, R[i] * dy).rgb * 2.0 - 1.0; t.xy -= nb; n += W[i] * vec3(transpose(R[i]) * t.xy, t.z); }
+  nrm = normalize(n);
+  return W.x * C[0] + W.y * C[1] + W.z * C[2];
+}
+`;
+
 // THE PINE (GC 0.91). Poly Haven's firs are millions of polygons (every needle), far past what a forest in a browser can carry
 // at 30 to 144 frames a second; this one is built here from cards: a trunk in a scanned fir's bark, and tiers of fronds (a
 // picture of a fir's twig, tools/textures/frond.py) round it, longest at the bottom and drooping, each frond two cards

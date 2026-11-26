@@ -7,14 +7,14 @@
 // One camera decides everything: where the land is drawn, where a label goes, and what the pointer is over.
 import * as THREE from '../../vendor/three.js';
 import { noSurf } from '../../surface.js';
-import { groundSet } from '../../scans.js';
+import { groundSet, HEX } from '../../scans.js';
 import { Cover3D } from './cover3d.js';
 import { skyLight } from '../../sky.js';
 import { Units3D, Fx3D } from './units3d.js';
 import { Props3D } from './props3d.js';
 
 const WILD = /^(tree|rock|bush|stump|log|crater|mine)/;     // (what grows or lies on the land takes it as it is)
-export const V3 = { tilt: 56, fov: 30, amp: 22, grid: 112, blocks: 420, sides: 8 };     // degrees above the horizon; the lens; metres of relief either way of the middle height; cells across the sheet
+export const V3 = { tilt: 56, fov: 30, amp: 22, grid: 112, blocks: 420, sides: 8, rim: 10, grow: 1.65 };     // (GC 0.92.6) rim: lines of land past the sheet on each side, each grow times wider than the last     // degrees above the horizon; the lens; metres of relief either way of the middle height; cells across the sheet
 const RAD = Math.PI / 180;
 
 export class Ground3D {
@@ -38,10 +38,15 @@ export class Ground3D {
     this.sun.castShadow = true; this.sun.shadow.mapSize.set(2048, 2048); this.sun.shadow.bias = -0.0006; this.sun.shadow.normalBias = 0.5;
     this.scene.fog = new THREE.Fog(0x39434a, 400, 1600);     // distance: the far ground fades into haze
     this.scene.add(this.sun); this.scene.add(this.sun.target);
-    const n = V3.grid, vn = (n + 1) * (n + 1);
-    this.pos = new Float32Array(vn * 3); this.uv = new Float32Array(vn * 2);
-    const idx = new Uint32Array(n * n * 6); let k = 0;
-    for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const a = j * (n + 1) + i, b = a + 1, c = a + n + 1, d = c + 1; idx[k++] = a; idx[k++] = c; idx[k++] = b; idx[k++] = b; idx[k++] = c; idx[k++] = d; }
+    // (GC 0.92.6, Ramzies: "the fog and edges as you zoom out and in are horrid") THE LAND IS ONE PIECE. The land under the sheet
+    // and the land past it (0.92.4: a coarse ring laid a little under it) were two meshes; where the coarse one's long flat facets
+    // stood higher than the fine land they showed through it as hard-edged blocks, lit and fogged differently. Now the grid under
+    // the sheet carries straight on past it, its lines further apart the further out they are: the same land, no seam, no overlap.
+    const n = V3.grid, K = V3.rim, nl = n + 1 + 2 * K, vn = nl * nl; this.nl = nl;
+    this.pos = new Float32Array(vn * 3); this.uv = new Float32Array(vn * 2); this.gx = new Float64Array(nl); this.gz = new Float64Array(nl);
+    this.rimO = []; { let o = 0, g = 1; for (let i = 1; i <= K; i++) { g *= V3.grow; o += g; this.rimO.push(Math.round(o)); } }     // (in cells of the sheet's land: whole cells, so the rim's lines keep to the fine grid's)
+    const idx = new Uint32Array((nl - 1) * (nl - 1) * 6); let k = 0;
+    for (let j = 0; j < nl - 1; j++) for (let i = 0; i < nl - 1; i++) { const a = j * nl + i, b = a + 1, c = a + nl, d = c + 1; idx[k++] = a; idx[k++] = c; idx[k++] = b; idx[k++] = b; idx[k++] = c; idx[k++] = d; }
     const g = this.geo = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(this.pos, 3)); g.setAttribute('uv', new THREE.BufferAttribute(this.uv, 2)); g.setIndex(new THREE.BufferAttribute(idx, 1));
     // (0.37) THE LAND'S TWO PICTURES. The ground itself (the map's own image) is a picture that is sent to the graphics card
@@ -50,13 +55,17 @@ export class Ground3D {
     this.uDark = { value: null }; this.uDkOn = { value: 0 }; this.uDkO = { value: new THREE.Vector3() }; this.uDkHz = { value: new THREE.Vector4(0, 0, 0, 0) };     // (0.72) uDkHz: by day the unseen is a haze of this colour (w 1), not a dark     // (0.52) the dark of the night and of the unseen, for the models (see _night)
     this.uGround = { value: null }; this.uOver = { value: null }; this.uInv = { value: 1 / 1600 }; this.uTopo = { value: 0 }; this.uAmp = { value: V3.amp }; this.uDet = { value: 1 }; this.uLand = { value: 8 };
     // (GC 0.91) the land's photoscanned materials, two for its biome (js/scans.js): pictures, normals, their sizes and mean colours
+    // (GC 0.92.6) for the land past the sheet: the dark of the night there (its colour, premultiplied, and how dark), the area of
+    // operations (x, z, radius) and the circles of sight that reach past the sheet's edge (x, z, radius, where the soft edge starts)
+    this.ou = { uOutN: { value: new THREE.Vector4(0, 0, 0, 0) }, uAo: { value: new THREE.Vector3(0, 0, 1e9) }, uEye: { value: Array.from({ length: 16 }, () => new THREE.Vector4(0, 0, 0, 1)) }, uEyeN: { value: 0 } };
     this.sc = { tScA: { value: null }, tScAn: { value: null }, tScB: { value: null }, tScBn: { value: null }, uScOn: { value: 0 }, uScT: { value: new THREE.Vector2(15, 3) }, uScMA: { value: new THREE.Vector3(0.5, 0.5, 0.5) }, uScMB: { value: new THREE.Vector3(0.5, 0.5, 0.5) }, uScK: { value: new THREE.Vector2(0.65, 1) } }; this.scBiome = null;
     const two = (mat) => { mat.onBeforeCompile = (sh) => {
-      Object.assign(sh.uniforms, { tGround: this.uGround, tOver: this.uOver, uInv: this.uInv, uTopo: this.uTopo, uAmp: this.uAmp, uDet: this.uDet, uLand: this.uLand }, this.sc);
+      Object.assign(sh.uniforms, { tGround: this.uGround, tOver: this.uOver, uInv: this.uInv, uTopo: this.uTopo, uAmp: this.uAmp, uDet: this.uDet, uLand: this.uLand }, this.sc, this.ou);
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform float uInv; varying vec2 vG; varying vec2 vO; varying float vHt; varying vec2 vWp; varying float vDd;')
         .replace('#include <begin_vertex>', '#include <begin_vertex>\nvG = vec2(position.x * uInv, 1.0 - position.z * uInv); vO = uv; vHt = position.y; vWp = position.xz; vDd = -(modelViewMatrix * vec4(position, 1.0)).z;');
       sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
         uniform sampler2D tGround; uniform sampler2D tOver; uniform float uTopo; uniform float uAmp; uniform float uDet; uniform float uLand; uniform sampler2D tScA; uniform sampler2D tScAn; uniform sampler2D tScB; uniform sampler2D tScBn; uniform float uScOn; uniform vec2 uScT; uniform vec3 uScMA; uniform vec3 uScMB; uniform vec2 uScK; vec3 scN = vec3(0.0, 0.0, 1.0); varying vec2 vG; varying vec2 vO; varying float vHt; varying vec2 vWp; varying float vDd;
+        uniform vec4 uOutN; uniform vec3 uAo; uniform vec4 uEye[16]; uniform int uEyeN;${HEX}
         vec3 gcLin(vec3 c) { return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c)); }
         float gcH(vec2 p) { p = mod(p, 289.0); return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
         float gcN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(gcH(i), gcH(i + vec2(1.0, 0.0)), f.x), mix(gcH(i + vec2(0.0, 1.0)), gcH(i + vec2(1.0, 1.0)), f.x), f.y); }`)
@@ -75,19 +84,16 @@ export class Ground3D {
         // patches, each laid at two sizes turned across each other (so it never shows its repeat), coloured and lit as the
         // scan is, and as light or dark as the map's own picture is there (its tracks, scorches and hollows stay)
         if (uScOn > 0.5 && uScK.y > 0.5) {
-          // (0.92.4, Ramzies: "make the texture not scale with the camera and not look so repetitive") each scan at a small size
-          // close in and a large one, turned, pulled back, so its grain stays about the same size on the screen as the camera
-          // zooms; and the ground under it warped slowly, so no two repeats line up
-          mat2 R = mat2(0.8, 0.6, -0.6, 0.8); vec2 fw = fwidth(vWp); float zf = smoothstep(0.012, 0.09, max(fw.x, fw.y));
-          vec2 wp = vWp + vec2(gcN(vWp * 0.011 + 1.3), gcN(vWp * 0.011 + 8.7)) * 9.0;
-          vec2 a1 = wp / (uScT.x * 0.45), a2 = R * wp / (uScT.x * 2.2) + 0.37, b1 = wp / (uScT.y * 0.5), b2 = R * wp / (uScT.y * 2.1) + 0.61;
-          float ta = clamp(zf + (gcN(vWp * 0.021 + 3.0) - 0.5) * 0.5, 0.0, 1.0), tb = clamp(zf + (gcN(vWp * 0.033 + 7.0) - 0.5) * 0.5, 0.0, 1.0);
-          vec3 A = mix(texture2D(tScA, a1).rgb, texture2D(tScA, a2).rgb, ta), B = mix(texture2D(tScB, b1).rgb, texture2D(tScB, b2).rgb, tb);
-          vec3 An = mix(texture2D(tScAn, a1).rgb * 2.0 - 1.0, vec3(transpose(R) * (texture2D(tScAn, a2).rgb * 2.0 - 1.0).xy, (texture2D(tScAn, a2).rgb * 2.0 - 1.0).z), ta);
-          vec3 Bn = mix(texture2D(tScBn, b1).rgb * 2.0 - 1.0, vec3(transpose(R) * (texture2D(tScBn, b2).rgb * 2.0 - 1.0).xy, (texture2D(tScBn, b2).rgb * 2.0 - 1.0).z), tb);
+          // (0.92.6, Ramzies: "the textures constantly repeat") each scan laid as hexagons, every one turned and shifted at random
+          // (js/scans.js HEX), at its own size on the land, that size the same however far off the camera is
+          vec2 sa = vWp / uScT.x, sb = vWp / uScT.y, sax = dFdx(sa), say = dFdy(sa), sbx = dFdx(sb), sby = dFdy(sb);
           vec3 L3 = vec3(0.3, 0.59, 0.11); float lg = dot(gr, L3);
           float wb = smoothstep(0.42, 0.78, gcN(vWp * 0.045 + 9.0) * 0.6 + gcN(vWp * 0.17 + 2.0) * 0.25 + clamp((0.33 - lg) * 1.6, 0.0, 0.4));     // the second where the noise says, and where the map is dark (tracks, scorches)
+          vec3 A = uScMA, B = uScMB, An = vec3(0.0, 0.0, 1.0), Bn = An;
+          if (wb < 0.996) A = gcHexLay(tScA, tScAn, sa, sax, say, uScMA, An);
+          if (wb > 0.004) B = gcHexLay(tScB, tScBn, sb, sbx, sby, uScMB, Bn);
           vec3 S = mix(A, B, wb), M = mix(uScMA, uScMB, wb);
+          S *= 0.92 + 0.16 * (gcN(vWp * 0.029 + 5.0) * 0.6 + gcN(vWp * 0.094 + 13.0) * 0.4);     // and lighter and darker over tens of metres, as real ground is
           vec3 kept = gr * S / max(M, vec3(0.04)), own = S * lg / max(dot(M, L3), 0.04);     // the map's colour with the scan's detail; the scan's colour at the map's brightness
           gr = mix(gr, mix(kept, own, uScK.x), uScK.y);
           scN = normalize(mix(An, Bn, wb));
@@ -105,9 +111,18 @@ export class Ground3D {
           gr = mix(gr, vec3(0.03), max(ln * 0.55, l5 * 0.85));
         }
         vec4 ov = texture2D(tOver, vO);
-        #ifdef GC_OUTER
-          ov = vec4(0.0056, 0.0141, 0.0254, 0.72);     // (GC 0.92.5) the land past the sheet is past anyone's sight: under the fog of war, as the sheet's own unseen ground is
-        #endif
+        // (GC 0.92.6) PAST THE SHEET, THE SAME FOG. The sheet holds what is laid on the ground (the fog of war, the night, the dark
+        // past the area of operations) only as far as it reaches; past it the same is worked out here, place by place: the night's
+        // dark, the fog of war with the circles of sight cut out of it, and the area's own dark outside it, laid on in the order
+        // the sheet lays them. Over the sheet's last few hundredths the one gives way to the other, so its edge is never seen.
+        { float e = min(min(vO.x, 1.0 - vO.x), min(vO.y, 1.0 - vO.y)), ws = smoothstep(0.0, 0.04, e);
+          if (ws < 1.0) {
+            float fa = 0.72;
+            for (int i = 0; i < 16; i++) { if (i >= uEyeN) break; vec4 q = uEye[i]; fa *= clamp((distance(vWp, q.xy) - q.z * q.w) / max(q.z * (1.0 - q.w), 0.001), 0.0, 1.0); }
+            vec4 oc = vec4(vec3(0.0078, 0.0196, 0.0353) * fa + uOutN.rgb * (1.0 - fa), fa + uOutN.a * (1.0 - fa));
+            if (distance(vWp, uAo.xy) > uAo.z) oc = vec4(vec3(0.0235, 0.0157, 0.0) * 0.5 + oc.rgb * 0.5, 0.5 + oc.a * 0.5);
+            ov = mix(oc, ov, ws);
+          } }
         diffuseColor.rgb *= gcLin(clamp(gr * (1.0 - ov.a) + ov.rgb, 0.0, 1.0));
         #ifdef GC_TEX
           diffuseColor.rgb = gcLand(diffuseColor.rgb, vWp, (uTopo > 0.5 ? 0.0 : 1.0) * (1.0 - ov.a) * (1.0 - smoothstep(0.02, 0.06, max(fwidth(vWp).x, fwidth(vWp).y))), uLand);     /* (grit only close in: pulled back it was a carpet) */     // (GC 0.90) the biome's own ground close up: sand, snow, grass, regolith, soil
@@ -119,13 +134,6 @@ export class Ground3D {
     // its few-metre facets shadowing each other drew stripes down every slope turned from the sun, and dark smears on the flat
     // below a dune. Its hills are already shaded by their own slope (and the map's own shading); what stands on them still throws its shadow.
     this.mesh = new THREE.Mesh(g, this.mat); this.mesh.frustumCulled = false; this.mesh.receiveShadow = true; this.mesh.castShadow = false; this.scene.add(this.mesh);
-    // (GC 0.92, Ramzies: "odd visual glitch when zooming in") THE LAND PAST THE SHEET. Tilted low and close in, the camera sees
-    // past the patch of land under the sheet, where there was only black: a coarse ring of the same land carries on round it
-    // (a hole where the sheet's land is, so nothing is drawn twice), fading into the haze.
-    { const m = 24, vn2 = (m + 1) * (m + 1); this.skM = m; this.skPos = new Float32Array(vn2 * 3); this.skUv = new Float32Array(vn2 * 2); this.skIdx = new Uint32Array(m * m * 6);
-      const sg = this.skGeo = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.BufferAttribute(this.skPos, 3)); sg.setAttribute('uv', new THREE.BufferAttribute(this.skUv, 2)); sg.setIndex(new THREE.BufferAttribute(this.skIdx, 1));
-      this.matOut = noSurf(two(new THREE.MeshLambertMaterial({ color: 0xffffff }))); this.matOut.defines.GC_LAND = ''; this.matOut.defines.GC_OUTER = '';
-      this.skirt = new THREE.Mesh(sg, this.matOut); this.skirt.frustumCulled = false; this.skirt.receiveShadow = true; this.scene.add(this.skirt); }
     // THE THINGS THAT STAND UP (GC 0.19): rocks, trees, buildings, guns. Each is a block risen out of the sheet: its roof is the
     // very patch of the sheet it stands on (so it wears its own top-down drawing, lit and fogged like everything else) and
     // its walls take the colours at its edge, darker. Built afresh each frame from what is in view.
@@ -205,24 +213,18 @@ export class Ground3D {
         c.tScA.value = g.a; c.tScAn.value = g.an; c.tScB.value = g.b; c.tScBn.value = g.bn; c.uScT.value.set(g.ta, g.tb); c.uScMA.value.set(...g.ma); c.uScMB.value.set(...g.mb); c.uScK.value.x = g.hue; c.uScOn.value = 1; });
     }
     // the land under the sheet: a grid whose corners stay at fixed places on the map (so the hills do not shimmer as the
-    // camera slides), covering the sheet and a cell more
-    const n = V3.grid, L = S / scale, c = L / (n - 1), x0 = Math.floor((camX - L / 2) / c) * c, z0 = Math.floor((camY - L / 2) / c) * c, P = this.pos, U = this.uv;
-    let p = 0, q = 0;
-    for (let j = 0; j <= n; j++) { const z = z0 + j * c; for (let i = 0; i <= n; i++) { const x = x0 + i * c; P[p++] = x; P[p++] = this.y(x, z); P[p++] = z; U[q++] = (x - (camX - L / 2)) / L; U[q++] = 1 - (z - (camY - L / 2)) / L; } }
+    // camera slides), covering the sheet and a cell more; (GC 0.92.6) and on past it, its lines further apart as they go
+    const n = V3.grid, K = V3.rim, nl = this.nl, L = S / scale, c = L / (n - 1), x0 = Math.floor((camX - L / 2) / c) * c, z0 = Math.floor((camY - L / 2) / c) * c, P = this.pos, U = this.uv, GX = this.gx, GZ = this.gz, O = this.rimO;
+    for (let i = 0; i <= n; i++) { GX[K + i] = x0 + i * c; GZ[K + i] = z0 + i * c; }
+    for (let k = 1; k <= K; k++) { const d = O[k - 1] * c; GX[K - k] = x0 - d; GZ[K - k] = z0 - d; GX[K + n + k] = x0 + n * c + d; GZ[K + n + k] = z0 + n * c + d; }
+    { const ux0 = camX - L / 2, uz0 = camY - L / 2, hm = L / 2 + 60, amp = this.amp; let p = 0, q = 0;     // (past the sheet and its margin nothing is levelled or dug: the land's own height there)
+      for (let j = 0; j < nl; j++) { const z = GZ[j], fz = Math.abs(z - camY) > hm; for (let i = 0; i < nl; i++) { const x = GX[i]; P[p++] = x; P[p++] = fz || Math.abs(x - camX) > hm ? (this.h(x, z) - 0.5) * 2 * amp : this.y(x, z); P[p++] = z; U[q++] = (x - ux0) / L; U[q++] = 1 - (z - uz0) / L; } } }
     this.geo.attributes.position.needsUpdate = true; this.geo.attributes.uv.needsUpdate = true; this.geo.computeVertexNormals();
-    if (this.skirt) {     // (GC 0.92) the coarse land round the sheet's, four sheets across, its middle left open
-      const m = this.skM, E = L * 4, c2 = E / m, sx = Math.floor((camX - E / 2) / c2) * c2, sz = Math.floor((camY - E / 2) / c2) * c2, SP = this.skPos, SU = this.skUv, SI = this.skIdx;
-      let a = 0, b = 0, t = 0;
-      for (let j = 0; j <= m; j++) { const z = sz + j * c2; for (let i = 0; i <= m; i++) { const x = sx + i * c2; SP[a++] = x; SP[a++] = this.y(x, z); SP[a++] = z; SU[b++] = 0.5; SU[b++] = 0.5; } }
-      const hx0 = x0 + c, hx1 = x0 + n * c - c, hz0 = z0 + c, hz1 = z0 + n * c - c;     // (cells wholly under the sheet's land are left out; the rest overlap it a little, under it)
-      for (let j = 0; j < m; j++) for (let i = 0; i < m; i++) {
-        const cx0 = sx + i * c2, cz0 = sz + j * c2; if (cx0 >= hx0 && cx0 + c2 <= hx1 && cz0 >= hz0 && cz0 + c2 <= hz1) continue;
-        const p0 = j * (m + 1) + i, p1 = p0 + 1, p2 = p0 + m + 1, p3 = p2 + 1; SI[t++] = p0; SI[t++] = p2; SI[t++] = p1; SI[t++] = p1; SI[t++] = p2; SI[t++] = p3;
-      }
-      for (let i = 1; i < SP.length; i += 3) SP[i] -= 0.35;     // (a little lower, so where the two overlap the sheet's land is the one seen)
-      this.skGeo.setDrawRange(0, t); this.skGeo.attributes.position.needsUpdate = true; this.skGeo.index.needsUpdate = true; this.skGeo.computeVertexNormals();
-      if (this.scene.fog && !this._clr?.equals(this.scene.fog.color)) { this._clr = this.scene.fog.color.clone(); this.r.setClearColor(this._clr, 1); }     // (and past it all, the haze, not black)
-    }
+    if (this.scene.fog && !this._clr?.equals(this.scene.fog.color)) { this._clr = this.scene.fog.color.clone(); this.r.setClearColor(this._clr, 1); }     // (and past it all, the haze, not black)
+    // (GC 0.92.6) what the land past the sheet needs to wear the same fog: the night's dark, the area of operations, the circles of sight near the edge
+    { const ou = this.ou, nd = o.outN; if (nd) ou.uOutN.value.set(nd[0] / 255 * nd[3], nd[1] / 255 * nd[3], nd[2] / 255 * nd[3], nd[3]); else ou.uOutN.value.set(0, 0, 0, 0);
+      if (o.ao) ou.uAo.value.set(o.ao[0], o.ao[1], o.ao[2]); else ou.uAo.value.set(0, 0, 1e9);
+      const E = o.eyes || [], ne = Math.min(16, E.length >> 2); for (let i = 0; i < ne; i++) ou.uEye.value[i].set(E[i * 4], E[i * 4 + 1], E[i * 4 + 2], E[i * 4 + 3]); ou.uEyeN.value = ne; }
     // the blocks: [{ x, y, r, h, n }] in metres (n: how many sides, 4 for a building, more for a rock or a tree)
     { const B = o.blocks || [], P2 = this.bp, U2 = this.bu, N2 = this.bn, C2 = this.bc, ux0 = camX - L / 2, uz0 = camY - L / 2, max = V3.blocks * V3.sides * 9; let k = 0;
       const put = (x, y, z, nx, ny, nz, sh) => { const a = k * 3, b = k * 2; P2[a] = x; P2[a + 1] = y; P2[a + 2] = z; U2[b] = (x - ux0) / L; U2[b + 1] = 1 - (z - uz0) / L; N2[a] = nx; N2[a + 1] = ny; N2[a + 2] = nz; C2[a] = C2[a + 1] = C2[a + 2] = sh; k++; };

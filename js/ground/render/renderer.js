@@ -484,6 +484,16 @@ export class Renderer {
     return out;
   }
   // (GC 0.23) What stands on the land as a model: trees, rocks, the enemy's buildings and guns, your guns and towers, banners.
+  // (GC 0.92.6) the circles of sight (as _fog cuts them: x, y, radius, where the soft edge starts) that reach the last few
+  // hundredths of the sheet or past it, for the land past the sheet: the fog there is worked out on the land itself
+  _eyes(m, cx, cy, L) {
+    const out = this._eyl || (this._eyl = []); out.length = 0; const lo = L / 2 - L * 0.05;
+    const add = (x, y, r, soft) => { if (out.length >= 64 || !(r > 0)) return; if (x - r < cx - lo || x + r > cx + lo || y - r < cy - lo || y + r > cy + lo) out.push(x, y, r, soft); };
+    for (const a of m.alive) add(a.x, a.y, a.vision, 0.8);
+    for (const u of m.uavs) add(u.x, u.y, u.r, 0.9);
+    for (const u of m.relays || []) add(u.x, u.y, u.r, 0.85);
+    return out;
+  }
   _props(m, cx, cy, half, pal) {
     const out = this._p3l || (this._p3l = []); out.length = 0; const t = m.t, near = (o) => Math.abs(o.x - cx) < half && Math.abs(o.y - cy) < half;
     const sc = m.scenery, bio = m.biome.id, RC = (ROCK[bio] || ROCK.grass)[1], snow = bio === 'ice', face = (f) => Math.PI / 2 - (f || 0);
@@ -674,6 +684,7 @@ export class Renderer {
     if (g3 && tintCol) { const mm = /rgb\((\d+),\s*(\d+),\s*(\d+)\)/.exec(tintCol);
       if (mm) { const r = +mm[1], g = +mm[2], b = +mm[3], lum = Math.max(r, g, b, 1) / 255; this._hue = [r / 255 / lum, g / 255 / lum, b / 255 / lum]; tintCol = null;
         if (amb && lum < 0.999) { const d1 = 1 - lum * (1 - amb.dark), kk = amb.dark / Math.max(0.001, d1); amb = { ...amb, dark: d1, col: amb.col.map((c) => c * kk) }; this._dark = d1; } } }
+    this._ambN = amb && amb.dark > 0.005 ? [amb.col[0], amb.col[1], amb.col[2], amb.dark] : null;     // (GC 0.92.6) the night's dark, for the land past the sheet
     this._layers(ctx, scale, W, H, tx, ty, tintCol, lit ? washKey(hq) : null, !!g3);   // the tint (and the wash) move in quarter-hour steps
     if (amb) this.light.collect(m, this.fx, this.fxNow(m), { x0: -tx / scale, y0: -ty / scale, x1: (W - tx) / scale, y1: (H - ty) / scale }, this.settings, amb);
 
@@ -1023,7 +1034,7 @@ export class Renderer {
     if (real) {     // lay the turned world on the screen
       const wc = this._wc, S = this.W; this.ctx = real.ctx; this.W = real.W; this.H = real.H; this.focusY = real.focusY; this._real = null; ctx = this.ctx; W = this.W; H = this.H;
       ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
-      if (g3) { const t0 = performance.now(); g3.frame({ sheet: wc, S, scale, camX: v.camX, camY: v.camY, yaw: cam.yaw, tilt: cam.tilt || cam.passTilt, W, H, fy: this.focusY || 0.5, sun: this._sun, hue: this._hue, height: (x, y) => m.terrain.height(x, y), blocks: this._blocks(m, v.camX, v.camY, S / scale / 2), props: VIEW.p3 ? this._props(m, v.camX, v.camY, S / scale / 2, pal) : null, lit: 1, dark: this._dark > 0.005 ? this.light.mask : this.fog, haze: null,     /* (0.92.4, Ramzies: "move the fog of war back to dark fog") */ /* (0.52) the models take the night from the same mask as the ground, light by light: not one dimmer for all of them */ dents: this._dents(v.camX, v.camY, S / scale / 2 + 20), units: U3, drops: D3, shells: S3, strobes: B3, blasts: X3, bolts: T3, orbs: O3, domes: DM3, puffs: SM3, hot: cam.sight === 'whot' || cam.sight === 'bhot', pixel: cam.pixel || 0, gunUp: VIEW.ts ? 1.4 : 3.6, rings: this._rings, sight: cam.sight, topo: !!cam.topo, det: ({ ice: 0.45, city: 0.6, desert: 0.8, moon: 0.85 })[m.biome.id] ?? 1, land: LAND[m.biome.id] ?? 8, biome: m.biome.id, ter: m.terrain, scans: !(this.quality === 'low' || this.perf.low), ground: this.groundCv, groundRev: this.groundRev || 0, size: SIZE, post: !(this.quality === 'low' || this.perf.low), shadows: VIEW.sh, shadowRes: this.quality === 'low' || this.perf.low ? 1024 : (this.perf.tier || 0) >= 1 ? 2048 : 4096 });
+      if (g3) { const t0 = performance.now(); g3.frame({ sheet: wc, S, scale, camX: v.camX, camY: v.camY, yaw: cam.yaw, tilt: cam.tilt || cam.passTilt, W, H, fy: this.focusY || 0.5, sun: this._sun, hue: this._hue, height: (x, y) => m.terrain.height(x, y), blocks: this._blocks(m, v.camX, v.camY, S / scale / 2), props: VIEW.p3 ? this._props(m, v.camX, v.camY, S / scale / 2, pal) : null, lit: 1, dark: this._dark > 0.005 ? this.light.mask : this.fog, haze: null, outN: this._ambN, ao: [m.ao.cx, m.ao.cy, m.ao.R || m.ao.size / 2], eyes: this._eyes(m, v.camX, v.camY, S / scale),     /* (0.92.4, Ramzies: "move the fog of war back to dark fog") */ /* (0.52) the models take the night from the same mask as the ground, light by light: not one dimmer for all of them */ dents: this._dents(v.camX, v.camY, S / scale / 2 + 20), units: U3, drops: D3, shells: S3, strobes: B3, blasts: X3, bolts: T3, orbs: O3, domes: DM3, puffs: SM3, hot: cam.sight === 'whot' || cam.sight === 'bhot', pixel: cam.pixel || 0, gunUp: VIEW.ts ? 1.4 : 3.6, rings: this._rings, sight: cam.sight, topo: !!cam.topo, det: ({ ice: 0.45, city: 0.6, desert: 0.8, moon: 0.85 })[m.biome.id] ?? 1, land: LAND[m.biome.id] ?? 8, biome: m.biome.id, ter: m.terrain, scans: !(this.quality === 'low' || this.perf.low), ground: this.groundCv, groundRev: this.groundRev || 0, size: SIZE, post: !(this.quality === 'low' || this.perf.low), shadows: VIEW.sh, shadowRes: this.quality === 'low' || this.perf.low ? 1024 : (this.perf.tier || 0) >= 1 ? 2048 : 4096 });
         if (!g3.sighted) ctx.filter = cam.sight === 'whot' ? 'grayscale(1) brightness(1.3) contrast(1.15)' : cam.sight === 'bhot' ? 'grayscale(1) brightness(1.3) invert(1) contrast(1.12)' : 'none';     // (only where the graphics card could not put the sight on itself)
         const tc = performance.now(); ctx.drawImage(g3.cv, 0, 0); ctx.filter = 'none'; this._g3on = true; const t1 = performance.now(); this.t3 = (this.t3 || 0) + (t1 - t0 - (this.t3 || 0)) * 0.08; this.t3c = (this.t3c || 0) + (t1 - tc - (this.t3c || 0)) * 0.08; }     // (GC 0.80.1) t3c: the finished 3D picture copied onto the screen's canvas     // (the sight: infrared white-hot, black-hot, or plain colour)
       else { ctx.translate(v.px, v.py); ctx.rotate(cam.yaw); ctx.drawImage(wc, -S / 2, -S / 2); }

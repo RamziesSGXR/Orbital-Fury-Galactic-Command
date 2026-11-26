@@ -1,6 +1,6 @@
 # Orbital Fury: Galactic Command
 
-**Prototype 0.92.5.** One war, run from four posts, in one game.
+**Prototype 0.92.6.** One war, run from four posts, in one game.
 
 You found a command (a name, a livery: emblem and colours) and hold the centre of the galaxy against three enemies. Everything in
 the war is yours to run, and each part changes the others:
@@ -21,6 +21,21 @@ game into your user folder (no admin needed) and puts **Galactic Command** on th
 double-click **PLAY.bat** in the unzipped folder to play without installing. Either opens the game full screen in its own
 Microsoft Edge window, served from your own computer only (nothing goes online); closing the window stops it. Touch screens
 work: tap, drag and pinch. `INSTALL.bat -Remove` takes it away again.
+
+## Fixed in 0.92.6
+
+- **The fog of war broke into hard-edged blocks** at the edge of the view, worse as the camera zoomed. The land past the
+  map picture was a second, coarse mesh laid a little under the first, and its long flat facets stood through the fine
+  land in places, lit and fogged differently. The land is now one mesh: the fine grid under the map picture carries straight
+  on past it, its lines further apart as they go. Past the picture the fog of war, the night and the dark outside the area
+  of operations are worked out on the land itself (with the circles of sight that reach that far), and the two blend over
+  the picture's last few hundredths, so its edge is never seen.
+- **The scanned ground repeated** in a lattice you could see from any height, and its size changed as you zoomed (0.92.4
+  laid each scan at two sizes and blended between them by zoom). Each scan is now laid as a field of hexagons, every one
+  with the picture turned and shifted at random and the three nearest blended (after Mikkelsen's hex tiling), at one fixed
+  size on the land, with a slow lighter-and-darker over tens of metres. Each hexagon's patch is evened out to the picture's
+  mean, and the normal maps' own lean taken out (the snow's leaned 12 degrees one way, which showed as a honeycomb), so no
+  cell shows. FOB Commander's scanned ground is laid the same way.
 
 ## Fixed in 0.92.5
 
