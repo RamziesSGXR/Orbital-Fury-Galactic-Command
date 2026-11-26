@@ -1,6 +1,6 @@
 # Orbital Fury: Galactic Command
 
-**Prototype 0.88.0.** One war, run from four posts, in one game.
+**Prototype 0.89.0.** One war, run from four posts, in one game.
 
 You found a command (a name, a livery: emblem and colours) and hold the centre of the galaxy against three enemies. Everything in
 the war is yours to run, and each part changes the others:
@@ -13,6 +13,26 @@ the war is yours to run, and each part changes the others:
 | **The base** | Found a base on the system's key world: roads, zones, and buildings that grow along them. | +35% output from the system for each charter. |
 
 A system that falls takes its station and its base with it.
+
+## What's new in 0.89: four kinds of wall
+
+Ramzies: "we should make sure that we have more than one type of wall", and bigger, stronger walls on foundations.
+
+- The walls use the ground fight's own models wherever it has one (Ramzies: the models shared between the games):
+- **Timber Barricade**: the ground fight's barricade, 1.5 supplies a tile. It closes the base like any wall, but is worth
+  only 0.45 of a barrier wall against a raid.
+- **Barrier Wall**: the filled barrier baskets there were before, 4 a tile.
+- **Concrete Wall**: the ground fight's concrete barriers with their hazard-yellow tops, taller, worth half as much
+  again, 8 a tile. Needs the Concrete Batch Plant.
+- **Fortified Wall**: only along a finished foundation (any kind), every tile of it. The enemy capitals' curtain wall
+  from the ground fight, in our concrete, worth 2.2 barrier walls, 14 a tile; on a raised foundation it stands a storey higher.
+  Needs the Batch Plant. Turrets, lamps and banners on its walkway come next.
+- What a wall is made of now counts in the defence score: a fence ring closes the base but scores low; concrete and
+  fortified walls lift it.
+- Every building still comes from the Blender-made models (test/buildings.py); a foundation, drawn to whatever size it
+  is laid, is the one exception until it gets Blender pieces of its own.
+- The DEFENCE tab fits all eleven cards (narrower cards when a tab is that full); Bulldoze is on ROADS and takes walls
+  up too.
 
 ## What's new in 0.88: power runs through the foundations
 

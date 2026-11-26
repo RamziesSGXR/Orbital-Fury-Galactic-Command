@@ -1163,3 +1163,8 @@ table.st tr.me td { color: var(--amber); } table.st b { font-weight: 600; }
 #fb-dims[hidden] { display: none; }
 #fb-dims span { position: absolute; transform: translate(-50%, -50%); padding: 1px 6px; font: 11px/1.4 ui-monospace, Menlo, Consolas, monospace; letter-spacing: 0.5px; color: #e8f1f6; background: rgba(12, 16, 18, 0.8); border: 1px solid rgba(220, 235, 245, 0.45); white-space: nowrap; }
 #fb-dims span[hidden] { display: none; }
+
+/* (GC 0.89) a tab with more than nine cards (DEFENCE, with its four walls): narrower cards, so every one fits */
+.bi-row.dense .bi { width: 102px; padding: 4px 5px 5px; }
+.bi-row.dense .bi .th { height: 54px; } .bi-row.dense .bi .th img { max-height: 54px; }
+.bi-row.dense .bi b { font-size: 10.5px; } .bi-row.dense .bi .why, .bi-row.dense .bi .cost { font-size: 9.5px; }

@@ -5,6 +5,7 @@ import { C, B, GROUPS, GOODS, SUPPLY_MODES, SUPPLY_CAPS } from '../base/config.j
 import { makeGuide } from './guide.js';
 import { Sim, LOOSE } from '../base/sim.js';
 import { KIND } from '../base/slabs.js';     // (GC 0.87) foundations
+import { isLine } from '../base/net.js';
 import { Life } from '../base/life.js';
 import { View } from '../base/view.js';
 import { ensureLogo } from '../base/logo.js';
@@ -53,7 +54,7 @@ function siloRow(b) {
 }
 // ---------------------------------------------------------------- the guide: how a base is played (js/modes/guide.js)
 const TUT = [
-  { t: 'ROADS FIRST', x: 'Everything is built along a road. Pick <b>DIRT ROAD</b> below and drag from the command post across open ground.', done: () => sim.net.segs.some((g) => !['wall', 'wire', 'bags', 'trench'].includes(g.k)) },
+  { t: 'ROADS FIRST', x: 'Everything is built along a road. Pick <b>DIRT ROAD</b> below and drag from the command post across open ground.', done: () => sim.net.segs.some((g) => !isLine(g.k)) },
   { t: 'LAY A FOUNDATION', x: 'Open <b>FOUNDATIONS</b>, pick a kind and drag on the ground beside your road. Anything better than a tent stands on a foundation of its kind; tents go on bare ground with their door on a road.', done: () => sim.slabs().length > 0 },
   { t: 'POWER, WATER, SEWAGE', x: 'Lay a <b>Utilities</b> foundation, then open <b>UTILITIES</b> and put a <b>Biofuel Generator</b> on it. It powers its foundation and every foundation a <b>paved road</b> joins to it (dirt roads carry nothing). Keep wells away from a sewage lagoon.', done: () => sim.b.some((b) => B[b.type].group === 'power') },
   { t: 'CHECK ON A BUILDING', x: 'With no tool in hand, tap any building: its card shows its crew, whether it has power, water and sewage, its condition and what is wrong with it. <b>CREW FIRST</b> staffs it before the rest; <b>REPAIR</b> puts a worn one back to 100%.', done: () => !!sel },
@@ -137,7 +138,7 @@ function bind(canvasOnly = false) {     // (GC 0.78: canvasOnly, for a view buil
       if (drag) { if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > 6) drag.moved = true; if (drag.moved) { if (drag.btn === 2 || drag.btn === 1) view.spin(-dx * 0.008); else view.pan(dx, dy); } }
     }
     if (isSlabT(tool) && !drag?.moved) { slabHover(e); return; }
-    if (roadDrag && !roadDrag.bull) { const end = lineEnd(e), c = sim.checkLine(roadDrag, end, ROADS[tool].k); view.showLine(roadDrag, end, ROADS[tool].k === 'paved' ? 2 : 1, c.ok, ['wall', 'wire', 'bags', 'trench'].includes(ROADS[tool].k)); hud.pointerTip(!c.ok && c.why && c.why !== 'Too short' ? c.why : null, e.clientX, e.clientY); return; }
+    if (roadDrag && !roadDrag.bull) { const end = lineEnd(e), c = sim.checkLine(roadDrag, end, ROADS[tool].k); view.showLine(roadDrag, end, ROADS[tool].k === 'paved' ? 2 : 1, c.ok, isLine(ROADS[tool].k)); hud.pointerTip(!c.ok && c.why && c.why !== 'Too short' ? c.why : null, e.clientX, e.clientY); return; }
     if (tool && !isRoad(tool) && !isSlabT(tool)) { const t = tileAt(e), sp = specOf(tool), c = sim.canPlace(tool, t.tx, t.tz, t.rot, sp); view.setGhost(tool, t.tx, t.tz, t.rot, c.ok, sp); hud.placeCard(tool, c, e.clientX, e.clientY, { x: t.tx, z: t.tz, rot: t.rot }); }     // (GC 0.84) and why not, at the pointer; (GC 0.86) on a blueprint's label
     else hud.pointerTip(null);
   });

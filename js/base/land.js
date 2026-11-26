@@ -2,6 +2,7 @@
 // grants the ring of parcels round the edge, so 441 of the 529 can be held. You call the HQ down anywhere on the section,
 // the 3 x 3 parcels round it are yours, and more are bought one at a time next to what you hold, up to the charter's
 // allowance.
+import { isLine } from './net.js';     // (GC 0.89)
 import { C, B, LAND, SCRUB } from './config.js';
 import { GROUND } from './site.js';
 
@@ -139,7 +140,7 @@ export const Land = {
     return { ok: true };
   },
   // how much dirt track has been laid (the landing wants a few cells before the Command Post comes down)
-  trackLen() { let L = 0; for (const g of this.net.segs) if (g.k !== 'wall' && g.k !== 'wire' && g.k !== 'bags' && g.k !== 'trench') { const a = this.net.nodes.find(n => n.id === g.a), b = this.net.nodes.find(n => n.id === g.b); L += Math.hypot(b.x - a.x, b.z - a.z); } return L; },
+  trackLen() { let L = 0; for (const g of this.net.segs) if (!isLine(g.k)) { const a = this.net.nodes.find(n => n.id === g.a), b = this.net.nodes.find(n => n.id === g.b); L += Math.hypot(b.x - a.x, b.z - a.z); } return L; },
   // both at once, for tests, the bot and the title demo: the Command Post at (x, z) facing south, the flag beside it
   canFound(x, z) {
     const N = this.N;

@@ -6,7 +6,7 @@ import { BIOMES } from './site.js';
 import { SCRUB_COL, loadBuildings, sharedGeo, makeMats, mergeStatic, buildModel, slabModel, makePerson, poseKit, makeForklift, makeTruck, makeLRV, makeTank, makeCrate, makeDropship, wrap } from './models.js';
 const VMAKE = { lift: makeForklift, truck: makeTruck, lrv: makeLRV, tank: makeTank };
 import { Noise } from './noise.js';
-import { isLine } from './net.js';
+import { isLine, WALLS } from './net.js';
 import { Crowd3D } from '../model3d.js';
 import { surfScale } from '../surface.js';
 import { WL } from './site.js';
@@ -534,14 +534,14 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
     const wallG = new THREE.Group(), gateAt = (x, z) => { const tx = Math.floor(x), tz = Math.floor(z); return tx >= 0 && tz >= 0 && tx < N && tz < N && s.walls[tz * N + tx] === 2; };
     const turns = new Map();
     for (const sg of net.segs) {
-      if (sg.k !== 'wall') continue;
+      if (!WALLS[sg.k] || (WALLS[sg.k].file && sharedGeo(this.m, WALLS[sg.k].file))) continue;     // (GC 0.89) every kind of wall; those with a model of their own below
       const a = nd(sg.a), b = nd(sg.b), L = Math.hypot(b.x - a.x, b.z - a.z), steps = Math.max(1, Math.ceil(L / 0.25));
-      for (const n of [a, b]) { const t = turns.get(n.id) || []; t.push(Math.atan2((n === a ? b : a).z - n.z, (n === a ? b : a).x - n.x)); turns.set(n.id, t); }
+      if (sg.k !== 'fence') for (const n of [a, b]) { const t = turns.get(n.id) || []; t.push(Math.atan2((n === a ? b : a).z - n.z, (n === a ? b : a).x - n.x)); turns.set(n.id, t); }
       let run = null;
       for (let i = 0; i <= steps; i++) {
         const t = i / steps, x = a.x + (b.x - a.x) * t, z = a.z + (b.z - a.z) * t, open = gateAt(x, z);
         if (!open && !run) run = { x, z };
-        if ((open || i === steps) && run) { const e = open ? { x: a.x + (b.x - a.x) * (i - 1) / steps, z: a.z + (b.z - a.z) * (i - 1) / steps } : { x, z }; if (Math.hypot(e.x - run.x, e.z - run.z) > 0.1 || i === steps) this.wallPiece(wallG, run, e); run = null; }
+        if ((open || i === steps) && run) { const e = open ? { x: a.x + (b.x - a.x) * (i - 1) / steps, z: a.z + (b.z - a.z) * (i - 1) / steps } : { x, z }; if (Math.hypot(e.x - run.x, e.z - run.z) > 0.1 || i === steps) this.wallPiece(wallG, run, e, sg.k); run = null; }
       }
     }
     mergeStatic(wallG); this.roadG.add(wallG);
@@ -562,6 +562,22 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
       runs.forEach(([x, z, ang, l, on], i) => { P.set(this.wx(x), on ? 1.15 : 0, this.wx(z)); Q.setFromAxisAngle(Y, ang); S.set(l / W.len, on ? W.h * 0.8 : W.h, on ? W.d * 0.8 : W.d); im.setMatrixAt(i, M.compose(P, Q, S)); });
       im.castShadow = true; im.receiveShadow = true; this.roadG.add(im);
     }
+    // (GC 0.89) the walls the ground fight has models for (its timber barricade, its concrete barriers and its curtain wall):
+    // a model a tile, scaled to the wall's height, gaps where roads run through, like the field works
+    for (const [k, W] of Object.entries(WALLS)) {
+      const wg = W.file && sharedGeo(this.m, W.file), runs = []; if (!wg) continue;
+      for (const sg of net.segs) {
+        if (sg.k !== k) continue;
+        const a = nd(sg.a), b = nd(sg.b), L = Math.hypot(b.x - a.x, b.z - a.z), n = Math.max(1, Math.round(L)), ang = -Math.atan2(b.z - a.z, b.x - a.x);
+        for (let i = 0; i < n; i++) { const t = (i + 0.5) / n, x = a.x + (b.x - a.x) * t, z = a.z + (b.z - a.z) * t, i0 = Math.floor(z) * N + Math.floor(x); if (s.walls[i0] === 2) continue; runs.push([x, z, ang, L / n]); }
+        if (k !== 'fence') for (const nn of [a, b]) { const t = turns.get(nn.id) || []; t.push(Math.atan2((nn === a ? b : a).z - nn.z, (nn === a ? b : a).x - nn.x)); turns.set(nn.id, t); }
+      }
+      if (!runs.length) continue;
+      const mat = W.tint ? (this.wallTint ||= new THREE.MeshStandardMaterial({ vertexColors: true, color: W.tint, roughness: 0.92, metalness: 0.03 })) : (this.m.model ||= new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0.04, side: THREE.DoubleSide }));
+      const im = new THREE.InstancedMesh(wg, mat, runs.length), M = new THREE.Matrix4(), Q = new THREE.Quaternion(), P = new THREE.Vector3(), S = new THREE.Vector3(), Y = new THREE.Vector3(0, 1, 0);
+      runs.forEach(([x, z, ang, l], i) => { P.set(this.wx(x), 0, this.wx(z)); Q.setFromAxisAngle(Y, ang); S.set((l + 0.04) / W.len, W.h / W.mh, W.d / W.md); im.setMatrixAt(i, M.compose(P, Q, S)); });
+      im.castShadow = true; im.receiveShadow = true; this.roadG.add(im);
+    }
     for (const [id, angs] of turns) {
       const n = nd(id), bent = angs.length !== 2 || Math.abs(Math.cos(angs[0] - angs[1]) + 1) > 0.1;
       if (bent && !gateAt(n.x, n.z)) { const t = this.tower(n.x - 0.5, n.z - 0.5); this.roadG.add(t); }
@@ -569,7 +585,7 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
     // gates: a boom barrier across the road and a guard hut beside it; the main gate gets the base's sign
     const main = s.gate();
     for (const gt of s.gates || []) {
-      const w = net.segs.filter(q => q.k === 'wall').map(q => { const a = nd(q.a), b = nd(q.b); return { q, a, b, d: Math.abs((b.x - a.x) * (a.z - gt.z) - (a.x - gt.x) * (b.z - a.z)) / Math.hypot(b.x - a.x, b.z - a.z) }; }).sort((p, q) => p.d - q.d)[0];
+      const w = net.segs.filter(q => WALLS[q.k]).map(q => { const a = nd(q.a), b = nd(q.b); return { q, a, b, d: Math.abs((b.x - a.x) * (a.z - gt.z) - (a.x - gt.x) * (b.z - a.z)) / Math.hypot(b.x - a.x, b.z - a.z) }; }).sort((p, q) => p.d - q.d)[0];
       const ang = w ? Math.atan2(w.b.z - w.a.z, w.b.x - w.a.x) : 0, half = Math.sqrt(gt.tiles.length) / 2 + 0.5;
       const g = new THREE.Group(); g.position.set(this.wx(gt.x), 0, this.wx(gt.z)); g.rotation.y = -ang; this.roadG.add(g);
       for (const sx of [-half, half]) { const p = new THREE.Mesh(new THREE.BoxGeometry(0.35, 1.4, 0.35), this.m.concrete); p.position.set(sx, 0.7, 0); p.castShadow = true; g.add(p); }
@@ -665,13 +681,35 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
     }
     this.world.add(g);
   }
-  wallPiece(g, a, b) {
+  wallPiece(g, a, b, k = 'wall') {
+    if (k !== 'wall') return this.wallKind(g, a, b, k);
     const L = Math.hypot(b.x - a.x, b.z - a.z) + 0.9, ang = -Math.atan2(b.z - a.z, b.x - a.x), mx = this.wx((a.x + b.x) / 2), mz = this.wx((a.z + b.z) / 2);
     const body = new THREE.Mesh(new THREE.BoxGeometry(L, 1.05, 0.5), this.hes); body.position.set(mx, 0.525, mz); body.rotation.y = ang; body.castShadow = body.receiveShadow = true; g.add(body);
     const foot = new THREE.Mesh(new THREE.BoxGeometry(L, 0.22, 0.8), this.hesTop); foot.position.set(mx, 0.11, mz); foot.rotation.y = ang; foot.receiveShadow = true; g.add(foot);
     const top = new THREE.Mesh(new THREE.BoxGeometry(L, 0.1, 0.62), this.hesTop); top.position.set(mx, 1.1, mz); top.rotation.y = ang; g.add(top);
     // the seams between the baskets
     for (let t = 0.5; t < L - 0.4; t += 1) { const f = (t - L / 2) / L, x = (a.x + b.x) / 2 + (b.x - a.x) * f, z = (a.z + b.z) / 2 + (b.z - a.z) * f; if (Math.round(t) % 2) continue; const sm = new THREE.Mesh(new THREE.BoxGeometry(0.22, 1.12, 0.74), this.hesTop); sm.castShadow = true; sm.position.set(this.wx(x), 0.56, this.wx(z)); sm.rotation.y = ang; g.add(sm); }
+  }
+  // (GC 0.89) the other walls. Fence: posts, a rail and chain-link between. Concrete: precast T-wall panels on a footing, the
+  // joints showing. Fortified: a thick concrete wall with a walkway along its top between two parapets of merlons
+  wallKind(g, a, b, k) {
+    const L0 = Math.hypot(b.x - a.x, b.z - a.z), L = L0 + (k === 'fence' ? 0.1 : 0.7), ang = -Math.atan2(b.z - a.z, b.x - a.x), mx = this.wx((a.x + b.x) / 2), mz = this.wx((a.z + b.z) / 2), W = WALLS[k];
+    const put = (w, h, d, mat, along, y, side = 0, cast = true) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); const ux = (b.x - a.x) / (L0 || 1), uz = (b.z - a.z) / (L0 || 1); m.position.set(mx + ux * along - uz * side, y, mz + uz * along + ux * side); m.rotation.y = ang; m.castShadow = cast; m.receiveShadow = true; g.add(m); return m; };
+    const M = this.wallMats ||= { post: new THREE.MeshStandardMaterial({ color: '#5b605d', metalness: 0.4, roughness: 0.55 }), mesh: new THREE.MeshStandardMaterial({ color: '#8d938f', metalness: 0.3, roughness: 0.6, transparent: true, opacity: 0.45, depthWrite: false, side: THREE.DoubleSide }),
+      tw: new THREE.MeshStandardMaterial({ color: '#9b9a90', roughness: 0.95 }), seam: new THREE.MeshStandardMaterial({ color: '#5f5e57', roughness: 1 }), fort: new THREE.MeshStandardMaterial({ color: '#7d7e77', roughness: 0.95 }), walk: new THREE.MeshStandardMaterial({ color: '#5a5b55', roughness: 1 }) };
+    if (k === 'fence') {
+      put(L, W.h - 0.08, 0.02, M.mesh, 0, (W.h - 0.08) / 2 + 0.04, 0, false); put(L, 0.025, 0.025, M.post, 0, W.h, 0);
+      for (let t = -L / 2; t <= L / 2 + 1e-6; t += Math.max(0.5, L / Math.max(1, Math.round(L)))) put(0.05, W.h + 0.04, 0.05, M.post, t, (W.h + 0.04) / 2);
+      return;
+    }
+    if (k === 'cwall') {
+      put(L, 0.14, 0.62, M.tw, 0, 0.07); put(L, W.h, 0.2, M.tw, 0, W.h / 2 + 0.1);
+      for (let t = -L / 2 + 0.5; t < L / 2 - 0.1; t += 0.5) for (const sd of [-0.105, 0.105]) put(0.025, W.h - 0.05, 0.01, M.seam, t, W.h / 2 + 0.1, sd, false);
+      return;
+    }
+    // fortified
+    put(L, W.h, 0.8, M.fort, 0, W.h / 2); put(L, 0.04, 0.5, M.walk, 0, W.h + 0.02, 0, false);
+    for (const sd of [-0.32, 0.32]) { put(L, 0.12, 0.16, M.fort, 0, W.h + 0.06, sd); for (let t = -L / 2 + 0.25; t < L / 2 - 0.1; t += 0.6) put(0.3, 0.22, 0.16, M.fort, t, W.h + 0.23, sd); }
   }
   // street lamps along the roadside every few tiles; their heads and the pools under them light up at night
   streetLamps() {

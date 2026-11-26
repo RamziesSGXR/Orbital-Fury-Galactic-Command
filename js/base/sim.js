@@ -21,7 +21,7 @@ import { Utilities } from './utils.js';
 import { Land, GRID } from './land.js';
 import { Terrain, TERRA } from './terrain.js';
 import { Market, bindMarket } from './market.js';
-import { emptyNet, raster, addLine, addRoad, heal, snap, nearestSeg, removeSeg, segLen, lineTiles, node, KINDS, absorb, isLine, FIELD } from './net.js';
+import { emptyNet, raster, addLine, addRoad, heal, snap, nearestSeg, removeSeg, segLen, lineTiles, node, KINDS, absorb, isLine, FIELD, WALLS } from './net.js';
 
 export const MKEYS = ['def', 'pro', 'tru'];
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -118,7 +118,7 @@ export class Sim {
   }
   rebuildNet() {
     const W = this.win(), r = raster(this.net, this.N, this.blockMask(W), W);
-    this.roads = r.roads; this.walls = r.walls; this.wallIn = r.inside; this.gates = r.gates; this.area = r.area;
+    this.roads = r.roads; this.walls = r.walls; this.wallIn = r.inside; this.gates = r.gates; this.area = r.area; this.wallStr = r.wallStr;     // (GC 0.89) what each wall tile is worth
     if (this.scrub) for (let z = W[1]; z < W[3]; z++) for (let x = W[0], i = z * this.N + x; x < W[2]; x++, i++) if (this.scrub[i] && (this.roads[i] || this.walls[i])) { this.scrub[i] = 0; this.scrubV = (this.scrubV || 0) + 1; }
     // a wall is for defence: it marks what is inside the perimeter (wallIn), but you may build on any of your land, in or out
     this.open = r.area === 0;
@@ -211,7 +211,7 @@ export class Sim {
 
   // ---------------------------------------------------------------- roads and walls: one line tool
   roadPrice(type) { return type === 2 && this.hasTech('asphalt') ? Math.ceil(ROADS[2].cost / 2) : ROADS[type].cost; }
-  linePrice(k) { return k === 'wall' ? C.WALL : FIELD.has(k) ? C.WORKS[k].cost : this.roadPrice(KINDS[k].surf) * (k === 'paved' ? 2 : k === 'bridge' ? 2 * C.BRIDGE : 1); }
+  linePrice(k) { return k === 'wall' ? C.WALL : WALLS[k] ? WALLS[k].cost : FIELD.has(k) ? C.WORKS[k].cost : this.roadPrice(KINDS[k].surf) * (k === 'paved' ? 2 : k === 'bridge' ? 2 * C.BRIDGE : 1); }
   tilePrice(surf) { return surf ? this.roadPrice(surf) : 0; }   // what one cell of a road is worth   // per tile of length; paved is two wide
   snapLine(p, mode, k, from) { return snap(this.net, p, mode, KINDS[k].w, from); }
   // can this line go here, and what does it cost? a: snapped start, b: snapped end
@@ -220,7 +220,7 @@ export class Sim {
     if (k === 'bridge') return this.checkBridge(a, b, len, tiles);
     // nothing joins a bridge partway across: roads meet it at its ends, where it stands on the ground
     for (const p of [a, b]) { const d = this.deckAt(p.x, p.z); if (d != null && Math.abs(d - this.hAt(p.x, p.z)) > 0.25) return { ok: false, why: 'Roads join a bridge at its ends, not across the span', cost: 0 }; }
-    { const q = this.equipLock(k); if (q) return { ok: false, why: `${q}: until then the engineers can only scrape dirt tracks`, cost: 0 }; }
+    { const q = this.equipLock(k); if (q) return { ok: false, why: isLine(k) ? `${q}: the panels are poured there` : `${q}: until then the engineers can only scrape dirt tracks`, cost: 0 }; }
     for (const [x, z] of tiles) { const t = this.terr?.[z * this.N + x]; if (t === GROUND.ROCK) return { ok: false, why: 'Solid rock in the way', cost: 0 }; if (t === GROUND.WATER) { if (FIELD.has(k)) return { ok: false, why: 'Water: field works stop at the shore', cost: 0 }; if (k === 'wall') return dry ? { ok: false, why: 'Water', cost: 0 } : this.shoreWall(a, b); return { ok: false, why: 'Water: lay a bridge across it', cost: 0 }; } }
     let cost = Math.ceil(len) * this.linePrice(k);
     if (!isLine(k)) {
@@ -239,7 +239,9 @@ export class Sim {
     for (const [x, z] of lineTiles(this.N, a.x, a.z, b.x, b.z, KINDS[k].w)) if (this.occ[z * this.N + x]) return { ok: false, why: 'A building is in the way', cost };
     // (GC 0.78) sandbags and trenches go in front of a wall, not inside it; barbed wire may run along a wall's top
     if (k === 'bags' || k === 'trench') { for (const [x, z] of tiles) { const w = this.walls?.[z * this.N + x]; if (w === 1 || w === 2) return { ok: false, why: `${k === 'bags' ? 'Sandbags go' : 'A trench goes'} in front of a wall, not inside it (barbed wire can run along its top)`, cost }; } }
-    if (k === 'wall') { const dug = this.worksTiles(['bags', 'trench']); for (const [x, z] of tiles) if (dug.has(z * this.N + x)) return { ok: false, why: 'Sandbags or a trench in the way: clear them first (DEMOLISH), or run barbed wire along the wall\'s top', cost }; }
+    // (GC 0.89) a Fortified Wall stands on a foundation, every tile of it
+    if (WALLS[k]?.slab) for (const [x, z] of tiles) { const sl = this.slabAt?.(x, z); if (!sl || !sl.done) return { ok: false, why: 'A Fortified Wall stands on a foundation: lay one along the line first (any kind), and let it be finished', cost }; }
+    if (WALLS[k]) { const dug = this.worksTiles(['bags', 'trench']); for (const [x, z] of tiles) if (dug.has(z * this.N + x)) return { ok: false, why: 'Sandbags or a trench in the way: clear them first (DEMOLISH), or run barbed wire along the wall\'s top', cost }; }
     if (cost > 0 && this.supplies < cost) return { ok: false, why: 'Not enough supplies', cost };
     return { ok: true, cost };
   }
@@ -280,7 +282,7 @@ export class Sim {
     return { ok: true, cost };
   }
   // the deck's height over a point, if a bridge runs there (null if none)
-  deckAt(x, z) { if (!this.deck) return null; const M = this.N + 1, i = Math.round(x), j = Math.round(z); const v = this.deck.get(j * M + i); return v ?? null; }
+  deckAt(x, z) { const dk = this.bdeck || this.deck; if (!dk) return null; const M = this.N + 1, i = Math.round(x), j = Math.round(z); const v = dk.get(j * M + i); return v ?? null; }     // (GC 0.89) bridges only, not foundations
   // every corner a bridge covers gets its deck height: the shader lifts whatever runs on the bridge onto it
   buildDecks() {
     const M = this.N + 1, net = this.net, nd = id => net.nodes.find(n => n.id === id), deck = new Map();
@@ -292,6 +294,7 @@ export class Sim {
         if (h > this.hgt[j * M + i] - 0.05) deck.set(j * M + i, Math.max(deck.get(j * M + i) ?? -1e9, h));
       }
     }
+    this.bdeck = new Map(deck);     // (GC 0.89) the bridges alone, for what may join them where
     if (this.b) this.slabDecks(deck);     // (GC 0.87) and every finished foundation, so what stands on one stands on its top
     this.deck = deck; this.deckV = (this.deckV || 0) + 1;
   }
@@ -1422,15 +1425,17 @@ export class Sim {
     const guns = []; for (const b of this.b) { const g = this.stat(b, 'guns'); if (b.done && g && !b.off && (!B[b.type].need?.ammo || b.stock.ammo > 0)) guns.push([b.x + b.w / 2, b.z + b.d / 2, g]); }
     let manned = 0;
     gs.forEach((g, i) => { if (this.troops.some(t => t.gate === i && t.state === 'guard')) { manned++; posts.push([g.x, g.z, 5]); } });
-    let wall = 0, seen = 0, armed = 0, works = 0; const wt = [];
-    const W = this.win(); for (let zz = W[1]; zz < W[3]; zz++) for (let xx = W[0], i = zz * N + xx; xx < W[2]; xx++, i++) if (this.walls[i] === 1) { wall++; const x = xx + 0.5, z = zz + 0.5; wt.push(x, z); if (posts.some(p => Math.hypot(p[0] - x, p[1] - z) <= p[2])) seen++; if (guns.some(p => Math.hypot(p[0] - x, p[1] - z) <= p[2])) armed++; }
+    let wall = 0, seen = 0, armed = 0, works = 0, str = 0; const wt = [];
+    const W = this.win(); for (let zz = W[1]; zz < W[3]; zz++) for (let xx = W[0], i = zz * N + xx; xx < W[2]; xx++, i++) if (this.walls[i] === 1) { wall++; str += this.wallStr?.get(i) ?? 1; const x = xx + 0.5, z = zz + 0.5; wt.push(x, z); if (posts.some(p => Math.hypot(p[0] - x, p[1] - z) <= p[2])) seen++; if (guns.some(p => Math.hypot(p[0] - x, p[1] - z) <= p[2])) armed++; }
     for (const sg of this.net.segs) if (FIELD.has(sg.k)) works += Math.ceil(segLen(this.net, sg)) * C.WORKS[sg.k].per;     // (GC 0.64) the field works: wire, sandbags, trenches
     const key = this.b.filter(b => b.done && (b.type === 'hq' || b.type === 'fueldepot'));
     let depth = 0;
     for (const b of key) { let m = 99; for (let k = 0; k < wt.length; k += 2) m = Math.min(m, Math.hypot(wt[k] - b.x - b.w / 2, wt[k + 1] - b.z - b.d / 2)); depth += Math.min(1, m / 7); }
     const f = { works, closed: !this.open, cover: wall ? seen / wall : 0, armed: wall ? armed / wall : 0, gates: gs.length, manned, entr: gs.length <= 2 ? 1 : Math.max(0, 1 - (gs.length - 2) * 0.35), depth: key.length ? depth / key.length : 1 };
     // turrets are a bonus on top: a watched, manned wall scores well; an armed one scores more
-    f.score = f.closed ? Math.min(100, Math.round(45 * f.cover + 25 * (gs.length ? manned / gs.length : 1) + 15 * f.entr + 15 * f.depth + 15 * f.armed)) : 0;
+    // (GC 0.89) and what the wall is made of: a fence counts for less, concrete for more, a fortified wall on a foundation most
+    f.str = wall ? str / wall : 0;
+    f.score = f.closed ? Math.min(100, Math.round((45 * f.cover + 25 * (gs.length ? manned / gs.length : 1) + 15 * f.entr + 15 * f.depth + 15 * f.armed) * (0.55 + 0.45 * Math.min(1.6, f.str)))) : 0;
     return f;
   }
   // ---------------------------------------------------------------- supplies and credits: every income goes through here
@@ -1604,7 +1609,7 @@ export class Sim {
   // ---------------------------------------------------------------- saving
   save() {
     const o = {};
-    for (const k of Object.keys(this)) if (!['deck', 'hgt', 'hgt0', 'terr0', 'paint', 'own', 'zone', 'scrub', 'rng', 'events', 'occ', 'mor', 'power', 'roads', 'walls', 'inMask', 'wallIn', 'gates', 'terr', 'hgt', '_walk', '_walkV', '_paths', '_pathV', '_slabT', 'slabMap', 'rim', 'slabGrp', 'fnds', 'surf', 'netMap', '_nets', '_netU', '_netK', '_netUK', 'utilLive', '_dpaths', '_dpathV'].includes(k)) if (!ArrayBuffer.isView(this[k])) o[k] = this[k];     /* (GC 0.88) never a whole-map array: they are packed, or worked out again */ 
+    for (const k of Object.keys(this)) if (!['deck', 'hgt', 'hgt0', 'terr0', 'paint', 'own', 'zone', 'scrub', 'rng', 'events', 'occ', 'mor', 'power', 'roads', 'walls', 'inMask', 'wallIn', 'gates', 'terr', 'hgt', '_walk', '_walkV', '_paths', '_pathV', '_slabT', 'slabMap', 'rim', 'slabGrp', 'fnds', 'surf', 'bdeck', 'netMap', '_nets', '_netU', '_netK', '_netUK', 'utilLive', '_dpaths', '_dpathV'].includes(k)) if (!ArrayBuffer.isView(this[k])) o[k] = this[k];     /* (GC 0.88) never a whole-map array: they are packed, or worked out again */ 
     o.rngS = this.rng.s; o.v = 13; o.scrubS = this.packScrub(); o.zoneS = this.packZones(); o.ownS = this.packOwn(); o.hgtS = this.packHeights(); o.paintS = this.packPaint();
     return JSON.parse(JSON.stringify(o));
   }

@@ -814,6 +814,10 @@ Object.assign(MAKE, {
     for (const x of [-0.45, 0.45]) box(g, 0.22, 0.52, 0.8, m.concrete, x, -0.24, 0); for (let x = -1.2; x <= 1.21; x += 0.6) box(g, 0.3, 0.01, 0.05, tm('#d8c35a'), x, 0.086, 0, { cast: false }); },
   t_wall(g, m) { tile(g, '#8f8358'); box(g, 2.8, 0.7, 0.2, m.concrete, 0, 0.35, 0); for (const x of [-1.4, 0, 1.4]) box(g, 0.28, 0.85, 0.3, m.stone, x, 0.425, 0);
     for (let x = -1.25; x <= 1.26; x += 0.25) box(g, 0.02, 0.14, 0.02, m.metal, x, 0.77, 0); box(g, 2.8, 0.015, 0.02, m.metal, 0, 0.83, 0); ball(g, 0.05, m.glowR, 0, 0.9, 0); },
+  // (GC 0.89) the walls' cards show the shared models once they have come; till then, a sketch
+  t_fence(g, m) { if (wallPic(g, 'prop_cover1', 0.9 / 1.53)) return; tile(g, '#8f8358'); for (let x = -1.2; x <= 1.21; x += 0.6) box(g, 0.06, 0.75, 0.06, m.steel, x, 0.375, 0); box(g, 2.6, 0.03, 0.03, m.steel, 0, 0.74, 0); box(g, 2.5, 0.62, 0.015, tm('#9aa09c', { transparent: true, opacity: 0.55 }), 0, 0.38, 0, { cast: false }); },     // (GC 0.89)
+  t_cwall(g, m) { if (wallPic(g, 'prop_cover2', 1.45 / 1.5)) return; tile(g, '#8f8358'); box(g, 2.8, 0.14, 0.7, tm('#9b9a90'), 0, 0.07, 0); box(g, 2.8, 1.3, 0.22, tm('#9b9a90'), 0, 0.79, 0); for (let x = -1.05; x <= 1.06; x += 0.7) box(g, 0.03, 1.25, 0.24, tm('#5f5e57'), x, 0.8, 0, { cast: false }); },
+  t_rampart(g, m) { if (wallPic(g, 'prop_fortwall', 1.9 / 1.03, '#8e8f88')) return; box(g, 3, 0.4, 3, tm('#8b8c85'), 0, -0.2, 0, { cast: false }); box(g, 2.8, 1.2, 0.8, tm('#7d7e77'), 0, 0.6, 0); box(g, 2.8, 0.04, 0.5, tm('#5a5b55'), 0, 1.22, 0); for (const z of [-0.32, 0.32]) for (let x = -1.15; x <= 1.16; x += 0.55) box(g, 0.3, 0.22, 0.16, tm('#7d7e77'), x, 1.33, z); },
   t_unroad(g, m) { tile(g, '#8f8358'); box(g, 1.3, 0.04, 1.2, tm('#3e3f3c'), -0.85, 0.02, 0, { cast: false }); for (const [x, z, ry] of [[0.1, 0.3, 0.5], [0.25, -0.35, -0.3], [-0.05, -0.05, 1.1]]) box(g, 0.35, 0.06, 0.3, tm('#3e3f3c'), x, 0.05, z, { ry, rz: 0.25 });
     box(g, 0.8, 0.3, 0.6, m.lift, 0.95, 0.3, 0); box(g, 0.4, 0.28, 0.5, m.dark, 1.05, 0.58, 0); box(g, 0.08, 0.4, 0.9, m.steel, 0.45, 0.22, 0); for (const z of [-0.36, 0.36]) box(g, 0.9, 0.2, 0.14, m.rubber, 0.95, 0.1, z); },
   t_clear(g, m) { tile(g, '#7d8050'); for (const [x, z, r] of [[-0.9, -0.7, 0.3], [-0.3, -1.0, 0.22], [-1.0, 0.2, 0.26], [-0.4, -0.3, 0.2], [-1.1, 0.9, 0.2]]) { ball(g, r, tm('#4f6b34'), x, r * 0.7, z); ball(g, r * 0.7, tm('#5f7d3e'), x + r * 0.5, r * 0.5, z + r * 0.3); }
@@ -832,6 +836,13 @@ Object.assign(MAKE, {
   t_zone_buffer(g) { tile(g, '#586a3c'); box(g, 2.7, 0.02, 2.7, tm('#9aa3a0', { transparent: true, opacity: 0.55 }), 0, 0.012, 0, { cast: false }); for (let x = -1.1; x <= 1.11; x += 0.55) { ball(g, 0.2, tm('#4f6b34'), x, 0.18, -1.05); ball(g, 0.2, tm('#4f6b34'), x, 0.18, 1.05); }
     for (const [x, z] of [[-0.5, 0], [0.6, 0.2]]) { cyl(g, 0.05, 0.06, 0.5, tm('#6b4f33'), x, 0.25, z); ball(g, 0.34, tm('#5f7d3e'), x, 0.7, z); } },
 });
+function wallPic(g, f, ky, tint = null) {
+  const d = BLD.shared[f]; if (!d) return false;
+  tile(g, '#8f8358');
+  const geo = staticGeo(d), mat = new THREE.MeshStandardMaterial({ vertexColors: true, color: tint || '#ffffff', roughness: 0.85, side: THREE.DoubleSide });
+  for (const x of [-0.7, 0.7]) { const me = new THREE.Mesh(geo, mat); me.scale.set(0.7, ky, 0.8); me.position.x = x; me.castShadow = true; g.add(me); }
+  return true;
+}
 // ---------------------------------------------------------------- (GC 0.87) foundations: a concrete slab w x d tiles, its top at y = 0
 // (the view stands it on the levelled ground, or lifts it to its top once it is down), a skirt below it into the ground,
 // expansion joints every tile, grit and stains; a raised one has a steel edge, and every one a painted line in its kind's
@@ -1012,7 +1023,7 @@ export const BLD = { data: new Map(), veh: {}, shared: {}, asked: false };
 // post's model (tools/blender/fleet.py), so the two games show one Defence Turret, one Lookout Tower, one Landing Pad.
 //   file: the model; k: its size here (the models have a footprint radius of about one); spin: a second model on it that turns
 // Until the files come the building is drawn as before. LINES: the ground fight's field works laid along a line (the view lays them).
-export const LINES = ['prop_wire', 'prop_cover0', 'prop_trench'];
+export const LINES = ['prop_wire', 'prop_cover0', 'prop_trench', 'prop_cover1', 'prop_cover2', 'prop_fortwall'];     // (GC 0.89: the walls' too)
 // one of those models as it was made (a footprint radius of about one), for the view to lay out
 export function sharedGeo(m, f) { const c = m._sharedRaw ||= new Map(); let g = c.get(f); if (!g && BLD.shared[f]) { g = staticGeo(BLD.shared[f]); c.set(f, g); } return g || null; }
 export const SHARED = {

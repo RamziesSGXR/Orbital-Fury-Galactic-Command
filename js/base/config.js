@@ -497,7 +497,7 @@ export const LAND = { PARCEL: 75, GRID: 23, TILE_M: 8, START: 3, sup: 150, supSt
 // construction equipment: what the engineers need on the base before they can do each kind of work. The Engineer Yard
 // brings the bulldozers and graders (earthworks, prefabs); the Concrete Batch Plant brings concrete (paving, bridges,
 // permanent buildings). Dirt tracks, tents, walls of HESCO and scrub clearing need nothing but hands
-export const EQUIP = { landscape: 'yard', std1: 'yard', paved: 'batch', path: 'batch', bridge: 'batch', std2: 'batch' };
+export const EQUIP = { landscape: 'yard', std1: 'yard', paved: 'batch', path: 'batch', bridge: 'batch', std2: 'batch', cwall: 'batch', rampart: 'batch' };     // (GC 0.89: the concrete walls too)
 export const SWEEP = { dur: 42, salvage: [60, 140] };
 
 // ---------------------------------------------------------------- zones (0.14, design §8, after doctrine's functional areas)

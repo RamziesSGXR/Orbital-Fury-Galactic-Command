@@ -10,13 +10,26 @@ export const KINDS = {
   paved: { name: 'Paved Road', w: 2, surf: 2 },
   bridge: { name: 'Bridge', w: 2, surf: 2 },
   path: { name: 'Footpath', w: 1, surf: 3 },   // a paved walk, one cell: people move as on a paved road, vehicles ignore it   // a paved deck on piers: spans water, ravines and rough ground
-  wall:  { name: 'Wall', w: 1, surf: 0 },
+  wall:  { name: 'Barrier Wall', w: 1, surf: 0 },
+  fence: { name: 'Timber Barricade', w: 1, surf: 0 },     // (GC 0.89) more than one kind of wall (Ramzies)
+  cwall: { name: 'Concrete Wall', w: 1, surf: 0 },
+  rampart: { name: 'Fortified Wall', w: 1, surf: 0 },
   wire:  { name: 'Barbed Wire', w: 1, surf: 0 },   // (GC 0.64) field works, the ground fight's own: no road, no wall, nobody walks through them
   bags:  { name: 'Sandbags', w: 1, surf: 0 },
   trench: { name: 'Trench', w: 1, surf: 0 },
 };
 export const FIELD = new Set(['wire', 'bags', 'trench']);
-export const isLine = k => k === 'wall' || FIELD.has(k);   // drawn along a line and not a road
+// (GC 0.89) the walls: each closes the base the same way; str is what it is worth against a raid, h how high it stands,
+// cost a tile. A Fortified Wall goes only on a foundation, and stands as tall again on a raised one
+export const WALLS = {
+// file: the ground fight's own model for it (shared, as the field works are), len/h/d its size there
+  fence:   { str: 0.45, h: 0.9, cost: 1.5, file: 'prop_cover1', len: 2, mh: 1.53, md: 1.15, d: 0.75 },     // a timber barricade
+  wall:    { str: 1, h: 1.1, cost: 4 },     // filled barrier baskets, drawn here
+  cwall:   { str: 1.5, h: 1.45, cost: 8, equip: 'batch', file: 'prop_cover2', len: 2, mh: 1.5, md: 1.06, d: 0.85 },     // concrete barriers
+  rampart: { str: 2.2, h: 1.9, cost: 14, equip: 'batch', slab: true, file: 'prop_fortwall', len: 2, mh: 1.03, md: 0.74, d: 0.85, tint: '#8e8f88' },     // the enemy capital's curtain wall, in our concrete
+};
+export const isWall = k => !!WALLS[k];
+export const isLine = k => isWall(k) || FIELD.has(k);   // drawn along a line and not a road
 const RANK = [0, 2, 3, 1];   // where two cross, the better surface shows: paved, then dirt, then a footpath
 const REACH = 0.22;   // tiles within half the width plus this of the centreline belong to a segment (keeps diagonals 4-connected)
 
@@ -189,13 +202,13 @@ export function removeSeg(net, id) {
 // tiles from the network: roads (surface 1 dirt, 2 paved), walls (1 wall, 2 gate) and the enclosed base
 // win: [x0, z0, x1, z1), the part of the map that matters (your land and a margin); outside it nothing is inside
 export function raster(net, N, block = null, win = null) {
-  const roads = new Uint8Array(N * N), walls = new Uint8Array(N * N), inside = new Uint8Array(N * N);
+  const roads = new Uint8Array(N * N), walls = new Uint8Array(N * N), inside = new Uint8Array(N * N), strs = new Map();     // (GC 0.89) what each wall tile is worth
   const [X0, Z0, X1, Z1] = win || [0, 0, N, N], each = f => { for (let z = Z0; z < Z1; z++) for (let x = X0; x < X1; x++) f(z * N + x, x, z); };
   for (const s of net.segs) {
     const a = node(net, s.a), b = node(net, s.b);
     for (const [x, z] of lineTiles(N, a.x, a.z, b.x, b.z, s.w)) {
       const i = z * N + x;
-      if (s.k === 'wall') walls[i] = 1; else if (FIELD.has(s.k)) { if (!walls[i]) walls[i] = 3; } else if (RANK[KINDS[s.k].surf] > RANK[roads[i]]) roads[i] = KINDS[s.k].surf;     // (3: field works)
+      if (WALLS[s.k]) { walls[i] = 1; strs.set(i, Math.max(strs.get(i) || 0, WALLS[s.k].str)); } else if (FIELD.has(s.k)) { if (!walls[i]) walls[i] = 3; } else if (RANK[KINDS[s.k].surf] > RANK[roads[i]]) roads[i] = KINDS[s.k].surf;     // (3: field works)
     }
   }
   each(i => { if (walls[i] && roads[i]) walls[i] = walls[i] === 3 ? 0 : 2; });   // a road through a wall is a gate (and through wire, a gap in it)
@@ -234,5 +247,5 @@ export function raster(net, N, block = null, win = null) {
     const x = tiles.reduce((a, j) => a + j % N, 0) / tiles.length + 0.5, z = tiles.reduce((a, j) => a + ((j / N) | 0), 0) / tiles.length + 0.5;
     gates.push({ x, z, tiles });
   });
-  return { roads, walls, inside, gates, area: n };
+  return { wallStr: strs,  roads, walls, inside, gates, area: n };
 }

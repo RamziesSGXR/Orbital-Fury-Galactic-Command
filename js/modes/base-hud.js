@@ -15,6 +15,7 @@
 // Ministries are Offices here, votes are troops, the pelican a dropship.
 import { C, B, GROUPS, ZONES, ZKEYS, GOODS, GKEYS, STD, TRAIN, TECH, VEHICLES, LOANS, CHAINS, GROW, SUPPLY_MODES, SUPPLY_CAPS, COMMIT, MARKET, FOUNDATION, MIN, SLABS, SKEYS, SLAB_LV } from '../base/config.js';
 import { KIND } from '../base/slabs.js';     // (GC 0.87) foundations
+import { isLine } from '../base/net.js';
 import { MKEYS, rankOf, LOOSE } from '../base/sim.js';
 import { REQUESTS, CALLS, GRADES, fileOf } from '../base/desk.js';
 import { words } from '../core/words.js';
@@ -64,7 +65,10 @@ export const LINES = {
   road1: { name: 'Dirt Road', k: 'dirt', pic: 't_road1', why: 'One tile wide, cheap, a bit faster', desc: 'Drag to draw. One tile wide and cheap. Vehicles go 1.6 times as fast as off-road, people a little faster, and every building needs a road at its door.' },
   road2: { name: 'Paved Road', k: 'paved', pic: 't_road2', why: 'Two tiles wide, vehicles 2.4× faster', desc: 'Drag to draw. Two tiles wide, two lanes. Trucks run fastest here and do not queue behind each other. Needs a Concrete Batch Plant.' },
   path: { name: 'Footpath', k: 'path', pic: 't_path', why: 'A paved walk for people', desc: 'Drag to draw. A paved walk one tile wide. People keep to it; vehicles get nothing from it. Buildings can front onto it.' },
-  wall: { name: 'Wall', k: 'wall', pic: 't_wall', why: 'Close it round the base for a bonus', desc: 'Drag to draw. Draw it all the way round and the base is closed: better morale, and raiders have to come through a gate. A road through a wall makes a gate.' },
+  fence: { name: 'Timber Barricade', k: 'fence', pic: 't_fence', why: 'Cheap; closes the base, holds little', desc: 'Drag to draw. Rough timber rails on braced posts, the same barricade as on the ground. It closes the base like any wall for a fraction of the cost, but a raid goes through it easily (worth 0.45 of a barrier wall).' },
+  wall: { name: 'Barrier Wall', k: 'wall', pic: 't_wall', why: 'Close it round the base for a bonus', desc: 'Drag to draw. Draw it all the way round and the base is closed: better morale, and raiders have to come through a gate. A road through a wall makes a gate.' },
+  cwall: { name: 'Concrete Wall', k: 'cwall', pic: 't_cwall', why: 'Concrete barriers, half again as strong', desc: 'Drag to draw. Precast concrete barriers with hazard-painted tops, the same as on the ground: taller than a barrier wall and worth half as much again against a raid. Needs a Concrete Batch Plant.' },
+  rampart: { name: 'Fortified Wall', k: 'rampart', pic: 't_rampart', why: 'On a foundation only: the strongest', desc: 'Drag to draw, along a finished foundation (any kind): every tile of it must stand on one. A thick curtain wall with a battlemented walkway (the same as the enemy capitals\', in our concrete), more than twice a barrier wall against a raid, and on a raised foundation it stands a storey higher. Needs a Concrete Batch Plant.' },
   wire: { name: 'Barbed Wire', k: 'wire', ic: 'wire', why: 'Slows raiders; runs along a wall\'s top', desc: 'Razor wire on steel stakes, the same as on the ground. Lay it outside the wall, or draw it along the wall itself and it runs along the top. Every tile adds to the strength the base puts against a raid (2 supplies a tile). Nobody walks through it; a road through it leaves a gap.' },
   bags: { name: 'Sandbags', k: 'bags', ic: 'bags', why: 'Cover in front of the wall', desc: 'A chest-high line of sandbags, the ground fight\'s bastions. Lay them in front of a wall, not along it. The most raid strength a tile of any field work (3 supplies a tile). Field works add up to 20 between them.' },
   trench: { name: 'Trench', k: 'trench', ic: 'trench', why: 'Cheap, dug in', desc: 'A fighting trench between banks of sandbags, as on the ground. Dug in front of a wall, not under it. Cheap, and a little raid strength a tile (2 supplies a tile).' },
@@ -75,7 +79,7 @@ export const CONDITION = 'Condition: every building wears a little each day, and
 // The orders: what to do next, in the order a base is built. Each is done when its test passes.
 // (GC 0.85) [a short line for the board, the whole of it for its tip, the test]
 const ORDERS = [
-  ['Draw a road from the command post', 'Draw a road from the command post (ROADS, drag)', (s) => s.net.segs.some((q) => !['wall', 'wire', 'bags', 'trench'].includes(q.k))],
+  ['Draw a road from the command post', 'Draw a road from the command post (ROADS, drag)', (s) => s.net.segs.some((q) => !isLine(q.k))],
   ['The groundwork: depot, barracks, mess, range', 'Put up the groundwork: a Supply Depot, Barracks, a Mess Hall and a Firing Range. As tents they go on bare ground with their door on the road', (s) => s.founded()],
   ['Lay a foundation by the road', 'Lay a foundation beside a road (FOUNDATIONS: pick a kind and drag on the ground). Anything better than a tent stands on one of its kind', (s) => s.slabs().some((x) => x.done)],
   ['Power the base: a generator', 'Power the base: a Biofuel Generator on a Utilities foundation (FOUNDATIONS, then UTILITIES). It powers its foundation and every foundation a paved road joins to it; dirt roads carry nothing', (s) => s.b.some((b) => b.done && B[b.type].pw > 0 && b.type !== 'hq')],
@@ -306,7 +310,7 @@ export function makeHud(o) {
       const head = `<div class="bi-head"><b>${G[1]}</b><span class="bi-desc"></span>${utilLine}${crews}${stdRow}${!found && group !== 'roads' ? `<em>Groundwork first: ${fm.map((t) => B[t].name).join(', ')}. These bring the money in.</em>` : ''}</div>`;
       let cards = '';
       if (group === 'roads' || group === 'defence') {
-        const lines = group === 'roads' ? ['road1', 'road2', 'path', 'unroad'] : ['wall', 'wire', 'bags', 'trench', 'unroad'];
+        const lines = group === 'roads' ? ['road1', 'road2', 'path', 'unroad'] : ['fence', 'wall', 'cwall', 'rampart', 'wire', 'bags', 'trench'];
         if (group === 'roads') cards += `<button class="bi road" data-snap="1">${pic('t_snap')}<b>SNAP</b><span class="why">${SNAPNAME[snapMode]}${matchMedia('(pointer: fine)').matches ? ' · Shift draws free' : ''}</span><span class="cost">G TO SWITCH</span></button>`;
         cards += lines.map((k) => { const L = LINES[k], lk = L.k ? s.equipLock(L.k) : null; return `<button class="bi road${tool === k ? ' on' : ''}${lk ? ' lock' : ''}" data-b="${k}">${pic(L.pic, L.ic)}<b>${L.name}</b><span class="why">${esc(lk || L.why)}</span><span class="cost">${L.k ? Math.round(s.linePrice(L.k) * 10) / 10 + ' SUP / TILE' : 'HALF BACK'}</span></button>`; }).join('');
       }
@@ -317,7 +321,7 @@ export function makeHud(o) {
         return `<button class="bi${lk ? ' lock' : ''}${poor ? ' poor' : ''}${tool === k ? ' on' : ''}${fnd ? ' found' : ''}" data-b="${k}">${pic(k)}<b>${esc(d.name)}</b><span class="why${noSlab && !lk ? ' warn' : ''}">${esc(lk ? 'Needs ' + lk.join(' and ') : noSlab ? `Needs ${need === 'any' ? 'a foundation' : `a ${SLABS[need].name} foundation`}` : whyOf(k))}</span><span class="cost">${s.designable(k) ? 'FROM ' : ''}${Math.round(c)} SUP${up}${pw}</span></button>`;
       }).join('');
       if (!cards) cards = '<span class="fine">Nothing to place by hand here yet.</span>';
-      html = head + `<div class="bi-row">${cards}</div>`;
+      html = head + `<div class="bi-row${(cards.match(/class="bi[ "]/g) || []).length > 9 ? ' dense' : ''}">${cards}</div>`;     // (GC 0.89) a full tab gets narrower cards, so none fall off the end
     }
     if (force || (html !== itemsSig && !held($('fb-items')))) { itemsSig = html; $('fb-items').innerHTML = html; }
   }

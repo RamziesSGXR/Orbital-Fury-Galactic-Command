@@ -15,7 +15,7 @@ with sync_playwright() as pw:
     pg.wait_for_timeout(5000)
     info = pg.evaluate("""(async () => { const { BLD, buildModel } = await import('/js/base/models.js'), { B } = await import('/js/base/config.js'), v = gc.mode.view; let on = 0, all = 0, bad = [];
       for (const g of v.bm.values()) { all++; let has = false; g.traverse(o => { if (o.userData.model3) has = true; }); if (has) on++; }
-      for (const t of Object.keys(B)) { try { const g = buildModel(t, v.m, true); let has = false; g.traverse(o => { if (o.userData.model3) has = true; }); if (!has) bad.push(t); } catch (e) { bad.push(t + ': ' + e.message); } }
+      for (const t of Object.keys(B)) { if (B[t].slab) continue; try {     /* (GC 0.87) a foundation is drawn to the size it is laid: no one model (Blender pieces for it later, DIRECTION 22) */ const g = buildModel(t, v.m, true); let has = false; g.traverse(o => { if (o.userData.model3) has = true; }); if (!has) bad.push(t); } catch (e) { bad.push(t + ': ' + e.message); } }
       return { files: BLD.data.size, standing: all, modelled: on, kindsWithoutModel: bad }; })()""")
     print('buildings from the models:', info)
     veh = pg.evaluate("""(async () => { const M = await import('/js/base/models.js'), v = gc.mode.view, out = {};
