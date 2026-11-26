@@ -275,21 +275,6 @@
     "island_tree_02_branches"
    ]
   },
-  "tree_leaf": {
-   "id": "tree_small_02",
-   "tris": 9512,
-   "far": 1847,
-   "size": [
-    2.944,
-    4.458,
-    4.283
-   ],
-   "materials": [
-    "tree_small_02_branches",
-    "tree_small_02_leaves",
-    "tree_small_02_trunk"
-   ]
-  },
   "tree_pine": {
    "id": "fir_sapling",
    "tris": 8000,
@@ -302,6 +287,16 @@
    "materials": [
     "fir_sapling_branches",
     "fir_sapling_twigs"
+   ]
+  },
+  "tree_isle": {
+   "id": "island_tree_01",
+   "tris": 11000,
+   "far": 5584,
+   "size": [
+    4.647,
+    4.883,
+    4.605
    ]
   }
  }

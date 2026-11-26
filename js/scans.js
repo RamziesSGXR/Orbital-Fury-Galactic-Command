@@ -16,6 +16,12 @@ let INDEX = null;
 export function scanIndex() { if (!INDEX) INDEX = OFF ? Promise.resolve(null) : fetch(BASE + 'scans.json').then((r) => (r.ok ? r.json() : null)).catch(() => null); return INDEX; }
 
 const MODELS = new Map(), LOADER = new GLTFLoader();
+// a leaf card lit the same from either side (three.js turns a card's normal round for its back, which leaves half a crown black)
+function leafLit(m) {
+  m.userData.leaf = true; const prev = m.onBeforeCompile;
+  m.onBeforeCompile = function (sh, r) { if (prev) prev.call(this, sh, r); sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>\n#ifndef FLAT_SHADED\n  normal = normalize( vNormal );\n#endif'); };
+  m.customProgramCacheKey = () => 'gc-leaf'; return m;
+}
 export function scanModel(name) {
   let p = MODELS.get(name); if (p) return p;
   if (/^tree_pine(_far)?$/.test(name)) { p = OFF ? Promise.resolve(null) : Promise.resolve(pine()); MODELS.set(name, p); return p; }
@@ -27,7 +33,7 @@ export function scanModel(name) {
       for (const a of Object.keys(g.attributes)) if (!['position', 'normal', 'uv'].includes(a)) g.deleteAttribute(a);
       if (!g.attributes.uv) g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2));
       const m = o.material; m.userData.scan = true;
-      if (m.transparent || m.alphaTest > 0 || /leaf|leaves|branch|twig|needle|fern|shrub|grass/i.test(m.name)) { m.transparent = false; m.alphaTest = Math.max(0.45, m.alphaTest || 0); m.side = THREE.DoubleSide; m.userData.leaf = true; }
+      if (m.transparent || m.alphaTest > 0 || /leaf|leaves|branch|twig|needle|fern|shrub|grass/i.test(m.name)) { m.transparent = false; m.alphaTest = Math.max(0.45, m.alphaTest || 0); m.side = THREE.DoubleSide; leafLit(m); }
       if (m.map) m.map.anisotropy = 4;
       geos.push(g); mats.push(m);
     });
@@ -87,7 +93,7 @@ function pine() {
   const geo = mergeGeometries([tr, fr], true); geo.computeBoundingBox();
   const T = (f, srgb) => { const t = new THREE.TextureLoader().load(BASE + `models/${f}`); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4; if (srgb) t.colorSpace = THREE.SRGBColorSpace; return t; };
   const bark = new THREE.MeshStandardMaterial({ map: T('pine_bark_diff.jpg', true), normalMap: T('pine_bark_nor.jpg'), roughness: 0.95 }); bark.userData.scan = true;
-  const ndl = new THREE.MeshStandardMaterial({ map: T('pine_frond.png', true), alphaTest: 0.42, side: THREE.DoubleSide, roughness: 0.85, color: 0xf2f6ee }); ndl.userData.scan = true; ndl.userData.leaf = true;
+  const ndl = new THREE.MeshStandardMaterial({ map: T('pine_frond.png', true), alphaTest: 0.42, side: THREE.DoubleSide, roughness: 0.85, color: 0x9fac98 }); ndl.userData.scan = true; leafLit(ndl);
   ndl.map.wrapS = ndl.map.wrapT = THREE.ClampToEdgeWrapping;
   const bb = geo.boundingBox; return { geo, mats: [bark, ndl], size: [bb.max.x - bb.min.x, bb.max.y - bb.min.y, bb.max.z - bb.min.z] };
 }

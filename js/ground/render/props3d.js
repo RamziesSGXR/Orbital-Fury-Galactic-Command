@@ -12,7 +12,7 @@ import { scanModel } from '../../scans.js';
 
 // (GC 0.91, Ramzies: "we're shooting for GTA V") trees and rocks from photoscans (js/scans.js) in place of the built ones, once
 // they have come: one instanced mesh a kind still, its materials (bark, leaves) as groups of it. On the moon, moon rocks.
-const SCAN = { 'tree:leaf': 'tree_leaf', 'tree:pine': 'tree_pine', 'tree:jungle': 'tree_jungle', 'tree:cactus': 'tree_desert', 'tree:dead': 'tree_dead', rock: 'rock_flat', 'rock:b': 'rock_a', 'rock:spire': 'rock_spire' };
+const SCAN = { 'tree:leaf': 'tree_isle', 'tree:pine': 'tree_pine', 'tree:jungle': 'tree_jungle', 'tree:cactus': 'tree_desert', 'tree:dead': 'tree_dead', rock: 'rock_flat', 'rock:b': 'rock_a', 'rock:spire': 'rock_spire' };
 const SCAN_MOON = { rock: 'rock_moon_a', 'rock:b': 'rock_moon_b' };
 
 const CAP = 900;
