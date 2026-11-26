@@ -1,6 +1,6 @@
 # Orbital Fury: Galactic Command
 
-**Prototype 0.89.0.** One war, run from four posts, in one game.
+**Prototype 0.91.0.** One war, run from four posts, in one game.
 
 You found a command (a name, a livery: emblem and colours) and hold the centre of the galaxy against three enemies. Everything in
 the war is yours to run, and each part changes the others:
@@ -13,6 +13,55 @@ the war is yours to run, and each part changes the others:
 | **The base** | Found a base on the system's key world: roads, zones, and buildings that grow along them. | +35% output from the system for each charter. |
 
 A system that falls takes its station and its base with it.
+
+## Play it on Windows (a desktop, a laptop, a Surface)
+
+Download the game (on GitHub: **Code**, then **Download ZIP**), unzip it, and double-click **INSTALL.bat**: it copies the
+game into your user folder (no admin needed) and puts **Galactic Command** on the desktop and in the Start menu. Or just
+double-click **PLAY.bat** in the unzipped folder to play without installing. Either opens the game full screen in its own
+Microsoft Edge window, served from your own computer only (nothing goes online); closing the window stops it. Touch screens
+work: tap, drag and pinch. `INSTALL.bat -Remove` takes it away again.
+
+## What's new in 0.91: the ground fight in photoscans, an installer, and touch
+
+Ramzies: "we're shooting for GTA V, not PlayStation 2"; "use CC0 scans"; "make a quick download and installer, also make it
+work with a touch screen ... I might want to play it on my Surface".
+
+- **The ground fight's land is photoscanned.** Each biome has two real scanned ground materials (Poly Haven, CC0): grass
+  and rock from the air with mud and leaves, forest litter and mud, desert sand with tyre tracks and stony dry ground,
+  snow and rock, moon dust and a meteor-pitted field, red sand and laterite, asphalt and gravel. Each is laid at two sizes
+  turned across each other so its repeat never shows, the second in patches and where the map is worn, with its real
+  surface relief lit by the sun; the map's own tracks, scorches and hollows stay on it.
+- **Scanned trees and rocks.** The broadleaf, jungle and desert trees and the dead tree are real scanned trees (a quiver
+  tree in the desert), and the rocks and rock spires are scanned boulders and cliffs (moon rocks on the moon), cut down in
+  Blender to what a browser draws well (tools/blender/scans.py, assets/scans). The pine stays the old model for now.
+  `?scans=0` shows the old ones.
+- **INSTALL.bat and PLAY.bat** (above), and the game can be installed from the browser as an app when it is served from the
+  web (manifest.webmanifest, sw.js).
+- **Touch.** A pinch or double tap no longer zooms the page itself, and a long press no longer opens the browser's menu over
+  the game. The war map, the base, the station and the ground fight already took taps, drags and pinches.
+- Next: pines, ground cover and grass, light from a real sky, then the same for FOB Commander, the station and the war room
+  (Ramzies' order).
+
+## What's new in 0.90 (shipped with 0.91): texture on everything, and Blender pieces for the foundations and the barrier wall
+
+Ramzies: "texture updates in general for all the games", and the grittier look, in Blender, now that it is open.
+
+- **Surface detail from a picture.** Every lit model in every mode (the war room, the ground fight, the station, the base)
+  now wears a small detail picture (assets/textures/detail.png, made by tools/textures/detail.py) laid on from three
+  sides, a layer for what it is made of: concrete and stone are pitted, cracked and spalled; painted metal has orange
+  peel, dents, scratches and chips to bare metal (a little shinier); cloth has a weave and creases and is rubbed pale
+  where it folds; hide and chitin are in scales; wood is grained. The bumps catch the light, so a wall reads as concrete
+  under a low sun and not as grey paint. Far off it fades to the plain colour, with no shimmer.
+- **The land too.** The base's ground and the ground fight's land have grit, pebbles, clods and a few dry cracks close
+  up (not on cliffs, under water or in the height views).
+- More material names are understood (canvas and tents are cloth, rubber neither scratches nor chips, water and glass
+  are left alone, asphalt and the barrier baskets are earth and stone).
+- **Blender pieces for the foundations.** A foundation is now laid from Blender-made pieces: concrete deck tiles (plain,
+  with a drain grate, with a tie-down ring, with anchor bolts), its sides stretched to its height and its corners, and
+  the ramps where a road meets a raised one. Every building and foundation now comes from the models.
+- **The barrier wall is a Blender model**: steel mesh baskets lined with sacking and filled with earth.
+- `?surf=0` still shows everything without the detail, to compare.
 
 ## What's new in 0.89: four kinds of wall
 

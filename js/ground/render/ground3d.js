@@ -7,6 +7,7 @@
 // One camera decides everything: where the land is drawn, where a label goes, and what the pointer is over.
 import * as THREE from '../../vendor/three.js';
 import { noSurf } from '../../surface.js';
+import { groundSet } from '../../scans.js';
 import { Units3D, Fx3D } from './units3d.js';
 import { Props3D } from './props3d.js';
 
@@ -45,20 +46,45 @@ export class Ground3D {
     // once and stays there; what is drawn on the ground this frame (zones, tracks, the dark where nobody is looking) is a
     // second, see-through picture laid over it. Before, the two were one picture, drawn and sent whole every frame.
     this.uDark = { value: null }; this.uDkOn = { value: 0 }; this.uDkO = { value: new THREE.Vector3() }; this.uDkHz = { value: new THREE.Vector4(0, 0, 0, 0) };     // (0.72) uDkHz: by day the unseen is a haze of this colour (w 1), not a dark     // (0.52) the dark of the night and of the unseen, for the models (see _night)
-    this.uGround = { value: null }; this.uOver = { value: null }; this.uInv = { value: 1 / 1600 }; this.uTopo = { value: 0 }; this.uAmp = { value: V3.amp }; this.uDet = { value: 1 };
+    this.uGround = { value: null }; this.uOver = { value: null }; this.uInv = { value: 1 / 1600 }; this.uTopo = { value: 0 }; this.uAmp = { value: V3.amp }; this.uDet = { value: 1 }; this.uLand = { value: 8 };
+    // (GC 0.91) the land's photoscanned materials, two for its biome (js/scans.js): pictures, normals, their sizes and mean colours
+    this.sc = { tScA: { value: null }, tScAn: { value: null }, tScB: { value: null }, tScBn: { value: null }, uScOn: { value: 0 }, uScT: { value: new THREE.Vector2(15, 3) }, uScMA: { value: new THREE.Vector3(0.5, 0.5, 0.5) }, uScMB: { value: new THREE.Vector3(0.5, 0.5, 0.5) }, uScK: { value: new THREE.Vector2(0.65, 1) } }; this.scBiome = null;
     const two = (mat) => { mat.onBeforeCompile = (sh) => {
-      Object.assign(sh.uniforms, { tGround: this.uGround, tOver: this.uOver, uInv: this.uInv, uTopo: this.uTopo, uAmp: this.uAmp, uDet: this.uDet });
+      Object.assign(sh.uniforms, { tGround: this.uGround, tOver: this.uOver, uInv: this.uInv, uTopo: this.uTopo, uAmp: this.uAmp, uDet: this.uDet, uLand: this.uLand }, this.sc);
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform float uInv; varying vec2 vG; varying vec2 vO; varying float vHt; varying vec2 vWp; varying float vDd;')
         .replace('#include <begin_vertex>', '#include <begin_vertex>\nvG = vec2(position.x * uInv, 1.0 - position.z * uInv); vO = uv; vHt = position.y; vWp = position.xz; vDd = -(modelViewMatrix * vec4(position, 1.0)).z;');
       sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
-        uniform sampler2D tGround; uniform sampler2D tOver; uniform float uTopo; uniform float uAmp; uniform float uDet; varying vec2 vG; varying vec2 vO; varying float vHt; varying vec2 vWp; varying float vDd;
+        uniform sampler2D tGround; uniform sampler2D tOver; uniform float uTopo; uniform float uAmp; uniform float uDet; uniform float uLand; uniform sampler2D tScA; uniform sampler2D tScAn; uniform sampler2D tScB; uniform sampler2D tScBn; uniform float uScOn; uniform vec2 uScT; uniform vec3 uScMA; uniform vec3 uScMB; uniform vec2 uScK; vec3 scN = vec3(0.0, 0.0, 1.0); varying vec2 vG; varying vec2 vO; varying float vHt; varying vec2 vWp; varying float vDd;
         vec3 gcLin(vec3 c) { return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c)); }
         float gcH(vec2 p) { p = mod(p, 289.0); return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
         float gcN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(gcH(i), gcH(i + vec2(1.0, 0.0)), f.x), mix(gcH(i + vec2(0.0, 1.0)), gcH(i + vec2(1.0, 1.0)), f.x), f.y); }`)
+        .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+        if (uScOn > 0.5) {     // (GC 0.91) the scans' normals, on the land's own frame (its x and z are the pictures' u and v)
+          vec3 q0 = dFdx(-vViewPosition), q1 = dFdy(-vViewPosition); vec2 st0 = dFdx(vWp), st1 = dFdy(vWp);
+          vec3 N = normal, q1p = cross(q1, N), q0p = cross(N, q0), T = q1p * st0.x + q0p * st1.x, Bt = q1p * st0.y + q0p * st1.y;
+          float dt = max(dot(T, T), dot(Bt, Bt)), sc = dt == 0.0 ? 0.0 : inversesqrt(dt);
+          normal = normalize(mat3(T * sc, Bt * sc, N) * vec3(scN.xy * uScK.y, scN.z));
+        }`)
         .replace('#include <map_fragment>', `
         vec3 gr = (vG.x < 0.0 || vG.x > 1.0 || vG.y < 0.0 || vG.y > 1.0) ? vec3(0.0) : texture2D(tGround, vG).rgb;
         float hk = clamp(vHt / uAmp * 0.5 + 0.5, 0.0, 1.0);
         gr *= 0.84 + 0.3 * hk;                                   // high ground a little lighter, hollows a little darker
+        // (GC 0.91, Ramzies: "we're shooting for GTA V") the ground is photoscanned: the biome's main material, a second one in
+        // patches, each laid at two sizes turned across each other (so it never shows its repeat), coloured and lit as the
+        // scan is, and as light or dark as the map's own picture is there (its tracks, scorches and hollows stay)
+        if (uScOn > 0.5) {
+          mat2 R = mat2(0.8, 0.6, -0.6, 0.8); vec2 a1 = vWp / uScT.x, a2 = R * vWp / (uScT.x * 2.3) + 0.37, b1 = vWp / uScT.y, b2 = R * vWp / (uScT.y * 2.1) + 0.61;
+          float ta = smoothstep(0.3, 0.7, gcN(vWp * 0.021 + 3.0)), tb = smoothstep(0.3, 0.7, gcN(vWp * 0.033 + 7.0));
+          vec3 A = mix(texture2D(tScA, a1).rgb, texture2D(tScA, a2).rgb, ta), B = mix(texture2D(tScB, b1).rgb, texture2D(tScB, b2).rgb, tb);
+          vec3 An = mix(texture2D(tScAn, a1).rgb * 2.0 - 1.0, vec3(transpose(R) * (texture2D(tScAn, a2).rgb * 2.0 - 1.0).xy, (texture2D(tScAn, a2).rgb * 2.0 - 1.0).z), ta);
+          vec3 Bn = mix(texture2D(tScBn, b1).rgb * 2.0 - 1.0, vec3(transpose(R) * (texture2D(tScBn, b2).rgb * 2.0 - 1.0).xy, (texture2D(tScBn, b2).rgb * 2.0 - 1.0).z), tb);
+          vec3 L3 = vec3(0.3, 0.59, 0.11); float lg = dot(gr, L3);
+          float wb = smoothstep(0.42, 0.78, gcN(vWp * 0.045 + 9.0) * 0.6 + gcN(vWp * 0.17 + 2.0) * 0.25 + clamp((0.33 - lg) * 1.6, 0.0, 0.4));     // the second where the noise says, and where the map is dark (tracks, scorches)
+          vec3 S = mix(A, B, wb), M = mix(uScMA, uScMB, wb);
+          vec3 kept = gr * S / max(M, vec3(0.04)), own = S * lg / max(dot(M, L3), 0.04);     // the map's colour with the scan's detail; the scan's colour at the map's brightness
+          gr = mix(gr, mix(kept, own, uScK.x), uScK.y);
+          scN = normalize(mix(An, Bn, wb));
+        }
         // (0.72, Ramzies: "make things look nicer when zoomed in") close up, the land has a grain of its own under its drawn
         // picture (which is a pixel or two a metre, a blur up close): speckle a hand across, patches a stride across, faded in
         // as the eye comes down to it, none at the usual height
@@ -72,9 +98,13 @@ export class Ground3D {
           gr = mix(gr, vec3(0.03), max(ln * 0.55, l5 * 0.85));
         }
         vec4 ov = texture2D(tOver, vO);
-        diffuseColor.rgb *= gcLin(clamp(gr * (1.0 - ov.a) + ov.rgb, 0.0, 1.0));`);
+        diffuseColor.rgb *= gcLin(clamp(gr * (1.0 - ov.a) + ov.rgb, 0.0, 1.0));
+        #ifdef GC_TEX
+          diffuseColor.rgb = gcLand(diffuseColor.rgb, vWp, (uTopo > 0.5 ? 0.0 : 1.0) * (1.0 - ov.a), uLand);     // (GC 0.90) the biome's own ground close up: sand, snow, grass, regolith, soil
+        #endif`);
     }; return mat; };
     this.mat = noSurf(two(new THREE.MeshLambertMaterial({ color: 0xffffff })));     /* (GC 0.70) the land wears its own drawn picture: no surface detail */
+    this.mat.defines.GC_LAND = '';     /* (GC 0.90) but the land's own grit, pebbles and cracks under it (js/surface.js) */
     // (GC 0.80, Ramzies: "some visual glitches with shadows") the land takes the shadows of what stands on it but throws none of its own:
     // its few-metre facets shadowing each other drew stripes down every slope turned from the sun, and dark smears on the flat
     // below a dune. Its hills are already shaded by their own slope (and the map's own shading); what stands on them still throws its shadow.
@@ -147,7 +177,12 @@ export class Ground3D {
       if (!this.gtex || this.gtex.image !== o.ground) { if (this.gtex) this.gtex.dispose(); this.gtex = new THREE.CanvasTexture(o.ground); this.gtex.anisotropy = Math.min(8, this.r.capabilities.getMaxAnisotropy()); this.uGround.value = this.gtex; this.gRev = -1; this.gAt = -1e9; }
       const nowMs = performance.now(); if (this.gRev !== o.groundRev && nowMs - this.gAt > 250) { this.gRev = o.groundRev; this.gAt = nowMs; this.gtex.needsUpdate = true; }
     }
-    this.uInv.value = 1 / (o.size || 1600); this.uTopo.value = o.topo ? 1 : 0; this.uDet.value = o.det ?? 1;
+    this.uInv.value = 1 / (o.size || 1600); this.uTopo.value = o.topo ? 1 : 0; this.uDet.value = o.det ?? 1; this.uLand.value = o.land ?? 8;
+    if (o.biome && o.biome !== this.scBiome) {     // (GC 0.91) the biome's scanned ground, as it comes; the trees and rocks too
+      this.scBiome = o.biome; this.sc.uScOn.value = 0; if (this.props && this.props.setBiome) this.props.setBiome(o.biome);
+      groundSet(o.biome).then((g) => { if (!g || this.scBiome !== o.biome) return; const c = this.sc;
+        c.tScA.value = g.a; c.tScAn.value = g.an; c.tScB.value = g.b; c.tScBn.value = g.bn; c.uScT.value.set(g.ta, g.tb); c.uScMA.value.set(...g.ma); c.uScMB.value.set(...g.mb); c.uScK.value.x = g.hue; c.uScOn.value = 1; });
+    }
     // the land under the sheet: a grid whose corners stay at fixed places on the map (so the hills do not shimmer as the
     // camera slides), covering the sheet and a cell more
     const n = V3.grid, L = S / scale, c = L / (n - 1), x0 = Math.floor((camX - L / 2) / c) * c, z0 = Math.floor((camY - L / 2) / c) * c, P = this.pos, U = this.uv;
@@ -276,7 +311,7 @@ export class Ground3D {
   // every lit material in the scene but the land's own (which wears the mask already, in the sheet laid over it) reads the dark
   // at its place and is dimmed by it. Done once for each material as it turns up; the glowing ones (lamps, flames) are left alone.
   _night() {
-    const U = this, skip = (m) => !m || m._gcNight || !m.isMeshLambertMaterial;
+    const U = this, skip = (m) => !m || m._gcNight || !(m.isMeshLambertMaterial || (m.userData && m.userData.scan));     // (GC 0.91: and the photoscans)
     if (!this._nightSet) { this._nightSet = true; this.mat._gcNight = true; if (this.bmat) this.bmat._gcNight = true; }
     const fix = (m) => {
       if (skip(m)) return; m._gcNight = true;

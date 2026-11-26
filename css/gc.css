@@ -1168,3 +1168,8 @@ table.st tr.me td { color: var(--amber); } table.st b { font-weight: 600; }
 .bi-row.dense .bi { width: 102px; padding: 4px 5px 5px; }
 .bi-row.dense .bi .th { height: 54px; } .bi-row.dense .bi .th img { max-height: 54px; }
 .bi-row.dense .bi b { font-size: 10.5px; } .bi-row.dense .bi .why, .bi-row.dense .bi .cost { font-size: 9.5px; }
+
+/* (GC 0.91, Ramzies: "make it work with a touch screen ... on my Surface") a pinch or a double tap never zooms the page itself
+   (the map, the base and the station take the pinch as their own zoom); lists still scroll with a finger; no long-press menus */
+html, body { touch-action: pan-x pan-y; -webkit-touch-callout: none; }
+button, [role=button], .plate, .btn, .tab, a { touch-action: manipulation; }

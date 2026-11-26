@@ -119,7 +119,7 @@ with sync_playwright() as pw:
     card = f.locator('#tut').inner_text(); print('ground tutorial:', card.replace('\n', ' | ')[:120])
     assert 'TUTORIAL · 1 OF' in card and 'YOU ARE THE SHIP' in card and 'trn.' not in card, 'the ground tutorial did not open on its first card, in words'
     seen = set()
-    for _ in range(60):
+    for _ in range(140):     # (GC 0.90: the textured ground draws slower in software; the lessons wait on the game)
         if pg.evaluate("gc.state") == 'title': break
         fr = next((x for x in pg.frames if 'ground.html' in x.url), None)
         if not fr: break

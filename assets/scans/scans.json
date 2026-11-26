@@ -1,0 +1,285 @@
+{
+ "ground": {
+  "ash_a": {
+   "id": "burned_ground_01",
+   "mean": [
+    0.3844,
+    0.3351,
+    0.2855
+   ]
+  },
+  "city_a": {
+   "id": "asphalt_02",
+   "mean": [
+    0.3547,
+    0.3522,
+    0.3316
+   ]
+  },
+  "city_b": {
+   "id": "gravel_ground_01",
+   "mean": [
+    0.5734,
+    0.513,
+    0.4082
+   ]
+  },
+  "desert_a": {
+   "id": "aerial_sand",
+   "mean": [
+    0.6215,
+    0.5426,
+    0.5041
+   ]
+  },
+  "desert_b": {
+   "id": "dry_ground_rocks",
+   "mean": [
+    0.583,
+    0.4525,
+    0.3066
+   ]
+  },
+  "grass_a": {
+   "id": "aerial_grass_rock",
+   "mean": [
+    0.4462,
+    0.3812,
+    0.1431
+   ]
+  },
+  "grass_b": {
+   "id": "brown_mud_leaves_01",
+   "mean": [
+    0.3954,
+    0.329,
+    0.2006
+   ]
+  },
+  "ice_a": {
+   "id": "snow_02",
+   "mean": [
+    0.6478,
+    0.6475,
+    0.6553
+   ]
+  },
+  "ice_b": {
+   "id": "rock_ground",
+   "mean": [
+    0.4469,
+    0.4142,
+    0.3744
+   ]
+  },
+  "jungle_a": {
+   "id": "forest_leaves_02",
+   "mean": [
+    0.5569,
+    0.4404,
+    0.2289
+   ]
+  },
+  "jungle_b": {
+   "id": "brown_mud_02",
+   "mean": [
+    0.3018,
+    0.2675,
+    0.2158
+   ]
+  },
+  "mars_a": {
+   "id": "red_sand",
+   "mean": [
+    0.5043,
+    0.351,
+    0.2733
+   ]
+  },
+  "mars_b": {
+   "id": "red_laterite_soil_stones",
+   "mean": [
+    0.3956,
+    0.2443,
+    0.1815
+   ]
+  },
+  "moon_a": {
+   "id": "moon_dusted_02",
+   "mean": [
+    0.5192,
+    0.4918,
+    0.4526
+   ]
+  },
+  "moon_b": {
+   "id": "moon_meteor_01",
+   "mean": [
+    0.4981,
+    0.4709,
+    0.4313
+   ]
+  },
+  "steppe_a": {
+   "id": "dry_ground_01",
+   "mean": [
+    0.5169,
+    0.4762,
+    0.4132
+   ]
+  }
+ },
+ "models": {
+  "fern_a": {
+   "id": "fern_02",
+   "tris": 3000,
+   "size": [
+    1.973,
+    0.426,
+    1.724
+   ],
+   "materials": [
+    "fern_02"
+   ]
+  },
+  "log_dead": {
+   "id": "dead_tree_trunk",
+   "tris": 4000,
+   "size": [
+    3.047,
+    0.29,
+    0.276
+   ],
+   "materials": [
+    "dead_tree_trunk"
+   ]
+  },
+  "rock_a": {
+   "id": "rock_07",
+   "tris": 3000,
+   "size": [
+    0.169,
+    0.144,
+    0.32
+   ],
+   "materials": [
+    "rock_07"
+   ]
+  },
+  "rock_flat": {
+   "id": "namaqualand_boulder_05",
+   "tris": 5000,
+   "size": [
+    1.362,
+    0.536,
+    0.746
+   ],
+   "materials": [
+    "namaqualand_boulder_05"
+   ]
+  },
+  "rock_moon_a": {
+   "id": "moon_rock_01",
+   "tris": 3000,
+   "size": [
+    0.213,
+    0.076,
+    0.112
+   ],
+   "materials": [
+    "moon_rock_01"
+   ]
+  },
+  "rock_moon_b": {
+   "id": "moon_rock_03",
+   "tris": 2500,
+   "size": [
+    0.112,
+    0.058,
+    0.086
+   ],
+   "materials": [
+    "moon_rock_03"
+   ]
+  },
+  "rock_spire": {
+   "id": "namaqualand_cliff_01",
+   "tris": 8999,
+   "size": [
+    8.279,
+    4.965,
+    4.39
+   ],
+   "materials": [
+    "drone_rock_01"
+   ]
+  },
+  "shrub_b": {
+   "id": "wild_rooibos_bush",
+   "tris": 5000,
+   "size": [
+    2.278,
+    0.544,
+    0.843
+   ],
+   "materials": [
+    "wild_rooibos_bush_twigs",
+    "wild_rooibos_bush_leaves",
+    "wild_rooibos_bush"
+   ]
+  },
+  "tree_dead": {
+   "id": "dead_quiver_trunk",
+   "tris": 6000,
+   "size": [
+    0.307,
+    1.994,
+    0.268
+   ],
+   "materials": [
+    "dead_quiver_trunk"
+   ]
+  },
+  "tree_desert": {
+   "id": "quiver_tree_01",
+   "tris": 12000,
+   "size": [
+    1.182,
+    2.714,
+    0.97
+   ],
+   "materials": [
+    "quiver_tree_01_trunk",
+    "quiver_tree_01_leaf"
+   ]
+  },
+  "tree_jungle": {
+   "id": "island_tree_02",
+   "tris": 16000,
+   "size": [
+    4.008,
+    3.421,
+    4.067
+   ],
+   "materials": [
+    "island_tree_02",
+    "island_tree_02_leaves",
+    "island_tree_02_branches"
+   ]
+  },
+  "tree_leaf": {
+   "id": "tree_small_02",
+   "tris": 42856,
+   "size": [
+    2.927,
+    4.448,
+    4.296
+   ],
+   "materials": [
+    "tree_small_02_branches",
+    "tree_small_02_leaves",
+    "tree_small_02_trunk"
+   ]
+  }
+ }
+}

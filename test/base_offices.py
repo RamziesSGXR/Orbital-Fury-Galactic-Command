@@ -67,6 +67,8 @@ with sync_playwright() as pw:
     assert pg.evaluate("!gc.mode.view.info && !document.getElementById('s-theatre').classList.contains('lens')"), 'the lens stays on the base after the panel closes'
     # (GC 0.85) marks over buildings with something wrong, and money rising off where it was made
     mk = pg.evaluate("(() => { const s = gc.mode.sim, b = s.b.find(b => b.done && b.type !== 'hq'); b.off = true; return b.id; })()"); pg.wait_for_timeout(900)
+    try: pg.wait_for_function(f"!!document.querySelector('#fb-marks .mk[data-mk=\"{mk}\"]')", timeout=15000)     # (GC 0.90: drawn a frame or two later in software)
+    except Exception: pass
     assert pg.evaluate(f"!!document.querySelector('#fb-marks .mk[data-mk=\"{mk}\"]')"), 'a switched-off building carries no mark'
     pg.evaluate(f"document.querySelector('#fb-marks .mk[data-mk=\"{mk}\"]').click()"); pg.wait_for_timeout(300)
     assert not pg.evaluate("document.getElementById('fb-selp').hidden"), 'clicking a mark does not open the building\'s card'

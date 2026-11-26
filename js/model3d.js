@@ -35,11 +35,11 @@ export function crease(tris, pos, nv, deg = 44) {
   }
   return out;
 }
-// (GC 0.70) What each triangle is made of, for the surface detail (surface.js): 32 + 16 if the corners also carry their place at
+// (GC 0.70) What each triangle is made of, for the surface detail (surface.js): 64 + 32 if the corners also carry their place at
 // rest (aRest) + the kind its material's name gives. One value per corner, in triangle order.
 function surfAttr(d, nt, mi, rest) {
-  const memo = new Map(), out = new Float32Array(nt * 3), base = 32 + (rest ? 16 : 0);
-  for (let t = 0; t < nt; t++) { const nm = mi && d.pal ? d.pal[mi[t]] : ''; let k = memo.get(nm); if (k === undefined) { k = kindOf(nm); memo.set(nm, k); } out[t * 3] = out[t * 3 + 1] = out[t * 3 + 2] = base + k; }
+  const memo = new Map(), out = new Float32Array(nt * 3), base = 64 + (rest ? 32 : 0);     // (GC 0.90: 64 and 32, room for 32 kinds)
+  for (let t = 0; t < nt; t++) { const nm = mi && d.pal ? d.pal[mi[t]] : ''; let k = memo.get(nm); if (k === undefined) { k = kindOf(nm, d.name); memo.set(nm, k); } out[t * 3] = out[t * 3 + 1] = out[t * 3 + 2] = base + k; }
   return new THREE.BufferAttribute(out, 1);
 }
 // One set of frames from a model file (or from its lighter copy, d.lod). remap: { a material's name: a colour } to dress it in the fleet's own.
@@ -115,7 +115,7 @@ export function roleGeos(d, deg = 38) {
   for (let t = 0; t < nt; t++) n[mi[t]] = (n[mi[t]] || 0) + 1;
   for (const k in n) { out[k] = { p: new Float32Array(n[k] * 9), n: new Float32Array(n[k] * 9) }; at[k] = 0; }
   for (let t = 0; t < nt; t++) { const k = mi[t], o = out[k]; o.p.set(pos.subarray(t * 9, t * 9 + 9), at[k]); o.n.set(nor.subarray(t * 9, t * 9 + 9), at[k]); at[k] += 9; }
-  const G = {}; for (const k in out) { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(out[k].p, 3)); g.setAttribute('normal', new THREE.BufferAttribute(out[k].n, 3)); g.setAttribute('aSurf', new THREE.BufferAttribute(new Float32Array(out[k].p.length / 3).fill(32 + kindOf(d.pal[k])), 1)); G[d.pal[k]] = g; }
+  const G = {}; for (const k in out) { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(out[k].p, 3)); g.setAttribute('normal', new THREE.BufferAttribute(out[k].n, 3)); g.setAttribute('aSurf', new THREE.BufferAttribute(new Float32Array(out[k].p.length / 3).fill(64 + kindOf(d.pal[k], d.name)), 1)); G[d.pal[k]] = g; }
   return G;
 }
 

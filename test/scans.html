@@ -1,0 +1,27 @@
+<!doctype html><meta charset="utf-8"><title>Scanned models and ground, close up</title>
+<style>html,body{margin:0;background:#20242a;color:#dde;font:13px ui-monospace,monospace}canvas{display:block}#cap{position:fixed;left:10px;top:8px;white-space:pre;text-shadow:0 1px 2px #000}</style>
+<div id="cap"></div>
+<script type="module">
+// (GC 0.91) The scanned models (assets/scans/models) on a scanned ground (assets/scans/ground), under a low sun:
+//   /test/scans.html?g=grass_a&m=tree_leaf,rock_boulder,shrub_b&d=12
+import * as THREE from '../js/vendor/three.js';
+import { GLTFLoader } from '../js/vendor/addons/loaders/GLTFLoader.js';
+const q = new URLSearchParams(location.search), W = innerWidth, H = innerHeight;
+const r = new THREE.WebGLRenderer({ antialias: true }); r.setSize(W, H); r.shadowMap.enabled = true; r.toneMapping = THREE.ACESFilmicToneMapping; document.body.appendChild(r.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color('#8fa3b5'); scene.add(new THREE.HemisphereLight(0xc8d8ea, 0x5a4a38, 1.2));
+const sun = new THREE.DirectionalLight(0xfff0dc, 3.4), el = +(q.get('sun') || 30) * Math.PI / 180; sun.position.set(Math.cos(el) * 20, Math.sin(el) * 20, Math.cos(el) * 10);
+sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0005; sun.shadow.normalBias = 0.03; Object.assign(sun.shadow.camera, { left: -16, right: 16, top: 16, bottom: -16, far: 90 }); scene.add(sun);
+const tl = new THREE.TextureLoader(), g = q.get('g') || 'grass_a', T = (m, srgb) => { const t = tl.load(`../assets/scans/ground/${g}_${m}.jpg`); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(20, 20); t.anisotropy = 8; if (srgb) t.colorSpace = THREE.SRGBColorSpace; return t; };
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), new THREE.MeshStandardMaterial({ map: T('diff', true), normalMap: T('nor'), roughnessMap: T('rough') }));
+floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+const names = (q.get('m') || 'tree_leaf,tree_jungle,rock_boulder,tree_desert,rock_flat,shrub_b').split(','), loader = new GLTFLoader();
+let x = -((names.length - 1) * 4.2) / 2, n = 0; const info = [];
+for (const nm of names) {
+  const gl = await loader.loadAsync(`../assets/scans/models/${nm}.glb`).catch(() => null), px = x; x += 4.2; if (!gl) { info.push(nm + ': missing'); continue; }
+  const o = gl.scene, box = new THREE.Box3().setFromObject(o), sz = box.getSize(new THREE.Vector3()), s = +(q.get('s') || 0) || Math.min(3.6 / Math.max(sz.x, sz.z), 4 / sz.y);
+  o.scale.setScalar(s); o.position.set(px, 0, 0); o.traverse((c) => { if (c.isMesh) { c.castShadow = c.receiveShadow = true; const m = c.material; if (m.map && m.transparent) { m.transparent = false; m.alphaTest = 0.5; } } }); scene.add(o);
+  let tris = 0; o.traverse((c) => { if (c.isMesh) tris += c.geometry.index ? c.geometry.index.count / 3 : c.geometry.attributes.position.count / 3; }); info.push(`${nm}: ${tris} triangles, ${sz.y.toFixed(2)} m tall`); n++;
+}
+const cam = new THREE.PerspectiveCamera(40, W / H, 0.1, 300), d = +(q.get('d') || 16); cam.position.set(0, d * 0.42, d); cam.lookAt(0, 1.4, 0);
+const draw = () => { r.render(scene, cam); document.getElementById('cap').textContent = `${g}\n${info.join('\n')}`; window.__ready = true; requestAnimationFrame(draw); }; draw();
+</script>

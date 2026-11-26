@@ -120,9 +120,14 @@ FOB Commander's goals (agreed at 0.83 and 0.84, from Ramzies):
 20. ~~Utilities through the foundations and the paved roads between them, up to what the sources put out: no circles.~~ **(0.88)**
 21. (0.89: four kinds of wall, the fortified one only on a foundation.) Still to do on walls: taller and stronger than on bare ground, with a walkway, and turrets, lamps, banners and
     searchlights mounted on them. Then the defensive waves (16) come at them.
-22. A grittier, less cartoonish look for the buildings, in Blender when Ramzies gives access again; with it, Blender
-    pieces for the foundations (a slab tile, its edges and corners, a ramp) in place of the slab drawn in code, and a
-    barrier-basket wall model (the barrier wall is the one wall still drawn in code; the others are the ground fight's).
+25. Realism (Ramzies, 0.91: "we're shooting for GTA V, not PlayStation 2"; CC0 photoscans welcome), in this order: the ground
+    fight, FOB Commander, the station, the galactic campaign. (0.91: the ground fight's land, trees and rocks from scans.)
+    Still to do there: pines (Poly Haven's fir_tree_01 is 7.8 million polygons: too big to cut down in one go; build one in
+    Blender from scanned bark and needles instead), ground cover and grass near the camera, light from a real sky (HDRI),
+    contact shadows, then FOB Commander's land and props, buildings remade with scanned materials, the station, the war room.
+22. A grittier, less cartoonish look for the buildings, in Blender. (0.90: detail textures on every model in every mode
+    and on the land; Blender pieces for the foundations, their ramps, and the barrier-basket wall.) Still to do: the
+    buildings themselves, remodelled grittier.
 23. Our own names everywhere (Ramzies, 0.87): no Helldivers references left in any mode, the campaign, the code or the
     files: the base's Office codes (DEF, PRO, TRU on the feed; Defence and Expansion standing) go first, with 0.88;
     the rest in a sweep of its own later.

@@ -8,10 +8,16 @@ import * as THREE from '../../vendor/three.js';
 import { bake, staticGeo } from './units3d.js';
 import { VIEW } from './view.js';
 import { modelJSON } from '../../model3d.js';
+import { scanModel } from '../../scans.js';
+
+// (GC 0.91, Ramzies: "we're shooting for GTA V") trees and rocks from photoscans (js/scans.js) in place of the built ones, once
+// they have come: one instanced mesh a kind still, its materials (bark, leaves) as groups of it. On the moon, moon rocks.
+const SCAN = { 'tree:leaf': 'tree_leaf', 'tree:jungle': 'tree_jungle', 'tree:cactus': 'tree_desert', 'tree:dead': 'tree_dead', rock: 'rock_flat', 'rock:b': 'rock_a', 'rock:spire': 'rock_spire' };
+const SCAN_MOON = { rock: 'rock_moon_a', 'rock:b': 'rock_moon_b' };
 
 const CAP = 900;
 const M4 = new THREE.Matrix4(), Q = new THREE.Quaternion(), UP = new THREE.Vector3(0, 1, 0), P = new THREE.Vector3(), S = new THREE.Vector3(), COL = new THREE.Color();
-const Q2 = new THREE.Quaternion(), FWD = new THREE.Vector3(0, 0, 1), NRM = new THREE.Vector3();
+const Q2 = new THREE.Quaternion(), FWD = new THREE.Vector3(0, 0, 1), NRM = new THREE.Vector3(), WHITE = new THREE.Color('#ffffff');
 const mat = (c) => new THREE.MeshLambertMaterial({ color: c });
 const BOX = new THREE.BoxGeometry(1, 1, 1), CYL = new THREE.CylinderGeometry(0.5, 0.5, 1, 7), CONE = new THREE.ConeGeometry(0.5, 1, 7), BLOB = new THREE.IcosahedronGeometry(0.5, 0), DOME = new THREE.SphereGeometry(0.5, 9, 5, 0, Math.PI * 2, 0, Math.PI / 2), TOR = new THREE.TorusGeometry(0.5, 0.14, 5, 10);
 const part = (g, geo, m, x, y, z, sx = 1, sy = 1, sz = 1, rx = 0, ry = 0, rz = 0) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.scale.set(sx, sy, sz); o.rotation.set(rx, ry, rz); g.add(o); return o; };
@@ -134,7 +140,7 @@ class Blds {
 }
 export class Props3D {
   constructor(scene) {
-    this.scene = scene; this.kinds = new Map(); this.used = new Map(); this.blds = new Blds(scene);
+    this.scene = scene; this.kinds = new Map(); this.used = new Map(); this.blds = new Blds(scene); this.scans = new Map(); this.scanMats = new Set(); this.biome = null;
     this.mat = new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true, flatShading: true });
     this.smooth = new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true });     // (the Blender models bring their own normals: rounded where they curve)
     // (GC 0.38) the objectives and side sites are models made in Blender (tools/blender/sites.py), listed in the index and
@@ -147,12 +153,28 @@ export class Props3D {
   has(k) { return !!MODELS[k] || this.files.has(k) || this.files.has(FILE(k)); }
   // (GC 0.67) whether a model has its ruin (a `dead` frame): the enemy's buildings fall in when destroyed and stay fallen
   hasRuin(k) { const f = this.files.get(k) || this.files.get(FILE(k)); return !!(f && f.frames && f.frames.dead); }
-  _drop(k) { const m = this.kinds.get(k); if (m) { this.scene.remove(m); m.geometry.dispose(); } this.kinds.delete(k); }
+  _drop(k) { const m = this.kinds.get(k); if (m) { this.scene.remove(m); if (!m.userData.scan) m.geometry.dispose(); } this.kinds.delete(k); }
+  // (GC 0.91) the world the fight is on: the moon has its own rocks
+  setBiome(id) { if (id === this.biome) return; this.biome = id; for (const k of [...this.kinds.keys()]) if (SCAN[k]) this._drop(k); }
+  _scanOf(b) {     // the scanned model for a kind: its geometry stood to the kind's footprint, or null (none, or not come yet)
+    const name = (this.biome === 'moon' && SCAN_MOON[b]) || SCAN[b]; if (!name) return null;
+    const got = this.scans.get(name);
+    if (got === undefined) { this.scans.set(name, null); scanModel(name).then((r) => { this.scans.set(name, r || false); if (r) for (const k of [...this.kinds.keys()]) if (k === b || SCAN[k] === name || SCAN_MOON[k] === name) this._drop(k); }); return null; }
+    if (!got) return null;
+    if (!got.fit) { const [x, h, z] = got.size, f = 2 / Math.max(x, z, h / 1.3); got.fit = got.geo.clone(); got.fit.scale(f, f, f); }     // (a footprint radius of one, as the built ones; a tall narrow one by its height)
+    return got;
+  }
   // the enemy's own colour, for the parts of a model that wear it (its screen, its lamps, its door)
   setAccent(hex) { if (!hex || hex === this.accent) return; this.accent = hex; for (const k of [...this.kinds.keys()]) { const b = k.replace(/~fall$/, ''); if (this.files.has(b) || this.files.has(FILE(b))) this._drop(k); } }
   _kind(k) {
     let m = this.kinds.get(k); if (m !== undefined) return m;
     const fall = k.endsWith('~fall'), b = fall ? k.slice(0, -5) : k;     // (GC 0.67) k~fall: the same model going from standing to its ruin
+    const sc = fall ? null : this._scanOf(b);
+    if (sc) {     // (GC 0.91) a photoscan
+      m = new THREE.InstancedMesh(sc.fit, sc.mats, CAP); m.userData.scan = true; m.frustumCulled = false; m.castShadow = true; m.receiveShadow = true; m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      for (const q of sc.mats) this.scanMats.add(q);
+      m.count = 0; this.scene.add(m); this.kinds.set(k, m); return m;
+    }
     const file = this.files.get(b) || this.files.get(FILE(b)), make = fall ? null : MODELS[b]; if (!file && !make) { this.kinds.set(k, null); return null; }     // (GC 0.40) a model from Blender if it has come, else the one built here
     if (fall && !(file.frames && file.frames.dead)) { this.kinds.set(k, null); return null; }
     const geo = file ? staticGeo(file, { accent: this.accent, accent_lit: this.accent }, fall ? 'dead' : null) : bake(make(), null, true);
@@ -162,7 +184,7 @@ export class Props3D {
   }
   // list: [{ k, x, y (the map's), s (footprint, metres), h (height scale, if not s), rot (radians), tint, dim }]; lit: how much light the hour leaves (0 to 1)
   frame(list, ground, lit = 1) {
-    this.mat.color.setScalar(lit); this.smooth.color.setScalar(lit); this.used.clear();
+    this.mat.color.setScalar(lit); this.smooth.color.setScalar(lit); for (const q of this.scanMats) q.color.setScalar(lit); this.used.clear();
     const blds = []; if (++seatN > 240 || SEAT.size > 6000) { SEAT.clear(); seatN = 0; }     // (the seats are worked out again now and then: craters change the ground)
     for (const u of list) {
       if (u.k.startsWith('bld:')) { blds.push(u); continue; }
@@ -176,7 +198,7 @@ export class Props3D {
         const r = Math.max(1, u.s * 0.85), gx = ground(u.x + r, u.y) - ground(u.x - r, u.y), gz = ground(u.x, u.y + r) - ground(u.x, u.y - r);
         Q.premultiply(Q2.setFromUnitVectors(UP, NRM.set(-gx / (2 * r), 1, -gz / (2 * r)).normalize())); P.y = ground(u.x, u.y) - (u.sink || 0);
       }
-      m.setMatrixAt(n, M4.compose(P, Q, S)); COL.set(u.tint || '#ffffff'); if (u.dim != null && u.dim < 1) COL.multiplyScalar(u.dim); if (u.flash) COL.multiplyScalar(2.4); m.setColorAt(n, COL);
+      m.setMatrixAt(n, M4.compose(P, Q, S)); COL.set(u.tint || '#ffffff'); if (m.userData.scan) COL.lerp(WHITE, 0.7); if (u.dim != null && u.dim < 1) COL.multiplyScalar(u.dim);     /* (a scan has its own colour: the biome's tint only leans it) */ if (u.flash) COL.multiplyScalar(2.4); m.setColorAt(n, COL);
       if (u.fall != null) { MORPH.morphTargetInfluences[0] = u.fall; m.setMorphAt(n, MORPH); if (m.morphTexture) m.morphTexture.needsUpdate = true; }
       this.used.set(m, n + 1);
     }

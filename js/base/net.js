@@ -24,7 +24,7 @@ export const FIELD = new Set(['wire', 'bags', 'trench']);
 export const WALLS = {
 // file: the ground fight's own model for it (shared, as the field works are), len/h/d its size there
   fence:   { str: 0.45, h: 0.9, cost: 1.5, file: 'prop_cover1', len: 2, mh: 1.53, md: 1.15, d: 0.75 },     // a timber barricade
-  wall:    { str: 1, h: 1.1, cost: 4 },     // filled barrier baskets, drawn here
+  wall:    { str: 1, h: 1.1, cost: 4, file: 'prop_hesco', len: 2, mh: 1.03, md: 0.98, d: 0.9 },     // filled barrier baskets (GC 0.90: their own model, tools/blender/works.py)
   cwall:   { str: 1.5, h: 1.45, cost: 8, equip: 'batch', file: 'prop_cover2', len: 2, mh: 1.5, md: 1.06, d: 0.85 },     // concrete barriers
   rampart: { str: 2.2, h: 1.9, cost: 14, equip: 'batch', slab: true, file: 'prop_fortwall', len: 2, mh: 1.03, md: 0.74, d: 0.85, tint: '#8e8f88' },     // the enemy capital's curtain wall, in our concrete
 };

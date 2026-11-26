@@ -1,2 +1,4 @@
 node_modules
 /test/shots
+dist/
+tools/app/setup/game.zip

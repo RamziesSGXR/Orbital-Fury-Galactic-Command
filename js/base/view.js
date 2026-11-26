@@ -8,7 +8,7 @@ const VMAKE = { lift: makeForklift, truck: makeTruck, lrv: makeLRV, tank: makeTa
 import { Noise } from './noise.js';
 import { isLine, WALLS } from './net.js';
 import { Crowd3D } from '../model3d.js';
-import { surfScale } from '../surface.js';
+import { surfScale, surf, water, KIND, LAND as SOIL } from '../surface.js';
 import { WL } from './site.js';
 import { HOLO, BP, holoFill, holoEdge, tintHolo, holoize, unholoize, Sparks, domeMat, domeGeo, beamGeo, beamMat, Bloom } from './fx.js';
 
@@ -253,7 +253,7 @@ export class View {
     for (const o of this.terrObjs || []) { this.world.remove(o); o.geometry?.dispose(); }
     this.terrObjs = []; const add = o => { this.terrObjs.push(o); this.world.add(o); };
     if (!T || !bio) return;
-    const wm = this.waterMat ||= new THREE.MeshStandardMaterial({ color: new THREE.Color(...bio.sea.map(c => c / 255)), roughness: 0.15, metalness: 0.3, transparent: true, opacity: 0.86, defines: { STANDARD: '', NO_HGT: '' } });
+    const wm = this.waterMat ||= water(new THREE.MeshStandardMaterial({ color: new THREE.Color(...bio.sea.map(c => c / 255)), roughness: 0.15, metalness: 0.3, transparent: true, opacity: 0.86, defines: { STANDARD: '', NO_HGT: '' } }));     // (GC 0.90: moving ripples)
     const wg = new THREE.PlaneGeometry(N, N); wg.rotateX(-Math.PI / 2); const wi = new THREE.Mesh(wg, wm); wi.position.y = WL + 0.03; wi.receiveShadow = true; add(wi);
     const W = s.win ? s.win(LAND.PARCEL) : [0, 0, N, N], dp = [];
     for (let z = W[1]; z < W[3]; z++) for (let x = W[0]; x < W[2]; x++) { const i = z * N + x; if (T[i] === 3 && nz.v(i * 0.37, 5) > 0.72) dp.push(i); }
@@ -274,8 +274,8 @@ export class View {
     this.paintTiles(0, 0, N, N);
     HG.load(s);
     const lin = c => new THREE.Color().setRGB(c[0] / 255, c[1] / 255, c[2] / 255, THREE.SRGBColorSpace);
-    const U = { uGA: { value: this.gndA }, uGB: { value: this.gndB }, uN: { value: N }, uHue: { value: lin(hue) }, uBed: { value: lin((bio?.sea || [70, 110, 150]).map(v => v * 0.7)) }, uElev: this.uElev ||= { value: 0 }, uGrid: this.uGrid ||= { value: 0 } };
-    const gm = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.95 }); gm.defines = { STANDARD: '', NO_HGT: '', GC_NOSURF: '' };     // (GC 0.70: the ground has its own texture, no surface detail)
+    const U = { uGA: { value: this.gndA }, uGB: { value: this.gndB }, uN: { value: N }, uHue: { value: lin(hue) }, uBed: { value: lin((bio?.sea || [70, 110, 150]).map(v => v * 0.7)) }, uElev: this.uElev ||= { value: 0 }, uGrid: this.uGrid ||= { value: 0 }, uLandK: { value: SOIL[s.site?.biome] ?? KIND.soil } };
+    const gm = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.95 }); gm.defines = { STANDARD: '', NO_HGT: '', GC_NOSURF: '', GC_LAND: '' };     // (GC 0.70: the ground has its own texture, not a model's surface detail; GC 0.90: but the land's grit, pebbles and cracks, close up)
     gm.polygonOffset = true; gm.polygonOffsetFactor = 2; gm.polygonOffsetUnits = 6;   // the ground gives way to whatever lies on it
     gm.onBeforeCompile = sh => {
       Object.assign(sh.uniforms, U);
@@ -283,7 +283,7 @@ export class View {
         .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvTpW = (modelMatrix * vec4(transformed, 1.0)).xyz; vTpN = normalize(mat3(modelMatrix) * objectNormal);');
       sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
 varying vec3 vTpW; varying vec3 vTpN;
-uniform sampler2D uGA; uniform sampler2D uGB; uniform float uN; uniform vec3 uHue; uniform vec3 uBed; uniform float uElev; uniform float uGrid;
+uniform sampler2D uGA; uniform sampler2D uGB; uniform float uN; uniform vec3 uHue; uniform vec3 uBed; uniform float uElev; uniform float uGrid; uniform float uLandK;
 float tpH(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); float a = fract(sin(dot(i, vec2(127.1, 311.7))) * 43758.5); float b = fract(sin(dot(i + vec2(1, 0), vec2(127.1, 311.7))) * 43758.5); float c = fract(sin(dot(i + vec2(0, 1), vec2(127.1, 311.7))) * 43758.5); float d = fract(sin(dot(i + vec2(1, 1), vec2(127.1, 311.7))) * 43758.5); return mix(mix(a, b, f.x), mix(c, d, f.x), f.y); }
 float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y + w.z); return tpH(p.zy * 3.1) * w.x + tpH(p.xz * 3.1) * w.y + tpH(p.xy * 3.1) * w.z; }`)
         .replace('#include <map_fragment>', `#include <map_fragment>
@@ -309,6 +309,12 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
   float steep = 1.0 - clamp(vTpN.y, 0.0, 1.0), rk = max(A.g * 0.8, smoothstep(0.3, 0.62, steep));
   col = mix(col, uHue * 0.5 * (0.6 + gr * 0.7), rk);                                               // bare rock: cliffs and high rock
   col = mix(col, uBed * (0.9 + n2 * 0.2), smoothstep(0.03, -0.3, vTpW.y));                          // the bed under the water, by depth
+  #ifdef GC_TEX
+  { // (GC 0.90) the ground close up: the biome's own (sand, snow, grass, ash, else soil), and where sand (12) or grass (14) or dry
+    // ground (8) is painted on it, that one over it; not on cliffs, under water or on mud
+    float k2 = P.r >= P.b && P.r >= max(P.g, P.a) ? 12.0 : P.b >= max(P.g, P.a) ? 14.0 : 8.0, t2 = max(P.r, max(P.b, max(P.g, P.a))) * 0.85;
+    col = gcLand2(col, vTpW.xz * GC_SCALE, smoothstep(0.55, 0.85, vTpN.y) * (1.0 - smoothstep(0.0, -0.4, vTpW.y)) * (1.0 - 0.6 * A.b), uLandK, k2, t2); }
+  #endif
   col *= 1.0 + clamp(dot(vTpN.xz, vec2(-0.6, -0.8)) * 2.2, -0.22, 0.2);                             // hillshade: slopes read even on snow
   if (uElev > 0.5) {                                                                                // the ELEVATION view: a height ramp and contours
     float t = clamp((vTpW.y + 1.0) / 26.0, 0.0, 1.0);
@@ -336,7 +342,7 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
     const sky = new THREE.Color(hue[0] / 255 * 0.35 + 0.36, hue[1] / 255 * 0.35 + 0.43, hue[2] / 255 * 0.35 + 0.56);   // a pale blue haze, warmed by the planet's dust
     this.skyDay = sky.clone(); this.skyNight = new THREE.Color('#0a0f1e'); this.scene.background = sky.clone(); this.scene.fog = new THREE.Fog(sky.clone(), 140, 300 + N);
     // rocks and hills
-    const rock = new THREE.MeshStandardMaterial({ color: new THREE.Color(hue[0] / 340, hue[1] / 340, hue[2] / 340), roughness: 1, flatShading: true });
+    const rock = surf(new THREE.MeshStandardMaterial({ color: new THREE.Color(hue[0] / 340, hue[1] / 340, hue[2] / 340), roughness: 1, flatShading: true }), KIND.rock);     // (GC 0.90: rock, with lichen)
     const rg = new THREE.DodecahedronGeometry(1, 0), rocks = new THREE.InstancedMesh(rg, rock, 160), mx = new THREE.Matrix4(), q = new THREE.Quaternion();
     let n = 0, k = 1;
     while (n < 160) {
@@ -1138,7 +1144,8 @@ float tpGrain(vec3 p, vec3 n) { vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y
     if (this.rampM) { this.world.remove(this.rampM); this.rampM.dispose(); this.rampM = null; }
     if (!list.length) return;
     const geo = this.rampGeo ||= (() => { const g = new THREE.BoxGeometry(1, 1, 1); g.translate(0, -0.5, 0); return g; })();
-    const im = this.rampM = new THREE.InstancedMesh(geo, this.m._slab || this.m.concrete, list.length), o = new THREE.Object3D();
+    const pr = sharedGeo(this.m, 'prop_ramp');     // (GC 0.90) its Blender model, kerbs both sides, once it has come
+    const im = this.rampM = new THREE.InstancedMesh(pr || geo, pr ? (this.m.model ||= new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0.04, side: THREE.DoubleSide })) : (this.m._slab || this.m.concrete), list.length), o = new THREE.Object3D();
     list.forEach(([x, z, h], n) => { o.position.set(this.wx(x + 0.5), -0.004, this.wx(z + 0.5)); o.scale.set(1, h + 0.3, 1); o.updateMatrix(); im.setMatrixAt(n, o.matrix); });
     im.receiveShadow = true; im.castShadow = true; im.raycast = () => {}; this.world.add(im);
   }

@@ -41,7 +41,7 @@ with sync_playwright() as pw:
     assert abs(st['line'] - st['top'] * 0.4) < 0.05, 'the cutting line is not at the work done'
     # work goes on: the line climbs and throws sparks
     S(f"window.__w = setInterval(() => {{ const b = gc.mode.sim.byId({ids['a']}); if (b && !b.done) b.prog = Math.min(0.95, b.prog + 0.01); }}, 50)")
-    pg.wait_for_function(f"gc.mode.sim.byId({ids['a']}).prog > 0.6", timeout=20000); pg.wait_for_timeout(400)
+    pg.wait_for_function(f"gc.mode.sim.byId({ids['a']}).prog > 0.6", timeout=60000)     # (GC 0.90: software drawing of the textured scene is slower); pg.wait_for_timeout(400)
     sp = S(f"return {{ n: v.sparks.n, line: v.bm.get({ids['a']}).userData.holo.line.position.y }}")
     print('working', sp)
     assert sp['n'] > 5, 'no sparks while the work goes on'

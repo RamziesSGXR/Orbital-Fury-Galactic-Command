@@ -183,7 +183,7 @@ const ART = {
 const TABS = [['home', 'HOME'], ['play', 'PLAY'], ['collection', 'COLLECTION'], ['career', 'CAREER'], ['store', 'STORE'], ['options', 'OPTIONS']];
 const tabName = (k) => (TABS.find((x) => x[0] === k) || [k, k === 'livery' ? 'YOUR LIVERY' : k.toUpperCase()])[1];
 let tab = 'home', optTab = 'play', playGame = null;     // playGame: the game whose saves the PLAY tab is showing
-const NEWS = { title: 'Four kinds of wall', lines: ['Timber Barricade: cheap, closes the base, holds little.', 'Barrier Wall: the filled baskets there were before.', 'Concrete Wall: concrete barriers, half again as strong. Needs the Concrete Batch Plant.', 'Fortified Wall: only along a finished foundation, more than twice as strong, and a storey higher on a raised one.', 'The barricade, the concrete barriers and the fortified wall are the ground fight\'s own models.', 'What a wall is made of now counts in the defence score.'] };
+const NEWS = { title: 'Photoscans, an installer, touch', lines: ['The ground fight\'s land is photoscanned: real grass, sand, snow, moon dust, mud and asphalt, lit by the sun.', 'Scanned trees and rocks in the ground fight.', 'Texture on every model in every mode: pitted concrete, chipped paint, woven cloth, grained wood.', 'Windows: INSTALL.bat puts the game on your desktop; PLAY.bat plays it without installing.', 'Touch screens: tap, drag and pinch, with no page zoom or long-press menus in the way.'] };
 // (GC 0.73) what is done with the mouse and Esc (fixed); every key below them can be changed (js/core/keys-ui.js)
 const KEYS = {
   war: [['Click a system', 'Select it; click another to send a fleet'], ['Drag, mouse wheel', 'Move and zoom the map'], ['END ROUND', 'Play out the round'], ['Esc', 'The menu']],
@@ -707,3 +707,6 @@ function loop(ms) {
 void GC;
 toTitle();
 requestAnimationFrame(loop);
+
+// (GC 0.91) a touch screen: a long press does not open the browser's own menu over the game (fields still have theirs)
+document.addEventListener('contextmenu', (e) => { if (!(e.target.closest && e.target.closest('input, textarea, [contenteditable]'))) e.preventDefault(); });

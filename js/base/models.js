@@ -861,7 +861,55 @@ function slabTex() {
   return (SLABTEX = t);
 }
 const KINDM = {};
+// (GC 0.90) the foundation from its Blender pieces (tools/blender/works.py): a top tile on every tile (now and then one with a
+// drain grate, a tie-down ring or lifting anchors, by where it is), an edge piece along every side stretched to its height, a
+// steel guard at each corner. Merged into one mesh, so a foundation batches like any building. Null till the pieces have come
+function slabPieces(w, d, lv, m) {
+  const P = SLABP.map((f) => (BLD.shared[f] ? sharedGeo(m, f) : null)); if (P.some((g) => !g)) return null;
+  const H = SLAB_LV[lv || 0].h + 0.3, list = [], R = (a) => new THREE.Matrix4().makeRotationY(a), T = (x, y, z) => new THREE.Matrix4().makeTranslation(x, y, z), S = (y) => new THREE.Matrix4().makeScale(1, y, 1);
+  for (let j = 0; j < d; j++) for (let i = 0; i < w; i++) {
+    const h = (Math.imul(i + 7, 73856093) ^ Math.imul(j + 3, 19349663)) >>> 0, v = h % 19 === 0 ? 1 : h % 23 === 0 ? 2 : h % 13 === 0 ? 3 : 0;
+    list.push([P[v], T(i - w / 2 + 0.5, 0, j - d / 2 + 0.5).multiply(R((h >>> 3) % 4 * Math.PI / 2))]);
+  }
+  const side = (x, z, a) => list.push([P[4], T(x, 0, z).multiply(R(a)).multiply(S(H))]);
+  for (let i = 0; i < w; i++) { side(i - w / 2 + 0.5, d / 2 - 0.5, 0); side(i - w / 2 + 0.5, -d / 2 + 0.5, Math.PI); }
+  for (let j = 0; j < d; j++) { side(w / 2 - 0.5, j - d / 2 + 0.5, Math.PI / 2); side(-w / 2 + 0.5, j - d / 2 + 0.5, -Math.PI / 2); }
+  for (const [x, z, a] of [[-w / 2 + 0.5, d / 2 - 0.5, 0], [w / 2 - 0.5, d / 2 - 0.5, Math.PI / 2], [w / 2 - 0.5, -d / 2 + 0.5, Math.PI], [-w / 2 + 0.5, -d / 2 + 0.5, -Math.PI / 2]]) list.push([P[5], T(x, 0, z).multiply(R(a)).multiply(S(H))]);
+  return mergeAt(list);
+}
+// geometries with the same attributes, each placed by its matrix, as one
+function mergeAt(list) {
+  const names = Object.keys(list[0][0].attributes); let n = 0; for (const [g] of list) n += g.attributes.position.count;
+  const out = new THREE.BufferGeometry(), arr = {}; for (const a of names) arr[a] = new Float32Array(n * list[0][0].attributes[a].itemSize);
+  const v = new THREE.Vector3(), nm = new THREE.Matrix3(); let o = 0;
+  for (const [g, M] of list) {
+    nm.getNormalMatrix(M); const c = g.attributes.position.count;
+    for (const a of names) {
+      const src = g.attributes[a], sz = src.itemSize, dst = arr[a];
+      for (let q = 0; q < c; q++) {
+        if (a === 'position' || a === 'aRest') { v.fromBufferAttribute(src, q).applyMatrix4(M); dst[(o + q) * 3] = v.x; dst[(o + q) * 3 + 1] = v.y; dst[(o + q) * 3 + 2] = v.z; }
+        else if (a === 'normal') { v.fromBufferAttribute(src, q).applyMatrix3(nm).normalize(); dst[(o + q) * 3] = v.x; dst[(o + q) * 3 + 1] = v.y; dst[(o + q) * 3 + 2] = v.z; }
+        else for (let e = 0; e < sz; e++) dst[(o + q) * sz + e] = src.array[q * sz + e];
+      }
+    }
+    o += c;
+  }
+  for (const a of names) out.setAttribute(a, new THREE.BufferAttribute(arr[a], list[0][0].attributes[a].itemSize));
+  return out;
+}
 export function slabModel(w, d, lv, k, m) {
+  const pc = slabPieces(w, d, lv, m);
+  if (pc) {
+    const g = new THREE.Group(); m.model ||= new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0.04, side: THREE.DoubleSide });
+    const me = new THREE.Mesh(pc, m.model); me.castShadow = lv > 0; me.receiveShadow = true; me.userData.model3 = true; g.add(me);
+    const col = KINDM[k] ||= new THREE.MeshStandardMaterial({ color: new THREE.Color(SLABS[k]?.col || '#888').lerp(new THREE.Color('#77786f'), 0.45), roughness: 0.85 });
+    const ins = lv ? 0.3 : 0.2, lw = 0.07;
+    if (w > 1.2 && d > 1.2) for (const [sx, sz, lx, lz] of [[0, -(d / 2 - ins), w - 2 * ins, lw], [0, d / 2 - ins, w - 2 * ins, lw], [-(w / 2 - ins), 0, lw, d - 2 * ins], [w / 2 - ins, 0, lw, d - 2 * ins]]) box(g, lx, 0.006, lz, col, sx, 0.003, sz, { cast: false });
+    mergeStatic(g); return g;
+  }
+  return slabDrawn(w, d, lv, k, m);
+}
+function slabDrawn(w, d, lv, k, m) {
   const g = new THREE.Group(), h = SLAB_LV[lv || 0].h, skirt = 0.3, H = h + skirt;
   m._slab ||= new THREE.MeshStandardMaterial({ map: slabTex(), roughness: 0.96, metalness: 0.02 });
   const geo = new THREE.BoxGeometry(w, H, d); geo.translate(0, -H / 2, 0);
@@ -1023,7 +1071,9 @@ export const BLD = { data: new Map(), veh: {}, shared: {}, asked: false };
 // post's model (tools/blender/fleet.py), so the two games show one Defence Turret, one Lookout Tower, one Landing Pad.
 //   file: the model; k: its size here (the models have a footprint radius of about one); spin: a second model on it that turns
 // Until the files come the building is drawn as before. LINES: the ground fight's field works laid along a line (the view lays them).
-export const LINES = ['prop_wire', 'prop_cover0', 'prop_trench', 'prop_cover1', 'prop_cover2', 'prop_fortwall'];     // (GC 0.89: the walls' too)
+const SLABP = ['prop_slab_top_a', 'prop_slab_top_b', 'prop_slab_top_c', 'prop_slab_top_d', 'prop_slab_side', 'prop_slab_corner'];     // (GC 0.90)
+export const LINES = ['prop_wire', 'prop_cover0', 'prop_trench', 'prop_cover1', 'prop_cover2', 'prop_fortwall',     // (GC 0.89: the walls' too)
+  'prop_hesco', ...SLABP, 'prop_ramp'];     // (GC 0.90: the barrier wall, the foundation's pieces and the ramp, tools/blender/works.py)
 // one of those models as it was made (a footprint radius of about one), for the view to lay out
 export function sharedGeo(m, f) { const c = m._sharedRaw ||= new Map(); let g = c.get(f); if (!g && BLD.shared[f]) { g = staticGeo(BLD.shared[f]); c.set(f, g); } return g || null; }
 export const SHARED = {
