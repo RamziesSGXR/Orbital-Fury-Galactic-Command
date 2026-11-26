@@ -12,7 +12,7 @@ import { scanModel } from '../../scans.js';
 
 // (GC 0.91, Ramzies: "we're shooting for GTA V") trees and rocks from photoscans (js/scans.js) in place of the built ones, once
 // they have come: one instanced mesh a kind still, its materials (bark, leaves) as groups of it. On the moon, moon rocks.
-const SCAN = { 'tree:leaf': 'tree_leaf', 'tree:jungle': 'tree_jungle', 'tree:cactus': 'tree_desert', 'tree:dead': 'tree_dead', rock: 'rock_flat', 'rock:b': 'rock_a', 'rock:spire': 'rock_spire' };
+const SCAN = { 'tree:leaf': 'tree_leaf', 'tree:pine': 'tree_pine', 'tree:jungle': 'tree_jungle', 'tree:cactus': 'tree_desert', 'tree:dead': 'tree_dead', rock: 'rock_flat', 'rock:b': 'rock_a', 'rock:spire': 'rock_spire' };
 const SCAN_MOON = { rock: 'rock_moon_a', 'rock:b': 'rock_moon_b' };
 
 const CAP = 900;
@@ -140,7 +140,7 @@ class Blds {
 }
 export class Props3D {
   constructor(scene) {
-    this.scene = scene; this.kinds = new Map(); this.used = new Map(); this.blds = new Blds(scene); this.scans = new Map(); this.scanMats = new Set(); this.biome = null;
+    this.scene = scene; this.kinds = new Map(); this.used = new Map(); this.blds = new Blds(scene); this.scans = new Map(); this.scanMats = new Set(); this.biome = null; this.far = true; this.useScans = true;
     this.mat = new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true, flatShading: true });
     this.smooth = new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true });     // (the Blender models bring their own normals: rounded where they curve)
     // (GC 0.38) the objectives and side sites are models made in Blender (tools/blender/sites.py), listed in the index and
@@ -156,12 +156,27 @@ export class Props3D {
   _drop(k) { const m = this.kinds.get(k); if (m) { this.scene.remove(m); if (!m.userData.scan) m.geometry.dispose(); } this.kinds.delete(k); }
   // (GC 0.91) the world the fight is on: the moon has its own rocks
   setBiome(id) { if (id === this.biome) return; this.biome = id; for (const k of [...this.kinds.keys()]) if (SCAN[k]) this._drop(k); }
+  // (GC 0.91, Ramzies: "we still want 30-144 frames per second") the scans in their near form only when the view is close
+  // enough to see it (else a far form of a fifth of the triangles, same pictures), and not at all on the low setting
+  setDetail(near, on) {
+    const far = !near; if (far === this.far && on === this.useScans) return; this.far = far; this.useScans = on;
+    for (const k of [...this.kinds.keys()]) if (SCAN[k]) this._drop(k);
+  }
   _scanOf(b) {     // the scanned model for a kind: its geometry stood to the kind's footprint, or null (none, or not come yet)
-    const name = (this.biome === 'moon' && SCAN_MOON[b]) || SCAN[b]; if (!name) return null;
+    if (!this.useScans) return null;
+    const base = (this.biome === 'moon' && SCAN_MOON[b]) || SCAN[b]; if (!base) return null;
+    const near = this.scans.get(base), name = this.far && !/pine/.test(base) ? base + '_far' : base;
+    if (name !== base && !near) { this._scanOf0(base, b); return null; }     // (the near one first: the far one borrows its pictures)
+    return this._scanOf0(name, b, near);
+  }
+  _scanOf0(name, b, near = null) {
     const got = this.scans.get(name);
     if (got === undefined) { this.scans.set(name, null); scanModel(name).then((r) => { this.scans.set(name, r || false); if (r) for (const k of [...this.kinds.keys()]) if (k === b || SCAN[k] === name || SCAN_MOON[k] === name) this._drop(k); }); return null; }
     if (!got) return null;
-    if (!got.fit) { const [x, h, z] = got.size, f = 2 / Math.max(x, z, h / 1.3); got.fit = got.geo.clone(); got.fit.scale(f, f, f); }     // (a footprint radius of one, as the built ones; a tall narrow one by its height)
+    if (!got.fit) {     // (a footprint radius of one, as the built ones; a tall narrow one by its height; the far one as its near one)
+      const [x, h, z] = (near || got).size, f = 2 / Math.max(x, z, h / 1.3); got.fit = got.geo.clone(); got.fit.scale(f, f, f);
+      if (near && near.mats) got.mats = near.mats;
+    }
     return got;
   }
   // the enemy's own colour, for the parts of a model that wear it (its screen, its lamps, its door)

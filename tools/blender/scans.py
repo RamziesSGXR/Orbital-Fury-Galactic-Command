@@ -38,12 +38,36 @@ def tris_of(objs):
     for o in objs:
         if o.type == 'MESH': n += sum(len(p.vertices) - 2 for p in o.data.polygons)
     return n
-def model(aid, name, lod=None, tris=None, height=None, res='1k', tex=1024, upright=False):
+def thin(ob, keep, grow, rx=r'leaf|leaves|needle|branch|twig|frond'):
+    """(GC 0.91, 30-144 frames a second) A tree's leaves are thousands of separate cards, which no cut can merge: keep a share
+    of them (the same ones each time), each grown about its middle so the crown stays as full."""
+    import bmesh, random, re
+    rnd = random.Random(7); mats = {i for i, m in enumerate(ob.data.materials) if m and re.search(rx, m.name.lower())}
+    if not mats: return 0
+    bm = bmesh.new(); bm.from_mesh(ob.data); bm.faces.ensure_lookup_table(); seen = set(); kill = []; n = 0
+    for f in bm.faces:
+        if f.index in seen or f.material_index not in mats: continue
+        isl = [f]; seen.add(f.index); stack = [f]
+        while stack:
+            g = stack.pop()
+            for e in g.edges:
+                for h in e.link_faces:
+                    if h.index not in seen and h.material_index in mats: seen.add(h.index); isl.append(h); stack.append(h)
+        n += 1
+        if rnd.random() > keep: kill.extend(isl); continue
+        vs = {v for q in isl for v in q.verts}; c = sum((v.co for v in vs), vs.__iter__().__next__().co * 0) / len(vs)
+        for v in vs: v.co = c + (v.co - c) * grow
+    bmesh.ops.delete(bm, geom=list(set(kill)), context='FACES'); bm.to_mesh(ob.data); bm.free(); return n
+def model(aid, name, lod=None, tris=None, height=None, res='1k', tex=1024, upright=False, cards=None, only=None, rx=None):
     """One scanned model into export/scans/<name>.glb, cut to its level of detail and triangle budget."""
     scn = bpy.data.scenes.get('gc_scans') or bpy.data.scenes.new('gc_scans'); bpy.context.window.scene = scn
     _clear(); path = gltf_files(aid, res)
     bpy.ops.import_scene.gltf(filepath=path, merge_vertices=True)     # (joined at its seams, so the cut can work across them)
     meshes = [o for o in scn.objects if o.type == 'MESH']
+    if only:     # (a file of several: the one asked for)
+        for o in meshes:
+            if o.name != only: bpy.data.objects.remove(o, do_unlink=True)
+        meshes = [o for o in scn.objects if o.type == 'MESH']
     names = sorted(o.name for o in meshes)
     if upright:     # (a trunk scanned lying down: stood up on its thick end)
         import mathutils
@@ -65,8 +89,9 @@ def model(aid, name, lod=None, tris=None, height=None, res='1k', tex=1024, uprig
     if len(meshes) > 1: bpy.ops.object.join()
     ob = bpy.context.view_layer.objects.active; ob.name = name
     before = tris_of([ob])
-    if tris and before > tris:     # cut it down, keeping its outline (UVs and the material edges are kept by the collapse)
-        m = ob.modifiers.new('cut', 'DECIMATE'); m.ratio = max(0.01, tris / before); m.use_collapse_triangulate = True
+    if cards: thin(ob, cards[0], cards[1], **({'rx': rx} if rx else {}))
+    if tris and tris_of([ob]) > tris:     # cut it down, keeping its outline (UVs and the material edges are kept by the collapse)
+        m = ob.modifiers.new('cut', 'DECIMATE'); m.ratio = max(0.01, tris / tris_of([ob])); m.use_collapse_triangulate = True
         bpy.ops.object.modifier_apply(modifier='cut')
     # stand it on its base, centred, and (if asked) at a height in metres
     import mathutils

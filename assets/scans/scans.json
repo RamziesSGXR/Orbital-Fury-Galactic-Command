@@ -156,9 +156,10 @@
   },
   "rock_a": {
    "id": "rock_07",
-   "tris": 3000,
+   "tris": 2000,
+   "far": 400,
    "size": [
-    0.169,
+    0.168,
     0.144,
     0.32
    ],
@@ -168,11 +169,12 @@
   },
   "rock_flat": {
    "id": "namaqualand_boulder_05",
-   "tris": 5000,
+   "tris": 3000,
+   "far": 896,
    "size": [
-    1.362,
-    0.536,
-    0.746
+    1.357,
+    0.532,
+    0.741
    ],
    "materials": [
     "namaqualand_boulder_05"
@@ -180,7 +182,8 @@
   },
   "rock_moon_a": {
    "id": "moon_rock_01",
-   "tris": 3000,
+   "tris": 2000,
+   "far": 400,
    "size": [
     0.213,
     0.076,
@@ -192,7 +195,8 @@
   },
   "rock_moon_b": {
    "id": "moon_rock_03",
-   "tris": 2500,
+   "tris": 1500,
+   "far": 300,
    "size": [
     0.112,
     0.058,
@@ -204,11 +208,12 @@
   },
   "rock_spire": {
    "id": "namaqualand_cliff_01",
-   "tris": 8999,
+   "tris": 5000,
+   "far": 942,
    "size": [
-    8.279,
-    4.965,
-    4.39
+    8.272,
+    4.956,
+    4.391
    ],
    "materials": [
     "drone_rock_01"
@@ -230,11 +235,12 @@
   },
   "tree_dead": {
    "id": "dead_quiver_trunk",
-   "tris": 6000,
+   "tris": 3000,
+   "far": 499,
    "size": [
-    0.307,
-    1.994,
-    0.268
+    0.306,
+    1.993,
+    0.267
    ],
    "materials": [
     "dead_quiver_trunk"
@@ -242,9 +248,10 @@
   },
   "tree_desert": {
    "id": "quiver_tree_01",
-   "tris": 12000,
+   "tris": 6000,
+   "far": 1501,
    "size": [
-    1.182,
+    1.181,
     2.714,
     0.97
    ],
@@ -255,11 +262,12 @@
   },
   "tree_jungle": {
    "id": "island_tree_02",
-   "tris": 16000,
+   "tris": 7000,
+   "far": 1400,
    "size": [
-    4.008,
-    3.421,
-    4.067
+    4.158,
+    3.403,
+    4.052
    ],
    "materials": [
     "island_tree_02",
@@ -269,16 +277,31 @@
   },
   "tree_leaf": {
    "id": "tree_small_02",
-   "tris": 42856,
+   "tris": 9512,
+   "far": 1847,
    "size": [
-    2.927,
-    4.448,
-    4.296
+    2.944,
+    4.458,
+    4.283
    ],
    "materials": [
     "tree_small_02_branches",
     "tree_small_02_leaves",
     "tree_small_02_trunk"
+   ]
+  },
+  "tree_pine": {
+   "id": "fir_sapling",
+   "tris": 8000,
+   "far": 1500,
+   "size": [
+    0.93,
+    1.306,
+    0.825
+   ],
+   "materials": [
+    "fir_sapling_branches",
+    "fir_sapling_twigs"
    ]
   }
  }

@@ -122,8 +122,8 @@ FOB Commander's goals (agreed at 0.83 and 0.84, from Ramzies):
     searchlights mounted on them. Then the defensive waves (16) come at them.
 25. Realism (Ramzies, 0.91: "we're shooting for GTA V, not PlayStation 2"; CC0 photoscans welcome), in this order: the ground
     fight, FOB Commander, the station, the galactic campaign. (0.91: the ground fight's land, trees and rocks from scans.)
-    Still to do there: pines (Poly Haven's fir_tree_01 is 7.8 million polygons: too big to cut down in one go; build one in
-    Blender from scanned bark and needles instead), ground cover and grass near the camera, light from a real sky (HDRI),
+    (0.91 too: a far form of each, the pine built from cards, all off on the low setting; Ramzies: 30 to 144 frames a
+    second, always.) Still to do there: a fuller broadleaf and jungle tree, ground cover and grass near the camera, light from a real sky (HDRI),
     contact shadows, then FOB Commander's land and props, buildings remade with scanned materials, the station, the war room.
 22. A grittier, less cartoonish look for the buildings, in Blender. (0.90: detail textures on every model in every mode
     and on the land; Blender pieces for the foundations, their ramps, and the barrier-basket wall.) Still to do: the

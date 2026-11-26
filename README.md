@@ -1,6 +1,6 @@
 # Orbital Fury: Galactic Command
 
-**Prototype 0.91.0.** One war, run from four posts, in one game.
+**Prototype 0.91.1.** One war, run from four posts, in one game.
 
 You found a command (a name, a livery: emblem and colours) and hold the centre of the galaxy against three enemies. Everything in
 the war is yours to run, and each part changes the others:
@@ -34,8 +34,12 @@ work with a touch screen ... I might want to play it on my Surface".
   surface relief lit by the sun; the map's own tracks, scorches and hollows stay on it.
 - **Scanned trees and rocks.** The broadleaf, jungle and desert trees and the dead tree are real scanned trees (a quiver
   tree in the desert), and the rocks and rock spires are scanned boulders and cliffs (moon rocks on the moon), cut down in
-  Blender to what a browser draws well (tools/blender/scans.py, assets/scans). The pine stays the old model for now.
-  `?scans=0` shows the old ones.
+  Blender to what a browser draws well (tools/blender/scans.py, assets/scans). The pine is built in the game from cards:
+  a scanned fir's bark and tiers of fir fronds (tools/textures/frond.py), about 300 triangles. `?scans=0` shows the old ones.
+- **Still 30 to 144 frames a second** (Ramzies). Every scanned tree and rock has a far form of about a fifth of its
+  triangles, drawn unless the view is close in; a tree's leaves are thinned card by card (no cut can merge them) and the
+  rest grown to keep the crown full. On the low setting, or when the game drops to it by itself on a slow computer, the
+  scans give way to the old models and the drawn ground.
 - **INSTALL.bat and PLAY.bat** (above), and the game can be installed from the browser as an app when it is served from the
   web (manifest.webmanifest, sw.js).
 - **Touch.** A pinch or double tap no longer zooms the page itself, and a long press no longer opens the browser's menu over

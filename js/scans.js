@@ -18,6 +18,7 @@ export function scanIndex() { if (!INDEX) INDEX = OFF ? Promise.resolve(null) : 
 const MODELS = new Map(), LOADER = new GLTFLoader();
 export function scanModel(name) {
   let p = MODELS.get(name); if (p) return p;
+  if (/^tree_pine(_far)?$/.test(name)) { p = OFF ? Promise.resolve(null) : Promise.resolve(pine()); MODELS.set(name, p); return p; }
   p = OFF ? Promise.resolve(null) : LOADER.loadAsync(BASE + `models/${name}.glb`).then((gl) => {
     const geos = [], mats = []; gl.scene.updateMatrixWorld(true);
     gl.scene.traverse((o) => {
@@ -55,4 +56,38 @@ export async function groundSet(biome) {
   const ix = await scanIndex(), pair = GROUND[biome]; if (!ix || !pair) return null;
   const [a, b] = pair, mean = (k) => (ix.ground[k] && ix.ground[k].mean) || [0.5, 0.5, 0.5];
   return { a: tex(`${a}_diff`), an: tex(`${a}_nor`), b: tex(`${b}_diff`), bn: tex(`${b}_nor`), ta: TILE[a] || 4, tb: TILE[b] || 3, ma: mean(a), mb: mean(b), hue: HUE[biome] ?? 0.5 };
+}
+
+// THE PINE (GC 0.91). Poly Haven's firs are millions of polygons (every needle), far past what a forest in a browser can carry
+// at 30 to 144 frames a second; this one is built here from cards: a trunk in a scanned fir's bark, and tiers of fronds (a
+// picture of a fir's twig, tools/textures/frond.py) round it, longest at the bottom and drooping, each frond two cards
+// crossed so it is full from above and from the side. About 300 triangles, the same near and far.
+function pine() {
+  let seed = 11; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const H = 9, R = 2.3, pos = [], nrm = [], uv = [], up = new THREE.Vector3(0, 1, 0), v = new THREE.Vector3(), a = new THREE.Vector3(), b = new THREE.Vector3(), w = new THREE.Vector3();
+  const card = (o, dir, side, len, wid) => {     // a quad from o along dir, wid across side; normals leaned up (foliage lit softly)
+    const p0 = o.clone().addScaledVector(side, -wid / 2), p1 = o.clone().addScaledVector(side, wid / 2), p2 = p1.clone().addScaledVector(dir, len), p3 = p0.clone().addScaledVector(dir, len);
+    const n = new THREE.Vector3().crossVectors(side, dir).normalize(); if (n.y < 0) n.negate(); n.lerp(up, 0.75).normalize();
+    for (const [p, t] of [[p0, [0, 0]], [p1, [0, 1]], [p2, [1, 1]], [p0, [0, 0]], [p2, [1, 1]], [p3, [1, 0]]]) { pos.push(p.x, p.y, p.z); nrm.push(n.x, n.y, n.z); uv.push(t[0], t[1]); }
+  };
+  const tiers = 12;
+  for (let i = 0; i < tiers; i++) {
+    const t = i / (tiers - 1), y = 1.3 + t * (H - 2.0), len = R * Math.pow(1 - t, 0.85) + 0.45, n = 7 - Math.round(t * 3), droop = 0.45 - 0.3 * t;
+    for (let j = 0; j < n; j++) {
+      const az = (j / n) * Math.PI * 2 + i * 0.9 + (rnd() - 0.5) * 0.5, dl = droop + (rnd() - 0.5) * 0.15;
+      a.set(Math.cos(az), 0, Math.sin(az)); const dir = a.clone().multiplyScalar(Math.cos(dl)).add(v.set(0, -Math.sin(dl), 0)).normalize();
+      const side = b.crossVectors(up, a).normalize().clone(), roll = (rnd() - 0.5) * 0.5, s1 = side.clone().applyAxisAngle(dir, roll), s2 = side.clone().applyAxisAngle(dir, roll + 1.35);
+      const o = w.set(0, y + (rnd() - 0.5) * 0.25, 0).addScaledVector(a, 0.08).clone(), L = len * (0.85 + 0.3 * rnd());
+      card(o, dir, s1, L, L * 0.5); card(o, dir, s2, L * 0.92, L * 0.42);
+    }
+  }
+  for (let j = 0; j < 4; j++) { const az = j * Math.PI / 2 + 0.4; a.set(Math.cos(az), 0, Math.sin(az)); const dir = a.clone().multiplyScalar(0.35).add(up).normalize(); card(new THREE.Vector3(0, H - 0.9, 0), dir, b.crossVectors(up, a).normalize().clone(), 1.1, 0.55); }
+  const fr = new THREE.BufferGeometry(); fr.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); fr.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3)); fr.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  const tr = new THREE.CylinderGeometry(0.035, 0.24, H, 10, 1, true).toNonIndexed(); tr.translate(0, H / 2, 0); { const u = tr.attributes.uv; for (let i = 0; i < u.count; i++) u.setXY(i, u.getX(i) * 2, u.getY(i) * 6); }
+  const geo = mergeGeometries([tr, fr], true); geo.computeBoundingBox();
+  const T = (f, srgb) => { const t = new THREE.TextureLoader().load(BASE + `models/${f}`); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4; if (srgb) t.colorSpace = THREE.SRGBColorSpace; return t; };
+  const bark = new THREE.MeshStandardMaterial({ map: T('pine_bark_diff.jpg', true), normalMap: T('pine_bark_nor.jpg'), roughness: 0.95 }); bark.userData.scan = true;
+  const ndl = new THREE.MeshStandardMaterial({ map: T('pine_frond.png', true), alphaTest: 0.42, side: THREE.DoubleSide, roughness: 0.85, color: 0xf2f6ee }); ndl.userData.scan = true; ndl.userData.leaf = true;
+  ndl.map.wrapS = ndl.map.wrapT = THREE.ClampToEdgeWrapping;
+  const bb = geo.boundingBox; return { geo, mats: [bark, ndl], size: [bb.max.x - bb.min.x, bb.max.y - bb.min.y, bb.max.z - bb.min.z] };
 }

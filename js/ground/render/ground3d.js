@@ -59,7 +59,7 @@ export class Ground3D {
         float gcH(vec2 p) { p = mod(p, 289.0); return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
         float gcN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(gcH(i), gcH(i + vec2(1.0, 0.0)), f.x), mix(gcH(i + vec2(0.0, 1.0)), gcH(i + vec2(1.0, 1.0)), f.x), f.y); }`)
         .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
-        if (uScOn > 0.5) {     // (GC 0.91) the scans' normals, on the land's own frame (its x and z are the pictures' u and v)
+        if (uScOn > 0.5 && uScK.y > 0.5) {     // (GC 0.91) the scans' normals, on the land's own frame (its x and z are the pictures' u and v)
           vec3 q0 = dFdx(-vViewPosition), q1 = dFdy(-vViewPosition); vec2 st0 = dFdx(vWp), st1 = dFdy(vWp);
           vec3 N = normal, q1p = cross(q1, N), q0p = cross(N, q0), T = q1p * st0.x + q0p * st1.x, Bt = q1p * st0.y + q0p * st1.y;
           float dt = max(dot(T, T), dot(Bt, Bt)), sc = dt == 0.0 ? 0.0 : inversesqrt(dt);
@@ -72,7 +72,7 @@ export class Ground3D {
         // (GC 0.91, Ramzies: "we're shooting for GTA V") the ground is photoscanned: the biome's main material, a second one in
         // patches, each laid at two sizes turned across each other (so it never shows its repeat), coloured and lit as the
         // scan is, and as light or dark as the map's own picture is there (its tracks, scorches and hollows stay)
-        if (uScOn > 0.5) {
+        if (uScOn > 0.5 && uScK.y > 0.5) {
           mat2 R = mat2(0.8, 0.6, -0.6, 0.8); vec2 a1 = vWp / uScT.x, a2 = R * vWp / (uScT.x * 2.3) + 0.37, b1 = vWp / uScT.y, b2 = R * vWp / (uScT.y * 2.1) + 0.61;
           float ta = smoothstep(0.3, 0.7, gcN(vWp * 0.021 + 3.0)), tb = smoothstep(0.3, 0.7, gcN(vWp * 0.033 + 7.0));
           vec3 A = mix(texture2D(tScA, a1).rgb, texture2D(tScA, a2).rgb, ta), B = mix(texture2D(tScB, b1).rgb, texture2D(tScB, b2).rgb, tb);
@@ -178,6 +178,8 @@ export class Ground3D {
       const nowMs = performance.now(); if (this.gRev !== o.groundRev && nowMs - this.gAt > 250) { this.gRev = o.groundRev; this.gAt = nowMs; this.gtex.needsUpdate = true; }
     }
     this.uInv.value = 1 / (o.size || 1600); this.uTopo.value = o.topo ? 1 : 0; this.uDet.value = o.det ?? 1; this.uLand.value = o.land ?? 8;
+    if (this.props && this.props.setDetail) this.props.setDetail(this._near = (o.scale || 0) > (this._near ? 10 : 12), o.scans !== false);     // (GC 0.91: near forms when close in; none on the low setting)
+    this.sc.uScK.y = o.scans === false ? 0 : 1;
     if (o.biome && o.biome !== this.scBiome) {     // (GC 0.91) the biome's scanned ground, as it comes; the trees and rocks too
       this.scBiome = o.biome; this.sc.uScOn.value = 0; if (this.props && this.props.setBiome) this.props.setBiome(o.biome);
       groundSet(o.biome).then((g) => { if (!g || this.scBiome !== o.biome) return; const c = this.sc;
