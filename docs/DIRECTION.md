@@ -72,6 +72,25 @@ also why they are so capable and so well equipped: a great deal has been spent o
 - Story reasons for the war.
 - The credits still name SESF and the old prototypes; the tutorial planet is still `mars` inside the code.
 
+## Priority: the order to work in (set 28 November 2026, after 0.93; tick each off here as it ships)
+
+Ramzies' realism order (the ground fight, FOB Commander, the station, the galactic campaign) first, the base's agreed gameplay
+(walls, then the waves) woven in once the ground fight's look is finished. Each item is one version.
+1. ~~**The black rocks** (0.93.1): every biome's second scanned rock drew black (its material asked for colours the loader drops).~~ **(0.93.1)**
+2. **Water in the ground fight** (0.94): rivers and lakes as real water, not the map picture's dark blue: the sky's light
+   reflected, banks that wet the ground, ripples; ice in the snow (a frozen river not a dark band); swamp in the jungle.
+3. **A lusher jungle tree** (0.94.x): the last of the ground fight's scans (item 25).
+4. **FOB Commander's light** (0.95): 0.93's contact shadows in the base view, its buildings' roughness and metalness by
+   material (js/surface.js pbr), so the base is lit as the ground fight now is.
+5. **Walls, finished** (0.96, item 21): taller and stronger on a foundation, a walkway, turrets, lamps, banners and searchlights on them.
+6. **Defensive waves** (0.97+, item 16): the enemy comes at the base in 3D; prepare in the warning, pause, build, repair
+   and call strikes mid-wave; ruins, wounds and stolen supplies when it goes badly; in the campaign when the system is attacked.
+7. **FOB Commander's buildings remade** in Blender with scanned materials, their own texture layouts and far forms; the
+   foundations and walls in scanned concrete (items 22 and 25).
+8. **The station, then the war room**, in the same realism pass.
+9. Then the rest of the list below, in its order: Vanguards in FOB and the station (7), quick-time events there (8), daily
+   challenges (9), weapon fire, explosions, fog and weather (10), FOB's buildings destructible (12), our own names (23).
+
 ## The list: what is left to do (kept up to date as things are built)
 
 Models and sharing (the 0.64 rework, continued):

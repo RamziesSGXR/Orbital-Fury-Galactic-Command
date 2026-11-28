@@ -1,6 +1,6 @@
 # Orbital Fury: Galactic Command
 
-**Prototype 0.93.** One war, run from four posts, in one game.
+**Prototype 0.93.1.** One war, run from four posts, in one game.
 
 You found a command (a name, a livery: emblem and colours) and hold the centre of the galaxy against three enemies. Everything in
 the war is yours to run, and each part changes the others:
@@ -21,6 +21,12 @@ game into your user folder (no admin needed) and puts **Galactic Command** on th
 double-click **PLAY.bat** in the unzipped folder to play without installing. Either opens the game full screen in its own
 Microsoft Edge window, served from your own computer only (nothing goes online); closing the window stops it. Touch screens
 work: tap, drag and pinch. `INSTALL.bat -Remove` takes it away again.
+
+## Fixed in 0.93.1
+
+- **Rocks drew black.** Every biome's second scanned rock (all but the moon's) was black but for its highlights: its model
+  carries colours in its corners, which the game drops when it loads a scan, and the material still asked for them. It now
+  shows its own scanned stone.
 
 ## What's new in 0.93: finish the light (the ground fight)
 

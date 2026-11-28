@@ -33,6 +33,7 @@ export function scanModel(name) {
       for (const a of Object.keys(g.attributes)) if (!['position', 'normal', 'uv'].includes(a)) g.deleteAttribute(a);
       if (!g.attributes.uv) g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2));
       const m = o.material; m.userData.scan = true;
+      m.vertexColors = false;     // (GC 0.93.1) the colours a scan carries in its corners are dropped above: a material still asking for them read black (rock_a, every biome's second rock)
       if (m.transparent || m.alphaTest > 0 || /leaf|leaves|branch|twig|needle|fern|shrub|grass/i.test(m.name)) { m.transparent = false; m.alphaTest = Math.max(0.45, m.alphaTest || 0); m.side = THREE.DoubleSide; leafLit(m); }
       if (m.map) m.map.anisotropy = 4;
       geos.push(g); mats.push(m);
