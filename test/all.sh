@@ -1,7 +1,10 @@
 #!/bin/bash
 # Every check, one line each: bash test/all.sh [war|ground|base|station|whole]  (needs the game served on :8080)
 cd "$(dirname "$0")/.."
-(pgrep -f "http.server 8080" >/dev/null || (python3 -m http.server 8080 >/dev/null 2>&1 &)); sleep 1
+# (GC 0.93) on Windows (Git Bash) the tests use the installed Chrome; elsewhere CHROME, or /usr/bin/google-chrome
+[ -z "$CHROME" ] && [ -f "/c/Program Files/Google/Chrome/Application/chrome.exe" ] && export CHROME='C:\Program Files\Google\Chrome\Application\chrome.exe'
+export PYTHONUTF8=1     # (and the scripts' prints in UTF-8: Windows' console code page cannot show every character)
+(curl -s -o /dev/null http://localhost:8080/ || pgrep -f "http.server 8080" >/dev/null 2>&1 || (python3 -m http.server 8080 >/dev/null 2>&1 &)); sleep 1
 run() { local out; out=$(timeout "${T:-280}" "$@" 2>&1); local c=$?; printf '%-5s %-28s %s\n' "$([ $c -eq 0 ] && echo PASS || echo FAIL)" "${*:2}" "$(echo "$out" | grep -v '^no page errors' | tail -1 | cut -c1-110)"; }
 case "${1:-all}" in
   war)     for t in shell.py armoury.py fleets.py map.py map_war.py network.py roster.py; do run python3 test/$t; done; T=420 run python3 test/menu.py; T=420 run python3 test/tutorial.py ;;

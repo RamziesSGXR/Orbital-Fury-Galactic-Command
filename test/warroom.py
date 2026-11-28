@@ -20,7 +20,7 @@ def bare(pg):
     pg.evaluate("for (const s of ['#s-title .tmain', '#tscrim']) document.querySelector(s).style.visibility = 'hidden'")
 
 with sync_playwright() as pw:
-    br = pw.chromium.launch(executable_path='/usr/bin/google-chrome', args=ARGS)
+    br = pw.chromium.launch(executable_path=__import__('os').environ.get('CHROME', '/usr/bin/google-chrome'), args=ARGS)
     errs = []
     if len(sys.argv) > 1 and sys.argv[1] == 'stills':
         for name, (shot, size, crop) in SHOTS.items():

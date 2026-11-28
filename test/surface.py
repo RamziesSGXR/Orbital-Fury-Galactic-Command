@@ -10,7 +10,7 @@ out = sys.argv[1] if len(sys.argv) > 1 else '/tmp/shots'; errs = []
 def busy(png, box):     # fine detail: the mean of the edges in a part of the picture
     im = Image.open(io.BytesIO(png)).convert('L').crop(box).filter(ImageFilter.FIND_EDGES); return ImageStat.Stat(im).mean[0]
 with sync_playwright() as pw:
-    br = pw.chromium.launch(executable_path='/usr/bin/google-chrome', args=['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'])
+    br = pw.chromium.launch(executable_path=__import__('os').environ.get('CHROME', '/usr/bin/google-chrome'), args=['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'])
     pg = br.new_page(viewport={'width': 1280, 'height': 720})
     pg.on('pageerror', lambda e: errs.append('pageerror: ' + str(e)))
     pg.on('console', lambda m: errs.append('console: ' + m.text[:300]) if m.type == 'error' and 'favicon' not in m.text and 'status of 404' not in m.text else None)

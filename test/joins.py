@@ -29,7 +29,7 @@ PORT = '''(ok) => { const v = gc.mode.view, fp = v.portList.find((p) => p.fit &&
   const x = e[0] * P[0] + e[4] * P[1] + e[8] * P[2] + e[12], y = e[1] * P[0] + e[5] * P[1] + e[9] * P[2] + e[13], z = e[2] * P[0] + e[6] * P[1] + e[10] * P[2] + e[14], w = -z;
   return [((m[0] * x + m[8] * z) / w + 1) / 2 * r.width + r.left, (1 - (m[5] * y + m[9] * z) / w) / 2 * r.height + r.top, fp.part, fp.i]; }'''
 with sync_playwright() as pw:
-    br = pw.chromium.launch(executable_path='/usr/bin/google-chrome', args=['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'])
+    br = pw.chromium.launch(executable_path=__import__('os').environ.get('CHROME', '/usr/bin/google-chrome'), args=['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'])
     for name, w, h, touch in [('desk', 1280, 800, False), ('phone', 390, 844, True)]:
         pg = br.new_page(viewport={'width': w, 'height': h}, has_touch=touch)
         pg.on('pageerror', lambda e: errs.append(name + ' pageerror: ' + str(e)))

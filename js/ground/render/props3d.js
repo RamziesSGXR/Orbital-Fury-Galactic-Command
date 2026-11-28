@@ -9,6 +9,7 @@ import { bake, staticGeo } from './units3d.js';
 import { VIEW } from './view.js';
 import { modelJSON } from '../../model3d.js';
 import { scanModel } from '../../scans.js';
+import { pbr } from '../../surface.js';
 
 // (GC 0.91, Ramzies: "we're shooting for GTA V") trees and rocks from photoscans (js/scans.js) in place of the built ones, once
 // they have come: one instanced mesh a kind still, its materials (bark, leaves) as groups of it. On the moon, moon rocks.
@@ -141,8 +142,9 @@ class Blds {
 export class Props3D {
   constructor(scene) {
     this.scene = scene; this.kinds = new Map(); this.used = new Map(); this.blds = new Blds(scene); this.scans = new Map(); this.scanMats = new Set(); this.biome = null; this.far = true; this.useScans = true;
-    this.mat = new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true, flatShading: true });
-    this.smooth = new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true });     // (the Blender models bring their own normals: rounded where they curve)
+    // (GC 0.93) Standard materials, so the real sky's light reaches them, each triangle as rough and metallic as what it is made of
+    this.mat = pbr(new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, flatShading: true, roughness: 0.72, metalness: 0 }));
+    this.smooth = pbr(new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: 0.72, metalness: 0 }));     // (the Blender models bring their own normals: rounded where they curve)
     // (GC 0.38) the objectives and side sites are models made in Blender (tools/blender/sites.py), listed in the index and
     // fetched as the game starts. Until one has come, the old flat drawing of it is used (VIEW.m3 says which have come).
     this.files = new Map(); this.accent = '#ff5a3a';

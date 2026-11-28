@@ -130,7 +130,7 @@ FOB Commander's goals (agreed at 0.83 and 0.84, from Ramzies):
     fight, FOB Commander, the station, the galactic campaign. (0.91: the ground fight's land, trees and rocks from scans.)
     (0.91 too: a far form of each, the pine built from cards, all off on the low setting; Ramzies: 30 to 144 frames a
     second, always.) Still to do there: a lusher jungle tree (0.92.1: ground cover near the camera done), light from a real sky (HDRI),
-    contact shadows; FOB Commander (0.92: its land and rocks scanned; still: the buildings remade with scanned materials, the
+    ~~contact shadows~~ (0.93: in the ground fight, with its units and props on the real sky's light, PBR by material); FOB Commander (0.92: its land and rocks scanned; still: the buildings remade with scanned materials, the
     foundations and walls in scanned concrete), the station, the war room.
 22. A grittier, less cartoonish look for the buildings, in Blender. (0.90: detail textures on every model in every mode
     and on the land; Blender pieces for the foundations, their ramps, and the barrier-basket wall.) Still to do: the

@@ -74,6 +74,11 @@ export function surfScale(scene, metres) {
     }
   });
 }
+// (GC 0.93, "finish the light") a Standard material that takes its roughness and metalness from what each triangle is made of (the
+// table GC_RGH below): cloth dull, paint satin with bare metal where it is chipped, chitin glossy, glass smooth. So the real sky's
+// light (js/sky.js) and the sun's highlight sit on each surface as they would. Only for materials given it (the ground fight's
+// units, vehicles and props); the base's and the station's keep their own.
+export function pbr(mat) { mat.defines = { ...(mat.defines || {}), GC_PBR: '' }; mat.needsUpdate = true; return mat; }
 export function noSurf(mat) { mat.defines = { ...(mat.defines || {}), GC_NOSURF: '' }; mat.needsUpdate = true; return mat; }
 
 // The detail picture (GC 0.90). three.js gives every material its own copy of a built-in shader's settings, textures included,
@@ -162,6 +167,10 @@ if (!C.__gcSurf && !OFF) {
     #define GC_SCALE 1.0
   #endif
   float gcHt = 0.0, gcRough = 0.0;           // (for the light, below: the relief here in the scene's units, and how much rougher)
+  int gcKi = -1; float gcChip = 0.0;          // (GC 0.93: what this pixel is made of, and how much of it is paint chipped to bare metal)
+  // (GC 0.93) per KIND, for a GC_PBR material: how rough (1 dull as cloth, 0 a mirror) and how metallic
+  const float GC_RGH[17] = float[17](0.72, 0.96, 0.42, 0.3, 0.55, 0.12, 0.9, 0.78, 0.97, 0.86, 0.94, 0.72, 0.95, 0.62, 0.85, 0.96, 0.1);
+  const float GC_MTL[17] = float[17](0.0, 0.0, 0.08, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
   // per KIND (plain, fabric, hard, organic, skin, none, stone, wood, soil, rock, bark, foliage, sand, snow, grass, regolith,
   // water): metres the picture spans; metres of relief from its lowest to its highest; how strongly it lightens and darkens;
   // how far its marked places (B) go: paint to bare metal, concrete spalled, lichen on rock, glints on snow, bare earth in grass
@@ -211,9 +220,12 @@ if (!C.__gcSurf && !OFF) {
   vec3 gcSurface(vec3 c) {
     float k = clamp(floor(vGcK + 0.5), 0.0, 16.0); int ki = int(k);
     vec3 p = vGcP; vec3 n = normalize(vGcN);
+    #ifdef GC_PBR
+      float gcBend = length(fwidth(n)) / max(length(fwidth(p)) * GC_SCALE, 1e-4);     // (GC 0.93) how sharply the surface turns, per metre (taken here, outside any branch)
+    #endif
     vec3 d = gcDetail(k, p / GC_TILE[ki], n);                            // (looked up before anything turns away: the light needs its slope)
-    gcHt = (d.g - 0.5) * GC_DEEP[ki] / GC_SCALE;
-    if (ki == 5) return c;                                               // a light, glass: as it is
+    gcHt = (d.g - 0.5) * GC_DEEP[ki] / GC_SCALE; gcKi = ki;
+    if (ki == 5) return c;                                             // a light, glass: as it is
     float blot = smoothstep(0.22, 0.78, gcNoise(p * 1.6) * 0.6 + gcNoise(p * 4.3 + 7.1) * 0.4);   // patches a hand or two across
     d.rb = mix(vec2(0.5, GC_SCAN[ki] * 0.5), d.rb, 0.55 + 0.9 * blot);                // (stronger in some patches than others, so the picture does not show its repeat)
     float grain = clamp(0.5 + (d.r - 0.5) * 3.0, 0.0, 1.0);
@@ -236,6 +248,13 @@ if (!C.__gcSurf && !OFF) {
     c = mix(c, gcWorn(c, ki, grain), wear);
     float wm = max((d.b - 0.5) * (ki == 2 ? 0.7 : 0.9), -0.04) * sk; c *= vec3(1.0 + wm, 1.0 + wm * 0.2, 1.0 - wm);     // (a scan's own rust, dirt and lichen: warmer where it is; its paint's own colour left out)
     gcRough = ki == 2 ? -0.3 * wear : ki == 13 ? -0.4 * wear : 0.25 * wear + 0.15 * clamp(0.5 - d.g, 0.0, 0.5);
+    #ifdef GC_PBR
+    // (GC 0.93) painted metal: the scanned paint's palest, least rusty flecks are where it is worn through to the metal, in the
+    // patches where it is worn most and on the edges and corners of the model (where its normal turns quickly)
+    if (ki == 2) { float edge = smoothstep(6.0, 30.0, gcBend);     // (bent sharper than a hand's breadth across)
+      gcChip = smoothstep(0.7, 0.88, d.r + 0.12 * blot + 0.2 * edge) * (1.0 - smoothstep(0.45, 0.7, d.b));
+      c = mix(c, vec3(0.56, 0.55, 0.53) * (0.8 + 0.4 * grain), gcChip); gcRough -= 0.12 * gcChip; }
+    #endif
     // dust: on what faces up, and (on a model) toward its feet; not on skin, leaves, grass or snow
     float lum = dot(c, vec3(0.3, 0.59, 0.11));
     float up = smoothstep(0.55, 0.95, n.y) * (ki == 4 || ki == 11 || ki == 13 || ki == 14 ? 0.0 : 0.06 + 0.12 * blot * grain);     // faces that look up: a little dulled and paled, in patches
@@ -270,7 +289,15 @@ if (!C.__gcSurf && !OFF) {
 }
 #endif`;
   C.roughnessmap_fragment += `
+#if defined( GC_ON ) && defined( GC_PBR )
+  if (gcKi >= 0) roughnessFactor = GC_RGH[gcKi];     /* (GC 0.93) as rough as what it is made of */
+#endif
 #ifdef GC_TEX
   roughnessFactor = clamp(roughnessFactor + gcRough, 0.04, 1.0);
+#endif`;
+  // (GC 0.93) and as metallic: bare metal where the paint is chipped
+  C.metalnessmap_fragment += `
+#if defined( GC_ON ) && defined( GC_PBR )
+  if (gcKi >= 0) metalnessFactor = clamp(GC_MTL[gcKi] + gcChip * 0.9, 0.0, 1.0);
 #endif`;
 }

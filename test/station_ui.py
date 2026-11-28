@@ -13,7 +13,7 @@ def check(ok, what):
     if not ok: fails.append(what)
 
 with sync_playwright() as pw:
-    br = pw.chromium.launch(executable_path='/usr/bin/google-chrome', args=ARGS)
+    br = pw.chromium.launch(executable_path=__import__('os').environ.get('CHROME', '/usr/bin/google-chrome'), args=ARGS)
     pg = br.new_page(viewport={'width': 1600, 'height': 900}); pg.on('pageerror', lambda e: errs.append(str(e)))
     pg.goto('http://localhost:8080/'); pg.evaluate("localStorage.clear(); localStorage.setItem('ofgc.guide.orbit','1')"); pg.reload(); pg.wait_for_timeout(1500)
     pg.click('#t-tabs [data-tab=play]'); pg.wait_for_timeout(300); pg.click('#t-page .gcard[data-g=orbit]'); pg.wait_for_timeout(800)

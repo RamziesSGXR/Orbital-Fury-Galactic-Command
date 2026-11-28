@@ -15,7 +15,7 @@ from scipy.spatial import cKDTree
 from playwright.sync_api import sync_playwright
 names = sys.argv[1].split(',') if len(sys.argv) > 1 and sys.argv[1] else None
 with sync_playwright() as pw:
-    br = pw.chromium.launch(executable_path='/usr/bin/google-chrome', args=['--no-sandbox', '--use-gl=swiftshader', '--enable-unsafe-swiftshader'])
+    br = pw.chromium.launch(executable_path=__import__('os').environ.get('CHROME', '/usr/bin/google-chrome'), args=['--no-sandbox', '--use-gl=swiftshader', '--enable-unsafe-swiftshader'])
     pg = br.new_page(viewport={'width': 400, 'height': 300})
     pg.goto('http://localhost:8080/'); pg.wait_for_timeout(600)
     data = pg.evaluate("""(async (names) => {

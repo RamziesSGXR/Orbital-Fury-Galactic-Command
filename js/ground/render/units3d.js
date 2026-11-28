@@ -9,6 +9,7 @@ import * as THREE from '../../vendor/three.js';
 import { VIEW } from './view.js';
 import { staticGeo, modelFrames, modelJSON } from '../../model3d.js';
 export { staticGeo, modelFrames };
+import { pbr } from '../../surface.js';
 import { makeMats, makePerson, poseKit, makeLRV, makeTank, makeDropship, makeCrate } from '../../base/models.js';
 
 const TMP = new THREE.Color(), Q2 = new THREE.Quaternion(), FWD = new THREE.Vector3(0, 0, 1), SIDE = new THREE.Vector3(1, 0, 0);
@@ -145,7 +146,8 @@ export class Units3D {
       'bots:L': () => bake(foundry(1, mats)), 'bots:M': () => bake(foundry(2, mats)), 'bots:H': () => (mats ? bake(foundry(3, mats), '#7a3028') : bake(foundry(2, mats))),
       'lizards:L': () => bake(talon(1)), 'lizards:M': () => bake(talon(2)), 'lizards:H': () => bake(talon(3)),
     };
-    this.mat = new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true });
+    // (GC 0.93) a Standard material, so the real sky's light (js/sky.js) reaches them: each triangle as rough and metallic as what it is made of (js/surface.js pbr)
+    this.mat = pbr(new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: 0.72, metalness: 0 }));
     this.hot = new THREE.Color(0, 0, 0);
     // the Blender models come in a moment after the fight opens; until one has, its kind is drawn as the simple shape above
     this.loaded = {};

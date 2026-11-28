@@ -4,7 +4,7 @@ from playwright.sync_api import sync_playwright
 out = sys.argv[1] if len(sys.argv) > 1 else '/tmp/shots'
 errs = []
 with sync_playwright() as pw:
-    br = pw.chromium.launch(executable_path='/usr/bin/google-chrome', args=['--no-sandbox', '--use-gl=swiftshader', '--enable-unsafe-swiftshader'])
+    br = pw.chromium.launch(executable_path=__import__('os').environ.get('CHROME', '/usr/bin/google-chrome'), args=['--no-sandbox', '--use-gl=swiftshader', '--enable-unsafe-swiftshader'])
     for name, w, h in [('phone', 390, 844), ('desk', 1280, 800)]:
         pg = br.new_page(viewport={'width': w, 'height': h})
         pg.on('pageerror', lambda e: errs.append(name + ' pageerror: ' + str(e)))

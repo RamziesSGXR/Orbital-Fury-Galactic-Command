@@ -1,6 +1,6 @@
 # Orbital Fury: Galactic Command
 
-**Prototype 0.92.6.** One war, run from four posts, in one game.
+**Prototype 0.93.** One war, run from four posts, in one game.
 
 You found a command (a name, a livery: emblem and colours) and hold the centre of the galaxy against three enemies. Everything in
 the war is yours to run, and each part changes the others:
@@ -21,6 +21,26 @@ game into your user folder (no admin needed) and puts **Galactic Command** on th
 double-click **PLAY.bat** in the unzipped folder to play without installing. Either opens the game full screen in its own
 Microsoft Edge window, served from your own computer only (nothing goes online); closing the window stops it. Touch screens
 work: tap, drag and pinch. `INSTALL.bat -Remove` takes it away again.
+
+## What's new in 0.93: finish the light (the ground fight)
+
+- **Contact shadows.** Where things meet, less of the sky's light gets in: the ground darkens under a trooper's boots, round
+  the foot of a rock, a post or a building, under a vehicle, and in the folds of a plant, and a figure's own creases (an arm
+  against the body, the pack on the back) are darker too. The sun's shadow map is far too coarse to show that, so it is
+  worked out from the picture's own depth (screen-space ambient occlusion, in js/ground/render/ground3d.js): at half size,
+  each point looks round itself within two metres, the speckle is blurred out without crossing from a thing onto what lies
+  behind it, and it is laid on before the film curve. In the plain colour sight only (not the infrared ones), off on the low
+  setting, and `?ao=0` turns it off to compare (`?ao=1.5` darker, `?aor=3` wider, for tuning).
+- **Real materials on the units and props.** Troopers, the enemy, vehicles, craft and every prop in the ground fight were lit
+  the old simple way (Lambert), so the photographed sky's light (0.92.3) never reached them. They are now physically based
+  (MeshStandardMaterial), and each triangle is as rough and as metallic as what it is made of (js/surface.js `pbr`): cloth
+  dull, painted metal satin with bare metal where the paint is worn through (on its edges and the worn patches), chitin and
+  shell glossy, glass and lenses smooth, wood, stone and bark matt. The night still darkens them where the ground is dark,
+  lamps and torches still light them, and the infrared sights still show them white-hot. (Every lit material in the fight is
+  now dimmed by the night, the base's buildings in it among them.)
+- Measured on an RTX 4070 SUPER at 1600 x 900: the contact shadows cost about a tenth of a millisecond of the graphics
+  card's time a frame (1.0 to 1.4 ms in all), and the fight ran at 190 to 230 frames a second unthrottled.
+- The tests run on Windows too: `bash test/all.sh ground` from Git Bash uses the installed Chrome (or `CHROME=<path>`).
 
 ## Fixed in 0.92.6
 

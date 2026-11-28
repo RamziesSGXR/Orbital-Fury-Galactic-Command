@@ -16,6 +16,11 @@ import { Props3D } from './props3d.js';
 const WILD = /^(tree|rock|bush|stump|log|crater|mine)/;     // (what grows or lies on the land takes it as it is)
 export const V3 = { tilt: 56, fov: 30, amp: 22, grid: 112, blocks: 420, sides: 8, rim: 10, grow: 1.65 };     // (GC 0.92.6) rim: lines of land past the sheet on each side, each grow times wider than the last     // degrees above the horizon; the lens; metres of relief either way of the middle height; cells across the sheet
 const RAD = Math.PI / 180;
+// (GC 0.93) the contact shadows: r metres round each point looked over, k how dark. ?ao=0 turns them off to compare (?ao=1.4 darker,
+// ?aor=3 wider, for tuning); they are off on the low setting and in the infrared sights
+const AO_Q = (() => { try { return location.search + (parent !== self ? parent.location.search : ''); } catch { return ''; } })();
+const AO = { r: +(/[?&]aor=([\d.]+)/.exec(AO_Q) || [])[1] || 2.0, k: +(/[?&]ao=([\d.]+)/.exec(AO_Q) || [])[1] || 1.5 };
+const AO_OFF = /[?&]ao=0(?![.\d])/.test(AO_Q);
 
 export class Ground3D {
   constructor(livery) {
@@ -293,8 +298,26 @@ export class Ground3D {
     if (px) { const u = px.mat.uniforms; u.uMode.value = o.sight === 'whot' ? 1 : o.sight === 'bhot' ? 2 : 0; u.uNear.value = C.near; u.uFar.value = C.far; this.sighted = true;
       this.r.setRenderTarget(px.rt); this.r.render(this.scene, C); this.r.setRenderTarget(null); this.r.render(px.scene, px.cam); return; }
     const po = o.post === false ? null : this._post(W, H); this.sighted = !!po;
-    if (po) { po.mat.uniforms.uMode.value = o.sight === 'whot' ? 1 : o.sight === 'bhot' ? 2 : 0; this.r.setRenderTarget(po.rt); this.r.render(this.scene, C); this.r.setRenderTarget(null); this.r.render(po.scene, po.cam); }
+    if (po) { const u = po.mat.uniforms; u.uMode.value = o.sight === 'whot' ? 1 : o.sight === 'bhot' ? 2 : 0; this.r.setRenderTarget(po.rt); this.r.render(this.scene, C);
+      // (GC 0.93) contact shadows: only in the plain colour sight, not on the low setting, not with ?ao=0
+      const ao = po.ao && o.ssao !== false && !AO_OFF && !window.__noao && u.uMode.value === 0;     /* (window.__noao: off from the console, to compare the same frame) */ u.uAoOn.value = ao ? 1 : 0; this.aoOn = ao;
+      if (ao) this._ao(po, C);
+      this.r.setRenderTarget(null); po.quad.material = po.mat; this.r.render(po.scene, po.cam); }
     else this.r.render(this.scene, C);
+  }
+  // (GC 0.93, "finish the light") CONTACT SHADOWS. Where things meet (a trooper's boots on the ground, a crate against a wall, the
+  // foot of a rock, under a vehicle) less of the sky's light gets in. The sun's shadow map is far too coarse to show that, so it is
+  // worked out from the picture's own depth: at half size, each pixel looks round itself within AO.r metres for what stands over it
+  // (12 looks, turned a little differently pixel by pixel), then the speckle is blurred out along the screen's two ways without
+  // crossing from a thing onto what is behind it, and laid on as the picture is finished, before the film curve.
+  _ao(po, C) {
+    const A = po.ao, e = C.projectionMatrix.elements, f = this.scene.fog;
+    for (const m of [A.occ, A.blur]) { const u = m.uniforms; u.uNF.value.set(C.near, C.far); }
+    { const u = A.occ.uniforms; u.uP.value.set(e[0], e[5], e[8], e[9]); u.uR.value = AO.r; u.uK.value = AO.k; u.uFog.value.set(f ? f.near : 1e5, f ? f.far : 2e5); }
+    po.quad.material = A.occ; this.r.setRenderTarget(A.a); this.r.render(po.scene, po.cam);
+    po.quad.material = A.blur; A.blur.uniforms.tA.value = A.a.texture; A.blur.uniforms.uDir.value.set(1 / A.w, 0); this.r.setRenderTarget(A.b); this.r.render(po.scene, po.cam);
+    A.blur.uniforms.tA.value = A.b.texture; A.blur.uniforms.uDir.value.set(0, 1 / A.h); this.r.setRenderTarget(A.a); this.r.render(po.scene, po.cam);
+    po.mat.uniforms.uNF.value.set(C.near, C.far);
   }
   // (GC 0.80.1) the pictures sent before drawing, so their time is told apart from the drawing's: the sheet (every frame), the
   // night's mask (every frame at night), the ground's own picture (when it has changed). A texture not changed is not sent again.
@@ -349,7 +372,7 @@ export class Ground3D {
   // every lit material in the scene but the land's own (which wears the mask already, in the sheet laid over it) reads the dark
   // at its place and is dimmed by it. Done once for each material as it turns up; the glowing ones (lamps, flames) are left alone.
   _night() {
-    const U = this, skip = (m) => !m || m._gcNight || !(m.isMeshLambertMaterial || (m.userData && m.userData.scan));     // (GC 0.91: and the photoscans)
+    const U = this, skip = (m) => !m || m._gcNight || !(m.isMeshLambertMaterial || m.isMeshStandardMaterial);     // (GC 0.91: and the photoscans; GC 0.93: every Standard one, the units and props now among them)
     if (!this._nightSet) { this._nightSet = true; this.mat._gcNight = true; if (this.bmat) this.bmat._gcNight = true; }
     const fix = (m) => {
       if (skip(m)) return; m._gcNight = true;
@@ -373,22 +396,73 @@ export class Ground3D {
       try {
         const half = this.r.extensions.has('EXT_color_buffer_float') || this.r.extensions.has('EXT_color_buffer_half_float');
         const rt = new THREE.WebGLRenderTarget(W, H, { samples: 4, type: half ? THREE.HalfFloatType : THREE.UnsignedByteType, depthBuffer: true });
-        const mat = new THREE.ShaderMaterial({ uniforms: { t: { value: rt.texture }, uMode: { value: 0 } }, depthTest: false, depthWrite: false,
+        // (GC 0.93) the picture's depth is kept (resolved out of the four samples) for the contact shadows; they need a half-float target
+        const ao = half ? this._aoMake(W, H) : null; if (ao) { rt.depthTexture = new THREE.DepthTexture(W, H); rt.depthTexture.minFilter = rt.depthTexture.magFilter = THREE.NearestFilter; ao.occ.uniforms.tD.value = rt.depthTexture; }
+        const mat = new THREE.ShaderMaterial({ uniforms: { t: { value: rt.texture }, uMode: { value: 0 }, tD: { value: ao ? rt.depthTexture : null }, tAo: { value: ao ? ao.a.texture : null }, uAoOn: { value: 0 }, uAoRes: { value: new THREE.Vector2(ao ? ao.w : 1, ao ? ao.h : 1) }, uNF: { value: new THREE.Vector2(5, 6000) } }, depthTest: false, depthWrite: false,
           vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
-          fragmentShader: `uniform sampler2D t; uniform int uMode; varying vec2 vUv;
+          fragmentShader: `uniform sampler2D t; uniform int uMode; uniform sampler2D tD; uniform sampler2D tAo; uniform float uAoOn; uniform vec2 uAoRes; uniform vec2 uNF; varying vec2 vUv;
             vec3 enc(vec3 c) { return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c)); }
             vec3 film(vec3 x) { x *= 1.05; return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0); }     // a film's curve: bright things roll off, dark things keep their depth
-            void main() { vec3 lin = texture2D(t, vUv).rgb; vec3 c = enc(uMode > 0 ? clamp(lin, 0.0, 1.0) : film(max(lin, 0.0)));
+            // (GC 0.93) the half-size contact shadows brought up to the full picture: of the four nearest, those at this pixel's depth
+            float aoAt() {
+              float zf = uNF.x * uNF.y / (uNF.y - texture2D(tD, vUv).x * (uNF.y - uNF.x)), tol = zf * 0.0012 + 0.05;
+              vec2 hp = vUv * uAoRes - 0.5, b = floor(hp), f = fract(hp); float s = 0.0, w = 0.0;
+              for (int i = 0; i < 4; i++) { vec2 o = vec2(float(i - (i / 2) * 2), float(i / 2)); vec2 a = textureLod(tAo, (b + o + 0.5) / uAoRes, 0.0).rg;
+                float k = (o.x > 0.5 ? f.x : 1.0 - f.x) * (o.y > 0.5 ? f.y : 1.0 - f.y) * (0.002 + 1.0 / (1.0 + pow(abs(a.g - zf) / tol, 2.0))); s += a.r * k; w += k; }     /* (a leaf half a metre over the ground does not take the ground's shadow) */
+              return s / max(w, 1e-4); }
+            void main() { vec3 lin = texture2D(t, vUv).rgb; if (uAoOn > 0.5) lin *= aoAt(); vec3 c = enc(uMode > 0 ? clamp(lin, 0.0, 1.0) : film(max(lin, 0.0)));
               if (uMode == 0) { float l = dot(c, vec3(0.2126, 0.7152, 0.0722)); c = mix(vec3(l), c, 0.86); }
               vec2 q = vUv - 0.5; c *= 1.0 - 0.22 * smoothstep(0.45, 1.0, length(q * vec2(1.0, 0.82)) * 1.45);     // darker toward the corners, as through a lens
               if (uMode > 0) { float l = dot(c, vec3(0.2126, 0.7152, 0.0722)); l = pow(l, 0.7); if (uMode == 2) l = 1.0 - l; l = clamp((l - 0.5) * 1.15 + 0.56, 0.0, 1.0) * 0.9; c = vec3(l); }     // (0.39) the infrared picture: dark ground is lifted before the contrast goes on, so land in shadow or out of sight is dim, not black
               gl_FragColor = vec4(c, 1.0); }` });
         const scene = new THREE.Scene(), quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mat); quad.frustumCulled = false; scene.add(quad);
-        this.post = { rt, mat, scene, cam: new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1), W, H };
+        this.post = { rt, mat, scene, quad, ao, cam: new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1), W, H };
       } catch (err) { console.warn('no post pass', err); this.post = null; return null; }
     }
-    const P = this.post; if (P.W !== W || P.H !== H) { P.rt.setSize(W, H); P.W = W; P.H = H; }
+    const P = this.post; if (P.W !== W || P.H !== H) { P.rt.setSize(W, H); P.W = W; P.H = H;
+      if (P.ao) { const A = P.ao; A.w = Math.max(1, W >> 1); A.h = Math.max(1, H >> 1); A.a.setSize(A.w, A.h); A.b.setSize(A.w, A.h); A.occ.uniforms.uRes.value.set(A.w, A.h); A.occ.uniforms.uFull.value.set(W, H); P.mat.uniforms.uAoRes.value.set(A.w, A.h); } }
     return P;
+  }
+  // (GC 0.93) the contact shadows' two half-size pictures (r: how open to the sky, g: the depth there in metres) and their two steps
+  _aoMake(W, H) {
+    try {
+      const w = Math.max(1, W >> 1), h = Math.max(1, H >> 1), tgt = () => new THREE.WebGLRenderTarget(w, h, { type: THREE.HalfFloatType, depthBuffer: false, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter });
+      const VS = 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }', LIN = 'uniform vec2 uNF; float lin(float d) { return uNF.x * uNF.y / (uNF.y - d * (uNF.y - uNF.x)); }';
+      const occ = new THREE.ShaderMaterial({ depthTest: false, depthWrite: false, vertexShader: VS,
+        uniforms: { tD: { value: null }, uNF: { value: new THREE.Vector2(5, 6000) }, uP: { value: new THREE.Vector4(1, 1, 0, 0) }, uRes: { value: new THREE.Vector2(w, h) }, uFull: { value: new THREE.Vector2(W, H) }, uR: { value: AO.r }, uK: { value: AO.k }, uFog: { value: new THREE.Vector2(400, 1600) } },
+        fragmentShader: `uniform sampler2D tD; uniform vec4 uP; uniform vec2 uRes; uniform vec2 uFull; uniform float uR; uniform float uK; uniform vec2 uFog; varying vec2 vUv; ${LIN}
+          vec3 vp(vec2 uv, float z) { vec2 n = uv * 2.0 - 1.0; return vec3(z * (n.x + uP.z) / uP.x, z * (n.y + uP.w) / uP.y, -z); }     // (the lens is off-centre: setViewOffset)
+          vec3 at(vec2 uv) { return vp(uv, lin(textureLod(tD, uv, 0.0).x)); }     // (explicit level: looked up inside a loop and a branch)
+          void main() {
+            float d = texture2D(tD, vUv).x; if (d >= 0.99999) { gl_FragColor = vec4(1.0, 1e4, 0.0, 1.0); return; }     // the haze past the land: open sky
+            float z = lin(d); vec3 p = vp(vUv, z); vec2 tx = 1.0 / uFull;
+            vec3 pr = at(vUv + vec2(tx.x, 0.0)), pl = at(vUv - vec2(tx.x, 0.0)), pu = at(vUv + vec2(0.0, tx.y)), pd = at(vUv - vec2(0.0, tx.y));
+            vec3 dx = abs(pr.z - p.z) < abs(p.z - pl.z) ? pr - p : p - pl, dy = abs(pu.z - p.z) < abs(p.z - pd.z) ? pu - p : p - pd;     // (the face's own slope, not across an edge)
+            vec3 n = normalize(cross(dx, dy)); if (dot(n, p) > 0.0) n = -n;
+            float rpx = min(uR * uP.y * 0.5 * uRes.y / z, 40.0), occ = 0.0;
+            if (rpx > 0.8) {
+              float a0 = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)))) * 6.2832;     // (turned pixel by pixel; the blur evens it out)
+              for (int i = 0; i < 12; i++) {
+                float t = (float(i) + 0.5) / 12.0, a = a0 + float(i) * 2.39996; vec2 su = vUv + vec2(cos(a), sin(a)) * t * rpx / uRes;
+                vec3 v = at(su) - p; float L = length(v), c = dot(v / max(L, 1e-4), n);
+                occ += max(0.0, c - 0.12) * clamp(1.0 - L / (uR * 1.6), 0.0, 1.0);
+              }
+              occ /= 12.0;
+            }
+            float ao = clamp(1.0 - occ * uK * 2.2, 0.48, 1.0);     // (never more than about half the light taken: deep in a plant, a leaf's own cut edge showed hard)
+            ao = mix(1.0, ao, 1.0 - smoothstep(uFog.x, uFog.x + (uFog.y - uFog.x) * 0.6, z));     // (fading into the haze, as everything does)
+            gl_FragColor = vec4(ao, z, 0.0, 1.0); }` });
+      const blur = new THREE.ShaderMaterial({ depthTest: false, depthWrite: false, vertexShader: VS,
+        uniforms: { tA: { value: null }, uDir: { value: new THREE.Vector2(1 / w, 0) }, uNF: { value: new THREE.Vector2(5, 6000) } },
+        fragmentShader: `uniform sampler2D tA; uniform vec2 uDir; varying vec2 vUv;
+          void main() {
+            vec2 c = texture2D(tA, vUv).rg; if (c.g > 9e3) { gl_FragColor = vec4(c, 0.0, 1.0); return; }
+            float tol = c.g * 0.0012 + 0.05, s = c.r, w = 1.0;
+            for (int i = 1; i <= 4; i++) { float g = exp(-float(i * i) / 10.0);
+              for (int sd = -1; sd <= 1; sd += 2) { vec2 q = textureLod(tA, vUv + uDir * float(i * sd), 0.0).rg; float k = g / (1.0 + pow(abs(q.g - c.g) / tol, 2.0)); s += q.r * k; w += k; } }
+            gl_FragColor = vec4(s / w, c.g, 0.0, 1.0); }` });
+      return { a: tgt(), b: tgt(), occ, blur, w, h };
+    } catch (err) { console.warn('no contact shadows', err); return null; }
   }
   // a point of the map, on the screen (pixels of the screen's own canvas)
   toScreen(x, z) { const v = this.v.set(x, this.y(x, z), z).applyMatrix4(this.pv); return [(v.x + 1) / 2 * this.W, (1 - v.y) / 2 * this.H]; }
